@@ -10,7 +10,7 @@ compatibility_date = "2025-01-01"
 # KV 命名空间绑定
 [[kv_namespaces]]
 binding = "DATA_KV"
-id = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"  # 部署后从 Dashboard 获取实际的 namespace_id
+id = "ff69992ea0034094913d4a6fa1e78075"  # 部署后从 Dashboard 获取实际的 namespace_id
 preview_id = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"  # 可选，用于本地开发预览
 
 # 可选：环境变量
