@@ -7,62 +7,23 @@ on:
   pull_request:
     branches:
       - main
-  workflow_dispatch:  # 允许手动触发
+  workflow_dispatch:
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    name: Deploy
     steps:
-      - name: Checkout 代码
+      - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
 
-      - name: 安装依赖
-        run: npm install
-
-      - name: 代码检查（可选）
-        run: |
-          echo "检查 worker 代码..."
-          node -e "
-            const fs = require('fs');
-            const code = fs.readFileSync('src/index.js', 'utf8');
-            if (code.includes('export default')) {
-              console.log('✅ Worker 代码检查通过');
-            } else {
-              console.error('❌ Worker 代码缺少 export default');
-              process.exit(1);
-            }
-            if (code.includes('env.DATA_KV')) {
-              console.log('✅ KV 绑定已配置');
-            } else {
-              console.warn('⚠️ 未检测到 KV 绑定');
-            }
-          "
-
-      - name: 部署到 Cloudflare Workers
+      - name: Deploy to Cloudflare Workers
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CF_API_TOKEN }}
           accountId: ${{ secrets.CF_ACCOUNT_ID }}
           command: deploy
-          # 可选：指定环境
-          # environment: production
-        env:
-          # 如果需要环境变量
-          # PIN_CODE: ${{ secrets.PIN_CODE }}
-
-      - name: 部署状态通知
-        if: always()
-        run: |
-          if [ ${{ job.status }} == 'success' ]; then
-            echo "✅ 部署成功！"
-            echo "🔗 访问地址: https://daily-work.你的子域.workers.dev"
-          else
-            echo "❌ 部署失败，请检查日志"
-          fi
