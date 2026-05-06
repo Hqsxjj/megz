@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes, viewport-fit=cover, shrink-to-fit=no">
+  <title>意向月历 · 客户可查</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg-app: #f4f7fc; --card-bg: rgba(255,255,255,0.94); --card-border: #e2edf2;
+      --text-main: #1f3a4b; --text-soft: #4b6f86; --text-light: #7f9aae;
+      --accent-wechat: #2c7da0; --accent-intent: #2f9e68;
+      --radius-ios: 24px; --radius-sm: 18px; --radius-xs: 14px;
+      --wechat-gradient: linear-gradient(135deg, #a8e6cf 0%, #56c596 50%, #2d9a6c 100%);
+      --intent-gradient: linear-gradient(135deg, #ffd194 0%, #ff9a3c 50%, #ff6d00 100%);
+      --today-gradient: linear-gradient(135deg, #ffecd2 0%, #fcb69f 50%, #ff8a65 100%);
+      --stats-gradient: linear-gradient(135deg, #e0f7fa 0%, #b2ebf2 50%, #4dd0e1 100%);
+    }
+    body.dark-mode {
+      --bg-app: #11161f; --card-bg: #1e2938e6; --card-border: #2d3a4a;
+      --text-main: #eef3fc; --text-soft: #afc4dc; --text-light: #829ab0;
+      --accent-wechat: #8fb9d4; --accent-intent: #9aceb0;
+    }
+    html, body { height: 100%; width: 100%; overflow: hidden; background: var(--bg-app); font-family: -apple-system, BlinkMacSystemFont, sans-serif; font-weight: 600; }
+    .privacy-mask { display: none; position: fixed; inset: 0; background: rgba(255,255,255,0.9); backdrop-filter: blur(20px); z-index: 9999; flex-direction: column; justify-content: center; align-items: center; gap: 2rem; }
+    body.page-hidden .privacy-mask { display: flex; }
+    body.page-hidden .app-shell { display: none; }
+    .pin-box { display: flex; flex-direction: column; align-items: center; gap: 20px; background: var(--card-bg); padding: 48px 56px; border-radius: var(--radius-ios); box-shadow: 0 20px 50px rgba(0,0,0,0.08); border: 1px solid var(--card-border); min-width: 340px; }
+    .pin-stats { display: flex; gap: 24px; margin-bottom: 8px; }
+    .pin-stat-item { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 20px 28px; background: rgba(255,255,255,0.8); border-radius: var(--radius-sm); border: 1px solid var(--card-border); min-width: 120px; }
+    .pin-stat-label { font-size: 0.85rem; font-weight: 700; color: var(--text-soft); }
+    .pin-stat-value { font-size: 2.4rem; font-weight: 900; }
+    .pin-wechat-value { background: var(--wechat-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .pin-intent-value { background: var(--intent-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .pin-input { width: 180px; padding: 16px 20px; border-radius: var(--radius-xs); border: 1.5px solid var(--card-border); background: var(--card-bg); text-align: center; font-size: 1.4rem; letter-spacing: 6px; color: var(--text-main); outline: none; font-weight: 700; }
+    .pin-btn { background: var(--accent-wechat); border: none; color: white; padding: 14px 40px; border-radius: var(--radius-xs); font-weight: 700; cursor: pointer; width: 100%; font-size: 1rem; }
+    .pin-error { color: #c97a7a; font-size: 0.8rem; min-height: 20px; font-weight: 600; }
+    .app-shell { height: 100%; display: flex; flex-direction: column; overflow: hidden; }
+    .container { flex: 1; padding: 14px 18px 12px; overflow-y: auto; }
+    .header-bar { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 20px; padding-bottom: 6px; border-bottom: 1px solid var(--card-border); }
+    h3 { font-size: 1.45rem; font-weight: 800; color: var(--text-main); }
+    .date-chip { background: var(--card-bg); padding: 4px 12px; border-radius: var(--radius-xs); font-size: 0.75rem; font-weight: 700; color: var(--text-soft); border: 1px solid var(--card-border); }
+    .sync-status { position: fixed; top: 10px; right: 10px; z-index: 10000; font-size: 0.7rem; padding: 4px 10px; border-radius: var(--radius-xs); background: var(--card-bg); color: var(--text-soft); border: 1px solid var(--card-border); opacity: 0; transition: opacity 0.3s; }
+    .sync-status.show { opacity: 1; }
+    .two-columns { display: flex; gap: 20px; }
+    .left-area { flex: 1.2; display: flex; flex-direction: column; gap: 16px; }
+    .right-area { flex: 2.2; display: flex; flex-direction: column; gap: 18px; }
+    .card { background: var(--card-bg); border-radius: var(--radius-ios); border: 1px solid var(--card-border); padding: 18px 20px; }
+    .counter-row { display: flex; gap: 14px; }
+    .counter-card { flex: 1; border-radius: var(--radius-sm); padding: 12px; border: 1px solid var(--card-border); position: relative; overflow: hidden; }
+    .wechat-fill { background: var(--wechat-gradient); color: white; }
+    .intent-fill { background: var(--intent-gradient); color: white; }
+    .counter-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; position: relative; z-index: 1; }
+    .counter-label { font-size: 0.8rem; font-weight: 700; color: rgba(255,255,255,0.95); }
+    .counter-value { font-size: 2.8rem; font-weight: 800; line-height: 1; position: relative; z-index: 1; }
+    .button-group { display: flex; gap: 12px; margin-top: 12px; position: relative; z-index: 1; }
+    .circle-btn { width: 40px; height: 40px; border-radius: var(--radius-xs); background: rgba(255,255,255,0.35); border: 1px solid rgba(255,255,255,0.5); font-size: 1.5rem; display: flex; align-items: center; justify-content: center; cursor: pointer; color: white; font-weight: 700; }
+    .stats-row { display: flex; gap: 10px; }
+    .stat-block { flex: 1; text-align: center; border-radius: var(--radius-sm); padding: 10px 4px; border: 1px solid var(--card-border); background: var(--stats-gradient); color: white; }
+    .stat-block .label { font-size: 0.7rem; font-weight: 600; opacity: 0.9; }
+    .stat-block .number { font-size: 1.35rem; font-weight: 800; margin-left: 4px; }
+    .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; text-align: center; }
+    .cal-day { aspect-ratio: 1/1; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: var(--radius-xs); font-size: 0.7rem; font-weight: 700; color: var(--text-main); cursor: pointer; transition: 0.2s; }
+    .cal-day.today { background: var(--today-gradient); color: white; box-shadow: 0 0 20px rgba(255,138,101,0.5); }
+    .register-block { display: flex; flex-direction: column; gap: 12px; }
+    .input-simple { flex: 1; background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radius-xs); padding: 10px 16px; font-size: 0.85rem; color: var(--text-main); outline: none; font-weight: 600; }
+    .btn-add { background: var(--accent-intent); color: white; border: none; border-radius: var(--radius-xs); padding: 10px 22px; font-weight: 700; cursor: pointer; }
+    .client-scroll { max-height: 220px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+    .client-row { background: var(--card-bg); border-radius: var(--radius-sm); padding: 10px 14px; display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem; border: 1px solid var(--card-border); font-weight: 600; }
+    .todo-section { margin-top: 0; }
+    .todo-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; max-height: 200px; overflow-y: auto; }
+    .todo-item { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: var(--card-bg); border-radius: var(--radius-xs); border: 1px solid var(--card-border); font-size: 0.8rem; font-weight: 600; }
+    .todo-input-row { display: flex; gap: 8px; align-items: center; }
+    .todo-input { flex: 1; background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radius-xs); padding: 8px 14px; font-size: 0.8rem; color: var(--text-main); outline: none; font-weight: 600; }
+    .todo-add-btn { background: var(--accent-wechat); color: white; border: none; border-radius: var(--radius-xs); padding: 8px 18px; font-weight: 700; cursor: pointer; }
+    .memo-area { width: 100%; background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radius-sm); padding: 12px; font-size: 0.75rem; color: var(--text-main); resize: vertical; line-height: 1.5; font-weight: 600; }
+    @media (max-width: 760px) { .two-columns { flex-direction: column; } .right-area { order: 1; } .left-area { order: 2; } }
+  </style>
+</head>
+<body>
+<div class="sync-status" id="syncStatus">☁️ 已同步</div>
+<div class="privacy-mask" id="privacyMask">
+  <div class="pin-box">
+    <div class="pin-stats">
+      <div class="pin-stat-item"><span class="pin-stat-label">今日微信</span><span class="pin-stat-value pin-wechat-value" id="pinWechatNum">0</span></div>
+      <div class="pin-stat-item"><span class="pin-stat-label">今日意向</span><span class="pin-stat-value pin-intent-value" id="pinIntentNum">0</span></div>
+    </div>
+    <input type="password" class="pin-input" id="pinInput" placeholder="PIN" maxlength="6" inputmode="numeric">
+    <button class="pin-btn" id="pinUnlockBtn">解锁</button>
+    <div class="pin-error" id="pinError"></div>
+  </div>
+</div>
+<div class="app-shell">
+  <div class="container">
+    <div class="header-bar">
+      <div class="title-section"><h3>意向月历</h3><div class="date-chip" id="liveDate"></div></div>
+      <div class="action-group">
+        <button class="icon-simple" id="syncNowBtn" style="background:var(--card-bg);border:1px solid var(--card-border);width:34px;height:34px;border-radius:var(--radius-xs);cursor:pointer;">☁️</button>
+        <button class="icon-simple" id="hideBtn" style="background:var(--card-bg);border:1px solid var(--card-border);width:34px;height:34px;border-radius:var(--radius-xs);cursor:pointer;">👁</button>
+        <button class="icon-simple" id="darkToggleBtn" style="background:var(--card-bg);border:1px solid var(--card-border);width:34px;height:34px;border-radius:var(--radius-xs);cursor:pointer;">🌙</button>
+      </div>
+    </div>
+    <div class="two-columns">
+      <div class="left-area">
+        <div class="counter-row">
+          <div class="counter-card wechat-fill">
+            <div class="counter-header"><span class="counter-label">今日微信</span><button class="reset-mini" id="resetWechatToday" style="background:rgba(255,255,255,0.3);border:none;color:white;padding:4px 8px;border-radius:var(--radius-xs);cursor:pointer;">↺</button></div>
+            <div class="counter-value" id="wechatNum">0</div>
+            <div class="button-group"><button class="circle-btn" id="wechatMinus">−</button><button class="circle-btn" id="wechatPlus">+</button></div>
+          </div>
+          <div class="counter-card intent-fill">
+            <div class="counter-header"><span class="counter-label">今日意向</span><button class="reset-mini" id="resetIntentToday" style="background:rgba(255,255,255,0.3);border:none;color:white;padding:4px 8px;border-radius:var(--radius-xs);cursor:pointer;">↺</button></div>
+            <div class="counter-value" id="intentNum">0</div>
+            <div class="button-group"><button class="circle-btn" id="intentMinus">−</button><button class="circle-btn" id="intentPlus">+</button></div>
+          </div>
+        </div>
+        <div class="stats-row">
+          <div class="stat-block"><span class="label">本周微信</span><span class="number" id="weekWechat">0</span></div>
+          <div class="stat-block"><span class="label">本月微信</span><span class="number" id="monthWechat">0</span></div>
+          <div class="stat-block"><span class="label">本周意向</span><span class="number" id="weekIntent">0</span></div>
+          <div class="stat-block"><span class="label">本月意向</span><span class="number" id="monthIntent">0</span></div>
+        </div>
+        <div class="card calendar-compact"><div class="cal-head" id="calMonthTitle"></div><div class="cal-grid" id="calGrid"></div><div style="font-size:0.55rem;text-align:center;margin-top:6px;color:var(--text-light);">点击日期查看意向客户</div></div>
+      </div>
+      <div class="right-area">
+        <div class="card">
+          <div style="font-weight:700;margin-bottom:14px;font-size:0.9rem;">📋 意向登记</div>
+          <div class="register-block">
+            <div style="display:flex;gap:8px;"><input type="text" class="input-simple" id="custName" placeholder="姓名" autocomplete="off"><input type="text" class="input-simple" id="custPhone" placeholder="电话" autocomplete="off"></div>
+            <input type="text" class="input-simple" id="custNote" placeholder="沟通记录 (必填)" autocomplete="off">
+            <button class="btn-add" id="addClientBtn">+ 添加</button>
+            <div class="client-scroll" id="clientList"></div>
+          </div>
+        </div>
+        <div class="card"><div class="todo-section"><div class="todo-title" style="font-weight:700;margin-bottom:10px;">📝 今日待办</div><div class="todo-list" id="todayTodoList"></div></div></div>
+        <div class="card"><div class="todo-section"><div class="todo-title" style="font-weight:700;margin-bottom:10px;">📅 明日待办</div><div class="todo-list" id="tomorrowTodoList"></div><div class="todo-input-row"><input type="text" class="todo-input" id="todoInput" placeholder="添加明日待办..." autocomplete="off"><button class="todo-add-btn" id="addTodoBtn">+ 添加</button></div></div></div>
+        <div class="card"><div style="font-size:0.8rem;font-weight:700;margin-bottom:8px;">📌 备忘录</div><textarea rows="3" class="memo-area" id="memoField" placeholder="待办、备注..."></textarea></div>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="globalTooltip" style="position:fixed;background:#1e2f3c;color:#f0f6fa;padding:6px 14px;border-radius:28px;font-size:0.7rem;pointer-events:none;z-index:1100;opacity:0;"></div>
+<div id="dateModal" style="position:fixed;inset:0;background:rgba(30,35,48,0.75);backdrop-filter:blur(4px);z-index:2000;display:flex;align-items:center;justify-content:center;visibility:hidden;opacity:0;">
+  <div style="background:var(--card-bg);border-radius:var(--radius-ios);width:380px;max-width:90vw;max-height:70vh;padding:20px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;font-weight:700;padding-bottom:8px;border-bottom:1px solid var(--card-border);"><span id="modalDateTitle"></span><button id="closeModalBtn" style="background:none;border:none;font-size:1.2rem;cursor:pointer;">✕</button></div>
+    <div id="modalClientList" style="overflow-y:auto;display:flex;flex-direction:column;gap:10px;max-height:50vh;margin-top:12px;"></div>
+  </div>
+</div>
+<script>
+(function(){
+  const API_BASE = 'https://yixiang-calendar.zhouyong19921215.workers.dev';
+  const DEFAULT_PIN = '8520';
+  const WECHAT_KEY='wechat_slim_v2',INTENT_KEY='intent_slim_v2',CLIENTS_KEY='clients_slim_v2',MEMO_KEY='memo_slim_v2',LAST_RESET_KEY='month_reset_slim_v2',DARK_KEY='dark_slim_mode',LOCK_KEY='page_locked_state',TODAY_TODO_KEY='today_todo_v1',TOMORROW_TODO_KEY='tomorrow_todo_v1';
+  let isSyncing=false;
+  const getTodayStr=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`};
+  const getCurrentMonth=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`};
+  const getCurrentTime=()=>{const n=new Date();return `${String(n.getHours()).padStart(2,'0')}:${String(n.getMinutes()).padStart(2,'0')}:${String(n.getSeconds()).padStart(2,'0')}`};
+  const loadMap=k=>{try{return JSON.parse(localStorage.getItem(k))||{}}catch(e){return{}}};
+  const saveMap=(k,v)=>localStorage.setItem(k,JSON.stringify(v));
+  function showSyncStatus(t){const el=document.getElementById('syncStatus');el.textContent=t;el.classList.add('show');clearTimeout(el._t);el._t=setTimeout(()=>el.classList.remove('show'),2000)};
+  function packData(){return{wechat:loadMap(WECHAT_KEY),intent:loadMap(INTENT_KEY),clients:JSON.parse(localStorage.getItem(CLIENTS_KEY)||'[]'),memo:localStorage.getItem(MEMO_KEY)||'',todayTodo:JSON.parse(localStorage.getItem(TODAY_TODO_KEY)||'[]'),tomorrowTodo:JSON.parse(localStorage.getItem(TOMORROW_TODO_KEY)||'[]'),darkMode:localStorage.getItem(DARK_KEY)==='true',lastReset:localStorage.getItem(LAST_RESET_KEY)||''}};
+  async function fetchCloud(){try{const r=await fetch(`${API_BASE}/api/data`);const j=await r.json();if(j.success&&j.data){const d=j.data;saveMap(WECHAT_KEY,d.wechat||{});saveMap(INTENT_KEY,d.intent||{});localStorage.setItem(CLIENTS_KEY,JSON.stringify(d.clients||[]));localStorage.setItem(MEMO_KEY,d.memo||'');localStorage.setItem(TODAY_TODO_KEY,JSON.stringify(d.todayTodo||[]));localStorage.setItem(TOMORROW_TODO_KEY,JSON.stringify(d.tomorrowTodo||[]));localStorage.setItem(DARK_KEY,d.darkMode?'true':'false');if(d.lastReset)localStorage.setItem(LAST_RESET_KEY,d.lastReset);return true}return false}catch(e){return false}};
+  async function uploadCloud(){if(isSyncing)return;isSyncing=true;try{const d=packData();const r=await fetch(`${API_BASE}/api/data`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin:DEFAULT_PIN,data:d})});const j=await r.json();if(j.success){showSyncStatus('☁️ 已同步')}else{showSyncStatus('同步失败')}}catch(e){showSyncStatus('网络错误')}finally{isSyncing=false}};
+  function autoReset(){const c=getCurrentMonth();const l=localStorage.getItem(LAST_RESET_KEY);if(l!==c){localStorage.setItem(WECHAT_KEY,'{}');localStorage.setItem(INTENT_KEY,'{}');localStorage.setItem(LAST_RESET_KEY,c)}};
+  function getWeekTotal(m){const t=new Date();const dow=t.getDay();const diff=dow===0?6:dow-1;const mon=new Date(t);mon.setDate(t.getDate()-diff);const ms=`${mon.getFullYear()}-${String(mon.getMonth()+1).padStart(2,'0')}-${String(mon.getDate()).padStart(2,'0')}`;let s=0;for(let[d,v]of Object.entries(m))if(d>=ms&&d<=getTodayStr())s+=v;return s};
+  function getMonthTotal(m){const p=getTodayStr().slice(0,7);let s=0;for(let[d,v]of Object.entries(m))if(d.startsWith(p))s+=v;return s};
+  function esc(s){return String(s).replace(/[&<>]/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;' })[m])};
+  function showClients(ds){const c=JSON.parse(localStorage.getItem(CLIENTS_KEY)||'[]').filter(x=>x.date===ds);document.getElementById('modalDateTitle').innerText=ds+' 意向客户';const ml=document.getElementById('modalClientList');ml.innerHTML=c.length===0?'<div style="text-align:center;color:var(--text-light);padding:20px;">📭 当日无意向客户记录</div>':c.map(x=>`<div style="background:var(--card-bg);border-radius:18px;padding:10px 12px;border:1px solid var(--card-border);"><div><span style="font-weight:800;">${esc(x.name)}</span><span style="font-size:0.75rem;color:var(--text-soft);margin-left:8px;">${esc(x.phone)}</span></div>${x.time?`<div style="font-size:0.65rem;color:var(--text-light);margin-top:2px;">⏰ ${esc(x.time)}</div>`:''}${x.note?`<div style="font-size:0.7rem;color:var(--text-light);margin-top:4px;">📝 ${esc(x.note)}</div>`:''}</div>`).join('');document.getElementById('dateModal').style.visibility='visible';document.getElementById('dateModal').style.opacity='1'};
+  function closeModal(){document.getElementById('dateModal').style.visibility='hidden';document.getElementById('dateModal').style.opacity='0'};
+  function renderCal(wm,im){const td=new Date();const y=td.getFullYear();const m=td.getMonth();const fd=new Date(y,m,1);let si=(fd.getDay()+6)%7;const dim=new Date(y,m+1,0).getDate();const ts=getTodayStr();document.getElementById('calMonthTitle').innerHTML=`${y}年 ${['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'][m]}`;let g='';'一二三四五六日'.split('').forEach(d=>{g+=`<div style="font-size:0.65rem;font-weight:700;color:var(--text-light);padding:4px 0;">${d}</div>`});for(let i=0;i<si;i++)g+='<div class="cal-day"></div>';for(let d=1;d<=dim;d++){const ds=`${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;const wv=wm[ds]||0,iv=im[ds]||0;let bh='';if(wv>0||iv>0)bh=`<div style="display:flex;gap:3px;font-size:0.5rem;margin-top:2px;">${wv>0?`<span style="background:rgba(100,110,130,0.15);padding:0 3px;border-radius:10px;">📋${wv}</span>`:''}${iv>0?`<span style="background:rgba(100,110,130,0.15);padding:0 3px;border-radius:10px;">🎯${iv}</span>`:''}</div>`;g+=`<div class="cal-day${ds===ts?' today':''}" data-date="${ds}"><div>${d}</div>${bh}</div>`}document.getElementById('calGrid').innerHTML=g;document.querySelectorAll('.cal-day[data-date]').forEach(c=>{c.addEventListener('click',()=>showClients(c.dataset.date))})};
+  function modCounter(k,d){const data=loadMap(k);const t=getTodayStr();let v=(data[t]||0)+d;if(v<0)v=0;if(v===0)delete data[t];else data[t]=v;saveMap(k,data);refreshAll();uploadCloud()};
+  function resetToday(k){const data=loadMap(k);delete data[getTodayStr()];saveMap(k,data);refreshAll();uploadCloud()};
+  function renderClients(){const c=JSON.parse(localStorage.getItem(CLIENTS_KEY)||'[]');const ct=document.getElementById('clientList');ct.innerHTML=c.map((x,i)=>`<div class="client-row"><div style="flex:1;display:flex;flex-wrap:wrap;gap:6px;align-items:baseline;"><span style="font-weight:700;">${esc(x.name)}</span><span style="color:var(--text-soft);font-size:0.75rem;">${esc(x.phone)}</span>${x.note?`<span style="color:var(--text-light);font-size:0.75rem;">📝 ${esc(x.note)}</span>`:''}<span style="color:var(--text-light);font-size:0.65rem;">⏰ ${esc(x.time||'')}</span></div><button style="background:none;border:none;color:#c97a7a;cursor:pointer;" data-idx="${i}">✕</button></div>`).join('');ct.querySelectorAll('button').forEach(b=>{b.addEventListener('click',()=>{const arr=JSON.parse(localStorage.getItem(CLIENTS_KEY)||'[]');arr.splice(parseInt(b.dataset.idx),1);localStorage.setItem(CLIENTS_KEY,JSON.stringify(arr));renderClients();refreshAll();uploadCloud()})})};
+  function lt(k){try{return JSON.parse(localStorage.getItem(k)||'[]')}catch(e){return[]}};
+  function st(k,v){localStorage.setItem(k,JSON.stringify(v))};
+  function renderTodos(){const tt=lt(TODAY_TODO_KEY),tm=lt(TOMORROW_TODO_KEY);document.getElementById('todayTodoList').innerHTML=tt.length===0?'<div style="font-size:0.75rem;color:var(--text-light);padding:6px;">暂无待办</div>':tt.map((t,i)=>`<div class="todo-item"><span style="font-weight:800;color:var(--accent-wechat);min-width:20px;">${i+1}.</span><span style="flex:1;">${esc(t)}</span></div>`).join('');document.getElementById('tomorrowTodoList').innerHTML=tm.length===0?'<div style="font-size:0.75rem;color:var(--text-light);padding:6px;">暂无待办</div>':tm.map((t,i)=>`<div class="todo-item"><span style="font-weight:800;color:var(--accent-wechat);min-width:20px;">${i+1}.</span><span style="flex:1;">${esc(t)}</span><button style="background:none;border:none;color:#c97a7a;cursor:pointer;" data-idx="${i}">✕</button></div>`).join('');document.querySelectorAll('#tomorrowTodoList button').forEach(b=>{b.addEventListener('click',()=>{const arr=lt(TOMORROW_TODO_KEY);arr.splice(parseInt(b.dataset.idx),1);st(TOMORROW_TODO_KEY,arr);renderTodos();uploadCloud()})})};
+  function addTodo(){const inp=document.getElementById('todoInput');const txt=inp.value.trim();if(!txt)return;const arr=lt(TOMORROW_TODO_KEY);arr.push(txt);st(TOMORROW_TODO_KEY,arr);inp.value='';renderTodos();uploadCloud()};
+  function addClient(){const n=document.getElementById('custName').value.trim(),p=document.getElementById('custPhone').value.trim(),nt=document.getElementById('custNote').value.trim();if(!n||!p){alert('请填写姓名和电话');return}if(!nt){alert('沟通记录为必填项');return}const list=JSON.parse(localStorage.getItem(CLIENTS_KEY)||'[]');const t=getTodayStr();list.push({name:n,phone:p,note:nt,date:t,time:getCurrentTime()});localStorage.setItem(CLIENTS_KEY,JSON.stringify(list));const idata=loadMap(INTENT_KEY);idata[t]=(idata[t]||0)+1;saveMap(INTENT_KEY,idata);['custName','custPhone','custNote'].forEach(id=>document.getElementById(id).value='');renderClients();refreshAll();uploadCloud()};
+  function refreshAll(){autoReset();const wm=loadMap(WECHAT_KEY),im=loadMap(INTENT_KEY),t=getTodayStr();const wt=wm[t]||0,it=im[t]||0;document.getElementById('wechatNum').innerText=wt;document.getElementById('intentNum').innerText=it;document.getElementById('pinWechatNum').innerText=wt;document.getElementById('pinIntentNum').innerText=it;document.getElementById('weekWechat').innerText=getWeekTotal(wm);document.getElementById('monthWechat').innerText=getMonthTotal(wm);document.getElementById('weekIntent').innerText=getWeekTotal(im);document.getElementById('monthIntent').innerText=getMonthTotal(im);const nw=new Date();document.getElementById('liveDate').innerHTML=`${nw.getMonth()+1}月${nw.getDate()}日 ${['周日','周一','周二','周三','周四','周五','周六'][nw.getDay()]}`;renderCal(wm,im);renderClients();renderTodos();document.getElementById('memoField').value=localStorage.getItem(MEMO_KEY)||''};
+  function initDark(){const isDark=localStorage.getItem(DARK_KEY)==='true';if(isDark)document.body.classList.add('dark-mode');document.getElementById('darkToggleBtn').addEventListener('click',()=>{document.body.classList.toggle('dark-mode');localStorage.setItem(DARK_KEY,document.body.classList.contains('dark-mode'));uploadCloud()})};
+  function isLocked(){return localStorage.getItem(LOCK_KEY)==='true'};
+  function setLocked(l){if(l){localStorage.setItem(LOCK_KEY,'true');document.body.classList.add('page-hidden')}else{localStorage.setItem(LOCK_KEY,'false');document.body.classList.remove('page-hidden')}};
+  document.getElementById('pinUnlockBtn').addEventListener('click',async()=>{if(document.getElementById('pinInput').value.trim()===DEFAULT_PIN){setLocked(false);document.getElementById('pinInput').value='';document.getElementById('pinError').innerText='';await fetchCloud();refreshAll()}else{document.getElementById('pinError').innerText='PIN码错误';document.getElementById('pinInput').value=''}});
+  document.getElementById('pinInput').addEventListener('keypress',e=>{if(e.key==='Enter')document.getElementById('pinUnlockBtn').click()});
+  document.getElementById('hideBtn').addEventListener('click',()=>{setLocked(true);document.getElementById('pinInput').value='';document.getElementById('pinError').innerText=''});
+  window.addEventListener('keydown',e=>{if(e.ctrlKey&&e.key==='z'){const a=document.activeElement;if(a&&(a.tagName==='INPUT'||a.tagName==='TEXTAREA'))return;e.preventDefault();if(document.body.classList.contains('page-hidden')){document.getElementById('pinError').innerText='请使用PIN解锁'}else{document.getElementById('hideBtn').click()}}});
+  window.addEventListener('keydown',e=>{if(e.key==='+'||e.key==='='){e.preventDefault();modCounter(WECHAT_KEY,1)}else if(e.key==='-'||e.key==='_'){e.preventDefault();modCounter(WECHAT_KEY,-1)}});
+  document.getElementById('wechatPlus').addEventListener('click',()=>modCounter(WECHAT_KEY,1));
+  document.getElementById('wechatMinus').addEventListener('click',()=>modCounter(WECHAT_KEY,-1));
+  document.getElementById('resetWechatToday').addEventListener('click',()=>resetToday(WECHAT_KEY));
+  document.getElementById('intentPlus').addEventListener('click',()=>modCounter(INTENT_KEY,1));
+  document.getElementById('intentMinus').addEventListener('click',()=>modCounter(INTENT_KEY,-1));
+  document.getElementById('resetIntentToday').addEventListener('click',()=>resetToday(INTENT_KEY));
+  document.getElementById('addClientBtn').addEventListener('click',addClient);
+  document.getElementById('addTodoBtn').addEventListener('click',addTodo);
+  document.getElementById('todoInput').addEventListener('keypress',e=>{if(e.key==='Enter')addTodo()});
+  ['custName','custPhone','custNote'].forEach(id=>document.getElementById(id).addEventListener('keypress',e=>{if(e.key==='Enter')addClient()}));
+  document.getElementById('memoField').addEventListener('input',e=>{localStorage.setItem(MEMO_KEY,e.target.value);clearTimeout(window._ms);window._ms=setTimeout(()=>uploadCloud(),1500)});
+  document.getElementById('closeModalBtn').addEventListener('click',closeModal);
+  document.getElementById('dateModal').addEventListener('click',e=>{if(e.target===document.getElementById('dateModal'))closeModal()});
+  document.getElementById('syncNowBtn').addEventListener('click',()=>{showSyncStatus('同步中...');uploadCloud()});
+  initDark();
+  if(!isLocked()){setLocked(false);fetchCloud().then(()=>refreshAll())}else{document.body.classList.add('page-hidden')}
+  refreshAll();
+  setInterval(()=>{if(!document.body.classList.contains('page-hidden'))refreshAll()},60000);
+  setInterval(()=>{if(!document.body.classList.contains('page-hidden'))uploadCloud()},30000);
+})();
+</script>
+</body>
+</html>
