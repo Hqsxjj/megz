@@ -1,8 +1,0 @@
-name = "yixiang-calendar"
-main = "worker/index.js"
-compatibility_date = "2025-05-06"
-
-[[kv_namespaces]]
-binding = "DATA_KV"
-id = "你的KV_ID填这里"
-preview_id = "你的KV_ID填这里"
