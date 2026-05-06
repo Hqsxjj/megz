@@ -1,0 +1,25 @@
+name = "daily-work"
+main = "src/index.js"
+compatibility_date = "2025-01-01"
+
+# Workers 可以通过 routes 或 custom_domain 绑定域名
+# routes = [
+#   { pattern = "work.yourdomain.com", custom_domain = true }
+# ]
+
+# KV 命名空间绑定
+[[kv_namespaces]]
+binding = "DATA_KV"
+id = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"  # 部署后从 Dashboard 获取实际的 namespace_id
+preview_id = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"  # 可选，用于本地开发预览
+
+# 可选：环境变量
+[vars]
+# PIN_CODE = "8520"  # 如果需要通过环境变量配置
+
+# 可选：多个环境
+[env.production]
+# 生产环境特有配置
+
+[env.staging]
+# 预发布环境特有配置
