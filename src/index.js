@@ -193,8 +193,8 @@ export default {
     body.dark-mode .wallpaper-fallback { background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%); opacity: 0.35; }
     .privacy-mask { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.3); backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px); z-index: 9999; flex-direction: column; justify-content: center; align-items: center; gap: 2rem; color: var(--text-main); font-weight: 600; pointer-events: none; }
     .privacy-wallpaper { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 9998; background-image: var(--wallpaper-url); background-size: cover; background-position: center; background-repeat: no-repeat; opacity: 0; transition: opacity 0.5s ease; pointer-events: none; }
-    body.page-hidden .privacy-wallpaper { opacity: 0.21; pointer-events: auto; }
-    body.dark-mode body.page-hidden .privacy-wallpaper { opacity: 0.18; }
+    body.page-hidden .privacy-wallpaper { opacity: 0.55; pointer-events: auto; }
+    body.dark-mode.page-hidden .privacy-wallpaper { opacity: 0.50; }
     body.page-hidden .privacy-mask { display: flex; pointer-events: auto; }
     body.page-hidden .app-shell { display: none; }
     .pin-box { display: flex; flex-direction: column; align-items: center; gap: 28px; background: rgba(255,255,255,0.75); padding: 56px 64px; border-radius: var(--radius-ios); box-shadow: 0 25px 60px rgba(0,0,0,0.15), 0 0 0 1px rgba(255,255,255,0.3); border: 1px solid rgba(255,255,255,0.5); min-width: 420px; max-width: 500px; backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); transition: all 0.3s ease; }
@@ -343,8 +343,8 @@ export default {
       <div class="pin-stat-item"><span class="pin-stat-label">今日微信</span><span class="pin-stat-value pin-wechat-value" id="pinWechatNum">0</span></div>
       <div class="pin-stat-item"><span class="pin-stat-label">今日意向</span><span class="pin-stat-value pin-intent-value" id="pinIntentNum">0</span></div>
     </div>
-    <input type="password" class="pin-input" id="pinInput" placeholder="输入PIN码" maxlength="6" inputmode="numeric" autofocus>
-    <button class="pin-btn" id="pinUnlockBtn">🔓 解锁进入</button>
+    <input type="password" class="pin-input" id="pinInput" placeholder="" maxlength="6" inputmode="numeric" autofocus>
+    <button class="pin-btn" id="pinUnlockBtn">解锁进入</button>
     <div class="pin-error" id="pinError"></div>
   </div>
 </div>
