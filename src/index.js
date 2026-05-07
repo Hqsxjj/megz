@@ -670,13 +670,30 @@ export default {
           if(!noteDiv)return;
           const old=client.note||'';
           noteDiv.innerHTML='<textarea id="ein_'+idx+'" style="width:100%;min-height:50px;background:var(--btn-bg);border:1px solid var(--card-border);border-radius:8px;padding:6px 10px;font-size:0.75rem;color:var(--text-main);outline:none;font-weight:600;">'+esc(old)+'</textarea><div style="display:flex;gap:6px;margin-top:4px;"><button id="sn_'+idx+'" style="font-size:0.65rem;background:var(--accent-wechat);color:#fff;border:none;border-radius:8px;cursor:pointer;padding:3px 10px;">保存</button><button id="cn_btn_'+idx+'" style="font-size:0.65rem;background:var(--btn-bg);border:1px solid var(--card-border);color:var(--text-soft);border-radius:8px;cursor:pointer;padding:3px 10px;">取消</button></div>';
-          document.getElementById('sn_'+idx).addEventListener('click',()=>{
+          document.getElementById('sn_'+idx).addEventListener('click',async ()=>{
             const nn=document.getElementById('ein_'+idx).value.trim();
             const allClients=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
             const target=allClients.find(c=>c.date===dateStr&&c.name===ti.name&&c.phone===ti.phone);
             if(target){target.note=nn;localStorage.setItem(CLIENTS_K,JSON.stringify(allClients));}
             ti.note=nn;
-            syncToCloud(true).catch(()=>{});
+            // 保存到该日期对应的KV记录
+            try{
+              const existing=await cloudGet(dateStr);
+              const dayClients=allClients.filter(c=>c.date===dateStr);
+              const data={
+                date:dateStr,
+                wechatCount:existing?existing.wechatCount||0:0,
+                intentCount:existing?existing.intentCount||0:0,
+                clients:dayClients,
+                todayTodos:existing?existing.todayTodos||[]:[],
+                tomorrowTodos:existing?existing.tomorrowTodos||[]:[],
+                scripts:existing?existing.scripts||[]:[],
+                scriptsVer:existing?existing.scriptsVer||0:0,
+                learns:existing?existing.learns||[]:[],
+                learnsVer:existing?existing.learnsVer||0:0
+              };
+              await cloudSave(data);
+            }catch(e){}
             renderTl();
           });
           document.getElementById('cn_btn_'+idx).addEventListener('click',()=>renderTl());
