@@ -524,11 +524,19 @@ export default {
     if(!cloudDataLoaded)return;
     const today=getTodayStr();
     const wm=loadMap(WECHAT_K), im=loadMap(INTENT_K);
+    // 先拉云端当前值，取最大值避免旧数据覆盖手动更新
+    let cloudW=0, cloudI=0;
+    try{
+      const existing=await cloudGet(today);
+      if(existing){cloudW=existing.wechatCount||0;cloudI=existing.intentCount||0;}
+    }catch(e){}
+    const finalW=Math.max(wm[today]||0,cloudW);
+    const finalI=Math.max(im[today]||0,cloudI);
     const clients=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
     const data={
       date:today,
-      wechatCount:wm[today]||0,
-      intentCount:im[today]||0,
+      wechatCount:finalW,
+      intentCount:finalI,
       clients:clients.filter(c=>c.date===today),
       todayTodos:loadTodos(TODAY_TODO_K),
       tomorrowTodos:loadTodos(TOMORROW_TODO_K)
@@ -542,6 +550,9 @@ export default {
       data.clientsVer=getClientsVer();
     }
     await cloudSave(data);
+    // 本地也更新为合并后的值
+    if(finalW!==(wm[today]||0)){wm[today]=finalW;saveMap(WECHAT_K,wm);}
+    if(finalI!==(im[today]||0)){im[today]=finalI;saveMap(INTENT_K,im);}
   }
 
   async function loadFromCloud(date){
