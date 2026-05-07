@@ -24,8 +24,10 @@ export default {
         intentCount: 0,
         clients: [],
         todayTodos: [],
-        tomorrowTodos: []
+        tomorrowTodos: [],
+        lastLoadDate: date
       };
+      if (!data.lastLoadDate) data.lastLoadDate = date;
       return new Response(JSON.stringify(data), {
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
       });
@@ -48,6 +50,7 @@ export default {
         clients: clients || [],
         todayTodos: todayTodos || [],
         tomorrowTodos: tomorrowTodos || [],
+        lastLoadDate: date,
         lastModified: new Date().toISOString()
       };
       await env.DATA_KV.put(`work:${date}`, JSON.stringify(data));
@@ -216,11 +219,13 @@ export default {
     .title-section { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
     h3 { font-size: 1.45rem; font-weight: 800; letter-spacing: -0.2px; color: var(--text-main); }
     .date-chip { background: var(--card-bg); padding: 4px 12px; border-radius: var(--radius-xs); font-size: 0.75rem; font-weight: 700; color: var(--text-soft); border: 1px solid var(--card-border); }
-    .action-group { display: flex; gap: 8px; align-items: center; }
-    .icon-simple { background: var(--btn-bg); border: 1px solid var(--card-border); width: 34px; height: 34px; border-radius: var(--radius-xs); display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1rem; color: var(--text-soft); transition: 0.15s; user-select: none; font-weight: 600; }
-    .icon-simple:hover { background: var(--btn-hover); transform: scale(1.05); }
-    .refresh-wallpaper-btn.loading, .sync-btn.loading { animation: spin 0.8s linear infinite; pointer-events: none; opacity: 0.6; }
-    @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    .action-group { display: flex; gap: 10px; align-items: center; padding: 2px; }
+    .icon-simple { background: rgba(255,255,255,0.08); border: 1.2px solid rgba(179,179,179,0.15); width: 38px; height: 38px; border-radius: 12px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1.1rem; color: var(--text-soft); transition: all 0.2s cubic-bezier(0.34,1.56,0.64,1); user-select: none; font-weight: 600; backdrop-filter: blur(8px); position: relative; }
+    .icon-simple:hover { background: rgba(255,255,255,0.12); transform: translateY(-2px) scale(1.06); border-color: rgba(179,179,179,0.25); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+    .icon-simple:active { transform: translateY(0px) scale(0.98); }
+    .refresh-wallpaper-btn.loading, .sync-btn.loading { animation: spinSmooth 1s ease-in-out infinite; pointer-events: none; }
+    .refresh-wallpaper-btn.loading::after, .sync-btn.loading::after { content: ''; position: absolute; inset: -2px; border: 1.5px solid rgba(0,0,0,0); border-top-color: var(--accent-wechat); border-right-color: rgba(44,125,160,0.3); border-radius: 12px; animation: inherit; }
+    @keyframes spinSmooth { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     .two-columns { display: flex; gap: 20px; flex: 1; min-height: 0; }
     .left-area { flex: 1.2; display: flex; flex-direction: column; gap: 16px; min-width: 0; }
     .right-area { flex: 2.2; display: flex; flex-direction: column; gap: 18px; min-width: 0; }
@@ -351,7 +356,7 @@ export default {
         <button class="icon-simple sync-btn" id="syncBtn" title="云端同步">☁️</button>
         <button class="icon-simple refresh-wallpaper-btn" id="refreshWallpaperBtn" title="刷新壁纸">🖼</button>
         <button class="icon-simple" id="hideBtn" title="一键隐藏 (Ctrl+Z)">👁</button>
-        <button class="icon-simple" id="darkToggleBtn">🌙</button>
+        <button class="icon-simple" id="darkToggleBtn" title="深色模式">🌙</button>
       </div>
     </div>
     <div class="two-columns">
@@ -419,7 +424,7 @@ export default {
 (function(){
   const WECHAT_K='wechat_v3', INTENT_K='intent_v3', CLIENTS_K='clients_v3';
   const DARK_K='dark_mode', LOCK_K='locked', TODAY_TODO_K='today_todo_v2', TOMORROW_TODO_K='tomorrow_todo_v2';
-  const WALLPAPER_K='wp_cache';
+  const LAST_LOAD_DATE_K='last_load_date_v1', WALLPAPER_K='wp_cache';
   const DEFAULT_PIN='8520';
   const SYNC_INTERVAL=10000;
   let syncTimer=null;
@@ -466,9 +471,26 @@ export default {
       if(data.clients&&data.clients.length>0){let cl=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');cl=cl.filter(c=>c.date!==date);cl=cl.concat(data.clients);localStorage.setItem(CLIENTS_K,JSON.stringify(cl));}
       if(data.todayTodos&&data.todayTodos.length>0)saveTodos(TODAY_TODO_K,data.todayTodos);
       if(data.tomorrowTodos&&data.tomorrowTodos.length>0)saveTodos(TOMORROW_TODO_K,data.tomorrowTodos);
+      if(data.lastLoadDate)localStorage.setItem(LAST_LOAD_DATE_K,data.lastLoadDate);
       return true;
     }
     return false;
+  }
+
+  // ==================== 每日自动检查 ====================
+  function autoDailyReset(){
+    const todayStr=getTodayStr();
+    const lastLoadDate=localStorage.getItem(LAST_LOAD_DATE_K);
+    if(lastLoadDate&&lastLoadDate!==todayStr){
+      const tomorrow=loadTodos(TOMORROW_TODO_K);
+      if(tomorrow.length>0){
+        const today=loadTodos(TODAY_TODO_K);
+        saveTodos(TODAY_TODO_K,[...tomorrow,...today]);
+        saveTodos(TOMORROW_TODO_K,[]);
+        console.log('📅 已自动将前一天待办转移到今天');
+      }
+    }
+    localStorage.setItem(LAST_LOAD_DATE_K,todayStr);
   }
 
   // ==================== 渲染 ====================
@@ -624,7 +646,13 @@ export default {
   }
 
   // ==================== 初始化 ====================
-  function initDark(){if(localStorage.getItem(DARK_K)==='true')document.body.classList.add('dark-mode');document.getElementById('darkToggleBtn').addEventListener('click',()=>{document.body.classList.toggle('dark-mode');localStorage.setItem(DARK_K,document.body.classList.contains('dark-mode'));});}
+  function initDark(){
+    const btn=document.getElementById('darkToggleBtn');
+    const updateDarkTitle=()=>btn.title=document.body.classList.contains('dark-mode')?'☀️ 浅色模式':'🌙 深色模式';
+    if(localStorage.getItem(DARK_K)==='true')document.body.classList.add('dark-mode');
+    updateDarkTitle();
+    btn.addEventListener('click',()=>{document.body.classList.toggle('dark-mode');localStorage.setItem(DARK_K,document.body.classList.contains('dark-mode'));updateDarkTitle();});
+  }
   function isLocked(){return localStorage.getItem(LOCK_K)==='true';}
   function setLocked(l){if(l){localStorage.setItem(LOCK_K,'true');document.body.classList.add('page-hidden');}else{localStorage.setItem(LOCK_K,'false');document.body.classList.remove('page-hidden');}}
 
@@ -669,6 +697,7 @@ export default {
   // 首次加载从云端恢复数据
   (async()=>{
     await loadFromCloud(getTodayStr());
+    autoDailyReset();
     refreshAll();
     startSyncTimer();
   })();
