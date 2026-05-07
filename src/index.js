@@ -218,6 +218,9 @@ export default {
     .pin-btn:hover { opacity: 0.9; transform: translateY(-2px); box-shadow: 0 6px 20px rgba(44,125,160,0.4); }
     .pin-btn:active { transform: translateY(0); }
     .pin-error { color: #e74c3c; font-size: 0.9rem; min-height: 24px; font-weight: 600; letter-spacing: 0.5px; }
+    .notify-bar { position: fixed; top: 0; left: 0; right: 0; background: var(--accent-intent); color: #fff; padding: 12px 20px; font-size: 0.85rem; font-weight: 700; z-index: 10000; transform: translateY(-100%); transition: transform 0.3s ease; text-align: center; box-shadow: 0 4px 20px rgba(0,0,0,0.2); cursor: pointer; }
+    .notify-bar.show { transform: translateY(0); }
+    .notify-bar .notify-close { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); font-size: 1.1rem; opacity: 0.7; }
     .script-container { position: absolute; left: 20px; top: 80px; display: flex; flex-direction: column; gap: 10px; max-width: 420px; z-index: 1; }
     .script-module { text-align: center; padding: 16px 24px; background: rgba(255,255,255,0.75); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); border-radius: var(--radius-ios); border: 1px solid rgba(255,255,255,0.5); box-shadow: 0 25px 60px rgba(0,0,0,0.15), 0 0 0 1px rgba(255,255,255,0.3); cursor: grab; user-select: none; position: relative; font-size: 1rem; font-weight: 700; color: var(--text-main); line-height: 1.7; letter-spacing: 0.5px; }
     body.dark-mode .script-module { background: rgba(30,41,56,0.8); border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 25px 60px rgba(0,0,0,0.3); }
@@ -356,6 +359,7 @@ export default {
   </style>
 </head>
 <body>
+<div class="notify-bar" id="notifyBar" onclick="this.classList.remove('show')"><span id="notifyText"></span><span class="notify-close">✕</span></div>
 <div class="wallpaper-fallback"></div>
 <div class="wallpaper-background" id="wallpaperBackground"></div>
 <div class="privacy-wallpaper" id="privacyWallpaper"></div>
@@ -422,14 +426,14 @@ export default {
           <div class="todo-section">
             <div class="todo-title">✅ 今日待办</div>
             <div class="todo-list" id="todayTodoList"></div>
-            <div class="todo-input-row"><input type="text" class="todo-input" id="todayTodoInput" placeholder="添加今日待办..." autocomplete="off"><button class="todo-add-btn" id="addTodayTodoBtn">+ 添加</button></div>
+            <div class="todo-input-row"><input type="text" class="todo-input" id="todayTodoInput" placeholder="添加今日待办..." autocomplete="off"><input type="time" class="todo-input" id="todayRemindTime" style="flex:0 0 100px;font-size:0.7rem;padding:8px 4px;"><button class="todo-add-btn" id="addTodayTodoBtn">+ 添加</button></div>
           </div>
         </div>
         <div class="card">
           <div class="todo-section">
             <div class="todo-title">✅ 明日待办</div>
             <div class="todo-list" id="tomorrowTodoList"></div>
-            <div class="todo-input-row"><input type="text" class="todo-input" id="todoInput" placeholder="添加明日待办..." autocomplete="off"><button class="todo-add-btn" id="addTodoBtn">+ 添加</button></div>
+            <div class="todo-input-row"><input type="text" class="todo-input" id="todoInput" placeholder="添加明日待办..." autocomplete="off"><input type="time" class="todo-input" id="tomorrowRemindTime" style="flex:0 0 100px;font-size:0.7rem;padding:8px 4px;"><button class="todo-add-btn" id="addTodoBtn">+ 添加</button></div>
           </div>
         </div>
       </div>
@@ -607,8 +611,8 @@ export default {
     const tc=document.getElementById('todayTodoList'), mc=document.getElementById('tomorrowTodoList');
     const makeItem=(t,i,list)=>{
       const txt=typeof t==='string'?t:t.text;
-      const tm=t&&t.time?'<span style="font-size:0.6rem;color:var(--text-light);margin-left:6px;">'+esc(t.time)+'</span>':'';
-      return '<div class="todo-item"><span class="todo-number">'+(i+1)+'.</span><span class="todo-text">'+esc(txt)+tm+'</span><button class="todo-del-btn" data-idx="'+i+'" data-list="'+list+'">✕</button></div>';
+      const rm=t&&t.remind?' 🔔'+esc(t.remind):'';
+      return '<div class="todo-item"><span class="todo-number">'+(i+1)+'.</span><span class="todo-text">'+esc(txt)+rm+'</span><button class="todo-del-btn" data-idx="'+i+'" data-list="'+list+'">✕</button></div>';
     };
     tc.innerHTML=tt.length===0?'<div style="font-size:0.75rem;color:var(--text-light);padding:6px;">暂无待办</div>':tt.map((t,i)=>makeItem(t,i,'today')).join('');
     mc.innerHTML=tm.length===0?'<div style="font-size:0.75rem;color:var(--text-light);padding:6px;">暂无待办</div>':tm.map((t,i)=>makeItem(t,i,'tomorrow')).join('');
@@ -789,11 +793,13 @@ export default {
 
   function addTodayTodo(){
     const input=document.getElementById('todayTodoInput'),text=input.value.trim();
-    if(!text)return;const t=loadTodos(TODAY_TODO_K);t.push({text,time:getCurrentTime(),date:getTodayStr()});saveTodos(TODAY_TODO_K,t);input.value='';renderTodos();
+    if(!text)return;const remind=document.getElementById('todayRemindTime').value;
+    const t=loadTodos(TODAY_TODO_K);t.push({text,time:getCurrentTime(),date:getTodayStr(),remind:remind||''});saveTodos(TODAY_TODO_K,t);input.value='';document.getElementById('todayRemindTime').value='';renderTodos();
   }
   function addTodo(){
     const input=document.getElementById('todoInput'),text=input.value.trim();
-    if(!text)return;const t=loadTodos(TOMORROW_TODO_K);t.push({text,time:getCurrentTime(),date:getTodayStr()});saveTodos(TOMORROW_TODO_K,t);input.value='';renderTodos();
+    if(!text)return;const remind=document.getElementById('tomorrowRemindTime').value;
+    const t=loadTodos(TOMORROW_TODO_K);t.push({text,time:getCurrentTime(),date:getTodayStr(),remind:remind||''});saveTodos(TOMORROW_TODO_K,t);input.value='';document.getElementById('tomorrowRemindTime').value='';renderTodos();
   }
 
   // ==================== 壁纸 ====================
@@ -949,6 +955,23 @@ export default {
     // 定时推送业务数据（计数、客户、待办）
     setInterval(()=>{if(!document.body.classList.contains('page-hidden'))syncToCloud(false).catch(()=>{});},SYNC_INTERVAL);
   }
+
+  // 提醒检查
+  let lastNotified={};
+  setInterval(()=>{
+    const now=new Date();
+    const hm=String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
+    const all=[...loadTodos(TODAY_TODO_K).map(t=>({...t,list:'today'})),...loadTodos(TOMORROW_TODO_K).map(t=>({...t,list:'tomorrow'}))];
+    for(const t of all){
+      if(!t.remind||t.remind!==hm)continue;
+      const key=t.list+'_'+t.text+'_'+t.remind;
+      if(lastNotified[key])continue;
+      lastNotified[key]=true;
+      document.getElementById('notifyText').innerText='🔔 '+esc(t.text)+' ('+esc(t.remind)+')';
+      document.getElementById('notifyBar').classList.add('show');
+      setTimeout(()=>document.getElementById('notifyBar').classList.remove('show'),8000);
+    }
+  },30000);
 
   initDark();initWp();initScriptFeature();initLearnFeature();
   if(!isLocked())setLocked(false);else document.body.classList.add('page-hidden');
