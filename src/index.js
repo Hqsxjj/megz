@@ -474,6 +474,7 @@ export default {
   }
 
   // ==================== 每日自动检查 ====================
+  // 保留函数供手动/定时调用，首次加载在 init 中内联处理
   function autoDailyReset(){
     const todayStr=getTodayStr();
     const lastLoadDate=localStorage.getItem(LAST_LOAD_DATE_K);
@@ -485,8 +486,8 @@ export default {
         saveTodos(TOMORROW_TODO_K,[]);
         console.log('📅 已自动将前一天待办转移到今天');
       }
+      localStorage.setItem(LAST_LOAD_DATE_K,todayStr);
     }
-    localStorage.setItem(LAST_LOAD_DATE_K,todayStr);
   }
 
   // ==================== 渲染 ====================
@@ -709,9 +710,35 @@ export default {
 
   // 首次加载从云端恢复数据
   (async()=>{
+    const prevLastLoadDate=localStorage.getItem(LAST_LOAD_DATE_K);
     await loadFromCloud(getTodayStr());
     cloudDataLoaded=true;
-    autoDailyReset();
+    // 跨天自动转移昨日「明日待办」到今日
+    const todayStr=getTodayStr();
+    if(prevLastLoadDate && prevLastLoadDate!==todayStr){
+      let transferred=false;
+      try{
+        // 优先从前一天云端记录拉取 tomorrowTodos
+        const yd=await cloudGet(prevLastLoadDate);
+        if(yd && yd.tomorrowTodos && yd.tomorrowTodos.length>0){
+          const cur=loadTodos(TODAY_TODO_K);
+          saveTodos(TODAY_TODO_K,[...yd.tomorrowTodos,...cur]);
+          saveTodos(TOMORROW_TODO_K,[]);
+          transferred=true;
+          console.log('📅 已从云端转移昨日待办到今日');
+        }
+      }catch(e){}
+      if(!transferred){
+        const tomorrow=loadTodos(TOMORROW_TODO_K);
+        if(tomorrow.length>0){
+          const cur=loadTodos(TODAY_TODO_K);
+          saveTodos(TODAY_TODO_K,[...tomorrow,...cur]);
+          saveTodos(TOMORROW_TODO_K,[]);
+          console.log('📅 已转移本地昨日待办到今日');
+        }
+      }
+    }
+    localStorage.setItem(LAST_LOAD_DATE_K,todayStr);
     await syncCalendarFromCloud();
     refreshAll();
     startSyncTimer();
