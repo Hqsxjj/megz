@@ -213,9 +213,9 @@ export default {
     .pin-btn:hover { opacity: 0.9; transform: translateY(-2px); box-shadow: 0 6px 20px rgba(44,125,160,0.4); }
     .pin-btn:active { transform: translateY(0); }
     .pin-error { color: #e74c3c; font-size: 0.9rem; min-height: 24px; font-weight: 600; letter-spacing: 0.5px; }
-    .script-display { max-width: 460px; text-align: center; padding: 20px 28px; margin-bottom: 8px; background: rgba(255,255,255,0.55); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-radius: var(--radius-sm); border: 1px solid rgba(255,255,255,0.4); box-shadow: 0 4px 16px rgba(0,0,0,0.06); }
-    body.dark-mode .script-display { background: rgba(30,41,56,0.55); border: 1px solid rgba(255,255,255,0.08); box-shadow: 0 4px 16px rgba(0,0,0,0.2); }
-    .script-text { font-size: 1.05rem; font-weight: 700; color: var(--text-main); line-height: 1.7; letter-spacing: 0.5px; opacity: 0.9; transition: opacity 0.6s ease; }
+    .script-display { max-width: 460px; text-align: center; padding: 20px 28px; margin-bottom: 8px; background: rgba(255,255,255,0.75); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); border-radius: var(--radius-ios); border: 1px solid rgba(255,255,255,0.5); box-shadow: 0 25px 60px rgba(0,0,0,0.15), 0 0 0 1px rgba(255,255,255,0.3); cursor: grab; user-select: none; position: relative; }
+    body.dark-mode .script-display { background: rgba(30,41,56,0.8); border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 25px 60px rgba(0,0,0,0.3); }
+    .script-text { font-size: 1.05rem; font-weight: 700; color: var(--text-main); line-height: 1.7; letter-spacing: 0.5px; }
     .script-input-modal { max-width: 460px; }
     .script-input-modal textarea { width: 100%; min-height: 100px; background: var(--btn-bg); border: 1px solid var(--card-border); border-radius: var(--radius-xs); padding: 12px 16px; font-size: 0.85rem; color: var(--text-main); outline: none; resize: vertical; font-weight: 600; line-height: 1.6; }
     .script-input-modal textarea:focus { border-color: var(--accent-wechat); }
@@ -722,19 +722,23 @@ export default {
   function startScriptCycle(){
     const ss=loadScripts();
     if(ss.length===0){document.getElementById('scriptText').innerText='';return;}
-    document.getElementById('scriptText').style.opacity='0';
-    setTimeout(()=>{
-      document.getElementById('scriptText').innerText=ss[scriptCycleIdx%ss.length];
-      
-      document.getElementById('scriptText').style.opacity='0.9';
-      scriptCycleIdx++;
-    },600);
+    document.getElementById('scriptText').innerText=ss[scriptCycleIdx%ss.length];
+    scriptCycleIdx++;
   }
   function stopScriptCycle(){if(scriptCycleTimer)clearInterval(scriptCycleTimer);scriptCycleTimer=null;}
   function initScriptFeature(){
     // lock screen cycling
     startScriptCycle();
     scriptCycleTimer=setInterval(()=>{if(document.body.classList.contains('page-hidden'))startScriptCycle();},5000);
+    // drag the script display
+    let dragActive=false, dragStartX=0, dragStartY=0, dragTX=0, dragTY=0;
+    const sd=document.getElementById('scriptDisplay');
+    sd.addEventListener('mousedown',e=>{dragActive=true;dragStartX=e.clientX-dragTX;dragStartY=e.clientY-dragTY;sd.style.cursor='grabbing';e.preventDefault();});
+    sd.addEventListener('touchstart',e=>{dragActive=true;dragStartX=e.touches[0].clientX-dragTX;dragStartY=e.touches[0].clientY-dragTY;sd.style.cursor='grabbing';},{passive:false});
+    document.addEventListener('mousemove',e=>{if(!dragActive)return;dragTX=e.clientX-dragStartX;dragTY=e.clientY-dragStartY;sd.style.transform='translate('+dragTX+'px,'+dragTY+'px)';});
+    document.addEventListener('touchmove',e=>{if(!dragActive)return;dragTX=e.touches[0].clientX-dragStartX;dragTY=e.touches[0].clientY-dragStartY;sd.style.transform='translate('+dragTX+'px,'+dragTY+'px)';},{passive:false});
+    document.addEventListener('mouseup',()=>{dragActive=false;sd.style.cursor='grab';});
+    document.addEventListener('touchend',()=>{dragActive=false;sd.style.cursor='grab';});
     // script button
     document.getElementById('scriptBtn').addEventListener('click',()=>{
       renderScriptList();document.getElementById('newScriptInput').value='';document.getElementById('scriptModal').classList.add('active');
