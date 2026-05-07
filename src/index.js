@@ -422,7 +422,7 @@ export default {
   const LAST_LOAD_DATE_K='last_load_date_v1', WALLPAPER_K='wp_cache';
   const DEFAULT_PIN='8520';
   const SYNC_INTERVAL=5000;
-  let syncTimer=null;
+  let syncTimer=null, cloudDataLoaded=false;
 
   const getTodayStr=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');};
   const getCurrentMonth=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');};
@@ -443,6 +443,7 @@ export default {
   async function cloudStats(month){try{const r=await fetch('/api/stats?month='+month);if(r.ok)return await r.json();}catch(e){}return null;}
 
   async function syncToCloud(){
+    if(!cloudDataLoaded)return;
     const today=getTodayStr();
     const wm=loadMap(WECHAT_K), im=loadMap(INTENT_K);
     const clients=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
@@ -552,11 +553,36 @@ export default {
     });
   }
 
-  function showClientsForDate(ds){
-    const clients=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]').filter(c=>c.date===ds);
+  async function showClientsForDate(ds){
     document.getElementById('modalDateTitle').innerText=ds+' 意向客户';
-    document.getElementById('modalClientList').innerHTML=clients.length===0?'<div class="empty-clients">📭 当日无意向客户记录</div>':clients.map(c=>'<div class="modal-client-item"><div><span class="modal-client-name">'+esc(c.name)+'</span><span class="modal-client-phone">'+esc(c.phone)+'</span></div>'+(c.time?'<div style="font-size:0.65rem;color:var(--text-light);margin-top:2px;">⏰ '+esc(c.time)+'</div>':'')+(c.note?'<div class="modal-client-note">📝 '+esc(c.note)+'</div>':'')+'</div>').join('');
+    document.getElementById('modalClientList').innerHTML='<div class="empty-clients">加载中...</div>';
     document.getElementById('dateModal').classList.add('active');
+    let clients=[];
+    try{
+      const r=await fetch('/api/data?date='+ds);
+      if(r.ok){
+        const data=await r.json();
+        if(data.clients&&data.clients.length>0)clients=data.clients;
+      }
+    }catch(e){}
+    if(clients.length===0){
+      clients=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]').filter(c=>c.date===ds);
+    }
+    document.getElementById('modalClientList').innerHTML=clients.length===0?'<div class="empty-clients">📭 当日无意向客户记录</div>':clients.map(c=>'<div class="modal-client-item"><div><span class="modal-client-name">'+esc(c.name)+'</span><span class="modal-client-phone">'+esc(c.phone)+'</span></div>'+(c.time?'<div style="font-size:0.65rem;color:var(--text-light);margin-top:2px;">⏰ '+esc(c.time)+'</div>':'')+(c.note?'<div class="modal-client-note">📝 '+esc(c.note)+'</div>':'')+'</div>').join('');
+  }
+
+  async function syncCalendarFromCloud(){
+    const month=getCurrentMonth();
+    const cal=await cloudCalendar(month);
+    if(cal){
+      const wm=loadMap(WECHAT_K), im=loadMap(INTENT_K);
+      let changed=false;
+      for(const [date, d] of Object.entries(cal)){
+        if(d.w>0&&!wm[date]){wm[date]=d.w;changed=true;}
+        if(d.i>0&&!im[date]){im[date]=d.i;changed=true;}
+      }
+      if(changed){saveMap(WECHAT_K,wm);saveMap(INTENT_K,im);}
+    }
   }
 
   function refreshAll(){
@@ -684,7 +710,9 @@ export default {
   // 首次加载从云端恢复数据
   (async()=>{
     await loadFromCloud(getTodayStr());
+    cloudDataLoaded=true;
     autoDailyReset();
+    await syncCalendarFromCloud();
     refreshAll();
     startSyncTimer();
   })();
