@@ -497,7 +497,7 @@ export default {
     }
   }
 
-  async function syncToCloud(){
+  async function syncToCloud(full=false){
     if(!cloudDataLoaded)return;
     const today=getTodayStr();
     const wm=loadMap(WECHAT_K), im=loadMap(INTENT_K);
@@ -508,12 +508,15 @@ export default {
       intentCount:im[today]||0,
       clients:clients.filter(c=>c.date===today),
       todayTodos:loadTodos(TODAY_TODO_K),
-      tomorrowTodos:loadTodos(TOMORROW_TODO_K),
-      scripts:loadScripts(),
-      scriptsVer:getScriptsVer(),
-      learns:loadLearns(),
-      learnsVer:getLearnsVer()
+      tomorrowTodos:loadTodos(TOMORROW_TODO_K)
     };
+    // 仅在用户主动操作时同步话术/学习（含版本号），定时器不同步避免旧版本覆盖
+    if(full){
+      data.scripts=loadScripts();
+      data.scriptsVer=getScriptsVer();
+      data.learns=loadLearns();
+      data.learnsVer=getLearnsVer();
+    }
     await cloudSave(data);
   }
 
@@ -685,7 +688,7 @@ export default {
     document.getElementById('liveDate').innerHTML=(now.getMonth()+1)+'月'+now.getDate()+'日 '+wk[now.getDay()];
     renderCalendar(wm,im);renderClientList();renderTodos();
     // 后台同步
-    syncToCloud().catch(()=>{});
+    syncToCloud(false).catch(()=>{});
   }
 
   function modCounter(key,delta){
@@ -758,7 +761,7 @@ export default {
     const ss=loadScripts();
     document.getElementById('scriptList').innerHTML=ss.length===0?'<div style="font-size:0.75rem;color:var(--text-light);padding:8px;text-align:center;">暂无话术</div>':ss.map((s,i)=>'<div class="script-item"><span class="script-item-text">'+esc(s)+'</span><button class="del-icon" data-si="'+i+'">✕</button></div>').join('');
     document.querySelectorAll('#scriptList .del-icon').forEach(b=>b.addEventListener('click',e=>{
-      const i=parseInt(b.dataset.si);const a=loadScripts();a.splice(i,1);bumpScriptsVer();saveScripts(a);renderScriptList();renderLockScripts();syncToCloud().catch(()=>{});
+      const i=parseInt(b.dataset.si);const a=loadScripts();a.splice(i,1);bumpScriptsVer();saveScripts(a);renderScriptList();renderLockScripts();syncToCloud(true).catch(()=>{});
     }));
   }
   function makeDraggable(el){
@@ -787,7 +790,7 @@ export default {
     document.getElementById('scriptModal').addEventListener('click',e=>{if(e.target===document.getElementById('scriptModal'))document.getElementById('scriptModal').classList.remove('active');});
     document.getElementById('addScriptBtn').addEventListener('click',()=>{
       const t=document.getElementById('newScriptInput').value.trim();if(!t)return;
-      const a=loadScripts();a.push(t);bumpScriptsVer();saveScripts(a);document.getElementById('newScriptInput').value='';renderScriptList();renderLockScripts();syncToCloud().catch(()=>{});
+      const a=loadScripts();a.push(t);bumpScriptsVer();saveScripts(a);document.getElementById('newScriptInput').value='';renderScriptList();renderLockScripts();syncToCloud(true).catch(()=>{});
     });
   }
 
@@ -800,10 +803,10 @@ export default {
     const ls=loadLearns();
     document.getElementById('learnList').innerHTML=ls.length===0?'<div style="font-size:0.75rem;color:var(--text-light);padding:8px;text-align:center;">暂无学习</div>':ls.map((l,i)=>'<div class="script-item"><span class="script-item-text">'+(l.show?'👁 ':'')+esc(l.text)+'</span><div style="display:flex;gap:6px;align-items:center;"><input type="checkbox" '+(l.show?'checked':'')+' data-li="'+i+'" title="显示"><button class="del-icon" data-li="'+i+'">✕</button></div></div>').join('');
     document.querySelectorAll('#learnList .del-icon').forEach(b=>b.addEventListener('click',e=>{
-      const i=parseInt(b.dataset.li);const a=loadLearns();a.splice(i,1);bumpLearnsVer();saveLearns(a);renderLearnList();renderLockLearns();syncToCloud().catch(()=>{});
+      const i=parseInt(b.dataset.li);const a=loadLearns();a.splice(i,1);bumpLearnsVer();saveLearns(a);renderLearnList();renderLockLearns();syncToCloud(true).catch(()=>{});
     }));
     document.querySelectorAll('#learnList input[type=checkbox]').forEach(cb=>cb.addEventListener('change',e=>{
-      const i=parseInt(cb.dataset.li);const a=loadLearns();a[i].show=cb.checked;bumpLearnsVer();saveLearns(a);renderLearnList();renderLockLearns();syncToCloud().catch(()=>{});
+      const i=parseInt(cb.dataset.li);const a=loadLearns();a[i].show=cb.checked;bumpLearnsVer();saveLearns(a);renderLearnList();renderLockLearns();syncToCloud(true).catch(()=>{});
     }));
   }
   function renderLockLearns(){
@@ -827,7 +830,7 @@ export default {
         const show=document.getElementById('learnShowCheck').checked;
         const a=loadLearns();a.push({text:t,show});bumpLearnsVer();saveLearns(a);document.getElementById('newLearnInput').value='';
       }
-      renderLearnList();renderLockLearns();syncToCloud().catch(()=>{});
+      renderLearnList();renderLockLearns();syncToCloud(true).catch(()=>{});
     });
   }
 
@@ -869,7 +872,7 @@ export default {
     // 定时拉取其他设备更新；推送仅在用户操作时即时触发
     syncTimer=setInterval(()=>{pullScriptsLearns().catch(()=>{});},SYNC_INTERVAL);
     // 定时推送业务数据（计数、客户、待办）
-    setInterval(()=>{if(!document.body.classList.contains('page-hidden'))syncToCloud().catch(()=>{});},SYNC_INTERVAL);
+    setInterval(()=>{if(!document.body.classList.contains('page-hidden'))syncToCloud(false).catch(()=>{});},SYNC_INTERVAL);
   }
 
   initDark();initWp();initScriptFeature();initLearnFeature();
