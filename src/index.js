@@ -856,11 +856,10 @@ export default {
   // 启动云端同步定时器
   function startSyncTimer(){
     if(syncTimer)clearInterval(syncTimer);
-    // 先拉后推，防止用旧数据覆盖云端最新内容
-    syncTimer=setInterval(async ()=>{
-      await pullScriptsLearns().catch(()=>{});
-      if(!document.body.classList.contains('page-hidden'))syncToCloud().catch(()=>{});
-    },SYNC_INTERVAL);
+    // 定时拉取其他设备更新；推送仅在用户操作时即时触发
+    syncTimer=setInterval(()=>{pullScriptsLearns().catch(()=>{});},SYNC_INTERVAL);
+    // 定时推送业务数据（计数、客户、待办）
+    setInterval(()=>{if(!document.body.classList.contains('page-hidden'))syncToCloud().catch(()=>{});},SYNC_INTERVAL);
   }
 
   initDark();initWp();initScriptFeature();initLearnFeature();
