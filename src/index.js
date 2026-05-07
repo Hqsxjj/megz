@@ -559,11 +559,11 @@ export default {
     if(!date)date=getTodayStr();
     const data=await cloudGet(date);
     if(data){
-      if(data.wechatCount>0){const m=loadMap(WECHAT_K);m[date]=data.wechatCount;saveMap(WECHAT_K,m);}
-      if(data.intentCount>0){const m=loadMap(INTENT_K);m[date]=data.intentCount;saveMap(INTENT_K,m);}
+      if(data.wechatCount>0){const m=loadMap(WECHAT_K);m[date]=Math.max(m[date]||0,data.wechatCount);saveMap(WECHAT_K,m);}
+      if(data.intentCount>0){const m=loadMap(INTENT_K);m[date]=Math.max(m[date]||0,data.intentCount);saveMap(INTENT_K,m);}
       if(data.clients&&data.clients.length>0){const cloudCv2=data.clientsVer||{};const localCv2=getClientsVer();if((cloudCv2[date]||0)>(localCv2[date]||0)){let cl=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');cl=cl.filter(c=>c.date!==date);cl=cl.concat(data.clients);localStorage.setItem(CLIENTS_K,JSON.stringify(cl));localCv2[date]=cloudCv2[date];localStorage.setItem(CLIENTS_VER_K,JSON.stringify(localCv2));}}
-      if(data.todayTodos&&data.todayTodos.length>0)saveTodos(TODAY_TODO_K,data.todayTodos);
-      if(data.tomorrowTodos&&data.tomorrowTodos.length>0)saveTodos(TOMORROW_TODO_K,data.tomorrowTodos);
+      if(data.todayTodos&&data.todayTodos.length>0){const lt=loadTodos(TODAY_TODO_K);if(lt.length===0||data.todayTodos.length>lt.length)saveTodos(TODAY_TODO_K,data.todayTodos);}
+      if(data.tomorrowTodos&&data.tomorrowTodos.length>0){const lt=loadTodos(TOMORROW_TODO_K);if(lt.length===0||data.tomorrowTodos.length>lt.length)saveTodos(TOMORROW_TODO_K,data.tomorrowTodos);}
       if(data.scripts!==undefined&&(data.scriptsVer||0)>getScriptsVer()){localStorage.setItem(SCRIPTS_VER_K,data.scriptsVer||0);saveScripts(data.scripts);}
       if(data.learns!==undefined&&(data.learnsVer||0)>getLearnsVer()){localStorage.setItem(LEARN_VER_K,data.learnsVer||0);saveLearns(data.learns);}
       if(data.lastLoadDate)localStorage.setItem(LAST_LOAD_DATE_K,data.lastLoadDate);
