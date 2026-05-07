@@ -197,22 +197,32 @@ export default {
     body.dark-mode.page-hidden .privacy-wallpaper { opacity: 0.80; }
     body.page-hidden .privacy-mask { display: flex; pointer-events: auto; }
     body.page-hidden .app-shell { display: none; }
-    .pin-box { display: flex; flex-direction: column; align-items: center; gap: 28px; background: rgba(255,255,255,0.75); padding: 56px 64px; border-radius: var(--radius-ios); box-shadow: 0 25px 60px rgba(0,0,0,0.15), 0 0 0 1px rgba(255,255,255,0.3); border: 1px solid rgba(255,255,255,0.5); min-width: 420px; max-width: 500px; backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); transition: all 0.3s ease; }
+    .pin-box { display: flex; flex-direction: column; align-items: center; gap: 16px; background: rgba(255,255,255,0.75); padding: 32px 40px; border-radius: var(--radius-ios); box-shadow: 0 25px 60px rgba(0,0,0,0.15), 0 0 0 1px rgba(255,255,255,0.3); border: 1px solid rgba(255,255,255,0.5); min-width: 320px; max-width: 420px; backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); transition: all 0.3s ease; }
     body.dark-mode .pin-box { background: rgba(30,41,56,0.8); border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 25px 60px rgba(0,0,0,0.3); }
-    .pin-stats { display: flex; gap: 28px; margin-bottom: 4px; }
-    .pin-stat-item { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 24px 32px; background: rgba(255,255,255,0.6); border-radius: var(--radius-sm); border: 1px solid rgba(255,255,255,0.5); min-width: 150px; backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
+    .pin-stats { display: flex; gap: 16px; }
+    .pin-stat-item { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px 18px; background: rgba(255,255,255,0.6); border-radius: var(--radius-sm); border: 1px solid rgba(255,255,255,0.5); min-width: 100px; backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
     body.dark-mode .pin-stat-item { background: rgba(40,50,63,0.6); border: 1px solid rgba(255,255,255,0.08); }
-    .pin-stat-label { font-size: 0.95rem; font-weight: 700; color: var(--text-soft); letter-spacing: 0.8px; text-transform: uppercase; }
-    .pin-stat-value { font-size: 3.2rem; font-weight: 900; line-height: 1; }
+    .pin-stat-label { font-size: 0.7rem; font-weight: 700; color: var(--text-soft); letter-spacing: 0.5px; }
+    .pin-stat-value { font-size: 2rem; font-weight: 900; line-height: 1; }
     .pin-wechat-value { background: var(--wechat-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
     .pin-intent-value { background: var(--intent-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
     .pin-input { width: 140px; padding: 8px 14px; border-radius: var(--radius-xs); border: 1.5px solid rgba(200,210,220,0.5); background: rgba(255,255,255,0.5); text-align: center; font-size: 1rem; letter-spacing: 5px; color: var(--text-main); outline: none; font-weight: 700; transition: all 0.3s; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
     body.dark-mode .pin-input { background: rgba(40,50,63,0.5); border-color: rgba(255,255,255,0.15); }
     .pin-input:focus { border-color: var(--accent-wechat); box-shadow: 0 0 0 4px rgba(44,125,160,0.15); background: rgba(255,255,255,0.7); }
-    .pin-btn { background: var(--accent-wechat); border: none; color: white; padding: 8px 24px; border-radius: var(--radius-xs); font-weight: 700; cursor: pointer; width: 100%; font-size: 0.8rem; letter-spacing: 1px; transition: all 0.2s; box-shadow: 0 4px 15px rgba(44,125,160,0.3); }
+    .pin-btn { background: var(--accent-wechat); border: none; color: white; padding: 8px 32px; border-radius: var(--radius-xs); font-weight: 700; cursor: pointer; font-size: 0.8rem; letter-spacing: 1px; transition: all 0.2s; box-shadow: 0 4px 15px rgba(44,125,160,0.3); }
     .pin-btn:hover { opacity: 0.9; transform: translateY(-2px); box-shadow: 0 6px 20px rgba(44,125,160,0.4); }
     .pin-btn:active { transform: translateY(0); }
     .pin-error { color: #e74c3c; font-size: 0.9rem; min-height: 24px; font-weight: 600; letter-spacing: 0.5px; }
+    .script-display { max-width: 460px; text-align: center; padding: 16px 24px; margin-bottom: 8px; }
+    .script-text { font-size: 1.05rem; font-weight: 700; color: var(--text-main); line-height: 1.7; letter-spacing: 0.5px; opacity: 0.9; transition: opacity 0.6s ease; }
+    body.dark-mode .script-text { color: var(--text-main); }
+    .script-label { font-size: 0.65rem; color: var(--text-light); letter-spacing: 2px; text-transform: uppercase; margin-top: 8px; font-weight: 600; }
+    .script-input-modal { max-width: 460px; }
+    .script-input-modal textarea { width: 100%; min-height: 100px; background: var(--btn-bg); border: 1px solid var(--card-border); border-radius: var(--radius-xs); padding: 12px 16px; font-size: 0.85rem; color: var(--text-main); outline: none; resize: vertical; font-weight: 600; line-height: 1.6; }
+    .script-input-modal textarea:focus { border-color: var(--accent-wechat); }
+    .script-list { max-height: 180px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+    .script-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: var(--btn-bg); border-radius: var(--radius-xs); border: 1px solid var(--card-border); font-size: 0.78rem; color: var(--text-main); font-weight: 600; }
+    .script-item-text { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-right: 8px; }
     .app-shell { height: 100%; width: 100%; display: flex; flex-direction: column; overflow: hidden; position: relative; z-index: 1; }
     .container { flex: 1; display: flex; flex-direction: column; padding: 14px 18px 12px; overflow-y: auto; scrollbar-width: thin; -webkit-overflow-scrolling: touch; }
     .header-bar { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 20px; padding-bottom: 6px; border-bottom: 1px solid var(--border-light); flex-shrink: 0; }
@@ -320,11 +330,11 @@ export default {
     @media (max-width: 760px) {
       .two-columns { flex-direction: column; }
       .right-area { order: 1; } .left-area { order: 2; }
-      .pin-box { min-width: 320px; max-width: 90vw; padding: 40px 32px; gap: 20px; }
-      .pin-stats { gap: 16px; }
-      .pin-stat-item { padding: 16px 20px; min-width: 120px; gap: 8px; }
-      .pin-stat-label { font-size: 0.8rem; }
-      .pin-stat-value { font-size: 2.4rem; }
+      .pin-box { min-width: 280px; max-width: 90vw; padding: 24px 24px; gap: 12px; }
+      .pin-stats { gap: 10px; }
+      .pin-stat-item { padding: 10px 12px; min-width: 90px; gap: 4px; }
+      .pin-stat-label { font-size: 0.65rem; }
+      .pin-stat-value { font-size: 1.6rem; }
       .pin-input { width: 130px; padding: 7px 12px; font-size: 0.9rem; }
       .pin-btn { padding: 7px 20px; font-size: 0.7rem; }
     }
@@ -335,6 +345,10 @@ export default {
 <div class="wallpaper-background" id="wallpaperBackground"></div>
 <div class="privacy-wallpaper" id="privacyWallpaper"></div>
 <div class="privacy-mask" id="privacyMask">
+  <div class="script-display" id="scriptDisplay">
+    <div class="script-text" id="scriptText"></div>
+    <div class="script-label" id="scriptLabel"></div>
+  </div>
   <div class="pin-box">
     <div class="pin-stats" id="pinStatsContainer">
       <div class="pin-stat-item"><span class="pin-stat-label">💬 今日微信</span><span class="pin-stat-value pin-wechat-value" id="pinWechatNum">0</span></div>
@@ -350,6 +364,7 @@ export default {
     <div class="header-bar">
       <div class="title-section"><h3>每日工作</h3><div class="date-chip" id="liveDate"></div></div>
       <div class="action-group">
+        <button class="icon-simple" id="scriptBtn" title="话术管理">📝</button>
         <button class="icon-simple" id="hideBtn" title="一键隐藏 (Ctrl+Z)">👁</button>
         <button class="icon-simple" id="darkToggleBtn" title="深色模式">🌙</button>
       </div>
@@ -408,6 +423,14 @@ export default {
   </div>
 </div>
 <div id="globalTooltip" class="tooltip-simple"></div>
+<div id="scriptModal" class="modal-overlay">
+  <div class="modal-card script-input-modal">
+    <div class="modal-header"><span>📝 话术管理</span><button id="closeScriptModalBtn">✕</button></div>
+    <textarea id="newScriptInput" placeholder="输入话术内容..."></textarea>
+    <button class="btn-add" id="addScriptBtn" style="width:100%;">+ 添加话术</button>
+    <div class="script-list" id="scriptList"></div>
+  </div>
+</div>
 <div id="dateModal" class="modal-overlay">
   <div class="modal-card">
     <div class="modal-header"><span id="modalDateTitle">时间线</span><button id="closeModalBtn">✕</button></div>
@@ -418,7 +441,7 @@ export default {
 (function(){
   const WECHAT_K='wechat_v3', INTENT_K='intent_v3', CLIENTS_K='clients_v3';
   const DARK_K='dark_mode', LOCK_K='locked', TODAY_TODO_K='today_todo_v2', TOMORROW_TODO_K='tomorrow_todo_v2';
-  const LAST_LOAD_DATE_K='last_load_date_v1', WALLPAPER_K='wp_cache';
+  const LAST_LOAD_DATE_K='last_load_date_v1', WALLPAPER_K='wp_cache', SCRIPTS_K='scripts_v1';
   const DEFAULT_PIN='8520';
   const SYNC_INTERVAL=5000;
   let syncTimer=null, cloudDataLoaded=false;
@@ -687,6 +710,45 @@ export default {
     function smr(){const n=new Date(),mn=new Date(n);mn.setHours(24,0,0,0);setTimeout(()=>{if(!document.body.classList.contains('page-hidden'))loadWp(true);smr();},mn-n+60000);}smr();
   }
 
+  // ==================== 话术 ====================
+  const loadScripts=()=>{try{return JSON.parse(localStorage.getItem(SCRIPTS_K))||[];}catch(e){return[];}};
+  const saveScripts=(a)=>localStorage.setItem(SCRIPTS_K,JSON.stringify(a));
+  let scriptCycleIdx=0, scriptCycleTimer=null;
+  function renderScriptList(){
+    const ss=loadScripts();
+    document.getElementById('scriptList').innerHTML=ss.length===0?'<div style="font-size:0.75rem;color:var(--text-light);padding:8px;text-align:center;">暂无话术</div>':ss.map((s,i)=>'<div class="script-item"><span class="script-item-text">'+esc(s)+'</span><button class="del-icon" data-si="'+i+'">✕</button></div>').join('');
+    document.querySelectorAll('#scriptList .del-icon').forEach(b=>b.addEventListener('click',e=>{
+      const i=parseInt(b.dataset.si);const a=loadScripts();a.splice(i,1);saveScripts(a);renderScriptList();
+    }));
+  }
+  function startScriptCycle(){
+    const ss=loadScripts();
+    if(ss.length===0){document.getElementById('scriptText').innerText='';document.getElementById('scriptLabel').innerText='';return;}
+    document.getElementById('scriptText').style.opacity='0';
+    setTimeout(()=>{
+      document.getElementById('scriptText').innerText=ss[scriptCycleIdx%ss.length];
+      document.getElementById('scriptLabel').innerText='话术 '+(scriptCycleIdx%ss.length+1)+' / '+ss.length;
+      document.getElementById('scriptText').style.opacity='0.9';
+      scriptCycleIdx++;
+    },600);
+  }
+  function stopScriptCycle(){if(scriptCycleTimer)clearInterval(scriptCycleTimer);scriptCycleTimer=null;}
+  function initScriptFeature(){
+    // lock screen cycling
+    startScriptCycle();
+    scriptCycleTimer=setInterval(()=>{if(document.body.classList.contains('page-hidden'))startScriptCycle();},5000);
+    // script button
+    document.getElementById('scriptBtn').addEventListener('click',()=>{
+      renderScriptList();document.getElementById('newScriptInput').value='';document.getElementById('scriptModal').classList.add('active');
+    });
+    document.getElementById('closeScriptModalBtn').addEventListener('click',()=>document.getElementById('scriptModal').classList.remove('active'));
+    document.getElementById('scriptModal').addEventListener('click',e=>{if(e.target===document.getElementById('scriptModal'))document.getElementById('scriptModal').classList.remove('active');});
+    document.getElementById('addScriptBtn').addEventListener('click',()=>{
+      const t=document.getElementById('newScriptInput').value.trim();if(!t)return;
+      const a=loadScripts();a.push(t);saveScripts(a);document.getElementById('newScriptInput').value='';renderScriptList();
+    });
+  }
+
   // ==================== 初始化 ====================
   function initDark(){
     const btn=document.getElementById('darkToggleBtn');
@@ -725,7 +787,7 @@ export default {
     syncTimer=setInterval(()=>{if(!document.body.classList.contains('page-hidden'))syncToCloud().catch(()=>{});},SYNC_INTERVAL);
   }
 
-  initDark();initWp();
+  initDark();initWp();initScriptFeature();
   if(!isLocked())setLocked(false);else document.body.classList.add('page-hidden');
 
   // 首次加载从云端恢复数据
