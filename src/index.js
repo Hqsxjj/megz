@@ -462,7 +462,7 @@ export default {
   const LAST_LOAD_DATE_K='last_load_date_v1', WALLPAPER_K='wp_cache', SCRIPTS_K='scripts_v1', LEARN_K='learn_v1';
   const DEFAULT_PIN='8520';
   const SYNC_INTERVAL=2000;
-  let syncTimer=null, cloudDataLoaded=false;
+  let syncTimer=null, cloudDataLoaded=false, lastLocalMod=0;
 
   const getTodayStr=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');};
   const getCurrentMonth=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');};
@@ -483,6 +483,7 @@ export default {
   async function cloudStats(month){try{const r=await fetch('/api/stats?month='+month);if(r.ok)return await r.json();}catch(e){}return null;}
 
   async function pullScriptsLearns(){
+    if(Date.now()-lastLocalMod<3000)return;
     const data=await cloudGet(getTodayStr());
     if(!data)return;
     if(data.scripts!==undefined){
@@ -752,7 +753,7 @@ export default {
     const ss=loadScripts();
     document.getElementById('scriptList').innerHTML=ss.length===0?'<div style="font-size:0.75rem;color:var(--text-light);padding:8px;text-align:center;">暂无话术</div>':ss.map((s,i)=>'<div class="script-item"><span class="script-item-text">'+esc(s)+'</span><button class="del-icon" data-si="'+i+'">✕</button></div>').join('');
     document.querySelectorAll('#scriptList .del-icon').forEach(b=>b.addEventListener('click',e=>{
-      const i=parseInt(b.dataset.si);const a=loadScripts();a.splice(i,1);saveScripts(a);renderScriptList();renderLockScripts();syncToCloud().catch(()=>{});
+      const i=parseInt(b.dataset.si);const a=loadScripts();a.splice(i,1);saveScripts(a);lastLocalMod=Date.now();renderScriptList();renderLockScripts();syncToCloud().catch(()=>{});
     }));
   }
   function makeDraggable(el){
@@ -781,7 +782,7 @@ export default {
     document.getElementById('scriptModal').addEventListener('click',e=>{if(e.target===document.getElementById('scriptModal'))document.getElementById('scriptModal').classList.remove('active');});
     document.getElementById('addScriptBtn').addEventListener('click',()=>{
       const t=document.getElementById('newScriptInput').value.trim();if(!t)return;
-      const a=loadScripts();a.push(t);saveScripts(a);document.getElementById('newScriptInput').value='';renderScriptList();renderLockScripts();syncToCloud().catch(()=>{});
+      const a=loadScripts();a.push(t);saveScripts(a);lastLocalMod=Date.now();document.getElementById('newScriptInput').value='';renderScriptList();renderLockScripts();syncToCloud().catch(()=>{});
     });
   }
 
@@ -792,10 +793,10 @@ export default {
     const ls=loadLearns();
     document.getElementById('learnList').innerHTML=ls.length===0?'<div style="font-size:0.75rem;color:var(--text-light);padding:8px;text-align:center;">暂无学习</div>':ls.map((l,i)=>'<div class="script-item"><span class="script-item-text">'+(l.show?'👁 ':'')+esc(l.text)+'</span><div style="display:flex;gap:6px;align-items:center;"><input type="checkbox" '+(l.show?'checked':'')+' data-li="'+i+'" title="显示"><button class="del-icon" data-li="'+i+'">✕</button></div></div>').join('');
     document.querySelectorAll('#learnList .del-icon').forEach(b=>b.addEventListener('click',e=>{
-      const i=parseInt(b.dataset.li);const a=loadLearns();a.splice(i,1);saveLearns(a);renderLearnList();renderLockLearns();syncToCloud().catch(()=>{});
+      const i=parseInt(b.dataset.li);const a=loadLearns();a.splice(i,1);saveLearns(a);lastLocalMod=Date.now();renderLearnList();renderLockLearns();syncToCloud().catch(()=>{});
     }));
     document.querySelectorAll('#learnList input[type=checkbox]').forEach(cb=>cb.addEventListener('change',e=>{
-      const i=parseInt(cb.dataset.li);const a=loadLearns();a[i].show=cb.checked;saveLearns(a);renderLearnList();renderLockLearns();syncToCloud().catch(()=>{});
+      const i=parseInt(cb.dataset.li);const a=loadLearns();a[i].show=cb.checked;saveLearns(a);lastLocalMod=Date.now();renderLearnList();renderLockLearns();syncToCloud().catch(()=>{});
     }));
   }
   function renderLockLearns(){
@@ -816,7 +817,7 @@ export default {
     document.getElementById('addLearnBtn').addEventListener('click',()=>{
       const t=document.getElementById('newLearnInput').value.trim();if(!t)return;
       const show=document.getElementById('learnShowCheck').checked;
-      const a=loadLearns();a.push({text:t,show});saveLearns(a);document.getElementById('newLearnInput').value='';renderLearnList();renderLockLearns();syncToCloud().catch(()=>{});
+      const a=loadLearns();a.push({text:t,show});saveLearns(a);lastLocalMod=Date.now();document.getElementById('newLearnInput').value='';renderLearnList();renderLockLearns();syncToCloud().catch(()=>{});
     });
   }
 
