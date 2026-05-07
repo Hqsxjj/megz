@@ -353,7 +353,6 @@ export default {
     <div class="header-bar">
       <div class="title-section"><h3>每日工作</h3><div class="date-chip" id="liveDate"></div></div>
       <div class="action-group">
-        <button class="icon-simple sync-btn" id="syncBtn" title="云端同步">☁️</button>
         <button class="icon-simple refresh-wallpaper-btn" id="refreshWallpaperBtn" title="刷新壁纸">🖼</button>
         <button class="icon-simple" id="hideBtn" title="一键隐藏 (Ctrl+Z)">👁</button>
         <button class="icon-simple" id="darkToggleBtn" title="深色模式">🌙</button>
@@ -426,7 +425,7 @@ export default {
   const DARK_K='dark_mode', LOCK_K='locked', TODAY_TODO_K='today_todo_v2', TOMORROW_TODO_K='tomorrow_todo_v2';
   const LAST_LOAD_DATE_K='last_load_date_v1', WALLPAPER_K='wp_cache';
   const DEFAULT_PIN='8520';
-  const SYNC_INTERVAL=10000;
+  const SYNC_INTERVAL=5000;
   let syncTimer=null;
 
   const getTodayStr=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');};
@@ -678,12 +677,7 @@ export default {
   document.getElementById('closeModalBtn').addEventListener('click',()=>document.getElementById('dateModal').classList.remove('active'));
   document.getElementById('dateModal').addEventListener('click',e=>{if(e.target===document.getElementById('dateModal'))document.getElementById('dateModal').classList.remove('active');});
 
-  // 云端同步按钮
-  document.getElementById('syncBtn').addEventListener('click',async()=>{
-    const btn=document.getElementById('syncBtn');btn.classList.add('loading');
-    try{await syncToCloud();await loadFromCloud(getTodayStr());refreshAll();btn.title='同步完成 ✓';}catch(e){btn.title='同步失败';}
-    btn.classList.remove('loading');setTimeout(()=>btn.title='云端同步',2000);
-  });
+  // 后端自动实时同步（无需手动点击）
 
   // 启动云端同步定时器
   function startSyncTimer(){
