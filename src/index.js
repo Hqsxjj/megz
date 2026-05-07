@@ -36,7 +36,7 @@ export default {
     // 保存数据
     if (path === '/api/data' && request.method === 'POST') {
       const body = await request.json();
-      const { date, wechatCount, intentCount, clients, todayTodos, tomorrowTodos, scripts, learns, scriptsVer, learnsVer, clientsVer } = body;
+      const { date, wechatCount, intentCount, clients, todayTodos, tomorrowTodos, scripts, learns, scriptsVer, learnsVer, clientsVer, todoLog } = body;
       if (!date) {
         return new Response(JSON.stringify({ error: '缺少 date 参数' }), {
           status: 400,
@@ -55,6 +55,7 @@ export default {
         learns: learns || [],
         learnsVer: learnsVer || 0,
         clientsVer: clientsVer || {},
+        todoLog: todoLog || [],
         lastLoadDate: date,
         lastModified: new Date().toISOString()
       };
@@ -480,6 +481,7 @@ export default {
   const saveMap=(k,o)=>localStorage.setItem(k,JSON.stringify(o));
   const loadTodos=k=>{try{const d=JSON.parse(localStorage.getItem(k))||[];return d.map(t=>typeof t==='string'?{text:t,time:'',date:getTodayStr()}:t);}catch(e){return[];}};
   const saveTodos=(k,a)=>localStorage.setItem(k,JSON.stringify(a));
+  const pushTodoLog=async (todo,ds)=>{try{const r=await fetch('/api/data?date='+ds);if(r.ok){const d=await r.json();const log=d.todoLog||[];log.push(todo);await fetch('/api/data',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...d,todoLog:log})});}}catch(e){}};
   const esc=s=>String(s).replace(/[&<>]/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;' })[m]||m);
 
   function getWeekTotal(map){const t=new Date();const dow=t.getDay();const diff=dow===0?6:dow-1;const mon=new Date(t);mon.setDate(t.getDate()-diff);const ms=mon.getFullYear()+'-'+String(mon.getMonth()+1).padStart(2,'0')+'-'+String(mon.getDate()).padStart(2,'0');const ts=getTodayStr();let s=0;for(let[d,v]of Object.entries(map))if(d>=ms&&d<=ts)s+=v;return s;}
@@ -681,9 +683,13 @@ export default {
       });
     }
     if(todos.length===0&&ds===getTodayStr())todos=loadTodos(TODAY_TODO_K);
+    // 同时获取该日期的 todoLog（永久待办记录）
+    let todoLog=[];
+    if(cloudData&&cloudData.todoLog)todoLog=cloudData.todoLog;
     let timeline=[];
     clients.forEach((c,i)=>{timeline.push({type:'client',time:c.time||'',name:c.name,phone:c.phone,note:c.note,idx:i});});
     todos.forEach(t=>{const txt=typeof t==='string'?t:t.text;const tm=t&&t.time?t.time:'';if(txt)timeline.push({type:'todo',time:tm,text:txt});});
+    todoLog.forEach(t=>{const txt=typeof t==='string'?t:t.text;const tm=t&&t.time?t.time:'';const tp=t.type==='tomorrow'?' (明日)':'';if(txt)timeline.push({type:'todo',time:tm,text:txt+tp});});
     timeline.sort((a,b)=>(a.time||'').localeCompare(b.time||''));
     function renderTl(){
       document.getElementById('modalClientList').innerHTML=timeline.length===0?'<div class="empty-clients">📭 当日无记录</div>':timeline.map(e=>{
@@ -794,12 +800,16 @@ export default {
   function addTodayTodo(){
     const input=document.getElementById('todayTodoInput'),text=input.value.trim();
     if(!text)return;const remind=document.getElementById('todayRemindTime').value;
-    const t=loadTodos(TODAY_TODO_K);t.push({text,time:getCurrentTime(),date:getTodayStr(),remind:remind||''});saveTodos(TODAY_TODO_K,t);input.value='';document.getElementById('todayRemindTime').value='';renderTodos();
+    const todo={text,time:getCurrentTime(),date:getTodayStr(),remind:remind||'',type:'today'};
+    const t=loadTodos(TODAY_TODO_K);t.push(todo);saveTodos(TODAY_TODO_K,t);input.value='';document.getElementById('todayRemindTime').value='';renderTodos();
+    pushTodoLog(todo,getTodayStr());
   }
   function addTodo(){
     const input=document.getElementById('todoInput'),text=input.value.trim();
     if(!text)return;const remind=document.getElementById('tomorrowRemindTime').value;
-    const t=loadTodos(TOMORROW_TODO_K);t.push({text,time:getCurrentTime(),date:getTodayStr(),remind:remind||''});saveTodos(TOMORROW_TODO_K,t);input.value='';document.getElementById('tomorrowRemindTime').value='';renderTodos();
+    const todo={text,time:getCurrentTime(),date:getTodayStr(),remind:remind||'',type:'tomorrow'};
+    const t=loadTodos(TOMORROW_TODO_K);t.push(todo);saveTodos(TOMORROW_TODO_K,t);input.value='';document.getElementById('tomorrowRemindTime').value='';renderTodos();
+    pushTodoLog(todo,getTodayStr());
   }
 
   // ==================== 壁纸 ====================
