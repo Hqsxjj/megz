@@ -611,7 +611,6 @@ export default {
   }
 
   async function syncToCloud(full=false){
-    if(!cloudDataLoaded)return;
     const today=getTodayStr();
     const wm=loadMap(WECHAT_K), im=loadMap(INTENT_K);
     // 先拉云端当前值，取最大值避免旧数据覆盖手动更新
@@ -881,7 +880,7 @@ export default {
   }
   function resetToday(key){const d=loadMap(key);delete d[getTodayStr()];saveMap(key,d);refreshAll();}
 
-  function addClient(){
+  async function addClient(){
     const n=document.getElementById('custName').value.trim();
     const p=document.getElementById('custPhone').value.trim();
     const nt=document.getElementById('custNote').value.trim();
@@ -896,6 +895,7 @@ export default {
     document.getElementById('custPhone').value='';
     document.getElementById('custNote').value='';
     renderClientList();refreshAll();
+    await syncToCloud(false);
   }
 
   function addTodayTodo(){
