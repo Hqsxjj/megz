@@ -36,7 +36,7 @@ export default {
     // 保存数据
     if (path === '/api/data' && request.method === 'POST') {
       const body = await request.json();
-      const { date, wechatCount, intentCount, clients, todayTodos, tomorrowTodos, scripts, learns } = body;
+      const { date, wechatCount, intentCount, clients, todayTodos, tomorrowTodos, scripts, learns, scriptsVer, learnsVer } = body;
       if (!date) {
         return new Response(JSON.stringify({ error: '缺少 date 参数' }), {
           status: 400,
@@ -51,7 +51,9 @@ export default {
         todayTodos: todayTodos || [],
         tomorrowTodos: tomorrowTodos || [],
         scripts: scripts || [],
+        scriptsVer: scriptsVer || 0,
         learns: learns || [],
+        learnsVer: learnsVer || 0,
         lastLoadDate: date,
         lastModified: new Date().toISOString()
       };
@@ -459,10 +461,10 @@ export default {
 (function(){
   const WECHAT_K='wechat_v3', INTENT_K='intent_v3', CLIENTS_K='clients_v3';
   const DARK_K='dark_mode', LOCK_K='locked', TODAY_TODO_K='today_todo_v2', TOMORROW_TODO_K='tomorrow_todo_v2';
-  const LAST_LOAD_DATE_K='last_load_date_v1', WALLPAPER_K='wp_cache', SCRIPTS_K='scripts_v1', LEARN_K='learn_v1';
+  const LAST_LOAD_DATE_K='last_load_date_v1', WALLPAPER_K='wp_cache', SCRIPTS_K='scripts_v1', LEARN_K='learn_v1', SCRIPTS_VER_K='scripts_ver', LEARN_VER_K='learn_ver';
   const DEFAULT_PIN='8520';
   const SYNC_INTERVAL=2000;
-  let syncTimer=null, cloudDataLoaded=false, lastLocalMod=0;
+  let syncTimer=null, cloudDataLoaded=false;
 
   const getTodayStr=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');};
   const getCurrentMonth=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');};
@@ -483,16 +485,15 @@ export default {
   async function cloudStats(month){try{const r=await fetch('/api/stats?month='+month);if(r.ok)return await r.json();}catch(e){}return null;}
 
   async function pullScriptsLearns(){
-    if(Date.now()-lastLocalMod<3000)return;
     const data=await cloudGet(getTodayStr());
     if(!data)return;
-    if(data.scripts!==undefined){
-      const local=loadScripts();
-      if(JSON.stringify(local)!==JSON.stringify(data.scripts)){saveScripts(data.scripts);renderLockScripts();}
+    if(data.scripts!==undefined&&(data.scriptsVer||0)>getScriptsVer()){
+      localStorage.setItem(SCRIPTS_VER_K,data.scriptsVer||0);
+      saveScripts(data.scripts);renderLockScripts();
     }
-    if(data.learns!==undefined){
-      const local=loadLearns();
-      if(JSON.stringify(local)!==JSON.stringify(data.learns)){saveLearns(data.learns);renderLockLearns();}
+    if(data.learns!==undefined&&(data.learnsVer||0)>getLearnsVer()){
+      localStorage.setItem(LEARN_VER_K,data.learnsVer||0);
+      saveLearns(data.learns);renderLockLearns();
     }
   }
 
@@ -509,7 +510,9 @@ export default {
       todayTodos:loadTodos(TODAY_TODO_K),
       tomorrowTodos:loadTodos(TOMORROW_TODO_K),
       scripts:loadScripts(),
-      learns:loadLearns()
+      scriptsVer:getScriptsVer(),
+      learns:loadLearns(),
+      learnsVer:getLearnsVer()
     };
     await cloudSave(data);
   }
@@ -523,8 +526,8 @@ export default {
       if(data.clients&&data.clients.length>0){let cl=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');cl=cl.filter(c=>c.date!==date);cl=cl.concat(data.clients);localStorage.setItem(CLIENTS_K,JSON.stringify(cl));}
       if(data.todayTodos&&data.todayTodos.length>0)saveTodos(TODAY_TODO_K,data.todayTodos);
       if(data.tomorrowTodos&&data.tomorrowTodos.length>0)saveTodos(TOMORROW_TODO_K,data.tomorrowTodos);
-      if(data.scripts!==undefined){const s=loadScripts();if(s.length===0||JSON.stringify(s)!==JSON.stringify(data.scripts))saveScripts(data.scripts);}
-      if(data.learns!==undefined){const l=loadLearns();if(l.length===0||JSON.stringify(l)!==JSON.stringify(data.learns))saveLearns(data.learns);}
+      if(data.scripts!==undefined&&(data.scriptsVer||0)>getScriptsVer()){localStorage.setItem(SCRIPTS_VER_K,data.scriptsVer||0);saveScripts(data.scripts);}
+      if(data.learns!==undefined&&(data.learnsVer||0)>getLearnsVer()){localStorage.setItem(LEARN_VER_K,data.learnsVer||0);saveLearns(data.learns);}
       if(data.lastLoadDate)localStorage.setItem(LAST_LOAD_DATE_K,data.lastLoadDate);
       return true;
     }
@@ -749,11 +752,13 @@ export default {
   // ==================== 话术 ====================
   const loadScripts=()=>{try{return JSON.parse(localStorage.getItem(SCRIPTS_K))||[];}catch(e){return[];}};
   const saveScripts=(a)=>localStorage.setItem(SCRIPTS_K,JSON.stringify(a));
+  const getScriptsVer=()=>parseInt(localStorage.getItem(SCRIPTS_VER_K)||'0');
+  const bumpScriptsVer=()=>{const v=getScriptsVer()+1;localStorage.setItem(SCRIPTS_VER_K,v);return v;};
   function renderScriptList(){
     const ss=loadScripts();
     document.getElementById('scriptList').innerHTML=ss.length===0?'<div style="font-size:0.75rem;color:var(--text-light);padding:8px;text-align:center;">暂无话术</div>':ss.map((s,i)=>'<div class="script-item"><span class="script-item-text">'+esc(s)+'</span><button class="del-icon" data-si="'+i+'">✕</button></div>').join('');
     document.querySelectorAll('#scriptList .del-icon').forEach(b=>b.addEventListener('click',e=>{
-      const i=parseInt(b.dataset.si);const a=loadScripts();a.splice(i,1);saveScripts(a);lastLocalMod=Date.now();renderScriptList();renderLockScripts();syncToCloud().catch(()=>{});
+      const i=parseInt(b.dataset.si);const a=loadScripts();a.splice(i,1);bumpScriptsVer();saveScripts(a);renderScriptList();renderLockScripts();syncToCloud().catch(()=>{});
     }));
   }
   function makeDraggable(el){
@@ -782,21 +787,23 @@ export default {
     document.getElementById('scriptModal').addEventListener('click',e=>{if(e.target===document.getElementById('scriptModal'))document.getElementById('scriptModal').classList.remove('active');});
     document.getElementById('addScriptBtn').addEventListener('click',()=>{
       const t=document.getElementById('newScriptInput').value.trim();if(!t)return;
-      const a=loadScripts();a.push(t);saveScripts(a);lastLocalMod=Date.now();document.getElementById('newScriptInput').value='';renderScriptList();renderLockScripts();syncToCloud().catch(()=>{});
+      const a=loadScripts();a.push(t);bumpScriptsVer();saveScripts(a);document.getElementById('newScriptInput').value='';renderScriptList();renderLockScripts();syncToCloud().catch(()=>{});
     });
   }
 
   // ==================== 学习 ====================
   const loadLearns=()=>{try{return JSON.parse(localStorage.getItem(LEARN_K))||[];}catch(e){return[];}};
   const saveLearns=(a)=>localStorage.setItem(LEARN_K,JSON.stringify(a));
+  const getLearnsVer=()=>parseInt(localStorage.getItem(LEARN_VER_K)||'0');
+  const bumpLearnsVer=()=>{const v=getLearnsVer()+1;localStorage.setItem(LEARN_VER_K,v);return v;};
   function renderLearnList(){
     const ls=loadLearns();
     document.getElementById('learnList').innerHTML=ls.length===0?'<div style="font-size:0.75rem;color:var(--text-light);padding:8px;text-align:center;">暂无学习</div>':ls.map((l,i)=>'<div class="script-item"><span class="script-item-text">'+(l.show?'👁 ':'')+esc(l.text)+'</span><div style="display:flex;gap:6px;align-items:center;"><input type="checkbox" '+(l.show?'checked':'')+' data-li="'+i+'" title="显示"><button class="del-icon" data-li="'+i+'">✕</button></div></div>').join('');
     document.querySelectorAll('#learnList .del-icon').forEach(b=>b.addEventListener('click',e=>{
-      const i=parseInt(b.dataset.li);const a=loadLearns();a.splice(i,1);saveLearns(a);lastLocalMod=Date.now();renderLearnList();renderLockLearns();syncToCloud().catch(()=>{});
+      const i=parseInt(b.dataset.li);const a=loadLearns();a.splice(i,1);bumpLearnsVer();saveLearns(a);renderLearnList();renderLockLearns();syncToCloud().catch(()=>{});
     }));
     document.querySelectorAll('#learnList input[type=checkbox]').forEach(cb=>cb.addEventListener('change',e=>{
-      const i=parseInt(cb.dataset.li);const a=loadLearns();a[i].show=cb.checked;saveLearns(a);lastLocalMod=Date.now();renderLearnList();renderLockLearns();syncToCloud().catch(()=>{});
+      const i=parseInt(cb.dataset.li);const a=loadLearns();a[i].show=cb.checked;bumpLearnsVer();saveLearns(a);renderLearnList();renderLockLearns();syncToCloud().catch(()=>{});
     }));
   }
   function renderLockLearns(){
@@ -818,7 +825,7 @@ export default {
       const t=document.getElementById('newLearnInput').value.trim();
       if(t){
         const show=document.getElementById('learnShowCheck').checked;
-        const a=loadLearns();a.push({text:t,show});saveLearns(a);lastLocalMod=Date.now();document.getElementById('newLearnInput').value='';
+        const a=loadLearns();a.push({text:t,show});bumpLearnsVer();saveLearns(a);document.getElementById('newLearnInput').value='';
       }
       renderLearnList();renderLockLearns();syncToCloud().catch(()=>{});
     });
