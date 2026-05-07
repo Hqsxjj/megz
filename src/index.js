@@ -213,9 +213,9 @@ export default {
     .pin-btn:hover { opacity: 0.9; transform: translateY(-2px); box-shadow: 0 6px 20px rgba(44,125,160,0.4); }
     .pin-btn:active { transform: translateY(0); }
     .pin-error { color: #e74c3c; font-size: 0.9rem; min-height: 24px; font-weight: 600; letter-spacing: 0.5px; }
-    .script-display { max-width: 460px; text-align: center; padding: 20px 28px; margin-bottom: 8px; background: rgba(255,255,255,0.75); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); border-radius: var(--radius-ios); border: 1px solid rgba(255,255,255,0.5); box-shadow: 0 25px 60px rgba(0,0,0,0.15), 0 0 0 1px rgba(255,255,255,0.3); cursor: grab; user-select: none; position: relative; }
-    body.dark-mode .script-display { background: rgba(30,41,56,0.8); border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 25px 60px rgba(0,0,0,0.3); }
-    .script-text { font-size: 1.05rem; font-weight: 700; color: var(--text-main); line-height: 1.7; letter-spacing: 0.5px; }
+    .script-container { display: flex; flex-direction: column; gap: 10px; max-width: 480px; }
+    .script-module { text-align: center; padding: 16px 24px; background: rgba(255,255,255,0.75); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); border-radius: var(--radius-ios); border: 1px solid rgba(255,255,255,0.5); box-shadow: 0 25px 60px rgba(0,0,0,0.15), 0 0 0 1px rgba(255,255,255,0.3); cursor: grab; user-select: none; position: relative; font-size: 1rem; font-weight: 700; color: var(--text-main); line-height: 1.7; letter-spacing: 0.5px; }
+    body.dark-mode .script-module { background: rgba(30,41,56,0.8); border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 25px 60px rgba(0,0,0,0.3); }
     .script-input-modal { max-width: 460px; }
     .script-input-modal textarea { width: 100%; min-height: 100px; background: var(--btn-bg); border: 1px solid var(--card-border); border-radius: var(--radius-xs); padding: 12px 16px; font-size: 0.85rem; color: var(--text-main); outline: none; resize: vertical; font-weight: 600; line-height: 1.6; }
     .script-input-modal textarea:focus { border-color: var(--accent-wechat); }
@@ -344,9 +344,7 @@ export default {
 <div class="wallpaper-background" id="wallpaperBackground"></div>
 <div class="privacy-wallpaper" id="privacyWallpaper"></div>
 <div class="privacy-mask" id="privacyMask">
-  <div class="script-display" id="scriptDisplay">
-    <div class="script-text" id="scriptText"></div>
-  </div>
+  <div class="script-container" id="scriptContainer"></div>
   <div class="pin-box">
     <div class="pin-stats" id="pinStatsContainer">
       <div class="pin-stat-item"><span class="pin-stat-label">💬 今日微信</span><span class="pin-stat-value pin-wechat-value" id="pinWechatNum">0</span></div>
@@ -711,34 +709,31 @@ export default {
   // ==================== 话术 ====================
   const loadScripts=()=>{try{return JSON.parse(localStorage.getItem(SCRIPTS_K))||[];}catch(e){return[];}};
   const saveScripts=(a)=>localStorage.setItem(SCRIPTS_K,JSON.stringify(a));
-  let scriptCycleIdx=0, scriptCycleTimer=null;
   function renderScriptList(){
     const ss=loadScripts();
     document.getElementById('scriptList').innerHTML=ss.length===0?'<div style="font-size:0.75rem;color:var(--text-light);padding:8px;text-align:center;">暂无话术</div>':ss.map((s,i)=>'<div class="script-item"><span class="script-item-text">'+esc(s)+'</span><button class="del-icon" data-si="'+i+'">✕</button></div>').join('');
     document.querySelectorAll('#scriptList .del-icon').forEach(b=>b.addEventListener('click',e=>{
-      const i=parseInt(b.dataset.si);const a=loadScripts();a.splice(i,1);saveScripts(a);renderScriptList();
+      const i=parseInt(b.dataset.si);const a=loadScripts();a.splice(i,1);saveScripts(a);renderScriptList();renderLockScripts();
     }));
   }
-  function startScriptCycle(){
-    const ss=loadScripts();
-    if(ss.length===0){document.getElementById('scriptText').innerText='';return;}
-    document.getElementById('scriptText').innerText=ss[scriptCycleIdx%ss.length];
-    scriptCycleIdx++;
+  function makeDraggable(el){
+    let active=false,sx=0,sy=0,tx=0,ty=0;
+    el.addEventListener('mousedown',e=>{active=true;sx=e.clientX-tx;sy=e.clientY-ty;el.style.cursor='grabbing';e.preventDefault();});
+    el.addEventListener('touchstart',e=>{active=true;sx=e.touches[0].clientX-tx;sy=e.touches[0].clientY-ty;el.style.cursor='grabbing';},{passive:false});
+    document.addEventListener('mousemove',e=>{if(!active)return;tx=e.clientX-sx;ty=e.clientY-sy;el.style.transform='translate('+tx+'px,'+ty+'px)';});
+    document.addEventListener('touchmove',e=>{if(!active)return;tx=e.touches[0].clientX-sx;ty=e.touches[0].clientY-sy;el.style.transform='translate('+tx+'px,'+ty+'px)';},{passive:false});
+    document.addEventListener('mouseup',()=>{active=false;el.style.cursor='grab';});
+    document.addEventListener('touchend',()=>{active=false;el.style.cursor='grab';});
   }
-  function stopScriptCycle(){if(scriptCycleTimer)clearInterval(scriptCycleTimer);scriptCycleTimer=null;}
+  function renderLockScripts(){
+    const ss=loadScripts();
+    const container=document.getElementById('scriptContainer');
+    if(ss.length===0){container.innerHTML='';return;}
+    container.innerHTML=ss.map((s,i)=>'<div class="script-module" data-si="'+i+'">'+esc(s)+'</div>').join('');
+    container.querySelectorAll('.script-module').forEach(el=>makeDraggable(el));
+  }
   function initScriptFeature(){
-    // lock screen cycling
-    startScriptCycle();
-    scriptCycleTimer=setInterval(()=>{if(document.body.classList.contains('page-hidden'))startScriptCycle();},5000);
-    // drag the script display
-    let dragActive=false, dragStartX=0, dragStartY=0, dragTX=0, dragTY=0;
-    const sd=document.getElementById('scriptDisplay');
-    sd.addEventListener('mousedown',e=>{dragActive=true;dragStartX=e.clientX-dragTX;dragStartY=e.clientY-dragTY;sd.style.cursor='grabbing';e.preventDefault();});
-    sd.addEventListener('touchstart',e=>{dragActive=true;dragStartX=e.touches[0].clientX-dragTX;dragStartY=e.touches[0].clientY-dragTY;sd.style.cursor='grabbing';},{passive:false});
-    document.addEventListener('mousemove',e=>{if(!dragActive)return;dragTX=e.clientX-dragStartX;dragTY=e.clientY-dragStartY;sd.style.transform='translate('+dragTX+'px,'+dragTY+'px)';});
-    document.addEventListener('touchmove',e=>{if(!dragActive)return;dragTX=e.touches[0].clientX-dragStartX;dragTY=e.touches[0].clientY-dragStartY;sd.style.transform='translate('+dragTX+'px,'+dragTY+'px)';},{passive:false});
-    document.addEventListener('mouseup',()=>{dragActive=false;sd.style.cursor='grab';});
-    document.addEventListener('touchend',()=>{dragActive=false;sd.style.cursor='grab';});
+    renderLockScripts();
     // script button
     document.getElementById('scriptBtn').addEventListener('click',()=>{
       renderScriptList();document.getElementById('newScriptInput').value='';document.getElementById('scriptModal').classList.add('active');
@@ -747,7 +742,7 @@ export default {
     document.getElementById('scriptModal').addEventListener('click',e=>{if(e.target===document.getElementById('scriptModal'))document.getElementById('scriptModal').classList.remove('active');});
     document.getElementById('addScriptBtn').addEventListener('click',()=>{
       const t=document.getElementById('newScriptInput').value.trim();if(!t)return;
-      const a=loadScripts();a.push(t);saveScripts(a);document.getElementById('newScriptInput').value='';renderScriptList();
+      const a=loadScripts();a.push(t);saveScripts(a);document.getElementById('newScriptInput').value='';renderScriptList();renderLockScripts();
     });
   }
 
