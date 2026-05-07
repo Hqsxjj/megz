@@ -385,6 +385,8 @@ export default {
     .client-info { flex: 1; display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline; }
     .client-name { font-weight: 700; }
     .client-phone { color: var(--text-soft); font-size: 0.75rem; font-weight: 600; }
+    .phone-toggle { background: none; border: none; font-size: 0.8rem; cursor: pointer; padding: 0 2px; opacity: 0.5; transition: opacity 0.2s; vertical-align: middle; line-height: 1; }
+    .phone-toggle:hover { opacity: 1; }
     .client-note { color: var(--text-light); font-size: 0.75rem; font-weight: 600; }
     .client-time { color: var(--text-light); font-size: 0.65rem; font-weight: 500; }
     .del-icon { background: none; border: none; font-size: 0.9rem; color: #c97a7a; cursor: pointer; width: 28px; height: 28px; border-radius: var(--radius-xs); font-weight: 700; }
@@ -562,7 +564,7 @@ export default {
   const LAST_LOAD_DATE_K='last_load_date_v1', WALLPAPER_K='wp_cache', SCRIPTS_K='scripts_v1', LEARN_K='learn_v1', SCRIPTS_VER_K='scripts_ver', LEARN_VER_K='learn_ver', CLIENTS_VER_K='clients_ver';
   const DEFAULT_PIN='8520';
   const SYNC_INTERVAL=2000;
-  let syncTimer=null, cloudDataLoaded=false;
+  let syncTimer=null;
 
   const getTodayStr=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');};
   const getCurrentMonth=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');};
@@ -573,6 +575,7 @@ export default {
   const saveTodos=(k,a)=>localStorage.setItem(k,JSON.stringify(a));
   const pushTodoLog=async (todo,ds)=>{try{const r=await fetch('/api/data?date='+ds);if(r.ok){const d=await r.json();const log=d.todoLog||[];log.push(todo);await fetch('/api/data',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...d,todoLog:log})});}}catch(e){}};
   const esc=s=>String(s).replace(/[&<>]/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;' })[m]||m);
+  const maskPhone=p=>{if(!p||p.length<7)return p;return p.slice(0,3)+'****'+p.slice(-4);};
 
   function getWeekTotal(map){const t=new Date();const dow=t.getDay();const diff=dow===0?6:dow-1;const mon=new Date(t);mon.setDate(t.getDate()-diff);const ms=mon.getFullYear()+'-'+String(mon.getMonth()+1).padStart(2,'0')+'-'+String(mon.getDate()).padStart(2,'0');const ts=getTodayStr();let s=0;for(let[d,v]of Object.entries(map))if(d>=ms&&d<=ts)s+=v;return s;}
   function getMonthTotal(map){const p=getTodayStr().slice(0,7);let s=0;for(let[d,v]of Object.entries(map))if(d.startsWith(p))s+=v;return s;}
@@ -583,20 +586,20 @@ export default {
   async function cloudCalendar(month){try{const r=await fetch('/api/calendar?month='+month);if(r.ok)return await r.json();}catch(e){}return null;}
   async function cloudStats(month){try{const r=await fetch('/api/stats?month='+month);if(r.ok)return await r.json();}catch(e){}return null;}
 
-  async function pullScriptsLearns(){
-    const data=await cloudGet(getTodayStr());
+  async function pullFromCloud(){
+    const today=getTodayStr();
+    const data=await cloudGet(today);
     if(!data)return;
-    if(data.scripts!==undefined&&(data.scriptsVer||0)>getScriptsVer()){
-      localStorage.setItem(SCRIPTS_VER_K,data.scriptsVer||0);
-      saveScripts(data.scripts);renderLockScripts();
+    // 拉取计数（取最大值合并）
+    if((data.wechatCount||0)>0){
+      const wm=loadMap(WECHAT_K);wm[today]=Math.max(wm[today]||0,data.wechatCount||0);saveMap(WECHAT_K,wm);
     }
-    if(data.learns!==undefined&&(data.learnsVer||0)>getLearnsVer()){
-      localStorage.setItem(LEARN_VER_K,data.learnsVer||0);
-      saveLearns(data.learns);renderLockLearns();
+    if((data.intentCount||0)>0){
+      const im=loadMap(INTENT_K);im[today]=Math.max(im[today]||0,data.intentCount||0);saveMap(INTENT_K,im);
     }
+    // 拉取客户（版本号比对）
     if(data.clientsVer!==undefined){
       const localCv=getClientsVer();
-      const today=getTodayStr();
       if((data.clientsVer[today]||0)>(localCv[today]||0)){
         localCv[today]=data.clientsVer[today];
         localStorage.setItem(CLIENTS_VER_K,JSON.stringify(localCv));
@@ -608,38 +611,55 @@ export default {
         }
       }
     }
+    // 拉取话术/学习（版本号比对）
+    if(data.scripts!==undefined&&(data.scriptsVer||0)>getScriptsVer()){
+      localStorage.setItem(SCRIPTS_VER_K,data.scriptsVer||0);
+      saveScripts(data.scripts);renderLockScripts();
+    }
+    if(data.learns!==undefined&&(data.learnsVer||0)>getLearnsVer()){
+      localStorage.setItem(LEARN_VER_K,data.learnsVer||0);
+      saveLearns(data.learns);renderLockLearns();
+    }
   }
 
   async function syncToCloud(full=false){
     const today=getTodayStr();
     const wm=loadMap(WECHAT_K), im=loadMap(INTENT_K);
-    // 先拉云端当前值，取最大值避免旧数据覆盖手动更新
-    let cloudW=0, cloudI=0;
+    // 先拉云端当前值，合并计数和客户
+    let cloudW=0, cloudI=0, cloudClients=[];
     try{
       const existing=await cloudGet(today);
-      if(existing){cloudW=existing.wechatCount||0;cloudI=existing.intentCount||0;}
+      if(existing){cloudW=existing.wechatCount||0;cloudI=existing.intentCount||0;cloudClients=existing.clients||[];}
     }catch(e){}
     const finalW=Math.max(wm[today]||0,cloudW);
     const finalI=Math.max(im[today]||0,cloudI);
-    const clients=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
+    // 合并客户：本地+云端去重（按姓名+电话+时间），本地优先
+    const localClients=(JSON.parse(localStorage.getItem(CLIENTS_K)||'[]')).filter(c=>c.date===today);
+    const mergedClients=[...cloudClients];
+    for(const lc of localClients){
+      const ei=mergedClients.findIndex(cc=>cc.name===lc.name&&cc.phone===lc.phone&&cc.time===lc.time);
+      if(ei>=0){mergedClients[ei]=lc;}else{mergedClients.push(lc);}
+    }
+    // 更新本地存储为合并后的结果
+    const allClients=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
+    const nonToday=allClients.filter(c=>c.date!==today);
+    localStorage.setItem(CLIENTS_K,JSON.stringify([...nonToday,...mergedClients]));
     const data={
       date:today,
       wechatCount:finalW,
       intentCount:finalI,
-      clients:clients.filter(c=>c.date===today),
+      clients:mergedClients,
       todayTodos:loadTodos(TODAY_TODO_K),
-      tomorrowTodos:loadTodos(TOMORROW_TODO_K)
+      tomorrowTodos:loadTodos(TOMORROW_TODO_K),
+      clientsVer:getClientsVer()
     };
-    // 仅在用户主动操作时同步话术/学习（含版本号），定时器不同步避免旧版本覆盖
     if(full){
       data.scripts=loadScripts();
       data.scriptsVer=getScriptsVer();
       data.learns=loadLearns();
       data.learnsVer=getLearnsVer();
-      data.clientsVer=getClientsVer();
     }
     await cloudSave(data);
-    // 本地也更新为合并后的值
     if(finalW!==(wm[today]||0)){wm[today]=finalW;saveMap(WECHAT_K,wm);}
     if(finalI!==(im[today]||0)){im[today]=finalI;saveMap(INTENT_K,im);}
   }
@@ -682,13 +702,14 @@ export default {
   function renderClientList(){
     const today=getTodayStr();
     const clients=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]').filter(c=>c.date===today);
-    document.getElementById('clientList').innerHTML=clients.map((c,i)=>'<div class="client-row"><div class="client-info"><span class="client-name">'+esc(c.name)+'</span><span class="client-phone">'+esc(c.phone)+'</span>'+(c.note?'<span class="client-note">📝 '+esc(c.note)+'</span>':'')+'<span class="client-time">⏰ '+esc(c.time||'')+'</span></div><div class="client-actions"><button class="edit-icon" data-idx="'+i+'" title="编辑">✎</button><button class="del-icon" data-idx="'+i+'" title="删除">✕</button></div></div>').join('');
+    document.getElementById('clientList').innerHTML=clients.map((c,i)=>'<div class="client-row"><div class="client-info"><span class="client-name">'+esc(c.name)+'</span><span class="client-phone" data-full="'+esc(c.phone)+'">'+esc(maskPhone(c.phone))+'</span><button class="phone-toggle" title="显示号码">👁</button>'+(c.note?'<span class="client-note">📝 '+esc(c.note)+'</span>':'')+'<span class="client-time">⏰ '+esc(c.time||'')+'</span></div><div class="client-actions"><button class="edit-icon" data-idx="'+i+'" title="编辑">✎</button><button class="del-icon" data-idx="'+i+'" title="删除">✕</button></div></div>').join('');
     document.querySelectorAll('.del-icon').forEach(b=>b.addEventListener('click',e=>{
       const i=parseInt(b.dataset.idx);
       const a=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
       const c=a[i];if(!c)return;
       const td=c.date||getTodayStr();
       a.splice(i,1);localStorage.setItem(CLIENTS_K,JSON.stringify(a));
+      bumpClientsVer(td);
       const im=loadMap(INTENT_K);if(im[td]>0){im[td]--;saveMap(INTENT_K,im);}
       renderClientList();refreshAll();
     }));
@@ -700,11 +721,26 @@ export default {
       document.getElementById('custPhone').value=c.phone;
       document.getElementById('custNote').value=c.note||'';
       a.splice(i,1);localStorage.setItem(CLIENTS_K,JSON.stringify(a));
-      const im=loadMap(INTENT_K);
       const td=c.date||getTodayStr();
+      bumpClientsVer(td);
+      const im=loadMap(INTENT_K);
       if(im[td]>0){im[td]--;saveMap(INTENT_K,im);}
       renderClientList();refreshAll();
       document.getElementById('custName').focus();
+    }));
+    document.querySelectorAll('.phone-toggle').forEach(b=>b.addEventListener('click',e=>{
+      e.stopPropagation();
+      const phoneSpan=b.previousElementSibling;
+      const full=phoneSpan.dataset.full;
+      if(phoneSpan.textContent===full){
+        phoneSpan.textContent=maskPhone(full);
+        b.title='显示号码';
+        b.textContent='👁';
+      }else{
+        phoneSpan.textContent=full;
+        b.title='隐藏号码';
+        b.textContent='🙈';
+      }
     }));
   }
 
@@ -794,12 +830,26 @@ export default {
     function renderTl(){
       document.getElementById('modalClientList').innerHTML=timeline.length===0?'<div class="empty-clients">📭 当日无记录</div>':timeline.map(e=>{
         if(e.type==='client'){
-          return '<div class="modal-client-item" style="border-left:3px solid var(--accent-intent);"><div><span class="modal-client-name">🎯 '+esc(e.name)+'</span><span class="modal-client-phone">'+esc(e.phone)+'</span></div>'+(e.time?'<div style="font-size:0.65rem;color:var(--text-light);margin-top:2px;">⏰ '+esc(e.time)+'</div>':'')+'<div class="modal-client-note" id="cn_'+e.idx+'">'+(e.note?'📝 '+esc(e.note)+' ':'')+'<button class="edit-note-btn" data-idx="'+e.idx+'" style="font-size:0.6rem;background:none;border:1px solid var(--accent-wechat);color:var(--accent-wechat);border-radius:8px;cursor:pointer;padding:1px 8px;">✎'+(e.note?' 编辑':' 添加备注')+'</button></div></div>';
+          return '<div class="modal-client-item" style="border-left:3px solid var(--accent-intent);"><div><span class="modal-client-name">🎯 '+esc(e.name)+'</span><span class="modal-client-phone" data-full="'+esc(e.phone)+'">'+esc(maskPhone(e.phone))+'</span><button class="phone-toggle" title="显示号码">👁</button></div>'+(e.time?'<div style="font-size:0.65rem;color:var(--text-light);margin-top:2px;">⏰ '+esc(e.time)+'</div>':'')+'<div class="modal-client-note" id="cn_'+e.idx+'">'+(e.note?'📝 '+esc(e.note)+' ':'')+'<button class="edit-note-btn" data-idx="'+e.idx+'" style="font-size:0.6rem;background:none;border:1px solid var(--accent-wechat);color:var(--accent-wechat);border-radius:8px;cursor:pointer;padding:1px 8px;">✎'+(e.note?' 编辑':' 添加备注')+'</button></div></div>';
         }else{
           return '<div class="modal-client-item" style="border-left:3px solid var(--accent-wechat);"><div><span class="modal-client-name">✅ 待办</span></div><div style="font-size:0.8rem;color:var(--text-main);margin-top:2px;">'+esc(e.text)+'</div>'+(e.time?'<div style="font-size:0.65rem;color:var(--text-light);margin-top:2px;">⏰ '+esc(e.time)+'</div>':'')+'</div>';
         }
       }).join('');
       bindEditBtns();
+      document.querySelectorAll('#modalClientList .phone-toggle').forEach(b=>b.addEventListener('click',e=>{
+        e.stopPropagation();
+        const phoneSpan=b.previousElementSibling;
+        const full=phoneSpan.dataset.full;
+        if(phoneSpan.textContent===full){
+          phoneSpan.textContent=maskPhone(full);
+          b.title='显示号码';
+          b.textContent='👁';
+        }else{
+          phoneSpan.textContent=full;
+          b.title='隐藏号码';
+          b.textContent='🙈';
+        }
+      }));
     }
     function bindEditBtns(){
       document.querySelectorAll('.edit-note-btn').forEach(btn=>{
@@ -890,6 +940,7 @@ export default {
     const today=getTodayStr(),time=getCurrentTime();
     list.push({name:n,phone:p,note:nt,date:today,time:time});
     localStorage.setItem(CLIENTS_K,JSON.stringify(list));
+    bumpClientsVer(today);
     const im=loadMap(INTENT_K);im[today]=(im[today]||0)+1;saveMap(INTENT_K,im);
     document.getElementById('custName').value='';
     document.getElementById('custPhone').value='';
@@ -1087,7 +1138,7 @@ export default {
   function startSyncTimer(){
     if(syncTimer)clearInterval(syncTimer);
     // 定时拉取其他设备更新；推送仅在用户操作时即时触发
-    syncTimer=setInterval(()=>{pullScriptsLearns().catch(()=>{});},SYNC_INTERVAL);
+    syncTimer=setInterval(()=>{pullFromCloud().catch(()=>{});},SYNC_INTERVAL);
     // 定时推送业务数据（计数、客户、待办）
     setInterval(()=>{if(!document.body.classList.contains('page-hidden'))syncToCloud(false).catch(()=>{});},SYNC_INTERVAL);
   }
@@ -1123,7 +1174,6 @@ export default {
   (async()=>{
     const prevLastLoadDate=localStorage.getItem(LAST_LOAD_DATE_K);
     await loadFromCloud(getTodayStr());
-    cloudDataLoaded=true;
     // 跨天自动转移昨日「明日待办」到今日
     const todayStr=getTodayStr();
     if(prevLastLoadDate && prevLastLoadDate!==todayStr){
