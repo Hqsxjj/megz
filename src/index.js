@@ -445,7 +445,7 @@ export default {
     <div class="modal-header"><span>📖 学习管理</span><button id="closeLearnModalBtn">✕</button></div>
     <textarea id="newLearnInput" placeholder="输入学习内容..."></textarea>
     <div class="learn-check-row"><input type="checkbox" id="learnShowCheck" checked><label for="learnShowCheck">锁屏显示</label></div>
-    <button class="btn-add" id="addLearnBtn" style="width:100%;">+ 添加学习</button>
+    <button class="btn-add" id="addLearnBtn" style="width:100%;">保存</button>
     <div class="script-list" id="learnList"></div>
   </div>
 </div>
