@@ -476,6 +476,19 @@ export default {
   async function cloudCalendar(month){try{const r=await fetch('/api/calendar?month='+month);if(r.ok)return await r.json();}catch(e){}return null;}
   async function cloudStats(month){try{const r=await fetch('/api/stats?month='+month);if(r.ok)return await r.json();}catch(e){}return null;}
 
+  async function pullScriptsLearns(){
+    const data=await cloudGet(getTodayStr());
+    if(!data)return;
+    if(data.scripts&&data.scripts.length>0){
+      const local=loadScripts();
+      if(JSON.stringify(local)!==JSON.stringify(data.scripts)){saveScripts(data.scripts);renderLockScripts();}
+    }
+    if(data.learns&&data.learns.length>0){
+      const local=loadLearns();
+      if(JSON.stringify(local)!==JSON.stringify(data.learns)){saveLearns(data.learns);renderLockLearns();}
+    }
+  }
+
   async function syncToCloud(){
     if(!cloudDataLoaded)return;
     const today=getTodayStr();
@@ -837,6 +850,7 @@ export default {
   function startSyncTimer(){
     if(syncTimer)clearInterval(syncTimer);
     syncTimer=setInterval(()=>{if(!document.body.classList.contains('page-hidden'))syncToCloud().catch(()=>{});},SYNC_INTERVAL);
+    setInterval(()=>{pullScriptsLearns().catch(()=>{});},SYNC_INTERVAL);
   }
 
   initDark();initWp();initScriptFeature();initLearnFeature();
