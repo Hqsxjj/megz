@@ -815,9 +815,12 @@ export default {
     document.getElementById('closeLearnModalBtn').addEventListener('click',()=>document.getElementById('learnModal').classList.remove('active'));
     document.getElementById('learnModal').addEventListener('click',e=>{if(e.target===document.getElementById('learnModal'))document.getElementById('learnModal').classList.remove('active');});
     document.getElementById('addLearnBtn').addEventListener('click',()=>{
-      const t=document.getElementById('newLearnInput').value.trim();if(!t)return;
-      const show=document.getElementById('learnShowCheck').checked;
-      const a=loadLearns();a.push({text:t,show});saveLearns(a);lastLocalMod=Date.now();document.getElementById('newLearnInput').value='';renderLearnList();renderLockLearns();syncToCloud().catch(()=>{});
+      const t=document.getElementById('newLearnInput').value.trim();
+      if(t){
+        const show=document.getElementById('learnShowCheck').checked;
+        const a=loadLearns();a.push({text:t,show});saveLearns(a);lastLocalMod=Date.now();document.getElementById('newLearnInput').value='';
+      }
+      renderLearnList();renderLockLearns();syncToCloud().catch(()=>{});
     });
   }
 
