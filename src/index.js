@@ -363,9 +363,8 @@ export default {
             <div class="button-group"><button class="circle-btn" id="wechatMinus">−</button><button class="circle-btn btn-special" id="wechatPlus">+</button></div>
           </div>
           <div class="counter-card intent-fill">
-            <div class="counter-header"><span class="counter-label">🎯 今日意向</span><button class="reset-mini" id="resetIntentToday">↺</button></div>
+            <div class="counter-header"><span class="counter-label">🎯 今日意向</span></div>
             <div class="counter-value" id="intentNum">0</div>
-            <div class="button-group"><button class="circle-btn" id="intentMinus">−</button><button class="circle-btn" id="intentPlus">+</button></div>
           </div>
         </div>
         <div class="stats-row">
@@ -497,7 +496,10 @@ export default {
     document.querySelectorAll('.del-icon').forEach(b=>b.addEventListener('click',e=>{
       const i=parseInt(b.dataset.idx);
       const a=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
+      const c=a[i];if(!c)return;
+      const td=c.date||getTodayStr();
       a.splice(i,1);localStorage.setItem(CLIENTS_K,JSON.stringify(a));
+      const im=loadMap(INTENT_K);if(im[td]>0){im[td]--;saveMap(INTENT_K,im);}
       renderClientList();refreshAll();
     }));
     document.querySelectorAll('.edit-icon').forEach(b=>b.addEventListener('click',e=>{
@@ -706,9 +708,6 @@ export default {
   document.getElementById('wechatPlus').addEventListener('click',()=>modCounter(WECHAT_K,1));
   document.getElementById('wechatMinus').addEventListener('click',()=>modCounter(WECHAT_K,-1));
   document.getElementById('resetWechatToday').addEventListener('click',()=>resetToday(WECHAT_K));
-  document.getElementById('intentPlus').addEventListener('click',()=>modCounter(INTENT_K,1));
-  document.getElementById('intentMinus').addEventListener('click',()=>modCounter(INTENT_K,-1));
-  document.getElementById('resetIntentToday').addEventListener('click',()=>resetToday(INTENT_K));
   document.getElementById('addClientBtn').addEventListener('click',addClient);
   document.getElementById('addTodayTodoBtn').addEventListener('click',addTodayTodo);
   document.getElementById('addTodoBtn').addEventListener('click',addTodo);
