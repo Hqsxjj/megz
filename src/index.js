@@ -172,12 +172,12 @@ export default {
       const wTotal = type === 'week' ? weekW : monthW;
       const iTotal = type === 'week' ? weekI : monthI;
 
-      let text = title + '\n' + dateRange + '\n\n';
+      let text = title + '\n\n' + dateRange + '\n\n\n';
       text += '💬 新增微信：**' + wTotal + '**    🎯 新增意向：**' + iTotal + '**\n';
       if (type !== 'week') {
         text += '（💬 本周微信：**' + weekW + '**    🎯 本周意向：**' + weekI + '**）\n';
       }
-      text += '\n| 日期 | 周 | 💬 | 🎯 | 意向详情 |\n|------|----|----|----|----------|\n';
+      text += '\n\n| 日期 | 周 | 💬 | 🎯 | 意向详情 |\n|------|----|----|----|----------|\n';
       for (const d of sorted) {
         if (type === 'week' && (d.date < monStr || d.date > todayStr)) continue;
         const datePart = d.date.slice(5);
