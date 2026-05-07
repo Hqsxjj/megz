@@ -343,6 +343,10 @@ export default {
       .pin-stat-value { font-size: 1.6rem; }
       .pin-input { width: 130px; padding: 7px 12px; font-size: 0.9rem; }
       .pin-btn { padding: 7px 20px; font-size: 0.7rem; }
+	      .script-container { left: 8px; top: 60px; max-width: 42vw; max-height: 30vh; overflow-y: auto; }
+	      .learn-container { right: 8px; top: 60px; max-width: 52vw; max-height: 30vh; overflow-y: auto; }
+	      .script-module { padding: 8px 12px; font-size: 0.75rem; }
+	      .learn-module { padding: 8px 12px; font-size: 0.7rem; }
     }
   </style>
 </head>
