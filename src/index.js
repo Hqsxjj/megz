@@ -206,10 +206,10 @@ export default {
     .pin-stat-value { font-size: 3.2rem; font-weight: 900; line-height: 1; }
     .pin-wechat-value { background: var(--wechat-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
     .pin-intent-value { background: var(--intent-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
-    .pin-input { width: 220px; padding: 18px 24px; border-radius: var(--radius-xs); border: 2px solid rgba(200,210,220,0.5); background: rgba(255,255,255,0.5); text-align: center; font-size: 1.6rem; letter-spacing: 8px; color: var(--text-main); outline: none; font-weight: 700; transition: all 0.3s; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+    .pin-input { width: 140px; padding: 8px 14px; border-radius: var(--radius-xs); border: 1.5px solid rgba(200,210,220,0.5); background: rgba(255,255,255,0.5); text-align: center; font-size: 1rem; letter-spacing: 5px; color: var(--text-main); outline: none; font-weight: 700; transition: all 0.3s; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
     body.dark-mode .pin-input { background: rgba(40,50,63,0.5); border-color: rgba(255,255,255,0.15); }
     .pin-input:focus { border-color: var(--accent-wechat); box-shadow: 0 0 0 4px rgba(44,125,160,0.15); background: rgba(255,255,255,0.7); }
-    .pin-btn { background: var(--accent-wechat); border: none; color: white; padding: 16px 48px; border-radius: var(--radius-xs); font-weight: 700; cursor: pointer; width: 100%; font-size: 1.1rem; letter-spacing: 2px; transition: all 0.2s; box-shadow: 0 4px 15px rgba(44,125,160,0.3); }
+    .pin-btn { background: var(--accent-wechat); border: none; color: white; padding: 8px 24px; border-radius: var(--radius-xs); font-weight: 700; cursor: pointer; width: 100%; font-size: 0.8rem; letter-spacing: 1px; transition: all 0.2s; box-shadow: 0 4px 15px rgba(44,125,160,0.3); }
     .pin-btn:hover { opacity: 0.9; transform: translateY(-2px); box-shadow: 0 6px 20px rgba(44,125,160,0.4); }
     .pin-btn:active { transform: translateY(0); }
     .pin-error { color: #e74c3c; font-size: 0.9rem; min-height: 24px; font-weight: 600; letter-spacing: 0.5px; }
@@ -325,8 +325,8 @@ export default {
       .pin-stat-item { padding: 16px 20px; min-width: 120px; gap: 8px; }
       .pin-stat-label { font-size: 0.8rem; }
       .pin-stat-value { font-size: 2.4rem; }
-      .pin-input { width: 200px; padding: 14px 20px; font-size: 1.3rem; }
-      .pin-btn { padding: 14px 36px; font-size: 1rem; }
+      .pin-input { width: 130px; padding: 7px 12px; font-size: 0.9rem; }
+      .pin-btn { padding: 7px 20px; font-size: 0.7rem; }
     }
   </style>
 </head>
