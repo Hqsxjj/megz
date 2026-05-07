@@ -641,7 +641,22 @@ export default {
         if(data.todayTodos&&data.todayTodos.length>0)todos=data.todayTodos;
       }
     }catch(e){}
-    if(clients.length===0)clients=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]').filter(c=>c.date===ds);
+    // 合并本地客户（可能比云端新）
+    const localAll=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
+    const localDay=localAll.filter(c=>c.date===ds);
+    // 云端有本地没有的客户 → 合并进本地
+    clients.forEach(cc=>{
+      if(!localDay.find(lc=>lc.name===cc.name&&lc.phone===cc.phone&&lc.time===cc.time)){
+        localAll.push(cc);
+      }
+    });
+    // 本地有云端没有的客户 → 用本地版本（可能已编辑）
+    localDay.forEach(lc=>{
+      if(!clients.find(cc=>cc.name===lc.name&&cc.phone===lc.phone&&cc.time===lc.time)){
+        clients.push(lc);
+      }
+    });
+    localStorage.setItem(CLIENTS_K,JSON.stringify(localAll));
     if(todos.length===0&&ds===getTodayStr())todos=loadTodos(TODAY_TODO_K);
     let timeline=[];
     clients.forEach((c,i)=>{timeline.push({type:'client',time:c.time||'',name:c.name,phone:c.phone,note:c.note,idx:i});});
@@ -655,33 +670,33 @@ export default {
           return '<div class="modal-client-item" style="border-left:3px solid var(--accent-wechat);"><div><span class="modal-client-name">✅ 待办</span></div><div style="font-size:0.8rem;color:var(--text-main);margin-top:2px;">'+esc(e.text)+'</div>'+(e.time?'<div style="font-size:0.65rem;color:var(--text-light);margin-top:2px;">⏰ '+esc(e.time)+'</div>':'')+'</div>';
         }
       }).join('');
-      bindEditBtns(ds);
+      bindEditBtns();
     }
-    function bindEditBtns(dateStr){
+    function bindEditBtns(){
       document.querySelectorAll('.edit-note-btn').forEach(btn=>{
-        btn.addEventListener('click',function(){
+        btn.onclick=function(){
           const idx=parseInt(this.dataset.idx);
-          const all=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
           const ti=timeline.find(t=>t.type==='client'&&t.idx===idx);
           if(!ti)return;
-          const client=all.find(c=>c.date===dateStr&&c.name===ti.name&&c.phone===ti.phone);
-          if(!client)return;
+          const all=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
+          const client=all.find(c=>c.date===ds&&c.name===ti.name&&c.phone===ti.phone);
+          if(!client){console.warn('client not found',ti.name);return;}
           const noteDiv=document.getElementById('cn_'+idx);
           if(!noteDiv)return;
           const old=client.note||'';
           noteDiv.innerHTML='<textarea id="ein_'+idx+'" style="width:100%;min-height:50px;background:var(--btn-bg);border:1px solid var(--card-border);border-radius:8px;padding:6px 10px;font-size:0.75rem;color:var(--text-main);outline:none;font-weight:600;">'+esc(old)+'</textarea><div style="display:flex;gap:6px;margin-top:4px;"><button id="sn_'+idx+'" style="font-size:0.65rem;background:var(--accent-wechat);color:#fff;border:none;border-radius:8px;cursor:pointer;padding:3px 10px;">保存</button><button id="cn_btn_'+idx+'" style="font-size:0.65rem;background:var(--btn-bg);border:1px solid var(--card-border);color:var(--text-soft);border-radius:8px;cursor:pointer;padding:3px 10px;">取消</button></div>';
-          document.getElementById('sn_'+idx).addEventListener('click',async ()=>{
+          document.getElementById('sn_'+idx).onclick=async ()=>{
             const nn=document.getElementById('ein_'+idx).value.trim();
             const allClients=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
-            const target=allClients.find(c=>c.date===dateStr&&c.name===ti.name&&c.phone===ti.phone);
+            const target=allClients.find(c=>c.date===ds&&c.name===ti.name&&c.phone===ti.phone);
             if(target){target.note=nn;localStorage.setItem(CLIENTS_K,JSON.stringify(allClients));}
             ti.note=nn;
-            // 保存到该日期对应的KV记录
+            clients.forEach(c=>{if(c.name===ti.name&&c.phone===ti.phone)c.note=nn;});
             try{
-              const existing=await cloudGet(dateStr);
-              const dayClients=allClients.filter(c=>c.date===dateStr);
-              const data={
-                date:dateStr,
+              const existing=await cloudGet(ds);
+              const dayClients=allClients.filter(c=>c.date===ds);
+              await cloudSave({
+                date:ds,
                 wechatCount:existing?existing.wechatCount||0:0,
                 intentCount:existing?existing.intentCount||0:0,
                 clients:dayClients,
@@ -691,13 +706,12 @@ export default {
                 scriptsVer:existing?existing.scriptsVer||0:0,
                 learns:existing?existing.learns||[]:[],
                 learnsVer:existing?existing.learnsVer||0:0
-              };
-              await cloudSave(data);
+              });
             }catch(e){}
             renderTl();
-          });
-          document.getElementById('cn_btn_'+idx).addEventListener('click',()=>renderTl());
-        });
+          };
+          document.getElementById('cn_btn_'+idx).onclick=()=>renderTl();
+        };
       });
     }
     renderTl();
