@@ -36,7 +36,7 @@ export default {
     // 保存数据
     if (path === '/api/data' && request.method === 'POST') {
       const body = await request.json();
-      const { date, wechatCount, intentCount, clients, todayTodos, tomorrowTodos, scripts, learns, scriptsVer, learnsVer } = body;
+      const { date, wechatCount, intentCount, clients, todayTodos, tomorrowTodos, scripts, learns, scriptsVer, learnsVer, clientsVer } = body;
       if (!date) {
         return new Response(JSON.stringify({ error: '缺少 date 参数' }), {
           status: 400,
@@ -54,6 +54,7 @@ export default {
         scriptsVer: scriptsVer || 0,
         learns: learns || [],
         learnsVer: learnsVer || 0,
+        clientsVer: clientsVer || {},
         lastLoadDate: date,
         lastModified: new Date().toISOString()
       };
@@ -463,7 +464,7 @@ export default {
 (function(){
   const WECHAT_K='wechat_v3', INTENT_K='intent_v3', CLIENTS_K='clients_v3';
   const DARK_K='dark_mode', LOCK_K='locked', TODAY_TODO_K='today_todo_v2', TOMORROW_TODO_K='tomorrow_todo_v2';
-  const LAST_LOAD_DATE_K='last_load_date_v1', WALLPAPER_K='wp_cache', SCRIPTS_K='scripts_v1', LEARN_K='learn_v1', SCRIPTS_VER_K='scripts_ver', LEARN_VER_K='learn_ver';
+  const LAST_LOAD_DATE_K='last_load_date_v1', WALLPAPER_K='wp_cache', SCRIPTS_K='scripts_v1', LEARN_K='learn_v1', SCRIPTS_VER_K='scripts_ver', LEARN_VER_K='learn_ver', CLIENTS_VER_K='clients_ver';
   const DEFAULT_PIN='8520';
   const SYNC_INTERVAL=2000;
   let syncTimer=null, cloudDataLoaded=false;
@@ -497,6 +498,20 @@ export default {
       localStorage.setItem(LEARN_VER_K,data.learnsVer||0);
       saveLearns(data.learns);renderLockLearns();
     }
+    if(data.clientsVer!==undefined){
+      const localCv=getClientsVer();
+      const today=getTodayStr();
+      if((data.clientsVer[today]||0)>(localCv[today]||0)){
+        localCv[today]=data.clientsVer[today];
+        localStorage.setItem(CLIENTS_VER_K,JSON.stringify(localCv));
+        if(data.clients&&data.clients.length>0){
+          let cl=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
+          cl=cl.filter(c=>c.date!==today);
+          cl=cl.concat(data.clients);
+          localStorage.setItem(CLIENTS_K,JSON.stringify(cl));
+        }
+      }
+    }
   }
 
   async function syncToCloud(full=false){
@@ -518,6 +533,7 @@ export default {
       data.scriptsVer=getScriptsVer();
       data.learns=loadLearns();
       data.learnsVer=getLearnsVer();
+      data.clientsVer=getClientsVer();
     }
     await cloudSave(data);
   }
@@ -528,7 +544,7 @@ export default {
     if(data){
       if(data.wechatCount>0){const m=loadMap(WECHAT_K);m[date]=data.wechatCount;saveMap(WECHAT_K,m);}
       if(data.intentCount>0){const m=loadMap(INTENT_K);m[date]=data.intentCount;saveMap(INTENT_K,m);}
-      if(data.clients&&data.clients.length>0){let cl=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');cl=cl.filter(c=>c.date!==date);cl=cl.concat(data.clients);localStorage.setItem(CLIENTS_K,JSON.stringify(cl));}
+      if(data.clients&&data.clients.length>0){const cloudCv2=data.clientsVer||{};const localCv2=getClientsVer();if((cloudCv2[date]||0)>(localCv2[date]||0)){let cl=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');cl=cl.filter(c=>c.date!==date);cl=cl.concat(data.clients);localStorage.setItem(CLIENTS_K,JSON.stringify(cl));localCv2[date]=cloudCv2[date];localStorage.setItem(CLIENTS_VER_K,JSON.stringify(localCv2));}}
       if(data.todayTodos&&data.todayTodos.length>0)saveTodos(TODAY_TODO_K,data.todayTodos);
       if(data.tomorrowTodos&&data.tomorrowTodos.length>0)saveTodos(TOMORROW_TODO_K,data.tomorrowTodos);
       if(data.scripts!==undefined&&(data.scriptsVer||0)>getScriptsVer()){localStorage.setItem(SCRIPTS_VER_K,data.scriptsVer||0);saveScripts(data.scripts);}
@@ -635,22 +651,31 @@ export default {
     document.getElementById('modalDateTitle').innerText=ds+' 时间线';
     document.getElementById('modalClientList').innerHTML='<div class="empty-clients">加载中...</div>';
     document.getElementById('dateModal').classList.add('active');
-    let clients=[], todos=[];
+    let clients=[], todos=[], cloudData=null;
     try{
       const r=await fetch('/api/data?date='+ds);
       if(r.ok){
-        const data=await r.json();
-        if(data.clients&&data.clients.length>0)clients=data.clients;
-        if(data.todayTodos&&data.todayTodos.length>0)todos=data.todayTodos;
+        cloudData=await r.json();
+        if(cloudData.clients&&cloudData.clients.length>0)clients=cloudData.clients;
+        if(cloudData.todayTodos&&cloudData.todayTodos.length>0)todos=cloudData.todayTodos;
       }
     }catch(e){}
-    // 本地有当天客户则用本地（可能已编辑过），否则用云端
+    // 版本号比对：云端更高用云端，本地更高保留本地
     const localAll=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
     const localDay=localAll.filter(c=>c.date===ds);
-    localDay.forEach(lc=>{
-      const exist=clients.findIndex(cc=>cc.name===lc.name&&cc.phone===lc.phone&&cc.time===lc.time);
-      if(exist>=0){clients[exist]=lc;}else{clients.push(lc);}
-    });
+    const localCv3=getClientsVer();
+    const cloudCv3=(cloudData&&cloudData.clientsVer)||{};
+    if((cloudCv3[ds]||0)>(localCv3[ds]||0)){
+      const nonDay=localAll.filter(c=>c.date!==ds);
+      localStorage.setItem(CLIENTS_K,JSON.stringify([...nonDay,...clients]));
+      localCv3[ds]=cloudCv3[ds];
+      localStorage.setItem(CLIENTS_VER_K,JSON.stringify(localCv3));
+    }else{
+      localDay.forEach(lc=>{
+        const exist=clients.findIndex(cc=>cc.name===lc.name&&cc.phone===lc.phone&&cc.time===lc.time);
+        if(exist>=0){clients[exist]=lc;}else{clients.push(lc);}
+      });
+    }
     if(todos.length===0&&ds===getTodayStr())todos=loadTodos(TODAY_TODO_K);
     let timeline=[];
     clients.forEach((c,i)=>{timeline.push({type:'client',time:c.time||'',name:c.name,phone:c.phone,note:c.note,idx:i});});
@@ -679,23 +704,21 @@ export default {
           document.getElementById('sn_'+idx).onclick=async ()=>{
             const nn=document.getElementById('ein_'+idx).value.trim();
             ti.note=nn;
-            // 更新clients数组中的原始对象
             const co=clients.find(c=>c.name===ti.name&&c.phone===ti.phone);
             if(co)co.note=nn;
-            // 只更新localStorage中对应日期的那个客户
             const all=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
             const target=all.find(c=>c.date===ds&&c.name===ti.name&&c.phone===ti.phone);
             if(target){target.note=nn;}
-            // 始终保留一份在localStorage供该日期查看（不在今日显示）
             if(!target){all.push({name:ti.name,phone:ti.phone,note:nn,date:ds,time:ti.time||''});}
             localStorage.setItem(CLIENTS_K,JSON.stringify(all));
-            // 保存到该日期KV
+            const newVer=bumpClientsVer(ds);
             try{
               const existing=await cloudGet(ds);
               const dayClients=all.filter(c=>c.date===ds);
               await cloudSave({
                 date:ds,wechatCount:existing?existing.wechatCount||0:0,intentCount:existing?existing.intentCount||0:0,
                 clients:dayClients,
+                clientsVer:{...((existing&&existing.clientsVer)||{}),[ds]:newVer},
                 todayTodos:existing?existing.todayTodos||[]:[],tomorrowTodos:existing?existing.tomorrowTodos||[]:[],
                 scripts:existing?existing.scripts||[]:[],scriptsVer:existing?existing.scriptsVer||0:0,
                 learns:existing?existing.learns||[]:[],learnsVer:existing?existing.learnsVer||0:0
@@ -849,6 +872,8 @@ export default {
   const saveLearns=(a)=>localStorage.setItem(LEARN_K,JSON.stringify(a));
   const getLearnsVer=()=>parseInt(localStorage.getItem(LEARN_VER_K)||'0');
   const bumpLearnsVer=()=>{const v=getLearnsVer()+1;localStorage.setItem(LEARN_VER_K,v);return v;};
+  const getClientsVer=()=>{try{return JSON.parse(localStorage.getItem(CLIENTS_VER_K))||{};}catch(e){return{};}};
+  const bumpClientsVer=ds=>{const cv=getClientsVer();cv[ds]=(cv[ds]||0)+1;localStorage.setItem(CLIENTS_VER_K,JSON.stringify(cv));return cv[ds];};
   function renderLearnList(){
     const ls=loadLearns();
     document.getElementById('learnList').innerHTML=ls.length===0?'<div style="font-size:0.75rem;color:var(--text-light);padding:8px;text-align:center;">暂无学习</div>':ls.map((l,i)=>'<div class="script-item"><span class="script-item-text">'+(l.show?'👁 ':'')+esc(l.text)+'</span><div style="display:flex;gap:6px;align-items:center;"><input type="checkbox" '+(l.show?'checked':'')+' data-li="'+i+'" title="显示"><button class="del-icon" data-li="'+i+'">✕</button></div></div>').join('');
