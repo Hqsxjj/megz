@@ -411,7 +411,7 @@ export default {
 <div id="globalTooltip" class="tooltip-simple"></div>
 <div id="dateModal" class="modal-overlay">
   <div class="modal-card">
-    <div class="modal-header"><span id="modalDateTitle">2025-01-01</span><button id="closeModalBtn">✕</button></div>
+    <div class="modal-header"><span id="modalDateTitle">时间线</span><button id="closeModalBtn">✕</button></div>
     <div id="modalClientList" class="client-modal-list"></div>
   </div>
 </div>
@@ -429,7 +429,7 @@ export default {
   const getCurrentTime=()=>{const n=new Date();return String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0')+':'+String(n.getSeconds()).padStart(2,'0');};
   const loadMap=k=>{try{return JSON.parse(localStorage.getItem(k))||{};}catch(e){return{};}};
   const saveMap=(k,o)=>localStorage.setItem(k,JSON.stringify(o));
-  const loadTodos=k=>{try{return JSON.parse(localStorage.getItem(k))||[];}catch(e){return[];}};
+  const loadTodos=k=>{try{const d=JSON.parse(localStorage.getItem(k))||[];return d.map(t=>typeof t==='string'?{text:t,time:'',date:getTodayStr()}:t);}catch(e){return[];}};
   const saveTodos=(k,a)=>localStorage.setItem(k,JSON.stringify(a));
   const esc=s=>String(s).replace(/[&<>]/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;' })[m]||m);
 
@@ -519,8 +519,13 @@ export default {
   function renderTodos(){
     const tt=loadTodos(TODAY_TODO_K), tm=loadTodos(TOMORROW_TODO_K);
     const tc=document.getElementById('todayTodoList'), mc=document.getElementById('tomorrowTodoList');
-    tc.innerHTML=tt.length===0?'<div style="font-size:0.75rem;color:var(--text-light);padding:6px;">暂无待办</div>':tt.map((t,i)=>'<div class="todo-item"><span class="todo-number">'+(i+1)+'.</span><span class="todo-text">'+esc(t)+'</span><button class="todo-del-btn" data-idx="'+i+'" data-list="today">✕</button></div>').join('');
-    mc.innerHTML=tm.length===0?'<div style="font-size:0.75rem;color:var(--text-light);padding:6px;">暂无待办</div>':tm.map((t,i)=>'<div class="todo-item"><span class="todo-number">'+(i+1)+'.</span><span class="todo-text">'+esc(t)+'</span><button class="todo-del-btn" data-idx="'+i+'" data-list="tomorrow">✕</button></div>').join('');
+    const makeItem=(t,i,list)=>{
+      const txt=typeof t==='string'?t:t.text;
+      const tm=t&&t.time?'<span style="font-size:0.6rem;color:var(--text-light);margin-left:6px;">'+esc(t.time)+'</span>':'';
+      return '<div class="todo-item"><span class="todo-number">'+(i+1)+'.</span><span class="todo-text">'+esc(txt)+tm+'</span><button class="todo-del-btn" data-idx="'+i+'" data-list="'+list+'">✕</button></div>';
+    };
+    tc.innerHTML=tt.length===0?'<div style="font-size:0.75rem;color:var(--text-light);padding:6px;">暂无待办</div>':tt.map((t,i)=>makeItem(t,i,'today')).join('');
+    mc.innerHTML=tm.length===0?'<div style="font-size:0.75rem;color:var(--text-light);padding:6px;">暂无待办</div>':tm.map((t,i)=>makeItem(t,i,'tomorrow')).join('');
     document.querySelectorAll('.todo-del-btn').forEach(b=>b.addEventListener('click',e=>{
       const i=parseInt(b.dataset.idx),l=b.dataset.list;
       const todos=loadTodos(l==='today'?TODAY_TODO_K:TOMORROW_TODO_K);
@@ -532,6 +537,8 @@ export default {
     const td=new Date(),y=td.getFullYear(),m=td.getMonth();
     const fd=new Date(y,m,1);let si=(fd.getDay()+6)%7;
     const dim=new Date(y,m+1,0).getDate(),ts=getTodayStr();
+    const clients=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
+    const ccMap={};clients.forEach(c=>{if(c.date)ccMap[c.date]=(ccMap[c.date]||0)+1;});
     const mn=['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
     document.getElementById('calMonthTitle').innerHTML=y+'年 '+mn[m];
     let g='';const wd=['一','二','三','四','五','六','日'];
@@ -539,8 +546,8 @@ export default {
     for(let i=0;i<si;i++)g+='<div class="cal-day"></div>';
     for(let d=1;d<=dim;d++){
       const ds=y+'-'+String(m+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
-      const wv=wm[ds]||0,iv=im[ds]||0;
-      let bh='';if(wv>0||iv>0)bh='<div class="day-badge">'+(wv>0?'<span>📋'+wv+'</span>':'')+(iv>0?'<span>🎯'+iv+'</span>':'')+'</div>';
+      const wv=wm[ds]||0,iv=im[ds]||0,cv=ccMap[ds]||0;
+      let bh='';if(wv>0||iv>0||cv>0)bh='<div class="day-badge">'+(wv>0?'<span>📋'+wv+'</span>':'')+(iv>0?'<span>🎯'+iv+'</span>':'')+(cv>0?'<span>👤'+cv+'</span>':'')+'</div>';
       const it=ds===ts;
       g+='<div class="cal-day'+(it?' today':'')+'" data-date="'+ds+'" data-w="'+wv+'" data-i="'+iv+'"><div class="day-number">'+d+'</div>'+bh+'</div>';
     }
@@ -550,26 +557,40 @@ export default {
       c.addEventListener('mouseenter',e=>{tip.innerHTML='<strong>'+c.dataset.date+'</strong> 微信:'+(c.dataset.w||0)+' 意向:'+(c.dataset.i||0);tip.classList.add('show');});
       c.addEventListener('mouseleave',()=>tip.classList.remove('show'));
       c.addEventListener('mousemove',e=>{tip.style.left=(e.clientX+12)+'px';tip.style.top=(e.clientY-28)+'px';});
-      c.addEventListener('click',e=>{e.stopPropagation();if(c.dataset.date)showClientsForDate(c.dataset.date);});
+      c.addEventListener('click',e=>{e.stopPropagation();if(c.dataset.date)showTimelineForDate(c.dataset.date);});
     });
   }
 
-  async function showClientsForDate(ds){
-    document.getElementById('modalDateTitle').innerText=ds+' 意向客户';
+  async function showTimelineForDate(ds){
+    document.getElementById('modalDateTitle').innerText=ds+' 时间线';
     document.getElementById('modalClientList').innerHTML='<div class="empty-clients">加载中...</div>';
     document.getElementById('dateModal').classList.add('active');
-    let clients=[];
+    let clients=[], todos=[];
     try{
       const r=await fetch('/api/data?date='+ds);
       if(r.ok){
         const data=await r.json();
         if(data.clients&&data.clients.length>0)clients=data.clients;
+        if(data.todayTodos&&data.todayTodos.length>0)todos=data.todayTodos;
       }
     }catch(e){}
-    if(clients.length===0){
-      clients=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]').filter(c=>c.date===ds);
+    if(clients.length===0)clients=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]').filter(c=>c.date===ds);
+    if(todos.length===0&&ds===getTodayStr())todos=loadTodos(TODAY_TODO_K);
+    let timeline=[];
+    clients.forEach(c=>{timeline.push({type:'client',time:c.time||'',name:c.name,phone:c.phone,note:c.note});});
+    todos.forEach(t=>{const txt=typeof t==='string'?t:t.text;const tm=t&&t.time?t.time:'';if(txt)timeline.push({type:'todo',time:tm,text:txt});});
+    timeline.sort((a,b)=>(a.time||'').localeCompare(b.time||''));
+    if(timeline.length===0){
+      document.getElementById('modalClientList').innerHTML='<div class="empty-clients">📭 当日无记录</div>';
+    }else{
+      document.getElementById('modalClientList').innerHTML=timeline.map(e=>{
+        if(e.type==='client'){
+          return '<div class="modal-client-item" style="border-left:3px solid var(--accent-intent);"><div><span class="modal-client-name">👤 '+esc(e.name)+'</span><span class="modal-client-phone">'+esc(e.phone)+'</span></div>'+(e.time?'<div style="font-size:0.65rem;color:var(--text-light);margin-top:2px;">⏰ '+esc(e.time)+'</div>':'')+(e.note?'<div class="modal-client-note">📝 '+esc(e.note)+'</div>':'')+'</div>';
+        }else{
+          return '<div class="modal-client-item" style="border-left:3px solid var(--accent-wechat);"><div><span class="modal-client-name">📋 待办</span></div><div style="font-size:0.8rem;color:var(--text-main);margin-top:2px;">'+esc(e.text)+'</div>'+(e.time?'<div style="font-size:0.65rem;color:var(--text-light);margin-top:2px;">⏰ '+esc(e.time)+'</div>':'')+'</div>';
+        }
+      }).join('');
     }
-    document.getElementById('modalClientList').innerHTML=clients.length===0?'<div class="empty-clients">📭 当日无意向客户记录</div>':clients.map(c=>'<div class="modal-client-item"><div><span class="modal-client-name">'+esc(c.name)+'</span><span class="modal-client-phone">'+esc(c.phone)+'</span></div>'+(c.time?'<div style="font-size:0.65rem;color:var(--text-light);margin-top:2px;">⏰ '+esc(c.time)+'</div>':'')+(c.note?'<div class="modal-client-note">📝 '+esc(c.note)+'</div>':'')+'</div>').join('');
   }
 
   async function syncCalendarFromCloud(){
@@ -628,11 +649,11 @@ export default {
 
   function addTodayTodo(){
     const input=document.getElementById('todayTodoInput'),text=input.value.trim();
-    if(!text)return;const t=loadTodos(TODAY_TODO_K);t.push(text);saveTodos(TODAY_TODO_K,t);input.value='';renderTodos();
+    if(!text)return;const t=loadTodos(TODAY_TODO_K);t.push({text,time:getCurrentTime(),date:getTodayStr()});saveTodos(TODAY_TODO_K,t);input.value='';renderTodos();
   }
   function addTodo(){
     const input=document.getElementById('todoInput'),text=input.value.trim();
-    if(!text)return;const t=loadTodos(TOMORROW_TODO_K);t.push(text);saveTodos(TOMORROW_TODO_K,t);input.value='';renderTodos();
+    if(!text)return;const t=loadTodos(TOMORROW_TODO_K);t.push({text,time:getCurrentTime(),date:getTodayStr()});saveTodos(TOMORROW_TODO_K,t);input.value='';renderTodos();
   }
 
   // ==================== 壁纸 ====================
