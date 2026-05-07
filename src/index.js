@@ -597,18 +597,19 @@ export default {
     if((data.intentCount||0)>0){
       const im=loadMap(INTENT_K);im[today]=Math.max(im[today]||0,data.intentCount||0);saveMap(INTENT_K,im);
     }
-    // 拉取客户（版本号比对）
-    if(data.clientsVer!==undefined){
-      const localCv=getClientsVer();
-      if((data.clientsVer[today]||0)>(localCv[today]||0)){
-        localCv[today]=data.clientsVer[today];
-        localStorage.setItem(CLIENTS_VER_K,JSON.stringify(localCv));
-        if(data.clients&&data.clients.length>0){
-          let cl=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
-          cl=cl.filter(c=>c.date!==today);
-          cl=cl.concat(data.clients);
-          localStorage.setItem(CLIENTS_K,JSON.stringify(cl));
+    // 拉取客户（版本号比对+合并去重）
+    if(data.clientsVer!==undefined&&(data.clientsVer[today]||0)>(getClientsVer()[today]||0)){
+      const cv=getClientsVer();cv[today]=data.clientsVer[today];localStorage.setItem(CLIENTS_VER_K,JSON.stringify(cv));
+      if(data.clients&&data.clients.length>0){
+        let cl=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
+        const nonToday=cl.filter(c=>c.date!==today);
+        const localToday=cl.filter(c=>c.date===today);
+        const merged=[...data.clients];
+        for(const lc of localToday){
+          const ei=merged.findIndex(cc=>cc.name===lc.name&&cc.phone===lc.phone&&cc.time===lc.time);
+          if(ei>=0){merged[ei]=lc;}else{merged.push(lc);}
         }
+        localStorage.setItem(CLIENTS_K,JSON.stringify([...nonToday,...merged]));
       }
     }
     // 拉取话术/学习（版本号比对）
@@ -640,6 +641,10 @@ export default {
       const ei=mergedClients.findIndex(cc=>cc.name===lc.name&&cc.phone===lc.phone&&cc.time===lc.time);
       if(ei>=0){mergedClients[ei]=lc;}else{mergedClients.push(lc);}
     }
+    // 合并后如果比云端多（本地有新客户），升版通知其他设备拉取
+    if(mergedClients.length>cloudClients.length){
+      bumpClientsVer(today);
+    }
     // 更新本地存储为合并后的结果
     const allClients=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
     const nonToday=allClients.filter(c=>c.date!==today);
@@ -670,7 +675,7 @@ export default {
     if(data){
       if(data.wechatCount>0){const m=loadMap(WECHAT_K);m[date]=Math.max(m[date]||0,data.wechatCount);saveMap(WECHAT_K,m);}
       if(data.intentCount>0){const m=loadMap(INTENT_K);m[date]=Math.max(m[date]||0,data.intentCount);saveMap(INTENT_K,m);}
-      if(data.clients&&data.clients.length>0){const cloudCv2=data.clientsVer||{};const localCv2=getClientsVer();if((cloudCv2[date]||0)>(localCv2[date]||0)){let cl=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');cl=cl.filter(c=>c.date!==date);cl=cl.concat(data.clients);localStorage.setItem(CLIENTS_K,JSON.stringify(cl));localCv2[date]=cloudCv2[date];localStorage.setItem(CLIENTS_VER_K,JSON.stringify(localCv2));}}
+      if(data.clients&&data.clients.length>0){const cloudCv2=data.clientsVer||{};const localCv2=getClientsVer();if((cloudCv2[date]||0)>(localCv2[date]||0)){let cl=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');const nonToday=cl.filter(c=>c.date!==date);const localToday=cl.filter(c=>c.date===date);const merged=[...data.clients];for(const lc of localToday){const ei=merged.findIndex(cc=>cc.name===lc.name&&cc.phone===lc.phone&&cc.time===lc.time);if(ei>=0){merged[ei]=lc;}else{merged.push(lc);}}localStorage.setItem(CLIENTS_K,JSON.stringify([...nonToday,...merged]));localCv2[date]=cloudCv2[date];localStorage.setItem(CLIENTS_VER_K,JSON.stringify(localCv2));}}
       if(data.todayTodos&&data.todayTodos.length>0){const lt=loadTodos(TODAY_TODO_K);if(lt.length===0||data.todayTodos.length>lt.length)saveTodos(TODAY_TODO_K,data.todayTodos);}
       if(data.tomorrowTodos&&data.tomorrowTodos.length>0){const lt=loadTodos(TOMORROW_TODO_K);if(lt.length===0||data.tomorrowTodos.length>lt.length)saveTodos(TOMORROW_TODO_K,data.tomorrowTodos);}
       if(data.scripts!==undefined&&(data.scriptsVer||0)>getScriptsVer()){localStorage.setItem(SCRIPTS_VER_K,data.scriptsVer||0);saveScripts(data.scripts);}
