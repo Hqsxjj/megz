@@ -173,15 +173,13 @@ export default {
         lines.push('💬本月微信：' + monthW + '    🎯本月意向：' + monthI);
         lines.push('💬本周微信：' + weekW + '    🎯本周意向：' + weekI);
       }
-      lines.push('────────────────────────────────────────');
-      lines.push('日期      │微信│意向│意向详情');
-      lines.push('──────────┼────┼────┼──────────────────────');
+      lines.push('日期        微信  意向  意向详情');
       for (const d of sorted) {
         if (type === 'week' && (d.date < monStr || d.date > todayStr)) continue;
         const w = String(d.wechatCount||0).padStart(2);
         const it = String(d.intentCount||0).padStart(2);
         const clients = (d.clients || []).map(c => c.name + (c.note ? '(' + c.note + ')' : '')).join(', ');
-        lines.push(d.date.substring(5) + '    │ ' + w + ' │ ' + it + ' │ ' + (clients || '-'));
+        lines.push(d.date + '  ' + w + '    ' + it + '    ' + (clients || '-'));
       }
 
       const text = lines.join('\\n');
