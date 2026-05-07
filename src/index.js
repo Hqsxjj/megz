@@ -216,6 +216,11 @@ export default {
     .script-container { display: flex; flex-direction: column; gap: 10px; max-width: 480px; }
     .script-module { text-align: center; padding: 16px 24px; background: rgba(255,255,255,0.75); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); border-radius: var(--radius-ios); border: 1px solid rgba(255,255,255,0.5); box-shadow: 0 25px 60px rgba(0,0,0,0.15), 0 0 0 1px rgba(255,255,255,0.3); cursor: grab; user-select: none; position: relative; font-size: 1rem; font-weight: 700; color: var(--text-main); line-height: 1.7; letter-spacing: 0.5px; }
     body.dark-mode .script-module { background: rgba(30,41,56,0.8); border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 25px 60px rgba(0,0,0,0.3); }
+    .learn-container { display: flex; flex-direction: column; gap: 10px; max-width: 520px; }
+    .learn-module { padding: 16px 20px; background: rgba(255,255,255,0.75); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); border-radius: var(--radius-ios); border: 1px solid rgba(255,255,255,0.5); box-shadow: 0 25px 60px rgba(0,0,0,0.15), 0 0 0 1px rgba(255,255,255,0.3); cursor: grab; user-select: none; position: relative; font-size: 0.85rem; font-weight: 400; color: var(--text-main); line-height: 1.8; letter-spacing: 0.2px; text-align: left; white-space: pre-wrap; word-break: break-word; }
+    body.dark-mode .learn-module { background: rgba(30,41,56,0.8); border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 25px 60px rgba(0,0,0,0.3); }
+    .learn-check-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-size: 0.8rem; color: var(--text-soft); font-weight: 600; }
+    .learn-check-row input[type=checkbox] { width: 16px; height: 16px; accent-color: var(--accent-wechat); cursor: pointer; }
     .script-input-modal { max-width: 460px; }
     .script-input-modal textarea { width: 100%; min-height: 100px; background: var(--btn-bg); border: 1px solid var(--card-border); border-radius: var(--radius-xs); padding: 12px 16px; font-size: 0.85rem; color: var(--text-main); outline: none; resize: vertical; font-weight: 600; line-height: 1.6; }
     .script-input-modal textarea:focus { border-color: var(--accent-wechat); }
@@ -345,6 +350,7 @@ export default {
 <div class="privacy-wallpaper" id="privacyWallpaper"></div>
 <div class="privacy-mask" id="privacyMask">
   <div class="script-container" id="scriptContainer"></div>
+  <div class="learn-container" id="learnContainer"></div>
   <div class="pin-box">
     <div class="pin-stats" id="pinStatsContainer">
       <div class="pin-stat-item"><span class="pin-stat-label">💬 今日微信</span><span class="pin-stat-value pin-wechat-value" id="pinWechatNum">0</span></div>
@@ -361,6 +367,7 @@ export default {
       <div class="title-section"><h3>每日工作</h3><div class="date-chip" id="liveDate"></div></div>
       <div class="action-group">
         <button class="icon-simple" id="scriptBtn" title="话术管理">📝</button>
+        <button class="icon-simple" id="learnBtn" title="学习管理">📖</button>
         <button class="icon-simple" id="hideBtn" title="一键隐藏 (Ctrl+Z)">👁</button>
         <button class="icon-simple" id="darkToggleBtn" title="深色模式">🌙</button>
       </div>
@@ -427,6 +434,15 @@ export default {
     <div class="script-list" id="scriptList"></div>
   </div>
 </div>
+<div id="learnModal" class="modal-overlay">
+  <div class="modal-card script-input-modal">
+    <div class="modal-header"><span>📖 学习管理</span><button id="closeLearnModalBtn">✕</button></div>
+    <textarea id="newLearnInput" placeholder="输入学习内容..."></textarea>
+    <div class="learn-check-row"><input type="checkbox" id="learnShowCheck" checked><label for="learnShowCheck">锁屏显示</label></div>
+    <button class="btn-add" id="addLearnBtn" style="width:100%;">+ 添加学习</button>
+    <div class="script-list" id="learnList"></div>
+  </div>
+</div>
 <div id="dateModal" class="modal-overlay">
   <div class="modal-card">
     <div class="modal-header"><span id="modalDateTitle">时间线</span><button id="closeModalBtn">✕</button></div>
@@ -437,7 +453,7 @@ export default {
 (function(){
   const WECHAT_K='wechat_v3', INTENT_K='intent_v3', CLIENTS_K='clients_v3';
   const DARK_K='dark_mode', LOCK_K='locked', TODAY_TODO_K='today_todo_v2', TOMORROW_TODO_K='tomorrow_todo_v2';
-  const LAST_LOAD_DATE_K='last_load_date_v1', WALLPAPER_K='wp_cache', SCRIPTS_K='scripts_v1';
+  const LAST_LOAD_DATE_K='last_load_date_v1', WALLPAPER_K='wp_cache', SCRIPTS_K='scripts_v1', LEARN_K='learn_v1';
   const DEFAULT_PIN='8520';
   const SYNC_INTERVAL=5000;
   let syncTimer=null, cloudDataLoaded=false;
@@ -746,6 +762,41 @@ export default {
     });
   }
 
+  // ==================== 学习 ====================
+  const loadLearns=()=>{try{return JSON.parse(localStorage.getItem(LEARN_K))||[];}catch(e){return[];}};
+  const saveLearns=(a)=>localStorage.setItem(LEARN_K,JSON.stringify(a));
+  function renderLearnList(){
+    const ls=loadLearns();
+    document.getElementById('learnList').innerHTML=ls.length===0?'<div style="font-size:0.75rem;color:var(--text-light);padding:8px;text-align:center;">暂无学习</div>':ls.map((l,i)=>'<div class="script-item"><span class="script-item-text">'+(l.show?'👁 ':'')+esc(l.text)+'</span><div style="display:flex;gap:6px;align-items:center;"><input type="checkbox" '+(l.show?'checked':'')+' data-li="'+i+'" title="显示"><button class="del-icon" data-li="'+i+'">✕</button></div></div>').join('');
+    document.querySelectorAll('#learnList .del-icon').forEach(b=>b.addEventListener('click',e=>{
+      const i=parseInt(b.dataset.li);const a=loadLearns();a.splice(i,1);saveLearns(a);renderLearnList();renderLockLearns();
+    }));
+    document.querySelectorAll('#learnList input[type=checkbox]').forEach(cb=>cb.addEventListener('change',e=>{
+      const i=parseInt(cb.dataset.li);const a=loadLearns();a[i].show=cb.checked;saveLearns(a);renderLearnList();renderLockLearns();
+    }));
+  }
+  function renderLockLearns(){
+    const ls=loadLearns();
+    const container=document.getElementById('learnContainer');
+    const visible=ls.filter(l=>l.show);
+    if(visible.length===0){container.innerHTML='';return;}
+    container.innerHTML=visible.map((l,i)=>'<div class="learn-module" data-li="'+i+'">'+esc(l.text)+'</div>').join('');
+    container.querySelectorAll('.learn-module').forEach(el=>makeDraggable(el));
+  }
+  function initLearnFeature(){
+    renderLockLearns();
+    document.getElementById('learnBtn').addEventListener('click',()=>{
+      renderLearnList();document.getElementById('newLearnInput').value='';document.getElementById('learnShowCheck').checked=true;document.getElementById('learnModal').classList.add('active');
+    });
+    document.getElementById('closeLearnModalBtn').addEventListener('click',()=>document.getElementById('learnModal').classList.remove('active'));
+    document.getElementById('learnModal').addEventListener('click',e=>{if(e.target===document.getElementById('learnModal'))document.getElementById('learnModal').classList.remove('active');});
+    document.getElementById('addLearnBtn').addEventListener('click',()=>{
+      const t=document.getElementById('newLearnInput').value.trim();if(!t)return;
+      const show=document.getElementById('learnShowCheck').checked;
+      const a=loadLearns();a.push({text:t,show});saveLearns(a);document.getElementById('newLearnInput').value='';renderLearnList();renderLockLearns();
+    });
+  }
+
   // ==================== 初始化 ====================
   function initDark(){
     const btn=document.getElementById('darkToggleBtn');
@@ -784,7 +835,7 @@ export default {
     syncTimer=setInterval(()=>{if(!document.body.classList.contains('page-hidden'))syncToCloud().catch(()=>{});},SYNC_INTERVAL);
   }
 
-  initDark();initWp();initScriptFeature();
+  initDark();initWp();initScriptFeature();initLearnFeature();
   if(!isLocked())setLocked(false);else document.body.classList.add('page-hidden');
 
   // 首次加载从云端恢复数据
