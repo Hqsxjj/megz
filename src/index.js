@@ -556,7 +556,8 @@ export default {
 
   // ==================== 渲染 ====================
   function renderClientList(){
-    const clients=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
+    const today=getTodayStr();
+    const clients=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]').filter(c=>c.date===today);
     document.getElementById('clientList').innerHTML=clients.map((c,i)=>'<div class="client-row"><div class="client-info"><span class="client-name">'+esc(c.name)+'</span><span class="client-phone">'+esc(c.phone)+'</span>'+(c.note?'<span class="client-note">📝 '+esc(c.note)+'</span>':'')+'<span class="client-time">⏰ '+esc(c.time||'')+'</span></div><div class="client-actions"><button class="edit-icon" data-idx="'+i+'" title="编辑">✎</button><button class="del-icon" data-idx="'+i+'" title="删除">✕</button></div></div>').join('');
     document.querySelectorAll('.del-icon').forEach(b=>b.addEventListener('click',e=>{
       const i=parseInt(b.dataset.idx);
@@ -641,22 +642,13 @@ export default {
         if(data.todayTodos&&data.todayTodos.length>0)todos=data.todayTodos;
       }
     }catch(e){}
-    // 合并本地客户（可能比云端新）
+    // 本地有当天客户则用本地（可能已编辑过），否则用云端
     const localAll=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
     const localDay=localAll.filter(c=>c.date===ds);
-    // 云端有本地没有的客户 → 合并进本地
-    clients.forEach(cc=>{
-      if(!localDay.find(lc=>lc.name===cc.name&&lc.phone===cc.phone&&lc.time===cc.time)){
-        localAll.push(cc);
-      }
-    });
-    // 本地有云端没有的客户 → 用本地版本（可能已编辑）
     localDay.forEach(lc=>{
-      if(!clients.find(cc=>cc.name===lc.name&&cc.phone===lc.phone&&cc.time===lc.time)){
-        clients.push(lc);
-      }
+      const exist=clients.findIndex(cc=>cc.name===lc.name&&cc.phone===lc.phone&&cc.time===lc.time);
+      if(exist>=0){clients[exist]=lc;}else{clients.push(lc);}
     });
-    localStorage.setItem(CLIENTS_K,JSON.stringify(localAll));
     if(todos.length===0&&ds===getTodayStr())todos=loadTodos(TODAY_TODO_K);
     let timeline=[];
     clients.forEach((c,i)=>{timeline.push({type:'client',time:c.time||'',name:c.name,phone:c.phone,note:c.note,idx:i});});
@@ -678,34 +670,33 @@ export default {
           const idx=parseInt(this.dataset.idx);
           const ti=timeline.find(t=>t.type==='client'&&t.idx===idx);
           if(!ti)return;
-          const all=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
-          const client=all.find(c=>c.date===ds&&c.name===ti.name&&c.phone===ti.phone);
-          if(!client){console.warn('client not found',ti.name);return;}
+          const old=ti.note||'';
           const noteDiv=document.getElementById('cn_'+idx);
           if(!noteDiv)return;
-          const old=client.note||'';
           noteDiv.innerHTML='<textarea id="ein_'+idx+'" style="width:100%;min-height:50px;background:var(--btn-bg);border:1px solid var(--card-border);border-radius:8px;padding:6px 10px;font-size:0.75rem;color:var(--text-main);outline:none;font-weight:600;">'+esc(old)+'</textarea><div style="display:flex;gap:6px;margin-top:4px;"><button id="sn_'+idx+'" style="font-size:0.65rem;background:var(--accent-wechat);color:#fff;border:none;border-radius:8px;cursor:pointer;padding:3px 10px;">保存</button><button id="cn_btn_'+idx+'" style="font-size:0.65rem;background:var(--btn-bg);border:1px solid var(--card-border);color:var(--text-soft);border-radius:8px;cursor:pointer;padding:3px 10px;">取消</button></div>';
           document.getElementById('sn_'+idx).onclick=async ()=>{
             const nn=document.getElementById('ein_'+idx).value.trim();
-            const allClients=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
-            const target=allClients.find(c=>c.date===ds&&c.name===ti.name&&c.phone===ti.phone);
-            if(target){target.note=nn;localStorage.setItem(CLIENTS_K,JSON.stringify(allClients));}
             ti.note=nn;
-            clients.forEach(c=>{if(c.name===ti.name&&c.phone===ti.phone)c.note=nn;});
+            // 更新clients数组中的原始对象
+            const co=clients.find(c=>c.name===ti.name&&c.phone===ti.phone);
+            if(co)co.note=nn;
+            // 只更新localStorage中对应日期的那个客户
+            const all=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
+            const target=all.find(c=>c.date===ds&&c.name===ti.name&&c.phone===ti.phone);
+            if(target){target.note=nn;}
+            // 始终保留一份在localStorage供该日期查看（不在今日显示）
+            if(!target){all.push({name:ti.name,phone:ti.phone,note:nn,date:ds,time:ti.time||''});}
+            localStorage.setItem(CLIENTS_K,JSON.stringify(all));
+            // 保存到该日期KV
             try{
               const existing=await cloudGet(ds);
-              const dayClients=allClients.filter(c=>c.date===ds);
+              const dayClients=all.filter(c=>c.date===ds);
               await cloudSave({
-                date:ds,
-                wechatCount:existing?existing.wechatCount||0:0,
-                intentCount:existing?existing.intentCount||0:0,
+                date:ds,wechatCount:existing?existing.wechatCount||0:0,intentCount:existing?existing.intentCount||0:0,
                 clients:dayClients,
-                todayTodos:existing?existing.todayTodos||[]:[],
-                tomorrowTodos:existing?existing.tomorrowTodos||[]:[],
-                scripts:existing?existing.scripts||[]:[],
-                scriptsVer:existing?existing.scriptsVer||0:0,
-                learns:existing?existing.learns||[]:[],
-                learnsVer:existing?existing.learnsVer||0:0
+                todayTodos:existing?existing.todayTodos||[]:[],tomorrowTodos:existing?existing.tomorrowTodos||[]:[],
+                scripts:existing?existing.scripts||[]:[],scriptsVer:existing?existing.scriptsVer||0:0,
+                learns:existing?existing.learns||[]:[],learnsVer:existing?existing.learnsVer||0:0
               });
             }catch(e){}
             renderTl();
