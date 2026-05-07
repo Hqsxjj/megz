@@ -191,16 +191,16 @@ export default {
     body.dark-mode .wallpaper-background { opacity: 0.19; }
     .wallpaper-fallback { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); opacity: 0.18; pointer-events: none; }
     body.dark-mode .wallpaper-fallback { background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%); opacity: 0.35; }
-    .privacy-mask { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.3); backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px); z-index: 9999; flex-direction: column; justify-content: center; align-items: center; gap: 2rem; color: var(--text-main); font-weight: 600; pointer-events: none; }
+    .privacy-mask { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.3); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); z-index: 9999; flex-direction: column; justify-content: center; align-items: center; gap: 2rem; color: var(--text-main); font-weight: 600; pointer-events: none; }
     .privacy-wallpaper { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 9998; background-image: var(--wallpaper-url); background-size: cover; background-position: center; background-repeat: no-repeat; opacity: 0; transition: opacity 0.5s ease; pointer-events: none; }
     body.page-hidden .privacy-wallpaper { opacity: 0.85; pointer-events: auto; }
     body.dark-mode.page-hidden .privacy-wallpaper { opacity: 0.80; }
     body.page-hidden .privacy-mask { display: flex; pointer-events: auto; }
     body.page-hidden .app-shell { display: none; }
-    .pin-box { display: flex; flex-direction: column; align-items: center; gap: 28px; background: rgba(255,255,255,0.75); padding: 56px 64px; border-radius: var(--radius-ios); box-shadow: 0 25px 60px rgba(0,0,0,0.15), 0 0 0 1px rgba(255,255,255,0.3); border: 1px solid rgba(255,255,255,0.5); min-width: 420px; max-width: 500px; backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); transition: all 0.3s ease; }
+    .pin-box { display: flex; flex-direction: column; align-items: center; gap: 28px; background: rgba(255,255,255,0.75); padding: 56px 64px; border-radius: var(--radius-ios); box-shadow: 0 25px 60px rgba(0,0,0,0.15), 0 0 0 1px rgba(255,255,255,0.3); border: 1px solid rgba(255,255,255,0.5); min-width: 420px; max-width: 500px; backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); transition: all 0.3s ease; }
     body.dark-mode .pin-box { background: rgba(30,41,56,0.8); border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 25px 60px rgba(0,0,0,0.3); }
     .pin-stats { display: flex; gap: 28px; margin-bottom: 4px; }
-    .pin-stat-item { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 24px 32px; background: rgba(255,255,255,0.6); border-radius: var(--radius-sm); border: 1px solid rgba(255,255,255,0.5); min-width: 150px; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+    .pin-stat-item { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 24px 32px; background: rgba(255,255,255,0.6); border-radius: var(--radius-sm); border: 1px solid rgba(255,255,255,0.5); min-width: 150px; backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
     body.dark-mode .pin-stat-item { background: rgba(40,50,63,0.6); border: 1px solid rgba(255,255,255,0.08); }
     .pin-stat-label { font-size: 0.95rem; font-weight: 700; color: var(--text-soft); letter-spacing: 0.8px; text-transform: uppercase; }
     .pin-stat-value { font-size: 3.2rem; font-weight: 900; line-height: 1; }
