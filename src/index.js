@@ -167,19 +167,21 @@ export default {
       const lines = [];
       const label = type === 'week' ? '本周 (' + monStr + ' ~ ' + todayStr + ')' : '本月 (' + monthPrefix + ')';
       lines.push('📊 ' + label);
-      lines.push('━━━━━━━━━━━━━━━━');
       if (type === 'week') {
-        lines.push('💬本周微信：' + weekW + '  |  🎯本周意向：' + weekI);
+        lines.push('💬微信：' + weekW + '    🎯意向：' + weekI);
       } else {
-        lines.push('💬本月微信：' + monthW + '  |  🎯本月意向：' + monthI);
-        lines.push('💬本周微信：' + weekW + '  |  🎯本周意向：' + weekI);
+        lines.push('💬本月微信：' + monthW + '    🎯本月意向：' + monthI);
+        lines.push('💬本周微信：' + weekW + '    🎯本周意向：' + weekI);
       }
-      lines.push('');
+      lines.push('────────────────────────────────────────');
+      lines.push('日期      │微信│意向│意向详情');
+      lines.push('──────────┼────┼────┼──────────────────────');
       for (const d of sorted) {
         if (type === 'week' && (d.date < monStr || d.date > todayStr)) continue;
-        const cc = (d.clients || []).length;
-        const tc = (d.todoLog || []).length + (d.todayTodos || []).length;
-        lines.push('📅 ' + d.date + '  微信:' + (d.wechatCount||0) + '  意向:' + (d.intentCount||0) + '  客户:' + cc + '  待办:' + tc);
+        const w = String(d.wechatCount||0).padStart(2);
+        const it = String(d.intentCount||0).padStart(2);
+        const clients = (d.clients || []).map(c => c.name + (c.note ? '(' + c.note + ')' : '')).join(', ');
+        lines.push(d.date.substring(5) + '    │ ' + w + ' │ ' + it + ' │ ' + (clients || '-'));
       }
 
       const text = lines.join('\\n');
