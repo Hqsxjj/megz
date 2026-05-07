@@ -164,30 +164,34 @@ export default {
       }
       sorted.sort((a,b) => (a.date||'').localeCompare(b.date||''));
 
-      const lines = [];
-      const label = type === 'week' ? '本周 (' + monStr + ' ~ ' + todayStr + ')' : '本月 (' + monthPrefix + ')';
-      lines.push('📊 ' + label);
-      if (type === 'week') {
-        lines.push('💬微信：' + weekW + '    🎯意向：' + weekI);
-      } else {
-        lines.push('💬本月微信：' + monthW + '    🎯本月意向：' + monthI);
-        lines.push('💬本周微信：' + weekW + '    🎯本周意向：' + weekI);
+      const weekNames = ['日', '一', '二', '三', '四', '五', '六'];
+      const title = type === 'week' ? '📊 本周数据统计' : '📊 本月数据统计';
+      const dateRange = type === 'week'
+        ? monStr + ' ～ ' + todayStr
+        : monthPrefix + '-01 ～ ' + todayStr;
+      const wTotal = type === 'week' ? weekW : monthW;
+      const iTotal = type === 'week' ? weekI : monthI;
+
+      let text = title + '\n' + dateRange + '\n\n';
+      text += '💬 新增微信：**' + wTotal + '**    🎯 新增意向：**' + iTotal + '**\n';
+      if (type !== 'week') {
+        text += '（💬 本周微信：**' + weekW + '**    🎯 本周意向：**' + weekI + '**）\n';
       }
-      lines.push('日期        微信  意向  意向详情');
+      text += '\n| 日期 | 周 | 💬 | 🎯 | 意向详情 |\n|------|----|----|----|----------|\n';
       for (const d of sorted) {
         if (type === 'week' && (d.date < monStr || d.date > todayStr)) continue;
-        const w = String(d.wechatCount||0).padStart(2);
-        const it = String(d.intentCount||0).padStart(2);
-        const clients = (d.clients || []).map(c => c.name + (c.note ? '(' + c.note + ')' : '')).join(', ');
-        lines.push(d.date + '  ' + w + '    ' + it + '    ' + (clients || '-'));
+        const datePart = d.date.slice(5);
+        const wk = '周' + weekNames[new Date(d.date + 'T00:00:00').getDay()];
+        const w = d.wechatCount || 0;
+        const it = d.intentCount || 0;
+        const detail = (d.clients || []).map(c => c.name + (c.note ? '（' + c.note + '）' : '')).join('、') || '-';
+        text += '| ' + datePart + ' | ' + wk + ' | ' + w + ' | ' + it + ' | ' + detail + ' |\n';
       }
-
-      const text = lines.join('\\n');
       try {
         const whResp = await fetch(webhookUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ msgtype: 'text', text: { content: text } })
+          body: JSON.stringify({ msgtype: 'markdown', markdown: { content: text } })
         });
         if (whResp.ok) {
           return new Response(JSON.stringify({ success: true }), {
