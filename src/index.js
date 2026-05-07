@@ -575,7 +575,7 @@ export default {
   const saveTodos=(k,a)=>localStorage.setItem(k,JSON.stringify(a));
   const pushTodoLog=async (todo,ds)=>{try{const r=await fetch('/api/data?date='+ds);if(r.ok){const d=await r.json();const log=d.todoLog||[];log.push(todo);await fetch('/api/data',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...d,todoLog:log})});}}catch(e){}};
   const esc=s=>String(s).replace(/[&<>]/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;' })[m]||m);
-  const maskPhone=p=>{if(!p||p.length<7)return p;return p.slice(0,3)+'****'+p.slice(-4);};
+  const maskPhone=p=>{if(!p||p.length<7)return '****';return '****'.repeat(Math.ceil(p.length/4));};
 
   function getWeekTotal(map){const t=new Date();const dow=t.getDay();const diff=dow===0?6:dow-1;const mon=new Date(t);mon.setDate(t.getDate()-diff);const ms=mon.getFullYear()+'-'+String(mon.getMonth()+1).padStart(2,'0')+'-'+String(mon.getDate()).padStart(2,'0');const ts=getTodayStr();let s=0;for(let[d,v]of Object.entries(map))if(d>=ms&&d<=ts)s+=v;return s;}
   function getMonthTotal(map){const p=getTodayStr().slice(0,7);let s=0;for(let[d,v]of Object.entries(map))if(d.startsWith(p))s+=v;return s;}
