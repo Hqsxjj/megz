@@ -337,8 +337,8 @@ export default {
 <div class="privacy-mask" id="privacyMask">
   <div class="pin-box">
     <div class="pin-stats" id="pinStatsContainer">
-      <div class="pin-stat-item"><span class="pin-stat-label">今日微信</span><span class="pin-stat-value pin-wechat-value" id="pinWechatNum">0</span></div>
-      <div class="pin-stat-item"><span class="pin-stat-label">今日意向</span><span class="pin-stat-value pin-intent-value" id="pinIntentNum">0</span></div>
+      <div class="pin-stat-item"><span class="pin-stat-label">💬 今日微信</span><span class="pin-stat-value pin-wechat-value" id="pinWechatNum">0</span></div>
+      <div class="pin-stat-item"><span class="pin-stat-label">🎯 今日意向</span><span class="pin-stat-value pin-intent-value" id="pinIntentNum">0</span></div>
     </div>
     <input type="password" class="pin-input" id="pinInput" placeholder="" maxlength="6" inputmode="numeric" autofocus>
     <button class="pin-btn" id="pinUnlockBtn">解锁进入</button>
@@ -358,21 +358,21 @@ export default {
       <div class="left-area">
         <div class="counter-row">
           <div class="counter-card wechat-fill">
-            <div class="counter-header"><span class="counter-label">今日微信</span><button class="reset-mini" id="resetWechatToday">↺</button></div>
+            <div class="counter-header"><span class="counter-label">💬 今日微信</span><button class="reset-mini" id="resetWechatToday">↺</button></div>
             <div class="counter-value" id="wechatNum">0</div>
             <div class="button-group"><button class="circle-btn" id="wechatMinus">−</button><button class="circle-btn btn-special" id="wechatPlus">+</button></div>
           </div>
           <div class="counter-card intent-fill">
-            <div class="counter-header"><span class="counter-label">今日意向</span><button class="reset-mini" id="resetIntentToday">↺</button></div>
+            <div class="counter-header"><span class="counter-label">🎯 今日意向</span><button class="reset-mini" id="resetIntentToday">↺</button></div>
             <div class="counter-value" id="intentNum">0</div>
             <div class="button-group"><button class="circle-btn" id="intentMinus">−</button><button class="circle-btn" id="intentPlus">+</button></div>
           </div>
         </div>
         <div class="stats-row">
-          <div class="stat-block"><span class="label">本周微信</span> <span class="number" id="weekWechat">0</span></div>
-          <div class="stat-block"><span class="label">本月微信</span> <span class="number" id="monthWechat">0</span></div>
-          <div class="stat-block"><span class="label">本周意向</span> <span class="number" id="weekIntent">0</span></div>
-          <div class="stat-block"><span class="label">本月意向</span> <span class="number" id="monthIntent">0</span></div>
+          <div class="stat-block"><span class="label">💬本周</span> <span class="number" id="weekWechat">0</span></div>
+          <div class="stat-block"><span class="label">💬本月</span> <span class="number" id="monthWechat">0</span></div>
+          <div class="stat-block"><span class="label">🎯本周</span> <span class="number" id="weekIntent">0</span></div>
+          <div class="stat-block"><span class="label">🎯本月</span> <span class="number" id="monthIntent">0</span></div>
         </div>
         <div class="card calendar-compact">
           <div class="cal-head" id="calMonthTitle"></div>
@@ -382,7 +382,7 @@ export default {
       </div>
       <div class="right-area">
         <div class="card">
-          <div style="font-weight:700;margin-bottom:14px;font-size:0.9rem;">📋 意向登记</div>
+          <div style="font-weight:700;margin-bottom:14px;font-size:0.9rem;">🎯 意向登记</div>
           <div class="register-block">
             <div class="form-line"><input type="text" class="input-simple" id="custName" placeholder="姓名" autocomplete="off"><input type="text" class="input-simple" id="custPhone" placeholder="电话" autocomplete="off"></div>
             <input type="text" class="input-simple" id="custNote" placeholder="沟通记录 (必填)" autocomplete="off">
@@ -392,14 +392,14 @@ export default {
         </div>
         <div class="card">
           <div class="todo-section">
-            <div class="todo-title">📝 今日待办</div>
+            <div class="todo-title">✅ 今日待办</div>
             <div class="todo-list" id="todayTodoList"></div>
             <div class="todo-input-row"><input type="text" class="todo-input" id="todayTodoInput" placeholder="添加今日待办..." autocomplete="off"><button class="todo-add-btn" id="addTodayTodoBtn">+ 添加</button></div>
           </div>
         </div>
         <div class="card">
           <div class="todo-section">
-            <div class="todo-title">📅 明日待办</div>
+            <div class="todo-title">✅ 明日待办</div>
             <div class="todo-list" id="tomorrowTodoList"></div>
             <div class="todo-input-row"><input type="text" class="todo-input" id="todoInput" placeholder="添加明日待办..." autocomplete="off"><button class="todo-add-btn" id="addTodoBtn">+ 添加</button></div>
           </div>
@@ -547,14 +547,14 @@ export default {
     for(let d=1;d<=dim;d++){
       const ds=y+'-'+String(m+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
       const wv=wm[ds]||0,iv=im[ds]||0,cv=ccMap[ds]||0;
-      let bh='';if(wv>0||iv>0||cv>0)bh='<div class="day-badge">'+(wv>0?'<span>📋'+wv+'</span>':'')+(iv>0?'<span>🎯'+iv+'</span>':'')+(cv>0?'<span>👤'+cv+'</span>':'')+'</div>';
+      let bh='';if(wv>0||iv>0||cv>0)bh='<div class="day-badge">'+(wv>0?'<span>💬'+wv+'</span>':'')+(iv>0?'<span>🎯'+iv+'</span>':'')+(cv>0?'<span>👤'+cv+'</span>':'')+'</div>';
       const it=ds===ts;
       g+='<div class="cal-day'+(it?' today':'')+'" data-date="'+ds+'" data-w="'+wv+'" data-i="'+iv+'"><div class="day-number">'+d+'</div>'+bh+'</div>';
     }
     document.getElementById('calGrid').innerHTML=g;
     const tip=document.getElementById('globalTooltip');
     document.querySelectorAll('.cal-day[data-date]').forEach(c=>{
-      c.addEventListener('mouseenter',e=>{tip.innerHTML='<strong>'+c.dataset.date+'</strong> 微信:'+(c.dataset.w||0)+' 意向:'+(c.dataset.i||0);tip.classList.add('show');});
+      c.addEventListener('mouseenter',e=>{tip.innerHTML='<strong>'+c.dataset.date+'</strong> 💬'+(c.dataset.w||0)+' 🎯'+(c.dataset.i||0);tip.classList.add('show');});
       c.addEventListener('mouseleave',()=>tip.classList.remove('show'));
       c.addEventListener('mousemove',e=>{tip.style.left=(e.clientX+12)+'px';tip.style.top=(e.clientY-28)+'px';});
       c.addEventListener('click',e=>{e.stopPropagation();if(c.dataset.date)showTimelineForDate(c.dataset.date);});
@@ -585,9 +585,9 @@ export default {
     }else{
       document.getElementById('modalClientList').innerHTML=timeline.map(e=>{
         if(e.type==='client'){
-          return '<div class="modal-client-item" style="border-left:3px solid var(--accent-intent);"><div><span class="modal-client-name">👤 '+esc(e.name)+'</span><span class="modal-client-phone">'+esc(e.phone)+'</span></div>'+(e.time?'<div style="font-size:0.65rem;color:var(--text-light);margin-top:2px;">⏰ '+esc(e.time)+'</div>':'')+(e.note?'<div class="modal-client-note">📝 '+esc(e.note)+'</div>':'')+'</div>';
+          return '<div class="modal-client-item" style="border-left:3px solid var(--accent-intent);"><div><span class="modal-client-name">🎯 '+esc(e.name)+'</span><span class="modal-client-phone">'+esc(e.phone)+'</span></div>'+(e.time?'<div style="font-size:0.65rem;color:var(--text-light);margin-top:2px;">⏰ '+esc(e.time)+'</div>':'')+(e.note?'<div class="modal-client-note">📝 '+esc(e.note)+'</div>':'')+'</div>';
         }else{
-          return '<div class="modal-client-item" style="border-left:3px solid var(--accent-wechat);"><div><span class="modal-client-name">📋 待办</span></div><div style="font-size:0.8rem;color:var(--text-main);margin-top:2px;">'+esc(e.text)+'</div>'+(e.time?'<div style="font-size:0.65rem;color:var(--text-light);margin-top:2px;">⏰ '+esc(e.time)+'</div>':'')+'</div>';
+          return '<div class="modal-client-item" style="border-left:3px solid var(--accent-wechat);"><div><span class="modal-client-name">✅ 待办</span></div><div style="font-size:0.8rem;color:var(--text-main);margin-top:2px;">'+esc(e.text)+'</div>'+(e.time?'<div style="font-size:0.65rem;color:var(--text-light);margin-top:2px;">⏰ '+esc(e.time)+'</div>':'')+'</div>';
         }
       }).join('');
     }
