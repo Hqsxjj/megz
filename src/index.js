@@ -982,10 +982,16 @@ export default {
   setInterval(()=>{
     const now=new Date();
     const hm=String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
-    const all=[...loadTodos(TODAY_TODO_K).map(t=>({...t,list:'today'})),...loadTodos(TOMORROW_TODO_K).map(t=>({...t,list:'tomorrow'}))];
+    const today=getTodayStr();
+    const all=[...loadTodos(TODAY_TODO_K).map(t=>({...t,list:'today',targetDate:t.date||today})),...loadTodos(TOMORROW_TODO_K).map(t=>{
+      const cd=t.date||today;const d=new Date(cd);d.setDate(d.getDate()+1);
+      const td=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+      return {...t,list:'tomorrow',targetDate:td};
+    })];
     for(const t of all){
       if(!t.remind||t.remind!==hm)continue;
-      const key=t.list+'_'+t.text+'_'+t.remind;
+      if(t.targetDate!==today)continue;
+      const key=t.list+'_'+t.text+'_'+t.remind+'_'+today;
       if(lastNotified[key])continue;
       lastNotified[key]=true;
       document.getElementById('notifyText').innerText='🔔 '+esc(t.text)+' ('+esc(t.remind)+')';
