@@ -855,8 +855,11 @@ export default {
   // 启动云端同步定时器
   function startSyncTimer(){
     if(syncTimer)clearInterval(syncTimer);
-    syncTimer=setInterval(()=>{if(!document.body.classList.contains('page-hidden'))syncToCloud().catch(()=>{});},SYNC_INTERVAL);
-    setInterval(()=>{pullScriptsLearns().catch(()=>{});},SYNC_INTERVAL);
+    // 先拉后推，防止用旧数据覆盖云端最新内容
+    syncTimer=setInterval(async ()=>{
+      await pullScriptsLearns().catch(()=>{});
+      if(!document.body.classList.contains('page-hidden'))syncToCloud().catch(()=>{});
+    },SYNC_INTERVAL);
   }
 
   initDark();initWp();initScriptFeature();initLearnFeature();
