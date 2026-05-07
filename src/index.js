@@ -644,20 +644,46 @@ export default {
     if(clients.length===0)clients=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]').filter(c=>c.date===ds);
     if(todos.length===0&&ds===getTodayStr())todos=loadTodos(TODAY_TODO_K);
     let timeline=[];
-    clients.forEach(c=>{timeline.push({type:'client',time:c.time||'',name:c.name,phone:c.phone,note:c.note});});
+    clients.forEach((c,i)=>{timeline.push({type:'client',time:c.time||'',name:c.name,phone:c.phone,note:c.note,idx:i});});
     todos.forEach(t=>{const txt=typeof t==='string'?t:t.text;const tm=t&&t.time?t.time:'';if(txt)timeline.push({type:'todo',time:tm,text:txt});});
     timeline.sort((a,b)=>(a.time||'').localeCompare(b.time||''));
-    if(timeline.length===0){
-      document.getElementById('modalClientList').innerHTML='<div class="empty-clients">📭 当日无记录</div>';
-    }else{
-      document.getElementById('modalClientList').innerHTML=timeline.map(e=>{
+    function renderTl(){
+      document.getElementById('modalClientList').innerHTML=timeline.length===0?'<div class="empty-clients">📭 当日无记录</div>':timeline.map(e=>{
         if(e.type==='client'){
-          return '<div class="modal-client-item" style="border-left:3px solid var(--accent-intent);"><div><span class="modal-client-name">🎯 '+esc(e.name)+'</span><span class="modal-client-phone">'+esc(e.phone)+'</span></div>'+(e.time?'<div style="font-size:0.65rem;color:var(--text-light);margin-top:2px;">⏰ '+esc(e.time)+'</div>':'')+(e.note?'<div class="modal-client-note">📝 '+esc(e.note)+'</div>':'')+'</div>';
+          return '<div class="modal-client-item" style="border-left:3px solid var(--accent-intent);"><div><span class="modal-client-name">🎯 '+esc(e.name)+'</span><span class="modal-client-phone">'+esc(e.phone)+'</span></div>'+(e.time?'<div style="font-size:0.65rem;color:var(--text-light);margin-top:2px;">⏰ '+esc(e.time)+'</div>':'')+'<div class="modal-client-note" id="cn_'+e.idx+'">'+(e.note?'📝 '+esc(e.note)+' ':'')+'<button class="edit-note-btn" data-idx="'+e.idx+'" style="font-size:0.6rem;background:none;border:1px solid var(--accent-wechat);color:var(--accent-wechat);border-radius:8px;cursor:pointer;padding:1px 8px;">✎'+(e.note?' 编辑':' 添加备注')+'</button></div></div>';
         }else{
           return '<div class="modal-client-item" style="border-left:3px solid var(--accent-wechat);"><div><span class="modal-client-name">✅ 待办</span></div><div style="font-size:0.8rem;color:var(--text-main);margin-top:2px;">'+esc(e.text)+'</div>'+(e.time?'<div style="font-size:0.65rem;color:var(--text-light);margin-top:2px;">⏰ '+esc(e.time)+'</div>':'')+'</div>';
         }
       }).join('');
+      bindEditBtns(ds);
     }
+    function bindEditBtns(dateStr){
+      document.querySelectorAll('.edit-note-btn').forEach(btn=>{
+        btn.addEventListener('click',function(){
+          const idx=parseInt(this.dataset.idx);
+          const all=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
+          const ti=timeline.find(t=>t.type==='client'&&t.idx===idx);
+          if(!ti)return;
+          const client=all.find(c=>c.date===dateStr&&c.name===ti.name&&c.phone===ti.phone);
+          if(!client)return;
+          const noteDiv=document.getElementById('cn_'+idx);
+          if(!noteDiv)return;
+          const old=client.note||'';
+          noteDiv.innerHTML='<textarea id="ein_'+idx+'" style="width:100%;min-height:50px;background:var(--btn-bg);border:1px solid var(--card-border);border-radius:8px;padding:6px 10px;font-size:0.75rem;color:var(--text-main);outline:none;font-weight:600;">'+esc(old)+'</textarea><div style="display:flex;gap:6px;margin-top:4px;"><button id="sn_'+idx+'" style="font-size:0.65rem;background:var(--accent-wechat);color:#fff;border:none;border-radius:8px;cursor:pointer;padding:3px 10px;">保存</button><button id="cn_btn_'+idx+'" style="font-size:0.65rem;background:var(--btn-bg);border:1px solid var(--card-border);color:var(--text-soft);border-radius:8px;cursor:pointer;padding:3px 10px;">取消</button></div>';
+          document.getElementById('sn_'+idx).addEventListener('click',()=>{
+            const nn=document.getElementById('ein_'+idx).value.trim();
+            const allClients=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
+            const target=allClients.find(c=>c.date===dateStr&&c.name===ti.name&&c.phone===ti.phone);
+            if(target){target.note=nn;localStorage.setItem(CLIENTS_K,JSON.stringify(allClients));}
+            ti.note=nn;
+            syncToCloud(true).catch(()=>{});
+            renderTl();
+          });
+          document.getElementById('cn_btn_'+idx).addEventListener('click',()=>renderTl());
+        });
+      });
+    }
+    renderTl();
   }
 
   async function syncCalendarFromCloud(){
