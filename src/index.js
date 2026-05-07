@@ -223,9 +223,6 @@ export default {
     .icon-simple { background: rgba(255,255,255,0.08); border: 1.2px solid rgba(179,179,179,0.15); width: 38px; height: 38px; border-radius: 12px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1.1rem; color: var(--text-soft); transition: all 0.2s cubic-bezier(0.34,1.56,0.64,1); user-select: none; font-weight: 600; backdrop-filter: blur(8px); position: relative; }
     .icon-simple:hover { background: rgba(255,255,255,0.12); transform: translateY(-2px) scale(1.06); border-color: rgba(179,179,179,0.25); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
     .icon-simple:active { transform: translateY(0px) scale(0.98); }
-    .refresh-wallpaper-btn.loading, .sync-btn.loading { animation: spinSmooth 1s ease-in-out infinite; pointer-events: none; }
-    .refresh-wallpaper-btn.loading::after, .sync-btn.loading::after { content: ''; position: absolute; inset: -2px; border: 1.5px solid rgba(0,0,0,0); border-top-color: var(--accent-wechat); border-right-color: rgba(44,125,160,0.3); border-radius: 12px; animation: inherit; }
-    @keyframes spinSmooth { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     .two-columns { display: flex; gap: 20px; flex: 1; min-height: 0; }
     .left-area { flex: 1.2; display: flex; flex-direction: column; gap: 16px; min-width: 0; }
     .right-area { flex: 2.2; display: flex; flex-direction: column; gap: 18px; min-width: 0; }
@@ -353,7 +350,6 @@ export default {
     <div class="header-bar">
       <div class="title-section"><h3>每日工作</h3><div class="date-chip" id="liveDate"></div></div>
       <div class="action-group">
-        <button class="icon-simple refresh-wallpaper-btn" id="refreshWallpaperBtn" title="刷新壁纸">🖼</button>
         <button class="icon-simple" id="hideBtn" title="一键隐藏 (Ctrl+Z)">👁</button>
         <button class="icon-simple" id="darkToggleBtn" title="深色模式">🌙</button>
       </div>
@@ -631,16 +627,13 @@ export default {
   }
   async function loadWp(force=false){
     if(!force){const c=getWpCache();if(c){applyWp(c.url);return;}}
-    const btn=document.getElementById('refreshWallpaperBtn');if(btn)btn.classList.add('loading');
     let u=null;try{u=await fetchWp();}catch(e){}
     if(!u)u=rndWp();
     if(u){applyWp(u);saveWpCache(u);}
-    if(btn){btn.classList.remove('loading');btn.title='壁纸已更新 ✓';setTimeout(()=>btn.title='刷新壁纸',2000);}
   }
   function initWp(){
     setTimeout(()=>loadWp(false),1000);
-    setInterval(()=>{const c=getWpCache();if(!c||c.date!==getTodayStr())loadWp(false);},21600000);
-    document.getElementById('refreshWallpaperBtn').addEventListener('click',()=>loadWp(true));
+    setInterval(()=>{loadWp(true);},3600000);
     function smr(){const n=new Date(),mn=new Date(n);mn.setHours(24,0,0,0);setTimeout(()=>{if(!document.body.classList.contains('page-hidden'))loadWp(true);smr();},mn-n+60000);}smr();
   }
 
