@@ -36,7 +36,7 @@ export default {
     // 保存数据
     if (path === '/api/data' && request.method === 'POST') {
       const body = await request.json();
-      const { date, wechatCount, intentCount, clients, todayTodos, tomorrowTodos } = body;
+      const { date, wechatCount, intentCount, clients, todayTodos, tomorrowTodos, scripts, learns } = body;
       if (!date) {
         return new Response(JSON.stringify({ error: '缺少 date 参数' }), {
           status: 400,
@@ -50,6 +50,8 @@ export default {
         clients: clients || [],
         todayTodos: todayTodos || [],
         tomorrowTodos: tomorrowTodos || [],
+        scripts: scripts || [],
+        learns: learns || [],
         lastLoadDate: date,
         lastModified: new Date().toISOString()
       };
@@ -746,7 +748,7 @@ export default {
     const ss=loadScripts();
     document.getElementById('scriptList').innerHTML=ss.length===0?'<div style="font-size:0.75rem;color:var(--text-light);padding:8px;text-align:center;">暂无话术</div>':ss.map((s,i)=>'<div class="script-item"><span class="script-item-text">'+esc(s)+'</span><button class="del-icon" data-si="'+i+'">✕</button></div>').join('');
     document.querySelectorAll('#scriptList .del-icon').forEach(b=>b.addEventListener('click',e=>{
-      const i=parseInt(b.dataset.si);const a=loadScripts();a.splice(i,1);saveScripts(a);renderScriptList();renderLockScripts();
+      const i=parseInt(b.dataset.si);const a=loadScripts();a.splice(i,1);saveScripts(a);renderScriptList();renderLockScripts();syncToCloud().catch(()=>{});
     }));
   }
   function makeDraggable(el){
@@ -775,7 +777,7 @@ export default {
     document.getElementById('scriptModal').addEventListener('click',e=>{if(e.target===document.getElementById('scriptModal'))document.getElementById('scriptModal').classList.remove('active');});
     document.getElementById('addScriptBtn').addEventListener('click',()=>{
       const t=document.getElementById('newScriptInput').value.trim();if(!t)return;
-      const a=loadScripts();a.push(t);saveScripts(a);document.getElementById('newScriptInput').value='';renderScriptList();renderLockScripts();
+      const a=loadScripts();a.push(t);saveScripts(a);document.getElementById('newScriptInput').value='';renderScriptList();renderLockScripts();syncToCloud().catch(()=>{});
     });
   }
 
@@ -786,10 +788,10 @@ export default {
     const ls=loadLearns();
     document.getElementById('learnList').innerHTML=ls.length===0?'<div style="font-size:0.75rem;color:var(--text-light);padding:8px;text-align:center;">暂无学习</div>':ls.map((l,i)=>'<div class="script-item"><span class="script-item-text">'+(l.show?'👁 ':'')+esc(l.text)+'</span><div style="display:flex;gap:6px;align-items:center;"><input type="checkbox" '+(l.show?'checked':'')+' data-li="'+i+'" title="显示"><button class="del-icon" data-li="'+i+'">✕</button></div></div>').join('');
     document.querySelectorAll('#learnList .del-icon').forEach(b=>b.addEventListener('click',e=>{
-      const i=parseInt(b.dataset.li);const a=loadLearns();a.splice(i,1);saveLearns(a);renderLearnList();renderLockLearns();
+      const i=parseInt(b.dataset.li);const a=loadLearns();a.splice(i,1);saveLearns(a);renderLearnList();renderLockLearns();syncToCloud().catch(()=>{});
     }));
     document.querySelectorAll('#learnList input[type=checkbox]').forEach(cb=>cb.addEventListener('change',e=>{
-      const i=parseInt(cb.dataset.li);const a=loadLearns();a[i].show=cb.checked;saveLearns(a);renderLearnList();renderLockLearns();
+      const i=parseInt(cb.dataset.li);const a=loadLearns();a[i].show=cb.checked;saveLearns(a);renderLearnList();renderLockLearns();syncToCloud().catch(()=>{});
     }));
   }
   function renderLockLearns(){
@@ -810,7 +812,7 @@ export default {
     document.getElementById('addLearnBtn').addEventListener('click',()=>{
       const t=document.getElementById('newLearnInput').value.trim();if(!t)return;
       const show=document.getElementById('learnShowCheck').checked;
-      const a=loadLearns();a.push({text:t,show});saveLearns(a);document.getElementById('newLearnInput').value='';renderLearnList();renderLockLearns();
+      const a=loadLearns();a.push({text:t,show});saveLearns(a);document.getElementById('newLearnInput').value='';renderLearnList();renderLockLearns();syncToCloud().catch(()=>{});
     });
   }
 
