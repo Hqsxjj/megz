@@ -984,7 +984,7 @@ export default {
   },30000);
 
   initDark();initWp();initScriptFeature();initLearnFeature();
-  if(!isLocked())setLocked(false);else document.body.classList.add('page-hidden');
+  setLocked(true);
 
   // 首次加载从云端恢复数据
   (async()=>{
