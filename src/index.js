@@ -156,9 +156,9 @@ export default {
       --tooltip-text: #f0f6fa;
       --modal-bg: rgba(30,35,48,0.75);
       --modal-card: #fff;
-      --radius-ios: 24px;
-      --radius-sm: 18px;
-      --radius-xs: 14px;
+      --radius-ios: 10px;
+      --radius-sm: 8px;
+      --radius-xs: 6px;
       --wechat-gradient: linear-gradient(135deg, #a8e6cf 0%, #56c596 50%, #2d9a6c 100%);
       --intent-gradient: linear-gradient(135deg, #ffd194 0%, #ff9a3c 50%, #ff6d00 100%);
       --today-gradient: linear-gradient(135deg, #ffecd2 0%, #fcb69f 50%, #ff8a65 100%);
@@ -238,7 +238,7 @@ export default {
     h3 { font-size: 1.45rem; font-weight: 800; letter-spacing: -0.2px; color: var(--text-main); }
     .date-chip { background: var(--card-bg); padding: 4px 12px; border-radius: var(--radius-xs); font-size: 0.75rem; font-weight: 700; color: var(--text-soft); border: 1px solid var(--card-border); }
     .action-group { display: flex; gap: 10px; align-items: center; padding: 2px; }
-    .icon-simple { background: rgba(255,255,255,0.08); border: 1.2px solid rgba(179,179,179,0.15); width: 38px; height: 38px; border-radius: 12px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1.1rem; color: var(--text-soft); transition: all 0.2s cubic-bezier(0.34,1.56,0.64,1); user-select: none; font-weight: 600; backdrop-filter: blur(8px); position: relative; }
+    .icon-simple { background: rgba(255,255,255,0.08); border: 1.2px solid rgba(179,179,179,0.15); width: 38px; height: 38px; border-radius: var(--radius-xs); display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1.1rem; color: var(--text-soft); transition: all 0.2s cubic-bezier(0.34,1.56,0.64,1); user-select: none; font-weight: 600; backdrop-filter: blur(8px); position: relative; }
     .icon-simple:hover { background: rgba(255,255,255,0.12); transform: translateY(-2px) scale(1.06); border-color: rgba(179,179,179,0.25); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
     .icon-simple:active { transform: translateY(0px) scale(0.98); }
     .two-columns { display: flex; gap: 20px; flex: 1; min-height: 0; }
@@ -271,6 +271,8 @@ export default {
     .cal-day { aspect-ratio: 1/1; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: var(--radius-xs); font-size: 0.7rem; font-weight: 700; color: var(--text-main); background: transparent; cursor: pointer; transition: 0.2s; position: relative; }
     .cal-day:hover { background: var(--cal-hover); transform: scale(0.98); }
     .cal-day.today { background: var(--today-gradient); color: white; box-shadow: 0 0 20px rgba(255,138,101,0.5); text-shadow: 0 1px 2px rgba(0,0,0,0.2); }
+    .cal-day.past { background: rgba(128,138,150,0.08); color: var(--text-light); }
+    body.dark-mode .cal-day.past { background: rgba(128,138,150,0.12); }
     .day-number { font-size: 0.75rem; font-weight: 700; }
     .day-badge { display: flex; gap: 3px; font-size: 0.5rem; margin-top: 2px; color: var(--text-soft); font-weight: 600; }
     .cal-day.today .day-badge { color: rgba(255,255,255,0.9); }
@@ -616,8 +618,8 @@ export default {
       const ds=y+'-'+String(m+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
       const wv=wm[ds]||0,iv=im[ds]||0,cv=ccMap[ds]||0;
       let bh='';if(wv>0||iv>0||cv>0)bh='<div class="day-badge">'+(wv>0?'<span>💬'+wv+'</span>':'')+(iv>0?'<span>🎯'+iv+'</span>':'')+(cv>0?'<span>👤'+cv+'</span>':'')+'</div>';
-      const it=ds===ts;
-      g+='<div class="cal-day'+(it?' today':'')+'" data-date="'+ds+'" data-w="'+wv+'" data-i="'+iv+'"><div class="day-number">'+d+'</div>'+bh+'</div>';
+      const it=ds===ts, pt=ds<ts;
+      g+='<div class="cal-day'+(it?' today':pt?' past':'')+'" data-date="'+ds+'" data-w="'+wv+'" data-i="'+iv+'"><div class="day-number">'+d+'</div>'+bh+'</div>';
     }
     document.getElementById('calGrid').innerHTML=g;
     const tip=document.getElementById('globalTooltip');
