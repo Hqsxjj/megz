@@ -127,6 +127,91 @@ export default {
       });
     }
 
+    // 导出数据并发送企业微信 webhook
+    if (path === '/api/export' && request.method === 'POST') {
+      const body = await request.json();
+      const { type, webhookUrl } = body;
+      if (!type || !webhookUrl) {
+        return new Response(JSON.stringify({ error: '缺少参数' }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+      const today = new Date();
+      const dow = today.getDay();
+      const diff = dow === 0 ? 6 : dow - 1;
+      const mon = new Date(today);
+      mon.setDate(today.getDate() - diff);
+      const monStr = mon.getFullYear() + '-' + String(mon.getMonth()+1).padStart(2,'0') + '-' + String(mon.getDate()).padStart(2,'0');
+      const todayStr = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0') + '-' + String(today.getDate()).padStart(2,'0');
+      const monthPrefix = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0');
+
+      let prefix, label;
+      if (type === 'week') { prefix = monthPrefix; label = '本周 (' + monStr + ' ~ ' + todayStr + ')'; }
+      else { prefix = monthPrefix; label = '本月 (' + monthPrefix + ')'; }
+
+      const list = await env.DATA_KV.list({ prefix: 'work:' + prefix });
+      let weekW = 0, monthW = 0, weekI = 0, monthI = 0;
+      const lines = [];
+      const sorted = [];
+      for (const key of list.keys) {
+        const rawData = await env.DATA_KV.get(key.name);
+        if (!rawData) continue;
+        const d = JSON.parse(rawData);
+        sorted.push(d);
+        monthW += d.wechatCount || 0;
+        monthI += d.intentCount || 0;
+        if (d.date >= monStr && d.date <= todayStr) {
+          weekW += d.wechatCount || 0;
+          weekI += d.intentCount || 0;
+        }
+      }
+      sorted.sort((a,b) => (a.date||'').localeCompare(b.date||''));
+
+      if (type === 'week') {
+        lines.push('📊 ' + label);
+        lines.push('━━━━━━━━━━━━━━━━');
+        lines.push('💬 本周微信：' + weekW + '  |  🎯 本周意向：' + weekI);
+        lines.push('');
+        for (const d of sorted) {
+          if (d.date >= monStr && d.date <= todayStr) {
+            const clients = (d.clients || []).length;
+            const todos = (d.todoLog || []).length + (d.todayTodos || []).length;
+            lines.push('📅 ' + d.date + '  微信:' + (d.wechatCount||0) + '  意向:' + (d.intentCount||0) + '  客户:' + clients + '  待办:' + todos);
+          }
+        }
+      } else {
+        lines.push('📊 ' + label);
+        lines.push('━━━━━━━━━━━━━━━━');
+        lines.push('💬 本月微信：' + monthW + '  |  🎯 本月意向：' + monthI);
+        lines.push('💬 本周微信：' + weekW + '  |  🎯 本周意向：' + weekI);
+        lines.push('');
+        for (const d of sorted) {
+          const clients = (d.clients || []).length;
+          const todos = (d.todoLog || []).length + (d.todayTodos || []).length;
+          lines.push('📅 ' + d.date + '  微信:' + (d.wechatCount||0) + '  意向:' + (d.intentCount||0) + '  客户:' + clients + '  待办:' + todos);
+        }
+      }
+
+      const text = lines.join('\n');
+      try {
+        const whResp = await fetch(webhookUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ msgtype: 'text', text: { content: text } })
+        });
+        if (whResp.ok) {
+          return new Response(JSON.stringify({ success: true }), {
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+      } catch (e) {}
+      return new Response(JSON.stringify({ error: 'webhook 发送失败' }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+      });
+    }
+
     // ==================== HTML 页面 ====================
     
     const HTML = `<!DOCTYPE html>
@@ -383,6 +468,7 @@ export default {
       <div class="title-section"><h3>每日工作</h3><div class="date-chip" id="liveDate"></div></div>
       <div class="action-group">
         <button class="icon-simple" id="scriptBtn" title="话术管理">📝</button>
+        <button class="icon-simple" id="exportBtn" title="导出数据">📊</button>
         <button class="icon-simple" id="learnBtn" title="学习管理">📖</button>
         <button class="icon-simple" id="hideBtn" title="一键隐藏 (Ctrl+Z)">👁</button>
         <button class="icon-simple" id="darkToggleBtn" title="深色模式">🌙</button>
@@ -457,6 +543,17 @@ export default {
     <div class="learn-check-row"><input type="checkbox" id="learnShowCheck" checked><label for="learnShowCheck">锁屏显示</label></div>
     <button class="btn-add" id="addLearnBtn" style="width:100%;">保存</button>
     <div class="script-list" id="learnList"></div>
+  </div>
+</div>
+<div id="exportModal" class="modal-overlay">
+  <div class="modal-card" style="max-width:400px;">
+    <div class="modal-header"><span>📊 导出数据</span><button id="closeExportModalBtn">✕</button></div>
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <div style="display:flex;gap:8px;"><button class="btn-add" id="exportWeekBtn" style="flex:1;">📅 导出本周</button><button class="btn-add" id="exportMonthBtn" style="flex:1;">📆 导出本月</button></div>
+      <input type="text" class="input-simple" id="webhookUrlInput" placeholder="企业微信 Webhook URL">
+      <div style="font-size:0.65rem;color:var(--text-light);">粘贴企业微信群机器人的 Webhook 地址</div>
+      <div id="exportStatus" style="font-size:0.75rem;text-align:center;min-height:20px;"></div>
+    </div>
   </div>
 </div>
 <div id="dateModal" class="modal-overlay">
@@ -1000,7 +1097,7 @@ export default {
     }
   },30000);
 
-  initDark();initWp();initScriptFeature();initLearnFeature();
+  initDark();initWp();initScriptFeature();initLearnFeature();initExport();
   const UNLOCK_TS_K='unlock_ts';
   if((Date.now()-parseInt(localStorage.getItem(UNLOCK_TS_K)||'0'))<3600000){setLocked(false);}else{setLocked(true);}
 
