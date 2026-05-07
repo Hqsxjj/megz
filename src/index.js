@@ -485,11 +485,11 @@ export default {
   async function pullScriptsLearns(){
     const data=await cloudGet(getTodayStr());
     if(!data)return;
-    if(data.scripts&&data.scripts.length>0){
+    if(data.scripts!==undefined){
       const local=loadScripts();
       if(JSON.stringify(local)!==JSON.stringify(data.scripts)){saveScripts(data.scripts);renderLockScripts();}
     }
-    if(data.learns&&data.learns.length>0){
+    if(data.learns!==undefined){
       const local=loadLearns();
       if(JSON.stringify(local)!==JSON.stringify(data.learns)){saveLearns(data.learns);renderLockLearns();}
     }
@@ -522,8 +522,8 @@ export default {
       if(data.clients&&data.clients.length>0){let cl=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');cl=cl.filter(c=>c.date!==date);cl=cl.concat(data.clients);localStorage.setItem(CLIENTS_K,JSON.stringify(cl));}
       if(data.todayTodos&&data.todayTodos.length>0)saveTodos(TODAY_TODO_K,data.todayTodos);
       if(data.tomorrowTodos&&data.tomorrowTodos.length>0)saveTodos(TOMORROW_TODO_K,data.tomorrowTodos);
-      if(data.scripts&&data.scripts.length>0){const s=loadScripts();if(s.length===0)saveScripts(data.scripts);}
-      if(data.learns&&data.learns.length>0){const l=loadLearns();if(l.length===0)saveLearns(data.learns);}
+      if(data.scripts!==undefined){const s=loadScripts();if(s.length===0||JSON.stringify(s)!==JSON.stringify(data.scripts))saveScripts(data.scripts);}
+      if(data.learns!==undefined){const l=loadLearns();if(l.length===0||JSON.stringify(l)!==JSON.stringify(data.learns))saveLearns(data.learns);}
       if(data.lastLoadDate)localStorage.setItem(LAST_LOAD_DATE_K,data.lastLoadDate);
       return true;
     }
