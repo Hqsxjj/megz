@@ -46,12 +46,20 @@ export default {
       // 读取云端现有数据
       const rawExisting = await env.DATA_KV.get(`work:${date}`);
       const existing = rawExisting ? JSON.parse(rawExisting) : {};
-      // 合并：微信计数取最大值（防止多设备同时增减丢失），意向由客户数派生故直接覆盖
+      // 客户列表按 name|phone|time 合并（取并集，incoming 覆盖同 key 的旧条目）
+      // 这样多设备各自新增的客户都能保留，不会被任何一端覆盖
+      const mergeClients = (base, incoming) => {
+        const map = new Map();
+        (base || []).forEach(c => map.set(`${c.name}|${c.phone}|${c.time||''}`, c));
+        (incoming || []).forEach(c => map.set(`${c.name}|${c.phone}|${c.time||''}`, c));
+        return [...map.values()];
+      };
+      const mergedClients = mergeClients(existing.clients, clients);
       const merged = {
         date,
         wechatCount: Math.max(existing.wechatCount || 0, wechatCount || 0),
-        intentCount: intentCount || 0,
-        clients: clients || existing.clients || [],
+        intentCount: mergedClients.filter(c => c.date === date).length,
+        clients: mergedClients,
         todayTodos: todayTodos || existing.todayTodos || [],
         tomorrowTodos: tomorrowTodos || existing.tomorrowTodos || [],
         scripts: scripts || existing.scripts || [],
@@ -734,22 +742,29 @@ export default {
     if(!data)return;
     const localTs=parseInt(localStorage.getItem(LOCAL_TS_K)||'0');
     if((data._ts||0)>localTs){
-      // 计数器
-      const wm=loadMap(WECHAT_K);wm[today]=data.wechatCount||0;saveMap(WECHAT_K,wm);
+      // 微信计数取最大值
+      const wm=loadMap(WECHAT_K);
+      wm[today]=Math.max(wm[today]||0, data.wechatCount||0);
+      saveMap(WECHAT_K,wm);
       const im=loadMap(INTENT_K);im[today]=data.intentCount||0;saveMap(INTENT_K,im);
-      // 客户
+      // 客户列表：合并（取并集），云端新增的保留，本地新增的也保留
       if(data.clients!==undefined){
         const allClients=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
         const nonToday=allClients.filter(c=>c.date!==today);
-        localStorage.setItem(CLIENTS_K,JSON.stringify([...nonToday,...(data.clients||[])]));
+        const localToday=allClients.filter(c=>c.date===today);
+        const mergeMap=new Map();
+        // 先放本地（保留本地未同步的条目）
+        localToday.forEach(c=>mergeMap.set(`${c.name}|${c.phone}|${c.time||''}`,c));
+        // 再放云端（云端的备注/字段更新会覆盖同 key 的本地旧值）
+        (data.clients||[]).forEach(c=>mergeMap.set(`${c.name}|${c.phone}|${c.time||''}`,c));
+        localStorage.setItem(CLIENTS_K,JSON.stringify([...nonToday,...mergeMap.values()]));
       }
-      // 待办
+      // 待办：云端版本为准（通过 setTodayTodos/setTomorrowTodos 原子同步）
       if(data.todayTodos!==undefined)saveTodos(TODAY_TODO_K,data.todayTodos);
       if(data.tomorrowTodos!==undefined)saveTodos(TOMORROW_TODO_K,data.tomorrowTodos);
       // 话术/学习
       if(data.scripts!==undefined){saveScripts(data.scripts);renderLockScripts();}
       if(data.learns!==undefined){saveLearns(data.learns);renderLockLearns();}
-      // 记录时间戳
       localStorage.setItem(LOCAL_TS_K,data._ts);
       refreshAll();
     }
@@ -1424,11 +1439,9 @@ export default {
 
   setInterval(()=>{if(!document.body.classList.contains('page-hidden')&&!document.hidden)refreshAll();},60000);
 
-  // 页面隐藏/切换标签时将本地状态全量存入云端，防止 fire-and-forget 请求丢失
-  document.addEventListener('visibilitychange',()=>{
-    if(document.hidden) saveFullState(true).catch(()=>{});
-  });
-  // 页面即将卸载时尝试保存（现代浏览器中 fetch keepalive 可在页面关闭后继续发送）
+  // 页面即将关闭时用 sendBeacon 兜底保存（keepalive 保证关闭后仍能发出）
+  // 注意：不在 visibilitychange 时调用 saveFullState，避免设备 B 切标签时
+  // 用陈旧的本地数据覆盖云端（设备 A 刚同步上去的数据）
   window.addEventListener('beforeunload',()=>{
     const today=getTodayStr();
     const wm=loadMap(WECHAT_K);
@@ -1445,7 +1458,6 @@ export default {
       learns:loadLearns(),
       _ts:Date.now()
     });
-    // keepalive 让请求在页面关闭后仍能发送出去
     navigator.sendBeacon('/api/data',new Blob([payload],{type:'application/json'}));
   });
 })();
