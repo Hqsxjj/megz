@@ -1024,9 +1024,20 @@ export default {
   const bumpScriptsVer=()=>{const v=getScriptsVer()+1;localStorage.setItem(SCRIPTS_VER_K,v);return v;};
   function renderScriptList(){
     const ss=loadScripts();
-    document.getElementById('scriptList').innerHTML=ss.length===0?'<div style="font-size:0.75rem;color:var(--text-light);padding:8px;text-align:center;">暂无话术</div>':ss.map((s,i)=>'<div class="script-item"><span class="script-item-text">'+esc(s)+'</span><button class="del-icon" data-si="'+i+'">✕</button></div>').join('');
+    document.getElementById('scriptList').innerHTML=ss.length===0?'<div style="font-size:0.75rem;color:var(--text-light);padding:8px;text-align:center;">暂无话术</div>':ss.map((s,i)=>'<div class="script-item" data-si="'+i+'"><span class="script-item-text">'+esc(s)+'</span><div style="display:flex;gap:4px;align-items:center;flex-shrink:0;"><button class="edit-icon" data-si="'+i+'" title="编辑">✎</button><button class="del-icon" data-si="'+i+'">✕</button></div></div>').join('');
     document.querySelectorAll('#scriptList .del-icon').forEach(b=>b.addEventListener('click',e=>{
       const i=parseInt(b.dataset.si);const a=loadScripts();a.splice(i,1);bumpScriptsVer();saveScripts(a);renderScriptList();renderLockScripts();syncToCloud(true).catch(()=>{});
+    }));
+    document.querySelectorAll('#scriptList .edit-icon').forEach(b=>b.addEventListener('click',e=>{
+      const i=parseInt(b.dataset.si);const a=loadScripts();const old=a[i];const item=document.querySelector('#scriptList .script-item[data-si="'+i+'"]');
+      item.innerHTML='<input class="input-simple" id="editScriptInput_'+i+'" value="'+esc(old).replace(/"/g,'&quot;')+'" style="flex:1;font-size:0.75rem;padding:6px 10px;min-width:0;"><div style="display:flex;gap:4px;flex-shrink:0;"><button class="btn-add" id="saveScriptEdit_'+i+'" style="font-size:0.7rem;padding:6px 12px;">保存</button><button class="del-icon" id="cancelScriptEdit_'+i+'" style="color:var(--text-soft);">✕</button></div>';
+      document.getElementById('saveScriptEdit_'+i).addEventListener('click',()=>{
+        const v=document.getElementById('editScriptInput_'+i).value.trim();if(!v)return;
+        a[i]=v;bumpScriptsVer();saveScripts(a);renderScriptList();renderLockScripts();syncToCloud(true).catch(()=>{});
+      });
+      document.getElementById('cancelScriptEdit_'+i).addEventListener('click',()=>renderScriptList());
+      document.getElementById('editScriptInput_'+i).addEventListener('keypress',e=>{if(e.key==='Enter')document.getElementById('saveScriptEdit_'+i).click();});
+      document.getElementById('editScriptInput_'+i).focus();
     }));
   }
   function makeDraggable(el){
