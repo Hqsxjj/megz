@@ -798,14 +798,13 @@ export default {
     const today=getTodayStr();
     const clients=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]').filter(c=>c.date===today);
     document.getElementById('clientList').innerHTML=clients.map((c,i)=>'<div class="client-row"><div class="client-info"><span class="client-name">'+esc(c.name)+'</span><span class="client-phone" data-full="'+esc(c.phone)+'">'+esc(maskPhone(c.phone))+'</span><button class="phone-toggle" title="显示号码">👁</button>'+(c.note?'<span class="client-note">📝 '+esc(c.note)+'</span>':'')+'<span class="client-time">⏰ '+esc(c.time||'')+'</span></div><div class="client-actions"><button class="edit-icon" data-idx="'+i+'" title="编辑">✎</button><button class="del-icon" data-idx="'+i+'" title="删除">✕</button></div></div>').join('');
-    document.querySelectorAll('.del-icon').forEach(b=>b.addEventListener('click',e=>{
+    document.querySelectorAll('.del-icon').forEach(b=>b.addEventListener('click',async e=>{
       const i=parseInt(b.dataset.idx);
       const a=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
       const c=a[i];if(!c)return;
-      const td=c.date||getTodayStr();
       a.splice(i,1);localStorage.setItem(CLIENTS_K,JSON.stringify(a));
       renderClientList();refreshAll();
-      syncOp('removeClientByMatch',{name:c.name,phone:c.phone,time:c.time||''});
+      await syncOp('removeClientByMatch',{name:c.name,phone:c.phone,time:c.time||''});
     }));
     document.querySelectorAll('.edit-icon').forEach(b=>b.addEventListener('click',e=>{
       const i=parseInt(b.dataset.idx);
@@ -846,10 +845,11 @@ export default {
     };
     tc.innerHTML=tt.length===0?'<div style="font-size:0.75rem;color:var(--text-light);padding:6px;">暂无待办</div>':tt.map((t,i)=>makeItem(t,i,'today')).join('');
     mc.innerHTML=tm.length===0?'<div style="font-size:0.75rem;color:var(--text-light);padding:6px;">暂无待办</div>':tm.map((t,i)=>makeItem(t,i,'tomorrow')).join('');
-    document.querySelectorAll('.todo-del-btn').forEach(b=>b.addEventListener('click',e=>{
+    document.querySelectorAll('.todo-del-btn').forEach(b=>b.addEventListener('click',async e=>{
       const i=parseInt(b.dataset.idx),l=b.dataset.list;
       const todos=loadTodos(l==='today'?TODAY_TODO_K:TOMORROW_TODO_K);
-      todos.splice(i,1);saveTodos(l==='today'?TODAY_TODO_K:TOMORROW_TODO_K,todos);renderTodos();syncOp(l==='today'?'setTodayTodos':'setTomorrowTodos',{todos});saveFullState(false).catch(()=>{});
+      todos.splice(i,1);saveTodos(l==='today'?TODAY_TODO_K:TOMORROW_TODO_K,todos);renderTodos();
+      await syncOp(l==='today'?'setTodayTodos':'setTomorrowTodos',{todos});
     }));
   }
 
@@ -954,8 +954,7 @@ export default {
             if(target){target.note=nn;}
             if(!target){all.push({name:ti.name,phone:ti.phone,note:nn,date:ds,time:ti.time||''});}
             localStorage.setItem(CLIENTS_K,JSON.stringify(all));
-            syncOp('updateClientNote',{name:ti.name,phone:ti.phone,note:nn});
-            saveFullState(false).catch(()=>{});
+            await syncOp('updateClientNote',{name:ti.name,phone:ti.phone,note:nn});
             renderTl();
           };
           document.getElementById('cn_btn_'+idx).onclick=()=>renderTl();
@@ -1000,17 +999,15 @@ export default {
   }
 
   async function modCounter(key,delta){
-    // 先拉云端最新值，在此之上增减，避免多设备覆盖
+    // 直接在本地值基础上增减，立即响应；服务端原子写入保证多设备最终一致
     const t=getTodayStr();
-    let cloudV=0;
-    try{const cd=await cloudGet(t);if(cd)cloudV=key===WECHAT_K?cd.wechatCount||0:cd.intentCount||0;}catch(e){}
     const d=loadMap(key);
-    const base=Math.max(d[t]||0,cloudV);
-    let v=base+delta;if(v<0)v=0;
+    let v=Math.max((d[t]||0)+delta,0);
     if(v===0)delete d[t];else d[t]=v;saveMap(key,d);
-    refreshAll();syncOp('incWechat',{delta});await saveFullState(false);
+    refreshAll();
+    await syncOp('incWechat',{delta});
   }
-  async function resetToday(key){const d=loadMap(key);const t=getTodayStr();const old=d[t]||0;delete d[t];saveMap(key,d);refreshAll();if(old>0)syncOp('incWechat',{delta:-old});await saveFullState(false);}
+  async function resetToday(key){const d=loadMap(key);const t=getTodayStr();const old=d[t]||0;delete d[t];saveMap(key,d);refreshAll();if(old>0)await syncOp('incWechat',{delta:-old});}
 
   async function addClient(){
     const n=document.getElementById('custName').value.trim();
@@ -1020,29 +1017,32 @@ export default {
     if(!nt){alert('沟通记录为必填项');return;}
     const list=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
     const today=getTodayStr(),time=getCurrentTime();
-    list.push({name:n,phone:p,note:nt,date:today,time:time});
+    const newClient={name:n,phone:p,note:nt,date:today,time:time};
+    list.push(newClient);
     localStorage.setItem(CLIENTS_K,JSON.stringify(list));
     document.getElementById('custName').value='';
     document.getElementById('custPhone').value='';
     document.getElementById('custNote').value='';
     renderClientList();refreshAll();
-    syncOp('addClient',{client:{name:n,phone:p,note:nt,date:today,time:time}});
-    await saveFullState(false);
+    // 只用原子 syncOp，不再并发 saveFullState（避免竞态导致云端客户重复/覆盖）
+    await syncOp('addClient',{client:newClient});
   }
 
-  function addTodayTodo(){
+  async function addTodayTodo(){
     const input=document.getElementById('todayTodoInput'),text=input.value.trim();
     if(!text)return;const remind=document.getElementById('todayRemindTime').value;
     const todo={text,time:getCurrentTime(),date:getTodayStr(),remind:remind||'',type:'today'};
     const t=loadTodos(TODAY_TODO_K);t.push(todo);saveTodos(TODAY_TODO_K,t);input.value='';document.getElementById('todayRemindTime').value='';renderTodos();
-    pushTodoLog(todo,getTodayStr());syncOp('setTodayTodos',{todos:t});saveFullState(false).catch(()=>{});
+    pushTodoLog(todo,getTodayStr());
+    await syncOp('setTodayTodos',{todos:t});
   }
-  function addTodo(){
+  async function addTodo(){
     const input=document.getElementById('todoInput'),text=input.value.trim();
     if(!text)return;const remind=document.getElementById('tomorrowRemindTime').value;
     const todo={text,time:getCurrentTime(),date:getTodayStr(),remind:remind||'',type:'tomorrow'};
     const t=loadTodos(TOMORROW_TODO_K);t.push(todo);saveTodos(TOMORROW_TODO_K,t);input.value='';document.getElementById('tomorrowRemindTime').value='';renderTodos();
-    pushTodoLog(todo,getTodayStr());syncOp('setTomorrowTodos',{todos:t});saveFullState(false).catch(()=>{});
+    pushTodoLog(todo,getTodayStr());
+    await syncOp('setTomorrowTodos',{todos:t});
   }
 
   // ==================== 壁纸 ====================
@@ -1080,15 +1080,17 @@ export default {
   function renderScriptList(){
     const ss=loadScripts();
     document.getElementById('scriptList').innerHTML=ss.length===0?'<div style="font-size:0.75rem;color:var(--text-light);padding:8px;text-align:center;">暂无话术</div>':ss.map((s,i)=>'<div class="script-item" data-si="'+i+'"><span class="script-item-text">'+esc(s)+'</span><div style="display:flex;gap:4px;align-items:center;flex-shrink:0;"><button class="edit-icon" data-si="'+i+'" title="编辑">✎</button><button class="del-icon" data-si="'+i+'">✕</button></div></div>').join('');
-    document.querySelectorAll('#scriptList .del-icon').forEach(b=>b.addEventListener('click',e=>{
-      const i=parseInt(b.dataset.si);const a=loadScripts();a.splice(i,1);saveScripts(a);renderScriptList();renderLockScripts();syncOp('setScripts',{scripts:a});saveFullState(true).catch(()=>{});
+    document.querySelectorAll('#scriptList .del-icon').forEach(b=>b.addEventListener('click',async e=>{
+      const i=parseInt(b.dataset.si);const a=loadScripts();a.splice(i,1);saveScripts(a);renderScriptList();renderLockScripts();
+      await syncOp('setScripts',{scripts:a});
     }));
     document.querySelectorAll('#scriptList .edit-icon').forEach(b=>b.addEventListener('click',e=>{
       const i=parseInt(b.dataset.si);const a=loadScripts();const old=a[i];const item=document.querySelector('#scriptList .script-item[data-si="'+i+'"]');
       item.innerHTML='<input class="input-simple" id="editScriptInput_'+i+'" value="'+esc(old).replace(/"/g,'&quot;')+'" style="flex:1;font-size:0.75rem;padding:6px 10px;min-width:0;"><div style="display:flex;gap:4px;flex-shrink:0;"><button class="btn-add" id="saveScriptEdit_'+i+'" style="font-size:0.7rem;padding:6px 12px;">保存</button><button class="del-icon" id="cancelScriptEdit_'+i+'" style="color:var(--text-soft);">✕</button></div>';
-      document.getElementById('saveScriptEdit_'+i).addEventListener('click',()=>{
+      document.getElementById('saveScriptEdit_'+i).addEventListener('click',async ()=>{
         const v=document.getElementById('editScriptInput_'+i).value.trim();if(!v)return;
-        a[i]=v;saveScripts(a);renderScriptList();renderLockScripts();syncOp('setScripts',{scripts:a});saveFullState(true).catch(()=>{});
+        a[i]=v;saveScripts(a);renderScriptList();renderLockScripts();
+        await syncOp('setScripts',{scripts:a});
       });
       document.getElementById('cancelScriptEdit_'+i).addEventListener('click',()=>renderScriptList());
       document.getElementById('editScriptInput_'+i).addEventListener('keypress',e=>{if(e.key==='Enter')document.getElementById('saveScriptEdit_'+i).click();});
@@ -1119,9 +1121,10 @@ export default {
     });
     document.getElementById('closeScriptModalBtn').addEventListener('click',()=>document.getElementById('scriptModal').classList.remove('active'));
     document.getElementById('scriptModal').addEventListener('click',e=>{if(e.target===document.getElementById('scriptModal'))document.getElementById('scriptModal').classList.remove('active');});
-    document.getElementById('addScriptBtn').addEventListener('click',()=>{
+    document.getElementById('addScriptBtn').addEventListener('click',async ()=>{
       const t=document.getElementById('newScriptInput').value.trim();if(!t)return;
-      const a=loadScripts();a.push(t);saveScripts(a);document.getElementById('newScriptInput').value='';renderScriptList();renderLockScripts();syncOp('setScripts',{scripts:a});saveFullState(true).catch(()=>{});
+      const a=loadScripts();a.push(t);saveScripts(a);document.getElementById('newScriptInput').value='';renderScriptList();renderLockScripts();
+      await syncOp('setScripts',{scripts:a});
     });
   }
 
@@ -1131,11 +1134,13 @@ export default {
   function renderLearnList(){
     const ls=loadLearns();
     document.getElementById('learnList').innerHTML=ls.length===0?'<div style="font-size:0.75rem;color:var(--text-light);padding:8px;text-align:center;">暂无学习</div>':ls.map((l,i)=>'<div class="script-item"><span class="script-item-text">'+(l.show?'👁 ':'')+esc(l.text)+'</span><div style="display:flex;gap:6px;align-items:center;"><input type="checkbox" '+(l.show?'checked':'')+' data-li="'+i+'" title="显示"><button class="del-icon" data-li="'+i+'">✕</button></div></div>').join('');
-    document.querySelectorAll('#learnList .del-icon').forEach(b=>b.addEventListener('click',e=>{
-      const i=parseInt(b.dataset.li);const a=loadLearns();a.splice(i,1);saveLearns(a);renderLearnList();renderLockLearns();syncOp('setLearns',{learns:a});saveFullState(true).catch(()=>{});
+    document.querySelectorAll('#learnList .del-icon').forEach(b=>b.addEventListener('click',async e=>{
+      const i=parseInt(b.dataset.li);const a=loadLearns();a.splice(i,1);saveLearns(a);renderLearnList();renderLockLearns();
+      await syncOp('setLearns',{learns:a});
     }));
-    document.querySelectorAll('#learnList input[type=checkbox]').forEach(cb=>cb.addEventListener('change',e=>{
-      const i=parseInt(cb.dataset.li);const a=loadLearns();a[i].show=cb.checked;saveLearns(a);renderLearnList();renderLockLearns();syncOp('setLearns',{learns:a});saveFullState(true).catch(()=>{});
+    document.querySelectorAll('#learnList input[type=checkbox]').forEach(cb=>cb.addEventListener('change',async e=>{
+      const i=parseInt(cb.dataset.li);const a=loadLearns();a[i].show=cb.checked;saveLearns(a);renderLearnList();renderLockLearns();
+      await syncOp('setLearns',{learns:a});
     }));
   }
   function renderLockLearns(){
@@ -1153,13 +1158,15 @@ export default {
     });
     document.getElementById('closeLearnModalBtn').addEventListener('click',()=>document.getElementById('learnModal').classList.remove('active'));
     document.getElementById('learnModal').addEventListener('click',e=>{if(e.target===document.getElementById('learnModal'))document.getElementById('learnModal').classList.remove('active');});
-    document.getElementById('addLearnBtn').addEventListener('click',()=>{
+    document.getElementById('addLearnBtn').addEventListener('click',async ()=>{
       const t=document.getElementById('newLearnInput').value.trim();
       if(t){
         const show=document.getElementById('learnShowCheck').checked;
-        const a=loadLearns();a.push({text:t,show});saveLearns(a);syncOp('setLearns',{learns:a});document.getElementById('newLearnInput').value='';
+        const a=loadLearns();a.push({text:t,show});saveLearns(a);
+        document.getElementById('newLearnInput').value='';
+        await syncOp('setLearns',{learns:a});
       }
-      renderLearnList();renderLockLearns();saveFullState(true).catch(()=>{});
+      renderLearnList();renderLockLearns();
     });
   }
 
@@ -1416,6 +1423,31 @@ export default {
   })();
 
   setInterval(()=>{if(!document.body.classList.contains('page-hidden')&&!document.hidden)refreshAll();},60000);
+
+  // 页面隐藏/切换标签时将本地状态全量存入云端，防止 fire-and-forget 请求丢失
+  document.addEventListener('visibilitychange',()=>{
+    if(document.hidden) saveFullState(true).catch(()=>{});
+  });
+  // 页面即将卸载时尝试保存（现代浏览器中 fetch keepalive 可在页面关闭后继续发送）
+  window.addEventListener('beforeunload',()=>{
+    const today=getTodayStr();
+    const wm=loadMap(WECHAT_K);
+    const allClients=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
+    const todayClients=allClients.filter(c=>c.date===today);
+    const payload=JSON.stringify({
+      date:today,
+      wechatCount:wm[today]||0,
+      intentCount:todayClients.length,
+      clients:todayClients,
+      todayTodos:loadTodos(TODAY_TODO_K).filter(t=>(typeof t==='string'?today:(t.date||today))===today),
+      tomorrowTodos:loadTodos(TOMORROW_TODO_K).filter(t=>(typeof t==='string'?today:(t.date||today))===today),
+      scripts:loadScripts(),
+      learns:loadLearns(),
+      _ts:Date.now()
+    });
+    // keepalive 让请求在页面关闭后仍能发送出去
+    navigator.sendBeacon('/api/data',new Blob([payload],{type:'application/json'}));
+  });
 })();
 </script>
 </body>
