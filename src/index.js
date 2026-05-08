@@ -680,8 +680,9 @@ export default {
   const WECHAT_K='wechat_v3', INTENT_K='intent_v3', CLIENTS_K='clients_v3';
   const DARK_K='dark_mode', LOCK_K='locked', TODAY_TODO_K='today_todo_v2', TOMORROW_TODO_K='tomorrow_todo_v2';
   const LAST_LOAD_DATE_K='last_load_date_v1', WALLPAPER_K='wp_cache', SCRIPTS_K='scripts_v1', LEARN_K='learn_v1', LOCAL_TS_K='local_ts_v1';
+  const OP_QUEUE_K='op_queue_v1'; // 操作队列：持久化到 localStorage，页面关闭后下次打开继续补发
   const DEFAULT_PIN='8520';
-  const PULL_INTERVAL=60000;
+  const PULL_INTERVAL=15000; // 15秒拉一次，加快跨设备更新
   let syncTimer=null;
 
   const getTodayStr=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');};
@@ -701,13 +702,38 @@ export default {
   // ==================== 云端 API ====================
   async function cloudGet(date){try{const r=await fetch('/api/data?date='+date);if(r.ok)return await r.json();}catch(e){}return null;}
   async function cloudSave(data){try{await fetch('/api/data',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});}catch(e){}}
-  // 原子同步：每个增删改操作立即作为 delta 推送到云端
+
+  // ==================== Outbox 队列（Office式同步）====================
+  // 每次操作先写入队列（localStorage），再发网。关页也不丢，下次打开继续补发。
+  const loadOpQueue=()=>{try{return JSON.parse(localStorage.getItem(OP_QUEUE_K))||[];}catch(e){return[];}};
+  const saveOpQueue=q=>localStorage.setItem(OP_QUEUE_K,JSON.stringify(q));
+  let _draining=false;
+  async function drainQueue(){
+    if(_draining)return;
+    _draining=true;
+    try{
+      while(true){
+        const q=loadOpQueue();
+        if(q.length===0)break;
+        const item=q[0];
+        const {_qid,...body}=item;
+        let ok=false;
+        try{
+          const r=await fetch('/api/sync',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+          if(r.ok){const d=await r.json();if(d._ts)localStorage.setItem(LOCAL_TS_K,d._ts);ok=true;}
+        }catch(e){}
+        if(!ok)break; // 网络失败，下次重试
+        // 发送成功，从队列移除
+        saveOpQueue(loadOpQueue().filter(i=>i._qid!==_qid));
+      }
+    }finally{_draining=false;}
+  }
+  // 每次操作：先写队列（持久化），再尝试发送
   async function syncOp(op,payload){
     const today=getTodayStr();
-    try{
-      const r=await fetch('/api/sync',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({date:today,op,...payload})});
-      if(r.ok){const d=await r.json();if(d._ts)localStorage.setItem(LOCAL_TS_K,d._ts);}
-    }catch(e){}
+    const item={_qid:Date.now()+'_'+Math.random().toString(36).slice(2),date:today,op,...payload};
+    const q=loadOpQueue();q.push(item);saveOpQueue(q);
+    await drainQueue();
   }
   async function cloudCalendar(month){try{const r=await fetch('/api/calendar?month='+month);if(r.ok)return await r.json();}catch(e){}return null;}
   async function cloudStats(month){try{const r=await fetch('/api/stats?month='+month);if(r.ok)return await r.json();}catch(e){}return null;}
@@ -1356,11 +1382,12 @@ export default {
   document.getElementById('closeModalBtn').addEventListener('click',()=>document.getElementById('dateModal').classList.remove('active'));
   document.getElementById('dateModal').addEventListener('click',e=>{if(e.target===document.getElementById('dateModal'))document.getElementById('dateModal').classList.remove('active');});
 
-  // 云端同步：仅在页面可见时拉取，不可见时暂停（节省 KV 操作配额）
+  // 云端同步：每 15s 排空队列并拉取最新数据
   function startSyncTimer(){
     if(syncTimer)clearInterval(syncTimer);
-    function tick(){if(!document.hidden)pullLatest().catch(()=>{});}
+    function tick(){if(!document.hidden){drainQueue().catch(()=>{});pullLatest().catch(()=>{}); } }
     syncTimer=setInterval(tick,PULL_INTERVAL);
+    // 切回标签时立即同步（拉取其他设备的更新 + 重试未发成功的操作）
     document.addEventListener('visibilitychange',()=>{if(!document.hidden)tick();});
   }
 
@@ -1399,8 +1426,11 @@ export default {
   const UNLOCK_TS_K='unlock_ts';
   if((Date.now()-parseInt(localStorage.getItem(UNLOCK_TS_K)||'0'))<3600000){setLocked(false);}else{setLocked(true);}
 
-  // 首次加载从云端恢复数据
+  // 首次加载：先补发上次未完成的操作，再从云端拉取最新状态
   (async()=>{
+    // 1. 先补发上次关页前没有发成功的操作（Office 式離线队列）
+    await drainQueue();
+    // 2. 再拉取云端最新状态
     const prevLastLoadDate=localStorage.getItem(LAST_LOAD_DATE_K);
     await loadFromCloud(getTodayStr());
     // 跨天自动转移昨日「明日待办」到今日
