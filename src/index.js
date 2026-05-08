@@ -618,8 +618,8 @@ export default {
       wechatCount:wm[today]||0,
       intentCount:todayClients.length,
       clients:todayClients,
-      todayTodos:loadTodos(TODAY_TODO_K),
-      tomorrowTodos:loadTodos(TOMORROW_TODO_K),
+      todayTodos:loadTodos(TODAY_TODO_K).filter(t=>(typeof t==='string'?today:(t.date||today))===today),
+      tomorrowTodos:loadTodos(TOMORROW_TODO_K).filter(t=>(typeof t==='string'?today:(t.date||today))===today),
       _ts:Date.now()
     };
     if(full){
@@ -737,7 +737,9 @@ export default {
   }
 
   function renderTodos(){
-    const tt=loadTodos(TODAY_TODO_K), tm=loadTodos(TOMORROW_TODO_K);
+    const today=getTodayStr();
+    const tt=loadTodos(TODAY_TODO_K).filter(t=>(typeof t==='string'?today:(t.date||today))===today);
+    const tm=loadTodos(TOMORROW_TODO_K).filter(t=>(typeof t==='string'?today:(t.date||today))===today);
     const tc=document.getElementById('todayTodoList'), mc=document.getElementById('tomorrowTodoList');
     const makeItem=(t,i,list)=>{
       const txt=typeof t==='string'?t:t.text;
@@ -1288,7 +1290,8 @@ export default {
         const yd=await cloudGet(prevLastLoadDate);
         if(yd && yd.tomorrowTodos && yd.tomorrowTodos.length>0){
           const cur=loadTodos(TODAY_TODO_K);
-          saveTodos(TODAY_TODO_K,[...yd.tomorrowTodos,...cur]);
+          const transferred2=yd.tomorrowTodos.map(t=>({...(typeof t==='string'?{text:t}:t),date:todayStr}));
+          saveTodos(TODAY_TODO_K,[...transferred2,...cur]);
           saveTodos(TOMORROW_TODO_K,[]);
           transferred=true;
           console.log('📅 已从云端转移昨日待办到今日');
@@ -1298,7 +1301,8 @@ export default {
         const tomorrow=loadTodos(TOMORROW_TODO_K);
         if(tomorrow.length>0){
           const cur=loadTodos(TODAY_TODO_K);
-          saveTodos(TODAY_TODO_K,[...tomorrow,...cur]);
+          const transferred3=tomorrow.map(t=>({...(typeof t==='string'?{text:t}:t),date:todayStr}));
+          saveTodos(TODAY_TODO_K,[...transferred3,...cur]);
           saveTodos(TOMORROW_TODO_K,[]);
           console.log('📅 已转移本地昨日待办到今日');
         }
