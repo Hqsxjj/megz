@@ -673,7 +673,7 @@ export default {
   const DARK_K='dark_mode', LOCK_K='locked', TODAY_TODO_K='today_todo_v2', TOMORROW_TODO_K='tomorrow_todo_v2';
   const LAST_LOAD_DATE_K='last_load_date_v1', WALLPAPER_K='wp_cache', SCRIPTS_K='scripts_v1', LEARN_K='learn_v1', LOCAL_TS_K='local_ts_v1';
   const DEFAULT_PIN='8520';
-  const PULL_INTERVAL=2000;
+  const PULL_INTERVAL=60000;
   let syncTimer=null;
 
   const getTodayStr=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');};
@@ -997,8 +997,6 @@ export default {
     const now=new Date();const wk=['周日','周一','周二','周三','周四','周五','周六'];
     document.getElementById('liveDate').innerHTML=(now.getMonth()+1)+'月'+now.getDate()+'日 '+wk[now.getDay()];
     renderCalendar(wm,im);renderClientList();renderTodos();
-    // 后台同步
-    saveFullState(false).catch(()=>{});
   }
 
   async function modCounter(key,delta){
@@ -1336,10 +1334,12 @@ export default {
   document.getElementById('closeModalBtn').addEventListener('click',()=>document.getElementById('dateModal').classList.remove('active'));
   document.getElementById('dateModal').addEventListener('click',e=>{if(e.target===document.getElementById('dateModal'))document.getElementById('dateModal').classList.remove('active');});
 
-  // 云端同步：定时拉取 + 操作即时推送
+  // 云端同步：仅在页面可见时拉取，不可见时暂停（节省 KV 操作配额）
   function startSyncTimer(){
     if(syncTimer)clearInterval(syncTimer);
-    syncTimer=setInterval(()=>{pullLatest().catch(()=>{});},PULL_INTERVAL);
+    function tick(){if(!document.hidden)pullLatest().catch(()=>{});}
+    syncTimer=setInterval(tick,PULL_INTERVAL);
+    document.addEventListener('visibilitychange',()=>{if(!document.hidden)tick();});
   }
 
   // 提醒检查
@@ -1415,7 +1415,7 @@ export default {
     startSyncTimer();
   })();
 
-  setInterval(()=>{if(!document.body.classList.contains('page-hidden'))refreshAll();},60000);
+  setInterval(()=>{if(!document.body.classList.contains('page-hidden')&&!document.hidden)refreshAll();},60000);
 })();
 </script>
 </body>
