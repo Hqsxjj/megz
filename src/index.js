@@ -324,6 +324,10 @@ export default {
     .icon-simple { background: rgba(255,255,255,0.08); border: 1.2px solid rgba(179,179,179,0.15); width: 38px; height: 38px; border-radius: var(--radius-xs); display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1.1rem; color: var(--text-soft); transition: all 0.2s cubic-bezier(0.34,1.56,0.64,1); user-select: none; font-weight: 600; backdrop-filter: blur(8px); position: relative; }
     .icon-simple:hover { background: rgba(255,255,255,0.12); transform: translateY(-2px) scale(1.06); border-color: rgba(179,179,179,0.25); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
     .icon-simple:active { transform: translateY(0px) scale(0.98); }
+	    .theme-swatch { width: 56px; height: 56px; border-radius: 50%; cursor: pointer; border: 3px solid transparent; transition: all 0.25s cubic-bezier(0.34,1.56,0.64,1); position: relative; box-shadow: 0 4px 14px rgba(0,0,0,0.12); flex-shrink: 0; }
+	    .theme-swatch:hover { transform: scale(1.12); box-shadow: 0 8px 22px rgba(0,0,0,0.18); }
+	    .theme-swatch.active { border-color: var(--text-main); box-shadow: 0 0 0 4px rgba(100,120,160,0.25); }
+	    .theme-swatch-label { text-align: center; font-size: 0.65rem; font-weight: 700; color: var(--text-soft); margin-top: 6px; }
     .two-columns { display: flex; gap: 20px; flex: 1; min-height: 0; }
     .left-area { flex: 1.2; display: flex; flex-direction: column; gap: 16px; min-width: 0; }
     .right-area { flex: 2.2; display: flex; flex-direction: column; gap: 18px; min-width: 0; }
@@ -466,6 +470,7 @@ export default {
         <button class="icon-simple" id="learnBtn" title="学习管理">📖</button>
         <button class="icon-simple" id="exportBtn" title="导出数据">📊</button>
         <button class="icon-simple" id="hideBtn" title="一键隐藏 (Ctrl+Z)">👁</button>
+        <button class="icon-simple" id="themeBtn" title="主题色">🎨</button>
         <button class="icon-simple" id="darkToggleBtn" title="深色模式">🌙</button>
       </div>
     </div>
@@ -549,6 +554,12 @@ export default {
       <div style="font-size:0.65rem;color:var(--text-light);">粘贴企业微信群机器人的 Webhook 地址</div>
       <div id="exportStatus" style="font-size:0.75rem;text-align:center;min-height:20px;"></div>
     </div>
+  </div>
+</div>
+<div id="themeModal" class="modal-overlay">
+  <div class="modal-card" style="max-width:420px;">
+    <div class="modal-header"><span>🎨 主题色</span><button id="closeThemeModalBtn">✕</button></div>
+    <div id="themeSwatchGrid" style="display:flex;gap:14px;justify-content:center;flex-wrap:wrap;padding:8px 0;"></div>
   </div>
 </div>
 <div id="dateModal" class="modal-overlay">
@@ -1113,9 +1124,125 @@ export default {
     const updateDarkTitle=()=>btn.title=document.body.classList.contains('dark-mode')?'☀️ 浅色模式':'🌙 深色模式';
     if(localStorage.getItem(DARK_K)==='true')document.body.classList.add('dark-mode');
     updateDarkTitle();
-    btn.addEventListener('click',()=>{document.body.classList.toggle('dark-mode');localStorage.setItem(DARK_K,document.body.classList.contains('dark-mode'));updateDarkTitle();});
+    btn.addEventListener('click',()=>{document.body.classList.toggle('dark-mode');localStorage.setItem(DARK_K,document.body.classList.contains('dark-mode'));updateDarkTitle();applyTheme(getTheme());});
   }
   function isLocked(){return localStorage.getItem(LOCK_K)==='true';}
+
+  // ==================== 主题色 ====================
+  const THEME_K='theme_v1';
+  const THEMES=[
+    {id:'classic',name:'经典绿',colors:{
+      '--wechat-gradient':'linear-gradient(135deg, #a8e6cf 0%, #56c596 50%, #2d9a6c 100%)',
+      '--intent-gradient':'linear-gradient(135deg, #ffd194 0%, #ff9a3c 50%, #ff6d00 100%)',
+      '--today-gradient':'linear-gradient(135deg, #ffecd2 0%, #fcb69f 50%, #ff8a65 100%)',
+      '--stats-gradient':'linear-gradient(135deg, #e0f7fa 0%, #b2ebf2 50%, #4dd0e1 100%)',
+      '--accent-wechat':'#2c7da0','--accent-intent':'#2f9e68',
+      '--accent-wechat-bg':'#eef3fc','--accent-intent-bg':'#edfaf3',
+      dark:{
+        '--wechat-gradient':'linear-gradient(135deg, #1b4332 0%, #2d6a4f 50%, #40916c 100%)',
+        '--intent-gradient':'linear-gradient(135deg, #4a2500 0%, #7c3a00 50%, #b85c00 100%)',
+        '--today-gradient':'linear-gradient(135deg, #3e1a0a 0%, #6b2f14 50%, #a0421e 100%)',
+        '--stats-gradient':'linear-gradient(135deg, #0d3b4a 0%, #1a5c6e 50%, #2a7d8f 100%)',
+        '--accent-wechat':'#8fb9d4','--accent-intent':'#9aceb0',
+        '--accent-wechat-bg':'#1a2532','--accent-intent-bg':'#1a2a24'
+      }
+    }},
+    {id:'ocean',name:'海洋蓝',colors:{
+      '--wechat-gradient':'linear-gradient(135deg, #b8e4f0 0%, #4aa3c2 50%, #1a6d8a 100%)',
+      '--intent-gradient':'linear-gradient(135deg, #ffe0b2 0%, #ffb74d 50%, #e65100 100%)',
+      '--today-gradient':'linear-gradient(135deg, #e0f7fa 0%, #73d8e8 50%, #1997b5 100%)',
+      '--stats-gradient':'linear-gradient(135deg, #bbdefb 0%, #5fa8d4 50%, #1a6fa0 100%)',
+      '--accent-wechat':'#1a6d8a','--accent-intent':'#e65100',
+      '--accent-wechat-bg':'#e8f4f8','--accent-intent-bg':'#fff3e6',
+      dark:{
+        '--wechat-gradient':'linear-gradient(135deg, #0d3442 0%, #1a556a 50%, #267a94 100%)',
+        '--intent-gradient':'linear-gradient(135deg, #3d2000 0%, #6b3500 50%, #a04d00 100%)',
+        '--today-gradient':'linear-gradient(135deg, #0a3845 0%, #165465 50%, #1f7085 100%)',
+        '--stats-gradient':'linear-gradient(135deg, #0a2e40 0%, #154b60 50%, #1e6880 100%)',
+        '--accent-wechat':'#8fc9dd','--accent-intent':'#e8954a',
+        '--accent-wechat-bg':'#162a32','--accent-intent-bg':'#2a1f14'
+      }
+    }},
+    {id:'sunset',name:'日落金',colors:{
+      '--wechat-gradient':'linear-gradient(135deg, #ffe0b2 0%, #ffb74d 50%, #e67e00 100%)',
+      '--intent-gradient':'linear-gradient(135deg, #ffab91 0%, #ff7043 50%, #d84315 100%)',
+      '--today-gradient':'linear-gradient(135deg, #fff9c4 0%, #fff176 50%, #fbc02d 100%)',
+      '--stats-gradient':'linear-gradient(135deg, #ffe0b2 0%, #ffb74d 50%, #fb8c00 100%)',
+      '--accent-wechat':'#e67e00','--accent-intent':'#d84315',
+      '--accent-wechat-bg':'#fff5e8','--accent-intent-bg':'#fef0eb',
+      dark:{
+        '--wechat-gradient':'linear-gradient(135deg, #3d2100 0%, #6b3a00 50%, #a05800 100%)',
+        '--intent-gradient':'linear-gradient(135deg, #3d1000 0%, #6b1d00 50%, #a02d00 100%)',
+        '--today-gradient':'linear-gradient(135deg, #3d3200 0%, #6b5500 50%, #a08000 100%)',
+        '--stats-gradient':'linear-gradient(135deg, #352000 0%, #5c3800 50%, #8a5200 100%)',
+        '--accent-wechat':'#e8b85a','--accent-intent':'#e8825a',
+        '--accent-wechat-bg':'#2a1f10','--accent-intent-bg':'#2a1a14'
+      }
+    }},
+    {id:'sakura',name:'樱花粉',colors:{
+      '--wechat-gradient':'linear-gradient(135deg, #f8bbd0 0%, #ec407a 50%, #ad1457 100%)',
+      '--intent-gradient':'linear-gradient(135deg, #ffccbc 0%, #ff8a65 50%, #d84315 100%)',
+      '--today-gradient':'linear-gradient(135deg, #fce4ec 0%, #f8bbd0 50%, #f06292 100%)',
+      '--stats-gradient':'linear-gradient(135deg, #e1bee7 0%, #ba68c8 50%, #8e24aa 100%)',
+      '--accent-wechat':'#ad1457','--accent-intent':'#d84315',
+      '--accent-wechat-bg':'#fce8ef','--accent-intent-bg':'#fef0eb',
+      dark:{
+        '--wechat-gradient':'linear-gradient(135deg, #3a0a20 0%, #5c1440 50%, #801858 100%)',
+        '--intent-gradient':'linear-gradient(135deg, #3d1000 0%, #6b1d00 50%, #a02d00 100%)',
+        '--today-gradient':'linear-gradient(135deg, #350a1a 0%, #551430 50%, #702040 100%)',
+        '--stats-gradient':'linear-gradient(135deg, #2a0a30 0%, #451850 50%, #602070 100%)',
+        '--accent-wechat':'#e895b0','--accent-intent':'#e8825a',
+        '--accent-wechat-bg':'#2a1820','--accent-intent-bg':'#2a1a14'
+      }
+    }},
+    {id:'violet',name:'星空紫',colors:{
+      '--wechat-gradient':'linear-gradient(135deg, #d1c4e9 0%, #7e57c2 50%, #4527a0 100%)',
+      '--intent-gradient':'linear-gradient(135deg, #f0e68c 0%, #c9a840 50%, #8d6e00 100%)',
+      '--today-gradient':'linear-gradient(135deg, #e8eaf6 0%, #9fa8da 50%, #5c6bc0 100%)',
+      '--stats-gradient':'linear-gradient(135deg, #ce93d8 0%, #ab47bc 50%, #6a1b9a 100%)',
+      '--accent-wechat':'#4527a0','--accent-intent':'#8d6e00',
+      '--accent-wechat-bg':'#f0edf8','--accent-intent-bg':'#faf8e8',
+      dark:{
+        '--wechat-gradient':'linear-gradient(135deg, #1a0a30 0%, #2d1550 50%, #402070 100%)',
+        '--intent-gradient':'linear-gradient(135deg, #2d2000 0%, #4d3800 50%, #6b4d00 100%)',
+        '--today-gradient':'linear-gradient(135deg, #151830 0%, #252850 50%, #353870 100%)',
+        '--stats-gradient':'linear-gradient(135deg, #200a30 0%, #351550 50%, #4a2070 100%)',
+        '--accent-wechat':'#b8a8e0','--accent-intent':'#d4c060',
+        '--accent-wechat-bg':'#1e1a2e','--accent-intent-bg':'#2a2614'
+      }
+    }}
+  ];
+  function getTheme(){return localStorage.getItem(THEME_K)||'classic';}
+  function applyTheme(tid){
+    const t=THEMES.find(t=>t.id===tid)||THEMES[0];
+    const isDark=document.body.classList.contains('dark-mode');
+    const vars=Object.assign({},t.colors,isDark?t.colors.dark:{});
+    Object.entries(vars).forEach(([k,v])=>{if(k!=='dark')document.documentElement.style.setProperty(k,v);});
+    localStorage.setItem(THEME_K,tid);
+    renderThemeSwatches();
+  }
+  function renderThemeSwatches(){
+    const grid=document.getElementById('themeSwatchGrid');
+    if(!grid)return;
+    const cur=getTheme();
+    grid.innerHTML=THEMES.map(t=>{
+      const isDark=document.body.classList.contains('dark-mode');
+      const grad=t.colors['--wechat-gradient'];
+      const isActive=t.id===cur;
+      return '<div style="display:flex;flex-direction:column;align-items:center;gap:6px;"><div class="theme-swatch'+(isActive?' active':'')+'" data-tid="'+t.id+'" style="background:'+grad+';" title="'+t.name+'"></div><div class="theme-swatch-label">'+t.name+'</div></div>';
+    }).join('');
+    grid.querySelectorAll('.theme-swatch').forEach(el=>el.addEventListener('click',()=>applyTheme(el.dataset.tid)));
+  }
+  function initTheme(){
+    const tid=getTheme();
+    applyTheme(tid);
+    document.getElementById('themeBtn').addEventListener('click',()=>{
+      renderThemeSwatches();
+      document.getElementById('themeModal').classList.add('active');
+    });
+    document.getElementById('closeThemeModalBtn').addEventListener('click',()=>document.getElementById('themeModal').classList.remove('active'));
+    document.getElementById('themeModal').addEventListener('click',e=>{if(e.target===document.getElementById('themeModal'))document.getElementById('themeModal').classList.remove('active');});
+  }
   function setLocked(l){if(l){localStorage.setItem(LOCK_K,'true');document.body.classList.add('page-hidden');setTimeout(()=>{const pi=document.getElementById('pinInput');if(pi)pi.focus();},100);}else{localStorage.setItem(LOCK_K,'false');document.body.classList.remove('page-hidden');}}
 
   const pi=document.getElementById('pinInput'),pib=document.getElementById('pinUnlockBtn'),pie=document.getElementById('pinError');
@@ -1171,7 +1298,7 @@ export default {
     }
   },30000);
 
-  initDark();initWp();initScriptFeature();initLearnFeature();initExport();
+  initTheme();initDark();initWp();initScriptFeature();initLearnFeature();initExport();
   const UNLOCK_TS_K='unlock_ts';
   if((Date.now()-parseInt(localStorage.getItem(UNLOCK_TS_K)||'0'))<3600000){setLocked(false);}else{setLocked(true);}
 
