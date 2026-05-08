@@ -33,33 +33,35 @@ export default {
       });
     }
 
-    // 保存数据
+    // 保存数据（服务端合并，解决多设备同步冲突）
     if (path === '/api/data' && request.method === 'POST') {
       const body = await request.json();
-      const { date, wechatCount, intentCount, clients, todayTodos, tomorrowTodos, scripts, learns, scriptsVer, learnsVer, clientsVer, todoLog } = body;
+      const { date, wechatCount, intentCount, clients, todayTodos, tomorrowTodos, scripts, learns, todoLog, _ts } = body;
       if (!date) {
         return new Response(JSON.stringify({ error: '缺少 date 参数' }), {
           status: 400,
           headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
         });
       }
-      const data = {
+      // 读取云端现有数据
+      const rawExisting = await env.DATA_KV.get(`work:${date}`);
+      const existing = rawExisting ? JSON.parse(rawExisting) : {};
+      // 合并：计数器取最大值（防止重置被旧数据覆盖），其余字段以新传入为准
+      const merged = {
         date,
-        wechatCount: wechatCount || 0,
-        intentCount: intentCount || 0,
-        clients: clients || [],
-        todayTodos: todayTodos || [],
-        tomorrowTodos: tomorrowTodos || [],
-        scripts: scripts || [],
-        scriptsVer: scriptsVer || 0,
-        learns: learns || [],
-        learnsVer: learnsVer || 0,
-        clientsVer: clientsVer || {},
-        todoLog: todoLog || [],
+        wechatCount: Math.max(existing.wechatCount || 0, wechatCount || 0),
+        intentCount: Math.max(existing.intentCount || 0, intentCount || 0),
+        clients: clients || existing.clients || [],
+        todayTodos: todayTodos || existing.todayTodos || [],
+        tomorrowTodos: tomorrowTodos || existing.tomorrowTodos || [],
+        scripts: scripts || existing.scripts || [],
+        learns: learns || existing.learns || [],
+        todoLog: todoLog || existing.todoLog || [],
         lastLoadDate: date,
-        lastModified: new Date().toISOString()
+        lastModified: new Date().toISOString(),
+        _ts: _ts || Date.now()
       };
-      await env.DATA_KV.put(`work:${date}`, JSON.stringify(data));
+      await env.DATA_KV.put(`work:${date}`, JSON.stringify(merged));
       return new Response(JSON.stringify({ success: true }), {
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
       });
@@ -580,9 +582,9 @@ export default {
 (function(){
   const WECHAT_K='wechat_v3', INTENT_K='intent_v3', CLIENTS_K='clients_v3';
   const DARK_K='dark_mode', LOCK_K='locked', TODAY_TODO_K='today_todo_v2', TOMORROW_TODO_K='tomorrow_todo_v2';
-  const LAST_LOAD_DATE_K='last_load_date_v1', WALLPAPER_K='wp_cache', SCRIPTS_K='scripts_v1', LEARN_K='learn_v1', SCRIPTS_VER_K='scripts_ver', LEARN_VER_K='learn_ver', CLIENTS_VER_K='clients_ver';
+  const LAST_LOAD_DATE_K='last_load_date_v1', WALLPAPER_K='wp_cache', SCRIPTS_K='scripts_v1', LEARN_K='learn_v1', LOCAL_TS_K='local_ts_v1';
   const DEFAULT_PIN='8520';
-  const SYNC_INTERVAL=2000;
+  const PULL_INTERVAL=5000;
   let syncTimer=null;
 
   const getTodayStr=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');};
@@ -600,109 +602,81 @@ export default {
   function getMonthTotal(map){const p=getTodayStr().slice(0,7);let s=0;for(let[d,v]of Object.entries(map))if(d.startsWith(p))s+=v;return s;}
 
   // ==================== 云端 API ====================
-  async function cloudGet(date){try{const r=await fetch('/api/data?date='+date);if(r.ok)return await r.json();}catch(e){console.warn('cloudGet err',e);}return null;}
-  async function cloudSave(data){try{const r=await fetch('/api/data',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});if(r.ok)console.log('☁️ 已同步');}catch(e){console.warn('cloudSave err',e);}}
+  async function cloudGet(date){try{const r=await fetch('/api/data?date='+date);if(r.ok)return await r.json();}catch(e){}return null;}
+  async function cloudSave(data){try{await fetch('/api/data',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});}catch(e){}}
   async function cloudCalendar(month){try{const r=await fetch('/api/calendar?month='+month);if(r.ok)return await r.json();}catch(e){}return null;}
   async function cloudStats(month){try{const r=await fetch('/api/stats?month='+month);if(r.ok)return await r.json();}catch(e){}return null;}
 
-  async function pullFromCloud(){
-    const today=getTodayStr();
-    const data=await cloudGet(today);
-    if(!data)return;
-    // 拉取计数（取最大值合并）
-    if((data.wechatCount||0)>0){
-      const wm=loadMap(WECHAT_K);wm[today]=Math.max(wm[today]||0,data.wechatCount||0);saveMap(WECHAT_K,wm);
-    }
-    if((data.intentCount||0)>0){
-      const im=loadMap(INTENT_K);im[today]=Math.max(im[today]||0,data.intentCount||0);saveMap(INTENT_K,im);
-    }
-    // 拉取客户（版本号比对+合并去重）
-    if(data.clientsVer!==undefined&&(data.clientsVer[today]||0)>(getClientsVer()[today]||0)){
-      const cv=getClientsVer();cv[today]=data.clientsVer[today];localStorage.setItem(CLIENTS_VER_K,JSON.stringify(cv));
-      if(data.clients&&data.clients.length>0){
-        let cl=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
-        const nonToday=cl.filter(c=>c.date!==today);
-        const localToday=cl.filter(c=>c.date===today);
-        const merged=[...data.clients];
-        for(const lc of localToday){
-          const ei=merged.findIndex(cc=>cc.name===lc.name&&cc.phone===lc.phone&&cc.time===lc.time);
-          if(ei>=0){merged[ei]=lc;}else{merged.push(lc);}
-        }
-        localStorage.setItem(CLIENTS_K,JSON.stringify([...nonToday,...merged]));
-      }
-    }
-    // 拉取话术/学习（版本号比对）
-    if(data.scripts!==undefined&&(data.scriptsVer||0)>getScriptsVer()){
-      localStorage.setItem(SCRIPTS_VER_K,data.scriptsVer||0);
-      saveScripts(data.scripts);renderLockScripts();
-    }
-    if(data.learns!==undefined&&(data.learnsVer||0)>getLearnsVer()){
-      localStorage.setItem(LEARN_VER_K,data.learnsVer||0);
-      saveLearns(data.learns);renderLockLearns();
-    }
-  }
-
-  async function syncToCloud(full=false){
+  // 保存当前完整状态到 KV
+  async function saveFullState(full){
     const today=getTodayStr();
     const wm=loadMap(WECHAT_K), im=loadMap(INTENT_K);
-    // 先拉云端当前值，合并计数和客户
-    let cloudW=0, cloudI=0, cloudClients=[];
-    try{
-      const existing=await cloudGet(today);
-      if(existing){cloudW=existing.wechatCount||0;cloudI=existing.intentCount||0;cloudClients=existing.clients||[];}
-    }catch(e){}
-    const finalW=Math.max(wm[today]||0,cloudW);
-    const finalI=Math.max(im[today]||0,cloudI);
-    // 合并客户：本地+云端去重（按姓名+电话+时间），本地优先
-    const localClients=(JSON.parse(localStorage.getItem(CLIENTS_K)||'[]')).filter(c=>c.date===today);
-    const mergedClients=[...cloudClients];
-    for(const lc of localClients){
-      const ei=mergedClients.findIndex(cc=>cc.name===lc.name&&cc.phone===lc.phone&&cc.time===lc.time);
-      if(ei>=0){mergedClients[ei]=lc;}else{mergedClients.push(lc);}
-    }
-    // 合并后如果比云端多（本地有新客户），升版通知其他设备拉取
-    if(mergedClients.length>cloudClients.length){
-      bumpClientsVer(today);
-    }
-    // 更新本地存储为合并后的结果
     const allClients=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
-    const nonToday=allClients.filter(c=>c.date!==today);
-    localStorage.setItem(CLIENTS_K,JSON.stringify([...nonToday,...mergedClients]));
+    const todayClients=allClients.filter(c=>c.date===today);
     const data={
       date:today,
-      wechatCount:finalW,
-      intentCount:finalI,
-      clients:mergedClients,
+      wechatCount:wm[today]||0,
+      intentCount:im[today]||0,
+      clients:todayClients,
       todayTodos:loadTodos(TODAY_TODO_K),
       tomorrowTodos:loadTodos(TOMORROW_TODO_K),
-      clientsVer:getClientsVer()
+      _ts:Date.now()
     };
     if(full){
       data.scripts=loadScripts();
-      data.scriptsVer=getScriptsVer();
       data.learns=loadLearns();
-      data.learnsVer=getLearnsVer();
     }
+    localStorage.setItem(LOCAL_TS_K,data._ts);
     await cloudSave(data);
-    if(finalW!==(wm[today]||0)){wm[today]=finalW;saveMap(WECHAT_K,wm);}
-    if(finalI!==(im[today]||0)){im[today]=finalI;saveMap(INTENT_K,im);}
   }
 
+  // 从 KV 拉取最新数据，如果云端更新则覆盖本地
+  async function pullLatest(){
+    const today=getTodayStr();
+    const data=await cloudGet(today);
+    if(!data)return;
+    const localTs=parseInt(localStorage.getItem(LOCAL_TS_K)||'0');
+    if((data._ts||0)>localTs){
+      // 计数器
+      const wm=loadMap(WECHAT_K);wm[today]=data.wechatCount||0;saveMap(WECHAT_K,wm);
+      const im=loadMap(INTENT_K);im[today]=data.intentCount||0;saveMap(INTENT_K,im);
+      // 客户
+      if(data.clients!==undefined){
+        const allClients=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
+        const nonToday=allClients.filter(c=>c.date!==today);
+        localStorage.setItem(CLIENTS_K,JSON.stringify([...nonToday,...(data.clients||[])]));
+      }
+      // 待办
+      if(data.todayTodos!==undefined)saveTodos(TODAY_TODO_K,data.todayTodos);
+      if(data.tomorrowTodos!==undefined)saveTodos(TOMORROW_TODO_K,data.tomorrowTodos);
+      // 话术/学习
+      if(data.scripts!==undefined){saveScripts(data.scripts);renderLockScripts();}
+      if(data.learns!==undefined){saveLearns(data.learns);renderLockLearns();}
+      // 记录时间戳
+      localStorage.setItem(LOCAL_TS_K,data._ts);
+      refreshAll();
+    }
+  }
+
+  // 跨天从云端恢复数据（页面加载时使用）
   async function loadFromCloud(date){
     if(!date)date=getTodayStr();
     const data=await cloudGet(date);
-    if(data){
-      if(data.wechatCount>0){const m=loadMap(WECHAT_K);m[date]=Math.max(m[date]||0,data.wechatCount);saveMap(WECHAT_K,m);}
-      if(data.intentCount>0){const m=loadMap(INTENT_K);m[date]=Math.max(m[date]||0,data.intentCount);saveMap(INTENT_K,m);}
-      if(data.clients&&data.clients.length>0){const cloudCv2=data.clientsVer||{};const localCv2=getClientsVer();if((cloudCv2[date]||0)>(localCv2[date]||0)){let cl=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');const nonToday=cl.filter(c=>c.date!==date);const localToday=cl.filter(c=>c.date===date);const merged=[...data.clients];for(const lc of localToday){const ei=merged.findIndex(cc=>cc.name===lc.name&&cc.phone===lc.phone&&cc.time===lc.time);if(ei>=0){merged[ei]=lc;}else{merged.push(lc);}}localStorage.setItem(CLIENTS_K,JSON.stringify([...nonToday,...merged]));localCv2[date]=cloudCv2[date];localStorage.setItem(CLIENTS_VER_K,JSON.stringify(localCv2));}}
-      if(data.todayTodos&&data.todayTodos.length>0){const lt=loadTodos(TODAY_TODO_K);if(lt.length===0||data.todayTodos.length>lt.length)saveTodos(TODAY_TODO_K,data.todayTodos);}
-      if(data.tomorrowTodos&&data.tomorrowTodos.length>0){const lt=loadTodos(TOMORROW_TODO_K);if(lt.length===0||data.tomorrowTodos.length>lt.length)saveTodos(TOMORROW_TODO_K,data.tomorrowTodos);}
-      if(data.scripts!==undefined&&(data.scriptsVer||0)>getScriptsVer()){localStorage.setItem(SCRIPTS_VER_K,data.scriptsVer||0);saveScripts(data.scripts);}
-      if(data.learns!==undefined&&(data.learnsVer||0)>getLearnsVer()){localStorage.setItem(LEARN_VER_K,data.learnsVer||0);saveLearns(data.learns);}
-      if(data.lastLoadDate)localStorage.setItem(LAST_LOAD_DATE_K,data.lastLoadDate);
-      return true;
+    if(!data)return false;
+    const wm=loadMap(WECHAT_K);wm[date]=data.wechatCount||0;saveMap(WECHAT_K,wm);
+    const im=loadMap(INTENT_K);im[date]=data.intentCount||0;saveMap(INTENT_K,im);
+    if(data.clients!==undefined){
+      const all=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
+      const nonDay=all.filter(c=>c.date!==date);
+      localStorage.setItem(CLIENTS_K,JSON.stringify([...nonDay,...(data.clients||[])]));
     }
-    return false;
+    if(data.todayTodos!==undefined)saveTodos(TODAY_TODO_K,data.todayTodos);
+    if(data.tomorrowTodos!==undefined)saveTodos(TOMORROW_TODO_K,data.tomorrowTodos);
+    if(data.scripts!==undefined)saveScripts(data.scripts);
+    if(data.learns!==undefined)saveLearns(data.learns);
+    if(data.lastLoadDate)localStorage.setItem(LAST_LOAD_DATE_K,data.lastLoadDate);
+    localStorage.setItem(LOCAL_TS_K,data._ts||Date.now());
+    return true;
   }
 
   // ==================== 每日自动检查 ====================
@@ -733,7 +707,6 @@ export default {
       const c=a[i];if(!c)return;
       const td=c.date||getTodayStr();
       a.splice(i,1);localStorage.setItem(CLIENTS_K,JSON.stringify(a));
-      bumpClientsVer(td);
       const im=loadMap(INTENT_K);if(im[td]>0){im[td]--;saveMap(INTENT_K,im);}
       renderClientList();refreshAll();
     }));
@@ -746,7 +719,6 @@ export default {
       document.getElementById('custNote').value=c.note||'';
       a.splice(i,1);localStorage.setItem(CLIENTS_K,JSON.stringify(a));
       const td=c.date||getTodayStr();
-      bumpClientsVer(td);
       const im=loadMap(INTENT_K);
       if(im[td]>0){im[td]--;saveMap(INTENT_K,im);}
       renderClientList();refreshAll();
@@ -781,7 +753,7 @@ export default {
     document.querySelectorAll('.todo-del-btn').forEach(b=>b.addEventListener('click',e=>{
       const i=parseInt(b.dataset.idx),l=b.dataset.list;
       const todos=loadTodos(l==='today'?TODAY_TODO_K:TOMORROW_TODO_K);
-      todos.splice(i,1);saveTodos(l==='today'?TODAY_TODO_K:TOMORROW_TODO_K,todos);renderTodos();
+      todos.splice(i,1);saveTodos(l==='today'?TODAY_TODO_K:TOMORROW_TODO_K,todos);renderTodos();saveFullState(false).catch(()=>{});
     }));
   }
 
@@ -826,22 +798,13 @@ export default {
         if(cloudData.todayTodos&&cloudData.todayTodos.length>0)todos=cloudData.todayTodos;
       }
     }catch(e){}
-    // 版本号比对：云端更高用云端，本地更高保留本地
+    // 合并本地客户到云端列表（本地最新优先）
     const localAll=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
     const localDay=localAll.filter(c=>c.date===ds);
-    const localCv3=getClientsVer();
-    const cloudCv3=(cloudData&&cloudData.clientsVer)||{};
-    if((cloudCv3[ds]||0)>(localCv3[ds]||0)){
-      const nonDay=localAll.filter(c=>c.date!==ds);
-      localStorage.setItem(CLIENTS_K,JSON.stringify([...nonDay,...clients]));
-      localCv3[ds]=cloudCv3[ds];
-      localStorage.setItem(CLIENTS_VER_K,JSON.stringify(localCv3));
-    }else{
-      localDay.forEach(lc=>{
-        const exist=clients.findIndex(cc=>cc.name===lc.name&&cc.phone===lc.phone&&cc.time===lc.time);
-        if(exist>=0){clients[exist]=lc;}else{clients.push(lc);}
-      });
-    }
+    localDay.forEach(lc=>{
+      const exist=clients.findIndex(cc=>cc.name===lc.name&&cc.phone===lc.phone&&cc.time===lc.time);
+      if(exist>=0){clients[exist]=lc;}else{clients.push(lc);}
+    });
     if(todos.length===0&&ds===getTodayStr())todos=loadTodos(TODAY_TODO_K);
     // 同时获取该日期的 todoLog（永久待办记录）
     let todoLog=[];
@@ -895,19 +858,7 @@ export default {
             if(target){target.note=nn;}
             if(!target){all.push({name:ti.name,phone:ti.phone,note:nn,date:ds,time:ti.time||''});}
             localStorage.setItem(CLIENTS_K,JSON.stringify(all));
-            const newVer=bumpClientsVer(ds);
-            try{
-              const existing=await cloudGet(ds);
-              const dayClients=all.filter(c=>c.date===ds);
-              await cloudSave({
-                date:ds,wechatCount:existing?existing.wechatCount||0:0,intentCount:existing?existing.intentCount||0:0,
-                clients:dayClients,
-                clientsVer:{...((existing&&existing.clientsVer)||{}),[ds]:newVer},
-                todayTodos:existing?existing.todayTodos||[]:[],tomorrowTodos:existing?existing.tomorrowTodos||[]:[],
-                scripts:existing?existing.scripts||[]:[],scriptsVer:existing?existing.scriptsVer||0:0,
-                learns:existing?existing.learns||[]:[],learnsVer:existing?existing.learnsVer||0:0
-              });
-            }catch(e){}
+            saveFullState(false).catch(()=>{});
             renderTl();
           };
           document.getElementById('cn_btn_'+idx).onclick=()=>renderTl();
@@ -945,14 +896,21 @@ export default {
     document.getElementById('liveDate').innerHTML=(now.getMonth()+1)+'月'+now.getDate()+'日 '+wk[now.getDay()];
     renderCalendar(wm,im);renderClientList();renderTodos();
     // 后台同步
-    syncToCloud(false).catch(()=>{});
+    saveFullState(false).catch(()=>{});
   }
 
-  function modCounter(key,delta){
-    const d=loadMap(key),t=getTodayStr();let v=(d[t]||0)+delta;if(v<0)v=0;
-    if(v===0)delete d[t];else d[t]=v;saveMap(key,d);refreshAll();
+  async function modCounter(key,delta){
+    // 先拉云端最新值，在此之上增减，避免多设备覆盖
+    const t=getTodayStr();
+    let cloudV=0;
+    try{const cd=await cloudGet(t);if(cd)cloudV=key===WECHAT_K?cd.wechatCount||0:cd.intentCount||0;}catch(e){}
+    const d=loadMap(key);
+    const base=Math.max(d[t]||0,cloudV);
+    let v=base+delta;if(v<0)v=0;
+    if(v===0)delete d[t];else d[t]=v;saveMap(key,d);
+    refreshAll();await saveFullState(false);
   }
-  function resetToday(key){const d=loadMap(key);delete d[getTodayStr()];saveMap(key,d);refreshAll();}
+  async function resetToday(key){const d=loadMap(key);delete d[getTodayStr()];saveMap(key,d);refreshAll();await saveFullState(false);}
 
   async function addClient(){
     const n=document.getElementById('custName').value.trim();
@@ -964,13 +922,12 @@ export default {
     const today=getTodayStr(),time=getCurrentTime();
     list.push({name:n,phone:p,note:nt,date:today,time:time});
     localStorage.setItem(CLIENTS_K,JSON.stringify(list));
-    bumpClientsVer(today);
     const im=loadMap(INTENT_K);im[today]=(im[today]||0)+1;saveMap(INTENT_K,im);
     document.getElementById('custName').value='';
     document.getElementById('custPhone').value='';
     document.getElementById('custNote').value='';
     renderClientList();refreshAll();
-    await syncToCloud(false);
+    await saveFullState(false);
   }
 
   function addTodayTodo(){
@@ -978,14 +935,14 @@ export default {
     if(!text)return;const remind=document.getElementById('todayRemindTime').value;
     const todo={text,time:getCurrentTime(),date:getTodayStr(),remind:remind||'',type:'today'};
     const t=loadTodos(TODAY_TODO_K);t.push(todo);saveTodos(TODAY_TODO_K,t);input.value='';document.getElementById('todayRemindTime').value='';renderTodos();
-    pushTodoLog(todo,getTodayStr());
+    pushTodoLog(todo,getTodayStr());saveFullState(false).catch(()=>{});
   }
   function addTodo(){
     const input=document.getElementById('todoInput'),text=input.value.trim();
     if(!text)return;const remind=document.getElementById('tomorrowRemindTime').value;
     const todo={text,time:getCurrentTime(),date:getTodayStr(),remind:remind||'',type:'tomorrow'};
     const t=loadTodos(TOMORROW_TODO_K);t.push(todo);saveTodos(TOMORROW_TODO_K,t);input.value='';document.getElementById('tomorrowRemindTime').value='';renderTodos();
-    pushTodoLog(todo,getTodayStr());
+    pushTodoLog(todo,getTodayStr());saveFullState(false).catch(()=>{});
   }
 
   // ==================== 壁纸 ====================
@@ -1020,20 +977,16 @@ export default {
   // ==================== 话术 ====================
   const loadScripts=()=>{try{return JSON.parse(localStorage.getItem(SCRIPTS_K))||[];}catch(e){return[];}};
   const saveScripts=(a)=>localStorage.setItem(SCRIPTS_K,JSON.stringify(a));
-  const getScriptsVer=()=>parseInt(localStorage.getItem(SCRIPTS_VER_K)||'0');
-  const bumpScriptsVer=()=>{const v=getScriptsVer()+1;localStorage.setItem(SCRIPTS_VER_K,v);return v;};
   function renderScriptList(){
     const ss=loadScripts();
     document.getElementById('scriptList').innerHTML=ss.length===0?'<div style="font-size:0.75rem;color:var(--text-light);padding:8px;text-align:center;">暂无话术</div>':ss.map((s,i)=>'<div class="script-item" data-si="'+i+'"><span class="script-item-text">'+esc(s)+'</span><div style="display:flex;gap:4px;align-items:center;flex-shrink:0;"><button class="edit-icon" data-si="'+i+'" title="编辑">✎</button><button class="del-icon" data-si="'+i+'">✕</button></div></div>').join('');
     document.querySelectorAll('#scriptList .del-icon').forEach(b=>b.addEventListener('click',e=>{
-      const i=parseInt(b.dataset.si);const a=loadScripts();a.splice(i,1);bumpScriptsVer();saveScripts(a);renderScriptList();renderLockScripts();syncToCloud(true).catch(()=>{});
     }));
     document.querySelectorAll('#scriptList .edit-icon').forEach(b=>b.addEventListener('click',e=>{
       const i=parseInt(b.dataset.si);const a=loadScripts();const old=a[i];const item=document.querySelector('#scriptList .script-item[data-si="'+i+'"]');
       item.innerHTML='<input class="input-simple" id="editScriptInput_'+i+'" value="'+esc(old).replace(/"/g,'&quot;')+'" style="flex:1;font-size:0.75rem;padding:6px 10px;min-width:0;"><div style="display:flex;gap:4px;flex-shrink:0;"><button class="btn-add" id="saveScriptEdit_'+i+'" style="font-size:0.7rem;padding:6px 12px;">保存</button><button class="del-icon" id="cancelScriptEdit_'+i+'" style="color:var(--text-soft);">✕</button></div>';
       document.getElementById('saveScriptEdit_'+i).addEventListener('click',()=>{
         const v=document.getElementById('editScriptInput_'+i).value.trim();if(!v)return;
-        a[i]=v;bumpScriptsVer();saveScripts(a);renderScriptList();renderLockScripts();syncToCloud(true).catch(()=>{});
       });
       document.getElementById('cancelScriptEdit_'+i).addEventListener('click',()=>renderScriptList());
       document.getElementById('editScriptInput_'+i).addEventListener('keypress',e=>{if(e.key==='Enter')document.getElementById('saveScriptEdit_'+i).click();});
@@ -1066,25 +1019,18 @@ export default {
     document.getElementById('scriptModal').addEventListener('click',e=>{if(e.target===document.getElementById('scriptModal'))document.getElementById('scriptModal').classList.remove('active');});
     document.getElementById('addScriptBtn').addEventListener('click',()=>{
       const t=document.getElementById('newScriptInput').value.trim();if(!t)return;
-      const a=loadScripts();a.push(t);bumpScriptsVer();saveScripts(a);document.getElementById('newScriptInput').value='';renderScriptList();renderLockScripts();syncToCloud(true).catch(()=>{});
     });
   }
 
   // ==================== 学习 ====================
   const loadLearns=()=>{try{return JSON.parse(localStorage.getItem(LEARN_K))||[];}catch(e){return[];}};
   const saveLearns=(a)=>localStorage.setItem(LEARN_K,JSON.stringify(a));
-  const getLearnsVer=()=>parseInt(localStorage.getItem(LEARN_VER_K)||'0');
-  const bumpLearnsVer=()=>{const v=getLearnsVer()+1;localStorage.setItem(LEARN_VER_K,v);return v;};
-  const getClientsVer=()=>{try{return JSON.parse(localStorage.getItem(CLIENTS_VER_K))||{};}catch(e){return{};}};
-  const bumpClientsVer=ds=>{const cv=getClientsVer();cv[ds]=(cv[ds]||0)+1;localStorage.setItem(CLIENTS_VER_K,JSON.stringify(cv));return cv[ds];};
   function renderLearnList(){
     const ls=loadLearns();
     document.getElementById('learnList').innerHTML=ls.length===0?'<div style="font-size:0.75rem;color:var(--text-light);padding:8px;text-align:center;">暂无学习</div>':ls.map((l,i)=>'<div class="script-item"><span class="script-item-text">'+(l.show?'👁 ':'')+esc(l.text)+'</span><div style="display:flex;gap:6px;align-items:center;"><input type="checkbox" '+(l.show?'checked':'')+' data-li="'+i+'" title="显示"><button class="del-icon" data-li="'+i+'">✕</button></div></div>').join('');
     document.querySelectorAll('#learnList .del-icon').forEach(b=>b.addEventListener('click',e=>{
-      const i=parseInt(b.dataset.li);const a=loadLearns();a.splice(i,1);bumpLearnsVer();saveLearns(a);renderLearnList();renderLockLearns();syncToCloud(true).catch(()=>{});
     }));
     document.querySelectorAll('#learnList input[type=checkbox]').forEach(cb=>cb.addEventListener('change',e=>{
-      const i=parseInt(cb.dataset.li);const a=loadLearns();a[i].show=cb.checked;bumpLearnsVer();saveLearns(a);renderLearnList();renderLockLearns();syncToCloud(true).catch(()=>{});
     }));
   }
   function renderLockLearns(){
@@ -1106,9 +1052,8 @@ export default {
       const t=document.getElementById('newLearnInput').value.trim();
       if(t){
         const show=document.getElementById('learnShowCheck').checked;
-        const a=loadLearns();a.push({text:t,show});bumpLearnsVer();saveLearns(a);document.getElementById('newLearnInput').value='';
       }
-      renderLearnList();renderLockLearns();syncToCloud(true).catch(()=>{});
+      renderLearnList();renderLockLearns();saveFullState(true).catch(()=>{});
     });
   }
 
@@ -1283,15 +1228,10 @@ export default {
   document.getElementById('closeModalBtn').addEventListener('click',()=>document.getElementById('dateModal').classList.remove('active'));
   document.getElementById('dateModal').addEventListener('click',e=>{if(e.target===document.getElementById('dateModal'))document.getElementById('dateModal').classList.remove('active');});
 
-  // 后端自动实时同步（无需手动点击）
-
-  // 启动云端同步定时器
+  // 云端同步：定时拉取 + 操作即时推送
   function startSyncTimer(){
     if(syncTimer)clearInterval(syncTimer);
-    // 定时拉取其他设备更新；推送仅在用户操作时即时触发
-    syncTimer=setInterval(()=>{pullFromCloud().catch(()=>{});},SYNC_INTERVAL);
-    // 定时推送业务数据（计数、客户、待办）
-    setInterval(()=>{if(!document.body.classList.contains('page-hidden'))syncToCloud(false).catch(()=>{});},SYNC_INTERVAL);
+    syncTimer=setInterval(()=>{pullLatest().catch(()=>{});},PULL_INTERVAL);
   }
 
   // 提醒检查
