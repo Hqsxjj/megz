@@ -281,22 +281,22 @@ export default {
     body.dark-mode.page-hidden .privacy-wallpaper { opacity: 0.80; }
     body.page-hidden .privacy-mask { display: flex; pointer-events: auto; }
     body.page-hidden .app-shell { display: none; }
-    .pin-box { display: flex; flex-direction: column; align-items: center; gap: 16px; background: rgba(255,255,255,0.75); padding: 32px 40px; border-radius: var(--radius-ios); box-shadow: 0 25px 60px rgba(0,0,0,0.15), 0 0 0 1px rgba(255,255,255,0.3); border: 1px solid rgba(255,255,255,0.5); min-width: 320px; max-width: 420px; backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); transition: all 0.3s ease; }
+    .pin-box { display: flex; flex-direction: column; align-items: center; gap: 22px; background: rgba(255,255,255,0.75); padding: 45px 56px; border-radius: var(--radius-ios); box-shadow: 0 25px 60px rgba(0,0,0,0.15), 0 0 0 1px rgba(255,255,255,0.3); border: 1px solid rgba(255,255,255,0.5); min-width: 448px; max-width: 588px; backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); transition: all 0.3s ease; }
     body.dark-mode .pin-box { background: rgba(30,41,56,0.8); border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 25px 60px rgba(0,0,0,0.3); }
-    .pin-stats { display: flex; gap: 16px; }
-    .pin-stat-item { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px 18px; background: rgba(255,255,255,0.6); border-radius: var(--radius-sm); border: 1px solid rgba(255,255,255,0.5); min-width: 100px; backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
+    .pin-stats { display: flex; gap: 22px; }
+    .pin-stat-item { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 17px 25px; background: rgba(255,255,255,0.6); border-radius: var(--radius-sm); border: 1px solid rgba(255,255,255,0.5); min-width: 140px; backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
     body.dark-mode .pin-stat-item { background: rgba(40,50,63,0.6); border: 1px solid rgba(255,255,255,0.08); }
-    .pin-stat-label { font-size: 0.7rem; font-weight: 700; color: var(--text-soft); letter-spacing: 0.5px; }
-    .pin-stat-value { font-size: 2rem; font-weight: 900; line-height: 1; }
+    .pin-stat-label { font-size: 0.98rem; font-weight: 700; color: var(--text-soft); letter-spacing: 0.5px; }
+    .pin-stat-value { font-size: 2.8rem; font-weight: 900; line-height: 1; }
     .pin-wechat-value { background: var(--wechat-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
     .pin-intent-value { background: var(--intent-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
-    .pin-input { width: 140px; padding: 8px 14px; border-radius: var(--radius-xs); border: 1.5px solid rgba(200,210,220,0.5); background: rgba(255,255,255,0.5); text-align: center; font-size: 1rem; letter-spacing: 5px; color: var(--text-main); outline: none; font-weight: 700; transition: all 0.3s; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+    .pin-input { width: 196px; padding: 11px 20px; border-radius: var(--radius-xs); border: 1.5px solid rgba(200,210,220,0.5); background: rgba(255,255,255,0.5); text-align: center; font-size: 1.4rem; letter-spacing: 7px; color: var(--text-main); outline: none; font-weight: 700; transition: all 0.3s; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
     body.dark-mode .pin-input { background: rgba(40,50,63,0.5); border-color: rgba(255,255,255,0.15); }
     .pin-input:focus { border-color: var(--accent-wechat); box-shadow: 0 0 0 4px rgba(44,125,160,0.15); background: rgba(255,255,255,0.7); }
-    .pin-btn { background: var(--accent-wechat); border: none; color: white; padding: 8px 32px; border-radius: var(--radius-xs); font-weight: 700; cursor: pointer; font-size: 0.8rem; letter-spacing: 1px; transition: all 0.2s; box-shadow: 0 4px 15px rgba(44,125,160,0.3); }
+    .pin-btn { background: var(--accent-wechat); border: none; color: white; padding: 11px 45px; border-radius: var(--radius-xs); font-weight: 700; cursor: pointer; font-size: 1.12rem; letter-spacing: 1px; transition: all 0.2s; box-shadow: 0 4px 15px rgba(44,125,160,0.3); }
     .pin-btn:hover { opacity: 0.9; transform: translateY(-2px); box-shadow: 0 6px 20px rgba(44,125,160,0.4); }
     .pin-btn:active { transform: translateY(0); }
-    .pin-error { color: #e74c3c; font-size: 0.9rem; min-height: 24px; font-weight: 600; letter-spacing: 0.5px; }
+    .pin-error { color: #e74c3c; font-size: 1.26rem; min-height: 24px; font-weight: 600; letter-spacing: 0.5px; }
     .notify-bar { position: fixed; top: 0; left: 0; right: 0; background: var(--accent-intent); color: #fff; padding: 12px 20px; font-size: 0.85rem; font-weight: 700; z-index: 10000; transform: translateY(-100%); transition: transform 0.3s ease; text-align: center; box-shadow: 0 4px 20px rgba(0,0,0,0.2); cursor: pointer; }
     .notify-bar.show { transform: translateY(0); }
     .notify-bar .notify-close { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); font-size: 1.1rem; opacity: 0.7; }
@@ -328,6 +328,11 @@ export default {
 	    .theme-swatch:hover { transform: scale(1.12); box-shadow: 0 8px 22px rgba(0,0,0,0.18); }
 	    .theme-swatch.active { border-color: var(--text-main); box-shadow: 0 0 0 4px rgba(100,120,160,0.25); }
 	    .theme-swatch-label { text-align: center; font-size: 0.65rem; font-weight: 700; color: var(--text-soft); margin-top: 6px; }
+	    .action-group { position: relative; }
+	    .menu-dropdown { position: absolute; right: 0; top: 100%; margin-top: 8px; background: var(--card-bg); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border-radius: var(--radius-ios); border: 1px solid var(--card-border); box-shadow: 0 12px 32px rgba(0,0,0,0.15); display: none; flex-direction: column; gap: 2px; padding: 6px; z-index: 100; min-width: 168px; }
+	    .menu-dropdown.show { display: flex; }
+	    .menu-item { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: transparent; border: none; border-radius: var(--radius-xs); cursor: pointer; font-size: 0.8rem; font-weight: 600; color: var(--text-main); white-space: nowrap; transition: background 0.15s; width: 100%; text-align: left; }
+	    .menu-item:hover { background: var(--btn-hover); }
     .two-columns { display: flex; gap: 20px; flex: 1; min-height: 0; }
     .left-area { flex: 1.2; display: flex; flex-direction: column; gap: 16px; min-width: 0; }
     .right-area { flex: 2.2; display: flex; flex-direction: column; gap: 18px; min-width: 0; }
@@ -429,13 +434,13 @@ export default {
     @media (max-width: 760px) {
       .two-columns { flex-direction: column; }
       .right-area { order: 1; } .left-area { order: 2; }
-      .pin-box { min-width: 280px; max-width: 90vw; padding: 24px 24px; gap: 12px; }
-      .pin-stats { gap: 10px; }
-      .pin-stat-item { padding: 10px 12px; min-width: 90px; gap: 4px; }
-      .pin-stat-label { font-size: 0.65rem; }
-      .pin-stat-value { font-size: 1.6rem; }
-      .pin-input { width: 130px; padding: 7px 12px; font-size: 0.9rem; }
-      .pin-btn { padding: 7px 20px; font-size: 0.7rem; }
+      .pin-box { min-width: 392px; max-width: 90vw; padding: 34px 34px; gap: 17px; }
+      .pin-stats { gap: 14px; }
+      .pin-stat-item { padding: 14px 17px; min-width: 126px; gap: 6px; }
+      .pin-stat-label { font-size: 0.91rem; }
+      .pin-stat-value { font-size: 2.24rem; }
+      .pin-input { width: 182px; padding: 10px 17px; font-size: 1.26rem; }
+      .pin-btn { padding: 10px 28px; font-size: 0.98rem; }
 	      .script-container { left: 8px; top: 60px; max-width: 42vw; max-height: 30vh; overflow-y: auto; }
 	      .learn-container { right: 8px; top: 60px; max-width: 52vw; max-height: 30vh; overflow-y: auto; }
 	      .script-module { padding: 8px 12px; font-size: 0.75rem; }
@@ -466,12 +471,15 @@ export default {
     <div class="header-bar">
       <div class="title-section"><h3>每日工作</h3><div class="date-chip" id="liveDate"></div></div>
       <div class="action-group">
-        <button class="icon-simple" id="scriptBtn" title="话术管理">📝</button>
-        <button class="icon-simple" id="learnBtn" title="学习管理">📖</button>
-        <button class="icon-simple" id="exportBtn" title="导出数据">📊</button>
         <button class="icon-simple" id="hideBtn" title="一键隐藏 (Ctrl+Z)">👁</button>
-        <button class="icon-simple" id="themeBtn" title="主题色">🎨</button>
-        <button class="icon-simple" id="darkToggleBtn" title="深色模式">🌙</button>
+        <button class="icon-simple" id="menuToggleBtn" title="菜单">☰</button>
+        <div class="menu-dropdown" id="menuDropdown">
+          <button class="menu-item" id="scriptBtn">📝 话术管理</button>
+          <button class="menu-item" id="learnBtn">📖 学习管理</button>
+          <button class="menu-item" id="exportBtn">📊 导出数据</button>
+          <button class="menu-item" id="themeBtn">🎨 主题色</button>
+          <button class="menu-item" id="darkToggleBtn">🌙 深色模式</button>
+        </div>
       </div>
     </div>
     <div class="two-columns">
@@ -1121,7 +1129,7 @@ export default {
   // ==================== 初始化 ====================
   function initDark(){
     const btn=document.getElementById('darkToggleBtn');
-    const updateDarkTitle=()=>btn.title=document.body.classList.contains('dark-mode')?'☀️ 浅色模式':'🌙 深色模式';
+    const updateDarkTitle=()=>{const isDark=document.body.classList.contains('dark-mode');btn.textContent=(isDark?'☀️':'🌙')+' 浅色'+(isDark?'':'深色')+'模式';btn.title=isDark?'☀️ 浅色模式':'🌙 深色模式';};
     if(localStorage.getItem(DARK_K)==='true')document.body.classList.add('dark-mode');
     updateDarkTitle();
     btn.addEventListener('click',()=>{document.body.classList.toggle('dark-mode');localStorage.setItem(DARK_K,document.body.classList.contains('dark-mode'));updateDarkTitle();applyTheme(getTheme());});
@@ -1299,6 +1307,14 @@ export default {
   },30000);
 
   initTheme();initDark();initWp();initScriptFeature();initLearnFeature();initExport();
+  // 菜单下拉
+  (function(){
+    const toggle=document.getElementById('menuToggleBtn');
+    const dropdown=document.getElementById('menuDropdown');
+    toggle.addEventListener('click',e=>{e.stopPropagation();dropdown.classList.toggle('show');});
+    document.addEventListener('click',e=>{if(!dropdown.contains(e.target)&&e.target!==toggle)dropdown.classList.remove('show');});
+    dropdown.querySelectorAll('.menu-item').forEach(item=>item.addEventListener('click',()=>dropdown.classList.remove('show')));
+  })();
   const UNLOCK_TS_K='unlock_ts';
   if((Date.now()-parseInt(localStorage.getItem(UNLOCK_TS_K)||'0'))<3600000){setLocked(false);}else{setLocked(true);}
 
