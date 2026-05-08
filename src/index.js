@@ -67,6 +67,95 @@ export default {
       });
     }
 
+    // 原子操作同步 —— 每个增删改作为独立 delta 推送到 KV，保证最快同步
+    if (path === '/api/sync' && request.method === 'POST') {
+      const body = await request.json();
+      const { date, op } = body;
+      if (!date || !op) {
+        return new Response(JSON.stringify({ error: '缺少 date 或 op 参数' }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+      const raw = await env.DATA_KV.get(`work:${date}`);
+      const data = raw ? JSON.parse(raw) : {
+        date, wechatCount: 0, intentCount: 0, clients: [],
+        todayTodos: [], tomorrowTodos: [], scripts: [], learns: [], todoLog: []
+      };
+      const ts = Date.now();
+      switch (op) {
+        case 'incWechat': {
+          const delta = body.delta || 0;
+          data.wechatCount = Math.max((data.wechatCount || 0) + delta, 0);
+          break;
+        }
+        case 'addClient': {
+          if (body.client) {
+            data.clients = [...(data.clients || []), body.client];
+            data.intentCount = data.clients.length;
+          }
+          break;
+        }
+        case 'removeClientByIndex': {
+          if (body.index !== undefined && body.index >= 0) {
+            data.clients = data.clients || [];
+            data.clients.splice(body.index, 1);
+            data.intentCount = data.clients.length;
+          }
+          break;
+        }
+        case 'removeClientByMatch': {
+          if (body.name && body.phone && body.time) {
+            data.clients = (data.clients || []).filter(
+              c => !(c.name === body.name && c.phone === body.phone && c.time === body.time)
+            );
+            data.intentCount = data.clients.length;
+          }
+          break;
+        }
+        case 'updateClientNote': {
+          if (body.name && body.phone && body.note !== undefined) {
+            data.clients = (data.clients || []).map(c =>
+              c.name === body.name && c.phone === body.phone ? { ...c, note: body.note } : c
+            );
+          }
+          break;
+        }
+        case 'setTodayTodos':
+          data.todayTodos = body.todos || [];
+          break;
+        case 'setTomorrowTodos':
+          data.tomorrowTodos = body.todos || [];
+          break;
+        case 'pushTodoLog':
+          if (body.todo) {
+            data.todoLog = [...(data.todoLog || []), body.todo];
+          }
+          break;
+        case 'setScripts':
+          data.scripts = body.scripts || [];
+          break;
+        case 'setLearns':
+          data.learns = body.learns || [];
+          break;
+        case 'setAllClients':
+          data.clients = body.clients || [];
+          data.intentCount = (body.clients || []).length;
+          break;
+        default:
+          return new Response(JSON.stringify({ error: '未知操作: ' + op }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
+      }
+      data._ts = ts;
+      data.lastModified = new Date().toISOString();
+      await env.DATA_KV.put(`work:${date}`, JSON.stringify(data));
+      return new Response(JSON.stringify({ success: true, _ts: ts }), {
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+      });
+    }
+
     // 获取日历数据
     if (path === '/api/calendar' && request.method === 'GET') {
       const month = url.searchParams.get('month');
@@ -584,7 +673,7 @@ export default {
   const DARK_K='dark_mode', LOCK_K='locked', TODAY_TODO_K='today_todo_v2', TOMORROW_TODO_K='tomorrow_todo_v2';
   const LAST_LOAD_DATE_K='last_load_date_v1', WALLPAPER_K='wp_cache', SCRIPTS_K='scripts_v1', LEARN_K='learn_v1', LOCAL_TS_K='local_ts_v1';
   const DEFAULT_PIN='8520';
-  const PULL_INTERVAL=5000;
+  const PULL_INTERVAL=2000;
   let syncTimer=null;
 
   const getTodayStr=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');};
@@ -594,7 +683,7 @@ export default {
   const saveMap=(k,o)=>localStorage.setItem(k,JSON.stringify(o));
   const loadTodos=k=>{try{const d=JSON.parse(localStorage.getItem(k))||[];return d.map(t=>typeof t==='string'?{text:t,time:'',date:getTodayStr()}:t);}catch(e){return[];}};
   const saveTodos=(k,a)=>localStorage.setItem(k,JSON.stringify(a));
-  const pushTodoLog=async (todo,ds)=>{try{const r=await fetch('/api/data?date='+ds);if(r.ok){const d=await r.json();const log=d.todoLog||[];log.push(todo);await fetch('/api/data',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...d,todoLog:log})});}}catch(e){}};
+  const pushTodoLog=async (todo,ds)=>{syncOp('pushTodoLog',{todo});};
   const esc=s=>String(s).replace(/[&<>]/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;' })[m]||m);
   const maskPhone=p=>{if(!p||p.length<7)return '****';return '****'.repeat(Math.ceil(p.length/4));};
 
@@ -604,6 +693,14 @@ export default {
   // ==================== 云端 API ====================
   async function cloudGet(date){try{const r=await fetch('/api/data?date='+date);if(r.ok)return await r.json();}catch(e){}return null;}
   async function cloudSave(data){try{await fetch('/api/data',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});}catch(e){}}
+  // 原子同步：每个增删改操作立即作为 delta 推送到云端
+  async function syncOp(op,payload){
+    const today=getTodayStr();
+    try{
+      const r=await fetch('/api/sync',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({date:today,op,...payload})});
+      if(r.ok){const d=await r.json();if(d._ts)localStorage.setItem(LOCAL_TS_K,d._ts);}
+    }catch(e){}
+  }
   async function cloudCalendar(month){try{const r=await fetch('/api/calendar?month='+month);if(r.ok)return await r.json();}catch(e){}return null;}
   async function cloudStats(month){try{const r=await fetch('/api/stats?month='+month);if(r.ok)return await r.json();}catch(e){}return null;}
 
@@ -708,6 +805,7 @@ export default {
       const td=c.date||getTodayStr();
       a.splice(i,1);localStorage.setItem(CLIENTS_K,JSON.stringify(a));
       renderClientList();refreshAll();
+      syncOp('removeClientByMatch',{name:c.name,phone:c.phone,time:c.time||''});
     }));
     document.querySelectorAll('.edit-icon').forEach(b=>b.addEventListener('click',e=>{
       const i=parseInt(b.dataset.idx);
@@ -751,7 +849,7 @@ export default {
     document.querySelectorAll('.todo-del-btn').forEach(b=>b.addEventListener('click',e=>{
       const i=parseInt(b.dataset.idx),l=b.dataset.list;
       const todos=loadTodos(l==='today'?TODAY_TODO_K:TOMORROW_TODO_K);
-      todos.splice(i,1);saveTodos(l==='today'?TODAY_TODO_K:TOMORROW_TODO_K,todos);renderTodos();saveFullState(false).catch(()=>{});
+      todos.splice(i,1);saveTodos(l==='today'?TODAY_TODO_K:TOMORROW_TODO_K,todos);renderTodos();syncOp(l==='today'?'setTodayTodos':'setTomorrowTodos',{todos});saveFullState(false).catch(()=>{});
     }));
   }
 
@@ -856,6 +954,7 @@ export default {
             if(target){target.note=nn;}
             if(!target){all.push({name:ti.name,phone:ti.phone,note:nn,date:ds,time:ti.time||''});}
             localStorage.setItem(CLIENTS_K,JSON.stringify(all));
+            syncOp('updateClientNote',{name:ti.name,phone:ti.phone,note:nn});
             saveFullState(false).catch(()=>{});
             renderTl();
           };
@@ -911,9 +1010,9 @@ export default {
     const base=Math.max(d[t]||0,cloudV);
     let v=base+delta;if(v<0)v=0;
     if(v===0)delete d[t];else d[t]=v;saveMap(key,d);
-    refreshAll();await saveFullState(false);
+    refreshAll();syncOp('incWechat',{delta});await saveFullState(false);
   }
-  async function resetToday(key){const d=loadMap(key);delete d[getTodayStr()];saveMap(key,d);refreshAll();await saveFullState(false);}
+  async function resetToday(key){const d=loadMap(key);const t=getTodayStr();const old=d[t]||0;delete d[t];saveMap(key,d);refreshAll();if(old>0)syncOp('incWechat',{delta:-old});await saveFullState(false);}
 
   async function addClient(){
     const n=document.getElementById('custName').value.trim();
@@ -929,6 +1028,7 @@ export default {
     document.getElementById('custPhone').value='';
     document.getElementById('custNote').value='';
     renderClientList();refreshAll();
+    syncOp('addClient',{client:{name:n,phone:p,note:nt,date:today,time:time}});
     await saveFullState(false);
   }
 
@@ -937,14 +1037,14 @@ export default {
     if(!text)return;const remind=document.getElementById('todayRemindTime').value;
     const todo={text,time:getCurrentTime(),date:getTodayStr(),remind:remind||'',type:'today'};
     const t=loadTodos(TODAY_TODO_K);t.push(todo);saveTodos(TODAY_TODO_K,t);input.value='';document.getElementById('todayRemindTime').value='';renderTodos();
-    pushTodoLog(todo,getTodayStr());saveFullState(false).catch(()=>{});
+    pushTodoLog(todo,getTodayStr());syncOp('setTodayTodos',{todos:t});saveFullState(false).catch(()=>{});
   }
   function addTodo(){
     const input=document.getElementById('todoInput'),text=input.value.trim();
     if(!text)return;const remind=document.getElementById('tomorrowRemindTime').value;
     const todo={text,time:getCurrentTime(),date:getTodayStr(),remind:remind||'',type:'tomorrow'};
     const t=loadTodos(TOMORROW_TODO_K);t.push(todo);saveTodos(TOMORROW_TODO_K,t);input.value='';document.getElementById('tomorrowRemindTime').value='';renderTodos();
-    pushTodoLog(todo,getTodayStr());saveFullState(false).catch(()=>{});
+    pushTodoLog(todo,getTodayStr());syncOp('setTomorrowTodos',{todos:t});saveFullState(false).catch(()=>{});
   }
 
   // ==================== 壁纸 ====================
@@ -983,14 +1083,14 @@ export default {
     const ss=loadScripts();
     document.getElementById('scriptList').innerHTML=ss.length===0?'<div style="font-size:0.75rem;color:var(--text-light);padding:8px;text-align:center;">暂无话术</div>':ss.map((s,i)=>'<div class="script-item" data-si="'+i+'"><span class="script-item-text">'+esc(s)+'</span><div style="display:flex;gap:4px;align-items:center;flex-shrink:0;"><button class="edit-icon" data-si="'+i+'" title="编辑">✎</button><button class="del-icon" data-si="'+i+'">✕</button></div></div>').join('');
     document.querySelectorAll('#scriptList .del-icon').forEach(b=>b.addEventListener('click',e=>{
-      const i=parseInt(b.dataset.si);const a=loadScripts();a.splice(i,1);saveScripts(a);renderScriptList();renderLockScripts();saveFullState(true).catch(()=>{});
+      const i=parseInt(b.dataset.si);const a=loadScripts();a.splice(i,1);saveScripts(a);renderScriptList();renderLockScripts();syncOp('setScripts',{scripts:a});saveFullState(true).catch(()=>{});
     }));
     document.querySelectorAll('#scriptList .edit-icon').forEach(b=>b.addEventListener('click',e=>{
       const i=parseInt(b.dataset.si);const a=loadScripts();const old=a[i];const item=document.querySelector('#scriptList .script-item[data-si="'+i+'"]');
       item.innerHTML='<input class="input-simple" id="editScriptInput_'+i+'" value="'+esc(old).replace(/"/g,'&quot;')+'" style="flex:1;font-size:0.75rem;padding:6px 10px;min-width:0;"><div style="display:flex;gap:4px;flex-shrink:0;"><button class="btn-add" id="saveScriptEdit_'+i+'" style="font-size:0.7rem;padding:6px 12px;">保存</button><button class="del-icon" id="cancelScriptEdit_'+i+'" style="color:var(--text-soft);">✕</button></div>';
       document.getElementById('saveScriptEdit_'+i).addEventListener('click',()=>{
         const v=document.getElementById('editScriptInput_'+i).value.trim();if(!v)return;
-        a[i]=v;saveScripts(a);renderScriptList();renderLockScripts();saveFullState(true).catch(()=>{});
+        a[i]=v;saveScripts(a);renderScriptList();renderLockScripts();syncOp('setScripts',{scripts:a});saveFullState(true).catch(()=>{});
       });
       document.getElementById('cancelScriptEdit_'+i).addEventListener('click',()=>renderScriptList());
       document.getElementById('editScriptInput_'+i).addEventListener('keypress',e=>{if(e.key==='Enter')document.getElementById('saveScriptEdit_'+i).click();});
@@ -1023,7 +1123,7 @@ export default {
     document.getElementById('scriptModal').addEventListener('click',e=>{if(e.target===document.getElementById('scriptModal'))document.getElementById('scriptModal').classList.remove('active');});
     document.getElementById('addScriptBtn').addEventListener('click',()=>{
       const t=document.getElementById('newScriptInput').value.trim();if(!t)return;
-      const a=loadScripts();a.push(t);saveScripts(a);document.getElementById('newScriptInput').value='';renderScriptList();renderLockScripts();saveFullState(true).catch(()=>{});
+      const a=loadScripts();a.push(t);saveScripts(a);document.getElementById('newScriptInput').value='';renderScriptList();renderLockScripts();syncOp('setScripts',{scripts:a});saveFullState(true).catch(()=>{});
     });
   }
 
@@ -1034,10 +1134,10 @@ export default {
     const ls=loadLearns();
     document.getElementById('learnList').innerHTML=ls.length===0?'<div style="font-size:0.75rem;color:var(--text-light);padding:8px;text-align:center;">暂无学习</div>':ls.map((l,i)=>'<div class="script-item"><span class="script-item-text">'+(l.show?'👁 ':'')+esc(l.text)+'</span><div style="display:flex;gap:6px;align-items:center;"><input type="checkbox" '+(l.show?'checked':'')+' data-li="'+i+'" title="显示"><button class="del-icon" data-li="'+i+'">✕</button></div></div>').join('');
     document.querySelectorAll('#learnList .del-icon').forEach(b=>b.addEventListener('click',e=>{
-      const i=parseInt(b.dataset.li);const a=loadLearns();a.splice(i,1);saveLearns(a);renderLearnList();renderLockLearns();saveFullState(true).catch(()=>{});
+      const i=parseInt(b.dataset.li);const a=loadLearns();a.splice(i,1);saveLearns(a);renderLearnList();renderLockLearns();syncOp('setLearns',{learns:a});saveFullState(true).catch(()=>{});
     }));
     document.querySelectorAll('#learnList input[type=checkbox]').forEach(cb=>cb.addEventListener('change',e=>{
-      const i=parseInt(cb.dataset.li);const a=loadLearns();a[i].show=cb.checked;saveLearns(a);renderLearnList();renderLockLearns();saveFullState(true).catch(()=>{});
+      const i=parseInt(cb.dataset.li);const a=loadLearns();a[i].show=cb.checked;saveLearns(a);renderLearnList();renderLockLearns();syncOp('setLearns',{learns:a});saveFullState(true).catch(()=>{});
     }));
   }
   function renderLockLearns(){
@@ -1059,7 +1159,7 @@ export default {
       const t=document.getElementById('newLearnInput').value.trim();
       if(t){
         const show=document.getElementById('learnShowCheck').checked;
-        const a=loadLearns();a.push({text:t,show});saveLearns(a);document.getElementById('newLearnInput').value='';
+        const a=loadLearns();a.push({text:t,show});saveLearns(a);syncOp('setLearns',{learns:a});document.getElementById('newLearnInput').value='';
       }
       renderLearnList();renderLockLearns();saveFullState(true).catch(()=>{});
     });
