@@ -46,11 +46,11 @@ export default {
       // 读取云端现有数据
       const rawExisting = await env.DATA_KV.get(`work:${date}`);
       const existing = rawExisting ? JSON.parse(rawExisting) : {};
-      // 合并：计数器取最大值（防止重置被旧数据覆盖），其余字段以新传入为准
+      // 合并：微信计数取最大值（防止多设备同时增减丢失），意向由客户数派生故直接覆盖
       const merged = {
         date,
         wechatCount: Math.max(existing.wechatCount || 0, wechatCount || 0),
-        intentCount: Math.max(existing.intentCount || 0, intentCount || 0),
+        intentCount: intentCount || 0,
         clients: clients || existing.clients || [],
         todayTodos: todayTodos || existing.todayTodos || [],
         tomorrowTodos: tomorrowTodos || existing.tomorrowTodos || [],
@@ -610,13 +610,13 @@ export default {
   // 保存当前完整状态到 KV
   async function saveFullState(full){
     const today=getTodayStr();
-    const wm=loadMap(WECHAT_K), im=loadMap(INTENT_K);
+    const wm=loadMap(WECHAT_K);
     const allClients=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
     const todayClients=allClients.filter(c=>c.date===today);
     const data={
       date:today,
       wechatCount:wm[today]||0,
-      intentCount:im[today]||0,
+      intentCount:todayClients.length,
       clients:todayClients,
       todayTodos:loadTodos(TODAY_TODO_K),
       tomorrowTodos:loadTodos(TOMORROW_TODO_K),
@@ -707,7 +707,6 @@ export default {
       const c=a[i];if(!c)return;
       const td=c.date||getTodayStr();
       a.splice(i,1);localStorage.setItem(CLIENTS_K,JSON.stringify(a));
-      const im=loadMap(INTENT_K);if(im[td]>0){im[td]--;saveMap(INTENT_K,im);}
       renderClientList();refreshAll();
     }));
     document.querySelectorAll('.edit-icon').forEach(b=>b.addEventListener('click',e=>{
@@ -718,9 +717,6 @@ export default {
       document.getElementById('custPhone').value=c.phone;
       document.getElementById('custNote').value=c.note||'';
       a.splice(i,1);localStorage.setItem(CLIENTS_K,JSON.stringify(a));
-      const td=c.date||getTodayStr();
-      const im=loadMap(INTENT_K);
-      if(im[td]>0){im[td]--;saveMap(INTENT_K,im);}
       renderClientList();refreshAll();
       document.getElementById('custName').focus();
     }));
@@ -884,10 +880,15 @@ export default {
 
   function refreshAll(){
     const wm=loadMap(WECHAT_K),im=loadMap(INTENT_K),today=getTodayStr();
+    // 意向计数直接从当日客户数派生，确保永远准确
+    const allClients=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
+    const todayClients=allClients.filter(c=>c.date===today);
+    const todayIntent=todayClients.length;
+    im[today]=todayIntent;saveMap(INTENT_K,im);
     document.getElementById('wechatNum').innerText=wm[today]||0;
-    document.getElementById('intentNum').innerText=im[today]||0;
+    document.getElementById('intentNum').innerText=todayIntent;
     document.getElementById('pinWechatNum').innerText=wm[today]||0;
-    document.getElementById('pinIntentNum').innerText=im[today]||0;
+    document.getElementById('pinIntentNum').innerText=todayIntent;
     document.getElementById('weekWechat').innerText=getWeekTotal(wm);
     document.getElementById('monthWechat').innerText=getMonthTotal(wm);
     document.getElementById('weekIntent').innerText=getWeekTotal(im);
@@ -922,7 +923,6 @@ export default {
     const today=getTodayStr(),time=getCurrentTime();
     list.push({name:n,phone:p,note:nt,date:today,time:time});
     localStorage.setItem(CLIENTS_K,JSON.stringify(list));
-    const im=loadMap(INTENT_K);im[today]=(im[today]||0)+1;saveMap(INTENT_K,im);
     document.getElementById('custName').value='';
     document.getElementById('custPhone').value='';
     document.getElementById('custNote').value='';
