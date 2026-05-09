@@ -511,6 +511,20 @@ export default {
     .todo-input:focus { border-color: var(--accent-wechat); }
     .todo-add-btn { background: var(--accent-wechat); color: white; border: none; border-radius: var(--radius-xs); padding: 8px 18px; font-weight: 700; font-size: 0.8rem; cursor: pointer; white-space: nowrap; }
     .todo-del-btn { background: none; border: none; color: #c97a7a; cursor: pointer; font-size: 0.85rem; padding: 0 4px; }
+    .sync-indicator { display: flex; align-items: center; gap: 5px; background: rgba(255,255,255,0.08); border: 1.2px solid rgba(179,179,179,0.15); height: 38px; border-radius: var(--radius-xs); padding: 0 12px; cursor: pointer; font-size: 0.72rem; color: var(--text-soft); transition: all 0.2s cubic-bezier(0.34,1.56,0.64,1); user-select: none; font-weight: 700; backdrop-filter: blur(8px); white-space: nowrap; position: relative; }
+    .sync-indicator:hover { background: rgba(255,255,255,0.12); transform: translateY(-2px) scale(1.02); border-color: rgba(179,179,179,0.25); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+    .sync-indicator:active { transform: translateY(0px) scale(0.97); }
+    .sync-indicator .sync-icon { font-size: 1rem; display: inline-block; transition: transform 0.3s; }
+    .sync-indicator.syncing .sync-icon { animation: sync-spin 1.2s ease-in-out infinite; }
+    .sync-indicator.synced { border-color: rgba(47,158,104,0.35); }
+    .sync-indicator.pending { border-color: rgba(255,154,60,0.45); }
+    .sync-indicator.error { border-color: rgba(201,122,122,0.5); }
+    .sync-badge { display: inline-flex; align-items: center; justify-content: center; background: rgba(255,154,60,0.85); color: #fff; border-radius: 50%; min-width: 16px; height: 16px; font-size: 0.55rem; font-weight: 800; }
+    .sync-indicator.synced .sync-badge { background: rgba(47,158,104,0.85); }
+    .sync-indicator.error .sync-badge { background: rgba(201,122,122,0.85); }
+    .sync-tooltip { position: absolute; top: calc(100% + 8px); right: 0; background: var(--tooltip-bg); color: var(--tooltip-text); padding: 6px 12px; border-radius: var(--radius-xs); font-size: 0.62rem; white-space: nowrap; box-shadow: 0 4px 12px rgba(0,0,0,0.15); font-weight: 600; opacity: 0; pointer-events: none; transition: opacity 0.15s; z-index: 200; }
+    .sync-indicator:hover .sync-tooltip { opacity: 1; }
+    @keyframes sync-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
     @media (min-width: 761px) {
       .right-area { order: 2; } .left-area { order: 1; }
       .card { padding: 20px 24px; }
@@ -570,6 +584,7 @@ export default {
     <div class="header-bar">
       <div class="title-section"><h3>每日工作</h3><div class="date-chip" id="liveDate"></div></div>
       <div class="action-group">
+        <button class="sync-indicator" id="syncBtn" title="点击手动同步"><span class="sync-icon" id="syncIcon">☁️</span><span id="syncLabel">同步中</span><div class="sync-tooltip" id="syncTooltip">正在连接...</div></button>
         <button class="icon-simple" id="hideBtn" title="一键隐藏 (Ctrl+Z)">👁</button>
         <button class="icon-simple" id="menuToggleBtn" title="菜单">☰</button>
         <div class="menu-dropdown" id="menuDropdown">
@@ -711,7 +726,9 @@ export default {
   async function drainQueue(){
     if(_draining)return;
     _draining=true;
+    _syncStatus='syncing';updateSyncIndicator();
     try{
+      let anyOk=false;
       while(true){
         const q=loadOpQueue();
         if(q.length===0)break;
@@ -720,13 +737,14 @@ export default {
         let ok=false;
         try{
           const r=await fetch('/api/sync',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-          if(r.ok){const d=await r.json();if(d._ts)localStorage.setItem(LOCAL_TS_K,d._ts);ok=true;}
+          if(r.ok){const d=await r.json();if(d._ts)localStorage.setItem(LOCAL_TS_K,d._ts);ok=true;anyOk=true;}
         }catch(e){}
-        if(!ok)break; // 网络失败，下次重试
-        // 发送成功，从队列移除
+        if(!ok){_syncStatus='pending';updateSyncIndicator();break;}
         saveOpQueue(loadOpQueue().filter(i=>i._qid!==_qid));
+        updateSyncIndicator();
       }
-    }finally{_draining=false;}
+      if(loadOpQueue().length===0){_syncStatus='synced';if(anyOk)_lastSyncTime=new Date();}
+    }finally{_draining=false;updateSyncIndicator();}
   }
   // 每次操作：先写队列（持久化），再尝试发送
   async function syncOp(op,payload){
@@ -737,6 +755,39 @@ export default {
   }
   async function cloudCalendar(month){try{const r=await fetch('/api/calendar?month='+month);if(r.ok)return await r.json();}catch(e){}return null;}
   async function cloudStats(month){try{const r=await fetch('/api/stats?month='+month);if(r.ok)return await r.json();}catch(e){}return null;}
+
+  // ==================== 同步状态指示器 ====================
+  let _lastSyncTime=null;
+  let _syncStatus='syncing';
+  function updateSyncIndicator(){
+    var btn=document.getElementById('syncBtn');
+    var icon=document.getElementById('syncIcon');
+    var label=document.getElementById('syncLabel');
+    var tip=document.getElementById('syncTooltip');
+    if(!btn)return;
+    var q=loadOpQueue();
+    var qLen=q.length;
+    var st=_syncStatus;
+    if(st!=='syncing'&&st!=='error'){st=qLen>0?'pending':'synced';}
+    btn.className='sync-indicator '+st;
+    if(st==='syncing'){
+      icon.textContent='\u2601\uFE0F';label.textContent='同步中...';
+    }else if(st==='pending'){
+      icon.textContent='\u2601\uFE0F';label.innerHTML='<span class="sync-badge">'+qLen+'</span> 待同步';
+    }else if(st==='error'){
+      icon.textContent='\u2601\uFE0F';label.textContent='同步失败 \u2715';
+    }else{
+      icon.textContent='\u2601\uFE0F';label.textContent='已同步 \u2713';
+    }
+    var timeStr='--:--';
+    if(_lastSyncTime){
+      var hh=String(_lastSyncTime.getHours()).padStart(2,'0');
+      var mm=String(_lastSyncTime.getMinutes()).padStart(2,'0');
+      var ss=String(_lastSyncTime.getSeconds()).padStart(2,'0');
+      timeStr=hh+':'+mm+':'+ss;
+    }
+    tip.textContent='\u{1F552} '+timeStr+(qLen>0?' | 队列: '+qLen+'\u6761':'');
+  }
 
   // 保存当前完整状态到 KV
   async function saveFullState(full){
@@ -794,6 +845,9 @@ export default {
       localStorage.setItem(LOCAL_TS_K,data._ts);
       refreshAll();
     }
+    _lastSyncTime=new Date();
+    if(loadOpQueue().length===0)_syncStatus='synced';
+    updateSyncIndicator();
   }
 
   // 跨天从云端恢复数据（页面加载时使用）
@@ -1373,6 +1427,11 @@ export default {
   document.getElementById('wechatPlus').addEventListener('click',()=>modCounter(WECHAT_K,1));
   document.getElementById('wechatMinus').addEventListener('click',()=>modCounter(WECHAT_K,-1));
   document.getElementById('resetWechatToday').addEventListener('click',()=>resetToday(WECHAT_K));
+  document.getElementById('syncBtn').addEventListener('click',async()=>{
+    _syncStatus='syncing';updateSyncIndicator();
+    try{await drainQueue();await saveFullState(true);await pullLatest();}catch(e){_syncStatus='error';}
+    updateSyncIndicator();
+  });
   document.getElementById('addClientBtn').addEventListener('click',addClient);
   document.getElementById('addTodayTodoBtn').addEventListener('click',addTodayTodo);
   document.getElementById('addTodoBtn').addEventListener('click',addTodo);
