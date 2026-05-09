@@ -780,9 +780,9 @@ export default {
         const localToday=allClients.filter(c=>c.date===today);
         const mergeMap=new Map();
         // 先放本地（保留本地未同步的条目）
-        localToday.forEach(c=>mergeMap.set(`${c.name}|${c.phone}|${c.time||''}`,c));
+        localToday.forEach(c=>mergeMap.set(c.name+'|'+c.phone+'|'+(c.time||''),c));
         // 再放云端（云端的备注/字段更新会覆盖同 key 的本地旧值）
-        (data.clients||[]).forEach(c=>mergeMap.set(`${c.name}|${c.phone}|${c.time||''}`,c));
+        (data.clients||[]).forEach(c=>mergeMap.set(c.name+'|'+c.phone+'|'+(c.time||''),c));
         localStorage.setItem(CLIENTS_K,JSON.stringify([...nonToday,...mergeMap.values()]));
       }
       // 待办：云端版本为准（通过 setTodayTodos/setTomorrowTodos 原子同步）
