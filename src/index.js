@@ -1429,7 +1429,7 @@ export default {
   document.getElementById('resetWechatToday').addEventListener('click',()=>resetToday(WECHAT_K));
   document.getElementById('syncBtn').addEventListener('click',async()=>{
     _syncStatus='syncing';updateSyncIndicator();
-    try{await drainQueue();await saveFullState(true);await pullLatest();}catch(e){_syncStatus='error';}
+    try{await drainQueue();await saveFullState(true);await pullLatest();await syncCalendarFromCloud();refreshAll();}catch(e){_syncStatus='error';}
     updateSyncIndicator();
   });
   document.getElementById('addClientBtn').addEventListener('click',addClient);
@@ -1446,8 +1446,8 @@ export default {
     if(syncTimer)clearInterval(syncTimer);
     function tick(){if(!document.hidden){drainQueue().catch(()=>{});pullLatest().catch(()=>{}); } }
     syncTimer=setInterval(tick,PULL_INTERVAL);
-    // 切回标签时立即同步（拉取其他设备的更新 + 重试未发成功的操作）
-    document.addEventListener('visibilitychange',()=>{if(!document.hidden)tick();});
+    // 切回标签时立即同步（拉取其他设备的更新 + 重试未发成功的操作 + 同步日历）
+    document.addEventListener('visibilitychange',()=>{if(!document.hidden){tick();syncCalendarFromCloud().then(()=>refreshAll()).catch(()=>{});}});
   }
 
   // 提醒检查
