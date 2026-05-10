@@ -1095,8 +1095,10 @@ export default {
       const wm=loadMap(WECHAT_K), im=loadMap(INTENT_K);
       let changed=false;
       for(const [date, d] of Object.entries(cal)){
-        if(d.w>0&&!wm[date]){wm[date]=d.w;changed=true;}
-        if(d.i>0&&!im[date]){im[date]=d.i;changed=true;}
+        const nw = Math.max(wm[date]||0, d.w||0);
+        if(nw !== (wm[date]||0)){ wm[date]=nw; changed=true; }
+        const ni = Math.max(im[date]||0, d.i||0);
+        if(ni !== (im[date]||0)){ im[date]=ni; changed=true; }
       }
       if(changed){saveMap(WECHAT_K,wm);saveMap(INTENT_K,im);}
       addSyncLog('✅ 拉取云端历史日历完成');
