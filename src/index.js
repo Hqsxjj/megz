@@ -36,40 +36,45 @@ export default {
     // 保存数据（服务端合并，解决多设备同步冲突）
     if (path === '/api/data' && request.method === 'POST') {
       const body = await request.json();
-      const { date, wechatCount, intentCount, clients, todayTodos, tomorrowTodos, scripts, learns, todoLog, _ts } = body;
-      if (!date) {
+      const items = Array.isArray(body) ? body : [body];
+      let hasError = false;
+      for (const item of items) {
+        const { date, wechatCount, intentCount, clients, todayTodos, tomorrowTodos, scripts, learns, todoLog, _ts } = item;
+        if (!date) { hasError = true; continue; }
+        // 读取云端现有数据
+        const rawExisting = await env.DATA_KV.get(`work:${date}`);
+        const existing = rawExisting ? JSON.parse(rawExisting) : {};
+        // 客户列表按 name|phone|time 合并（取并集，incoming 覆盖同 key 的旧条目）
+        // 这样多设备各自新增的客户都能保留，不会被任何一端覆盖
+        const mergeClients = (base, incoming) => {
+          const map = new Map();
+          (base || []).forEach(c => map.set(`${c.name}|${c.phone}|${c.time||''}`, c));
+          (incoming || []).forEach(c => map.set(`${c.name}|${c.phone}|${c.time||''}`, c));
+          return [...map.values()];
+        };
+        const mergedClients = mergeClients(existing.clients, clients);
+        const merged = {
+          date,
+          wechatCount: Math.max(existing.wechatCount || 0, wechatCount || 0),
+          intentCount: mergedClients.filter(c => c.date === date).length,
+          clients: mergedClients,
+          todayTodos: todayTodos || existing.todayTodos || [],
+          tomorrowTodos: tomorrowTodos || existing.tomorrowTodos || [],
+          scripts: scripts || existing.scripts || [],
+          learns: learns || existing.learns || [],
+          todoLog: todoLog || existing.todoLog || [],
+          lastLoadDate: date,
+          lastModified: new Date().toISOString(),
+          _ts: _ts || Date.now()
+        };
+        await env.DATA_KV.put(`work:${date}`, JSON.stringify(merged));
+      }
+      if (items.length === 0 || (hasError && items.length === 1)) {
         return new Response(JSON.stringify({ error: '缺少 date 参数' }), {
           status: 400,
           headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
         });
       }
-      // 读取云端现有数据
-      const rawExisting = await env.DATA_KV.get(`work:${date}`);
-      const existing = rawExisting ? JSON.parse(rawExisting) : {};
-      // 客户列表按 name|phone|time 合并（取并集，incoming 覆盖同 key 的旧条目）
-      // 这样多设备各自新增的客户都能保留，不会被任何一端覆盖
-      const mergeClients = (base, incoming) => {
-        const map = new Map();
-        (base || []).forEach(c => map.set(`${c.name}|${c.phone}|${c.time||''}`, c));
-        (incoming || []).forEach(c => map.set(`${c.name}|${c.phone}|${c.time||''}`, c));
-        return [...map.values()];
-      };
-      const mergedClients = mergeClients(existing.clients, clients);
-      const merged = {
-        date,
-        wechatCount: Math.max(existing.wechatCount || 0, wechatCount || 0),
-        intentCount: mergedClients.filter(c => c.date === date).length,
-        clients: mergedClients,
-        todayTodos: todayTodos || existing.todayTodos || [],
-        tomorrowTodos: tomorrowTodos || existing.tomorrowTodos || [],
-        scripts: scripts || existing.scripts || [],
-        learns: learns || existing.learns || [],
-        todoLog: todoLog || existing.todoLog || [],
-        lastLoadDate: date,
-        lastModified: new Date().toISOString(),
-        _ts: _ts || Date.now()
-      };
-      await env.DATA_KV.put(`work:${date}`, JSON.stringify(merged));
       return new Response(JSON.stringify({ success: true }), {
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
       });
@@ -794,22 +799,46 @@ export default {
     const today=getTodayStr();
     const wm=loadMap(WECHAT_K);
     const allClients=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
-    const todayClients=allClients.filter(c=>c.date===today);
-    const data={
-      date:today,
-      wechatCount:wm[today]||0,
-      intentCount:todayClients.length,
-      clients:todayClients,
-      todayTodos:loadTodos(TODAY_TODO_K).filter(t=>(typeof t==='string'?today:(t.date||today))===today),
-      tomorrowTodos:loadTodos(TOMORROW_TODO_K).filter(t=>(typeof t==='string'?today:(t.date||today))===today),
-      _ts:Date.now()
-    };
+    
     if(full){
-      data.scripts=loadScripts();
-      data.learns=loadLearns();
+      const scripts=loadScripts();
+      const learns=loadLearns();
+      const dates = new Set([...Object.keys(wm), ...allClients.map(c=>c.date).filter(Boolean), today]);
+      const ts = Date.now();
+      const payload = [];
+      for(const d of dates){
+        const dClients=allClients.filter(c=>c.date===d);
+        const item = {
+          date:d,
+          wechatCount:wm[d]||0,
+          intentCount:dClients.length,
+          clients:dClients,
+          _ts:ts
+        };
+        if(d===today){
+          item.todayTodos=loadTodos(TODAY_TODO_K).filter(t=>(typeof t==='string'?today:(t.date||today))===today);
+          item.tomorrowTodos=loadTodos(TOMORROW_TODO_K).filter(t=>(typeof t==='string'?today:(t.date||today))===today);
+          item.scripts=scripts;
+          item.learns=learns;
+        }
+        payload.push(item);
+      }
+      localStorage.setItem(LOCAL_TS_K,ts);
+      await cloudSave(payload);
+    } else {
+      const todayClients=allClients.filter(c=>c.date===today);
+      const data={
+        date:today,
+        wechatCount:wm[today]||0,
+        intentCount:todayClients.length,
+        clients:todayClients,
+        todayTodos:loadTodos(TODAY_TODO_K).filter(t=>(typeof t==='string'?today:(t.date||today))===today),
+        tomorrowTodos:loadTodos(TOMORROW_TODO_K).filter(t=>(typeof t==='string'?today:(t.date||today))===today),
+        _ts:Date.now()
+      };
+      localStorage.setItem(LOCAL_TS_K,data._ts);
+      await cloudSave(data);
     }
-    localStorage.setItem(LOCAL_TS_K,data._ts);
-    await cloudSave(data);
   }
 
   // 从 KV 拉取最新数据，如果云端更新则覆盖本地
