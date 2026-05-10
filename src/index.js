@@ -479,12 +479,22 @@ export default {
     .modal-card { background: var(--modal-card); border-radius: var(--radius-ios); width: 380px; max-width: 90vw; max-height: 70vh; padding: 20px; box-shadow: 0 20px 35px rgba(0,0,0,0.2); border: 1px solid var(--card-border); display: flex; flex-direction: column; gap: 12px; color: var(--text-main); }
     .modal-header { display: flex; justify-content: space-between; align-items: center; font-weight: 700; font-size: 1.1rem; border-bottom: 1px solid var(--border-light); padding-bottom: 8px; }
     .modal-header button { background: none; border: none; font-size: 1.2rem; cursor: pointer; color: var(--text-soft); font-weight: 700; }
-    .client-modal-list { overflow-y: auto; display: flex; flex-direction: column; gap: 10px; max-height: 50vh; }
-    .modal-client-item { background: var(--btn-bg); border-radius: var(--radius-sm); padding: 10px 12px; border: 1px solid var(--card-border); }
-    .modal-client-name { font-weight: 800; }
-    .modal-client-phone { font-size: 0.75rem; color: var(--text-soft); margin-left: 8px; font-weight: 600; }
-    .modal-client-time { font-size: 0.65rem; color: var(--text-light); margin-left: 8px; font-weight: 500; }
-    .modal-client-note { font-size: 0.7rem; color: var(--text-light); margin-top: 4px; font-style: italic; font-weight: 600; }
+    .client-modal-list { overflow-y: auto; display: flex; flex-direction: column; gap: 14px; max-height: 50vh; padding-left: 14px; padding-top: 10px; position: relative; }
+    .client-modal-list::before { content: ''; position: absolute; left: 18px; top: 14px; bottom: 0; width: 2px; background: var(--border-light); z-index: 0; }
+    .modal-client-item { position: relative; background: var(--btn-bg); border-radius: var(--radius-sm); padding: 14px 16px; border: 1px solid var(--card-border); z-index: 1; margin-left: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); }
+    .modal-client-item::before { content: ''; position: absolute; left: -31px; top: 18px; width: 10px; height: 10px; border-radius: 50%; box-shadow: 0 0 0 3px var(--card-bg); z-index: 2; }
+    .modal-client-item.intent-item::before { background: var(--accent-intent); }
+    .modal-client-item.todo-item::before { background: var(--accent-wechat); }
+    .modal-client-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; }
+    .modal-client-title-group { display: flex; flex-direction: column; gap: 3px; }
+    .modal-client-name { font-weight: 800; font-size: 0.95rem; color: var(--text-main); display: flex; align-items: center; gap: 6px; }
+    .modal-client-phone { font-size: 0.75rem; color: var(--text-soft); font-weight: 600; padding: 2px 6px; background: rgba(0,0,0,0.03); border-radius: 4px; display: inline-flex; align-items: center; gap: 4px; }
+    .modal-client-time { font-size: 0.7rem; color: var(--text-light); font-weight: 600; display: flex; align-items: center; gap: 4px; }
+    .modal-client-note { font-size: 0.8rem; color: var(--text-soft); line-height: 1.5; background: rgba(0,0,0,0.02); padding: 8px 10px; border-radius: 6px; margin-top: 8px; font-weight: 500; }
+    .edit-note-btn { font-size: 0.7rem; background: transparent; border: 1px solid var(--accent-wechat); color: var(--accent-wechat); border-radius: 12px; cursor: pointer; padding: 3px 12px; font-weight: 600; transition: all 0.2s; display: inline-flex; align-items: center; gap: 4px; }
+    .edit-note-btn:hover { background: var(--accent-wechat); color: #fff; }
+    .phone-toggle { background: none; border: none; font-size: 0.8rem; cursor: pointer; opacity: 0.6; transition: opacity 0.2s; padding: 0; outline: none; }
+    .phone-toggle:hover { opacity: 1; }
     .empty-clients { text-align: center; color: var(--text-light); padding: 20px; font-size: 0.8rem; font-weight: 600; }
     .register-block { display: flex; flex-direction: column; gap: 12px; }
     .form-line { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
@@ -1037,9 +1047,33 @@ export default {
     function renderTl(){
       document.getElementById('modalClientList').innerHTML=timeline.length===0?'<div class="empty-clients">📭 当日无记录</div>':timeline.map(e=>{
         if(e.type==='client'){
-          return '<div class="modal-client-item" style="border-left:3px solid var(--accent-intent);"><div><span class="modal-client-name">🎯 '+esc(e.name)+'</span><span class="modal-client-phone" data-full="'+esc(e.phone)+'">'+esc(maskPhone(e.phone))+'</span><button class="phone-toggle" title="显示号码">👁</button></div>'+(e.time?'<div style="font-size:0.65rem;color:var(--text-light);margin-top:2px;">⏰ '+esc(e.time)+'</div>':'')+'<div class="modal-client-note" id="cn_'+e.idx+'">'+(e.note?'📝 '+esc(e.note)+' ':'')+'<button class="edit-note-btn" data-idx="'+e.idx+'" style="font-size:0.6rem;background:none;border:1px solid var(--accent-wechat);color:var(--accent-wechat);border-radius:8px;cursor:pointer;padding:1px 8px;">✎'+(e.note?' 编辑':' 添加备注')+'</button></div></div>';
+          return '<div class="modal-client-item intent-item">' +
+              '<div class="modal-client-header">' +
+                '<div class="modal-client-title-group">' +
+                  '<span class="modal-client-name">🎯 ' + esc(e.name) + '</span>' +
+                  '<div style="display:flex;align-items:center;gap:6px;margin-top:4px;">' +
+                    '<span class="modal-client-phone" data-full="' + esc(e.phone) + '">📞 ' + esc(maskPhone(e.phone)) + ' <button class="phone-toggle" title="显示号码">👁</button></span>' +
+                  '</div>' +
+                '</div>' +
+                (e.time ? '<div class="modal-client-time">⏰ ' + esc(e.time) + '</div>' : '') +
+              '</div>' +
+              '<div id="cn_' + e.idx + '">' +
+                (e.note ? '<div class="modal-client-note">📝 ' + esc(e.note) + '</div>' : '') +
+                '<div style="margin-top:8px;text-align:right;">' +
+                  '<button class="edit-note-btn" data-idx="' + e.idx + '">✎ ' + (e.note ? '修改备注' : '添加备注') + '</button>' +
+                '</div>' +
+              '</div>' +
+            '</div>';
         }else{
-          return '<div class="modal-client-item" style="border-left:3px solid var(--accent-wechat);"><div><span class="modal-client-name">✅ 待办</span></div><div style="font-size:0.8rem;color:var(--text-main);margin-top:2px;">'+esc(e.text)+'</div>'+(e.time?'<div style="font-size:0.65rem;color:var(--text-light);margin-top:2px;">⏰ '+esc(e.time)+'</div>':'')+'</div>';
+          return '<div class="modal-client-item todo-item">' +
+              '<div class="modal-client-header">' +
+                '<div class="modal-client-title-group">' +
+                  '<span class="modal-client-name" style="color:var(--accent-wechat);">✅ 待办事项</span>' +
+                  '<div style="font-size:0.85rem;color:var(--text-main);margin-top:4px;font-weight:600;line-height:1.4;">' + esc(e.text) + '</div>' +
+                '</div>' +
+                (e.time ? '<div class="modal-client-time">⏰ ' + esc(e.time) + '</div>' : '') +
+              '</div>' +
+            '</div>';
         }
       }).join('');
       bindEditBtns();
