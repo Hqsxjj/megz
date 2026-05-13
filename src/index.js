@@ -401,6 +401,23 @@ export default {
     .pin-btn:hover { opacity: 0.9; transform: translateY(-2px); box-shadow: 0 6px 20px rgba(44,125,160,0.4); }
     .pin-btn:active { transform: translateY(0); }
     .pin-error { color: #e74c3c; font-size: 1.26rem; min-height: 24px; font-weight: 600; letter-spacing: 0.5px; }
+    .timer-box { display: flex; flex-direction: column; gap: 12px; width: 100%; }
+    .timer-display { font-size: 2.2rem; font-weight: 900; text-align: center; font-variant-numeric: tabular-nums; letter-spacing: 2px; color: var(--accent-wechat); text-shadow: 0 2px 8px rgba(0,0,0,0.1); min-height: 50px; }
+    .timer-inputs { display: flex; gap: 8px; justify-content: center; align-items: center; }
+    .timer-input-group { display: flex; flex-direction: column; gap: 4px; align-items: center; }
+    .timer-input { width: 50px; padding: 8px 6px; text-align: center; font-size: 1rem; font-weight: 700; border: 1.5px solid rgba(200,210,220,0.5); border-radius: var(--radius-xs); background: rgba(255,255,255,0.5); color: var(--text-main); outline: none; transition: all 0.2s; }
+    body.dark-mode .timer-input { background: rgba(40,50,63,0.5); border-color: rgba(255,255,255,0.15); }
+    .timer-input:focus { border-color: var(--accent-wechat); box-shadow: 0 0 0 3px rgba(44,125,160,0.15); background: rgba(255,255,255,0.7); }
+    .timer-label { font-size: 0.75rem; font-weight: 600; color: var(--text-soft); }
+    .timer-separator { font-size: 1.2rem; font-weight: 700; color: var(--text-main); margin-bottom: 12px; }
+    .timer-buttons { display: flex; gap: 8px; justify-content: center; }
+    .timer-btn { padding: 8px 16px; border: none; border-radius: var(--radius-xs); font-weight: 700; cursor: pointer; font-size: 0.9rem; transition: all 0.2s; }
+    .timer-btn-start { background: var(--accent-wechat); color: white; box-shadow: 0 4px 12px rgba(44,125,160,0.3); }
+    .timer-btn-start:hover { opacity: 0.9; transform: translateY(-2px); }
+    .timer-btn-start:active { transform: translateY(0); }
+    .timer-btn-reset { background: rgba(200,210,220,0.3); color: var(--text-main); }
+    body.dark-mode .timer-btn-reset { background: rgba(255,255,255,0.1); }
+    .timer-btn-reset:hover { background: rgba(200,210,220,0.5); }
     .notify-bar { position: fixed; top: 0; left: 0; right: 0; background: var(--accent-intent); color: #fff; padding: 12px 20px; font-size: 0.85rem; font-weight: 700; z-index: 10000; transform: translateY(-100%); transition: transform 0.3s ease; text-align: center; box-shadow: 0 4px 20px rgba(0,0,0,0.2); cursor: pointer; }
     .notify-bar.show { transform: translateY(0); }
     .notify-bar .notify-close { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); font-size: 1.1rem; opacity: 0.7; }
@@ -587,6 +604,29 @@ export default {
     <div class="pin-stats" id="pinStatsContainer">
       <div class="pin-stat-item"><span class="pin-stat-label">💬 今日微信</span><span class="pin-stat-value pin-wechat-value" id="pinWechatNum">0</span></div>
       <div class="pin-stat-item"><span class="pin-stat-label">🎯 今日意向</span><span class="pin-stat-value pin-intent-value" id="pinIntentNum">0</span></div>
+    </div>
+    <div class="timer-box" id="timerBox">
+      <div class="timer-display" id="timerDisplay">00:00:00</div>
+      <div class="timer-inputs">
+        <div class="timer-input-group">
+          <input type="number" class="timer-input" id="timerHours" min="0" max="23" value="0" placeholder="0">
+          <span class="timer-label">时</span>
+        </div>
+        <span class="timer-separator">:</span>
+        <div class="timer-input-group">
+          <input type="number" class="timer-input" id="timerMinutes" min="0" max="59" value="1" placeholder="0">
+          <span class="timer-label">分</span>
+        </div>
+        <span class="timer-separator">:</span>
+        <div class="timer-input-group">
+          <input type="number" class="timer-input" id="timerSeconds" min="0" max="59" value="0" placeholder="0">
+          <span class="timer-label">秒</span>
+        </div>
+      </div>
+      <div class="timer-buttons">
+        <button class="timer-btn timer-btn-start" id="timerStartBtn">启动</button>
+        <button class="timer-btn timer-btn-reset" id="timerResetBtn">重置</button>
+      </div>
     </div>
     <input type="password" class="pin-input" id="pinInput" placeholder="" maxlength="6" inputmode="numeric" autofocus>
     <button class="pin-btn" id="pinUnlockBtn">解锁进入</button>
@@ -1401,6 +1441,28 @@ export default {
   document.getElementById('hideBtn').addEventListener('click',()=>{setLocked(true);pi.value='';pie.innerText='';});
   window.addEventListener('keydown',e=>{if(e.ctrlKey&&e.key==='z'){const a=document.activeElement;if(a&&(a.tagName==='INPUT'||a.tagName==='TEXTAREA'))return;e.preventDefault();if(document.body.classList.contains('page-hidden'))pie.innerText='请使用PIN解锁';else{setLocked(true);pi.value='';pie.innerText='';}}});
   window.addEventListener('keydown',e=>{if(e.key==='+'||e.key==='='){e.preventDefault();modCounter(WECHAT_K,1);}else if(e.key==='-'||e.key==='_'){e.preventDefault();modCounter(WECHAT_K,-1);}});
+
+  // ==================== 锁屏计时器 ====================
+  const TIMER_K='timer_state_v1';
+  let timerInterval=null,timerRunning=false,timerTotalSeconds=0,timerRemainingSeconds=0;
+  const th=document.getElementById('timerHours'),tm=document.getElementById('timerMinutes'),ts=document.getElementById('timerSeconds');
+  const tdb=document.getElementById('timerDisplay'),tsb=document.getElementById('timerStartBtn'),trb=document.getElementById('timerResetBtn');
+  const loadTimerState=()=>{try{return JSON.parse(localStorage.getItem(TIMER_K))||{running:false,h:0,m:1,s:0,remainder:0};}catch(e){return{running:false,h:0,m:1,s:0,remainder:0};}};
+  const saveTimerState=()=>localStorage.setItem(TIMER_K,JSON.stringify({running:timerRunning,h:parseInt(th.value||0),m:parseInt(tm.value||0),s:parseInt(ts.value||0),remainder:timerRemainingSeconds}));
+  const updateTimerDisplay=()=>{const hh=String(Math.floor(timerRemainingSeconds/3600)).padStart(2,'0'),mm=String(Math.floor((timerRemainingSeconds%3600)/60)).padStart(2,'0'),ss=String(timerRemainingSeconds%60).padStart(2,'0');tdb.textContent=hh+':'+mm+':'+ss;};
+  const stopTimer=()=>{if(timerInterval)clearInterval(timerInterval);timerRunning=false;tsb.textContent='启动';updateTimerDisplay();saveTimerState();};
+  const startTimer=()=>{
+    const h=Math.max(0,Math.min(23,parseInt(th.value||0)));const m=Math.max(0,Math.min(59,parseInt(tm.value||0)));const s=Math.max(0,Math.min(59,parseInt(ts.value||0)));
+    timerTotalSeconds=h*3600+m*60+s;if(timerTotalSeconds===0 && timerRemainingSeconds===0){return; }
+    if(timerRemainingSeconds===0)timerRemainingSeconds=timerTotalSeconds;
+    timerRunning=true;tsb.textContent='暂停';th.disabled=tm.disabled=ts.disabled=true;trb.disabled=false;
+    timerInterval=setInterval(()=>{if(timerRemainingSeconds>0){timerRemainingSeconds--;updateTimerDisplay();}else{stopTimer();timerRemainingSeconds=0;updateTimerDisplay();document.getElementById('notifyText').innerText='⏱️ 计时器已结束';document.getElementById('notifyBar').classList.add('show');setTimeout(()=>document.getElementById('notifyBar').classList.remove('show'),5000);}saveTimerState();},1000);
+    saveTimerState();
+  };
+  const toggleTimer=()=>{if(timerRunning){stopTimer();}else{startTimer();}};
+  const resetTimer=()=>{stopTimer();const state=loadTimerState();th.value=state.h;tm.value=state.m;ts.value=state.s;timerRemainingSeconds=0;updateTimerDisplay();th.disabled=tm.disabled=ts.disabled=false;trb.disabled=true;saveTimerState();};
+  const initTimer=()=>{const state=loadTimerState();th.value=state.h;tm.value=state.m;ts.value=state.s;timerRemainingSeconds=state.remainder;updateTimerDisplay();[th,tm,ts].forEach(el=>el.addEventListener('change',()=>{if(!timerRunning){timerRemainingSeconds=0;saveTimerState();}}));tsb.addEventListener('click',toggleTimer);trb.addEventListener('click',resetTimer);};
+  initTimer();
 
   document.getElementById('wechatPlus').addEventListener('click',()=>modCounter(WECHAT_K,1));
   document.getElementById('wechatMinus').addEventListener('click',()=>modCounter(WECHAT_K,-1));
