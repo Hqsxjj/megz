@@ -401,10 +401,10 @@ export default {
     .pin-btn:hover { opacity: 0.9; transform: translateY(-2px); box-shadow: 0 6px 20px rgba(44,125,160,0.4); }
     .pin-btn:active { transform: translateY(0); }
     .pin-error { color: #e74c3c; font-size: 1.26rem; min-height: 24px; font-weight: 600; letter-spacing: 0.5px; }
-    .timer-container { position: absolute; top: 40px; left: 50%; transform: translateX(-50%); z-index: 50; }
-    .timer-box { display: flex; flex-direction: column; gap: 12px; align-items: center; background: rgba(255,255,255,0.75); padding: 20px 28px; border-radius: var(--radius-ios); box-shadow: 0 15px 40px rgba(0,0,0,0.12); border: 1px solid rgba(255,255,255,0.5); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
+    .timer-container { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 50; }
+    .timer-box { display: flex; flex-direction: column; gap: 12px; align-items: center; background: rgba(255,255,255,0.75); padding: 24px 32px; border-radius: var(--radius-ios); box-shadow: 0 15px 40px rgba(0,0,0,0.12); border: 1px solid rgba(255,255,255,0.5); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
     body.dark-mode .timer-box { background: rgba(30,41,56,0.8); border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 15px 40px rgba(0,0,0,0.25); }
-    .timer-display { font-size: 3.2rem; font-weight: 900; text-align: center; font-variant-numeric: tabular-nums; letter-spacing: 3px; color: var(--accent-wechat); text-shadow: 0 2px 8px rgba(0,0,0,0.1); min-height: 70px; line-height: 1; }
+    .timer-display { font-size: 3.2rem; font-weight: 900; text-align: center; font-variant-numeric: tabular-nums; letter-spacing: 3px; color: var(--accent-wechat); text-shadow: 0 2px 8px rgba(0,0,0,0.1); height: 70px; line-height: 70px; display: block; }
     .timer-box.active .timer-inputs, .timer-box.active .timer-buttons { display: none; }
     .timer-inputs { display: flex; gap: 8px; justify-content: center; align-items: center; transition: all 0.3s ease; }
     .timer-input-group { display: flex; flex-direction: column; gap: 4px; align-items: center; }
@@ -1459,18 +1459,18 @@ export default {
   const loadTimerState=()=>{try{return JSON.parse(localStorage.getItem(TIMER_K))||{running:false,h:0,m:1,s:0,remainder:0};}catch(e){return{running:false,h:0,m:1,s:0,remainder:0};}};
   const saveTimerState=()=>localStorage.setItem(TIMER_K,JSON.stringify({running:timerRunning,h:parseInt(th.value||0),m:parseInt(tm.value||0),s:parseInt(ts.value||0),remainder:timerRemainingSeconds}));
   const updateTimerDisplay=()=>{const hh=String(Math.floor(timerRemainingSeconds/3600)).padStart(2,'0'),mm=String(Math.floor((timerRemainingSeconds%3600)/60)).padStart(2,'0'),ss=String(timerRemainingSeconds%60).padStart(2,'0');tdb.textContent=hh+':'+mm+':'+ss;};
-  const stopTimer=()=>{if(timerInterval)clearInterval(timerInterval);timerRunning=false;tsb.textContent='启动';tb.classList.remove('active');updateTimerDisplay();saveTimerState();};
+  const stopTimer=()=>{if(timerInterval)clearInterval(timerInterval);timerRunning=false;tsb.textContent='启动';tb.classList.remove('active');trb.disabled=false;updateTimerDisplay();saveTimerState();};
   const startTimer=()=>{
     const h=Math.max(0,Math.min(23,parseInt(th.value||0)));const m=Math.max(0,Math.min(59,parseInt(tm.value||0)));const s=Math.max(0,Math.min(59,parseInt(ts.value||0)));
     timerTotalSeconds=h*3600+m*60+s;if(timerTotalSeconds===0 && timerRemainingSeconds===0){return; }
     if(timerRemainingSeconds===0)timerRemainingSeconds=timerTotalSeconds;
-    timerRunning=true;tsb.textContent='暂停';th.disabled=tm.disabled=ts.disabled=true;trb.disabled=false;tb.classList.add('active');
+    timerRunning=true;tsb.textContent='暂停';tb.classList.add('active');trb.disabled=false;
     timerInterval=setInterval(()=>{if(timerRemainingSeconds>0){timerRemainingSeconds--;updateTimerDisplay();}else{stopTimer();timerRemainingSeconds=0;updateTimerDisplay();tdb.classList.add('completed');setTimeout(()=>tdb.classList.remove('completed'),600);document.getElementById('notifyText').innerText='⏱️ 计时器已结束';document.getElementById('notifyBar').classList.add('show');setTimeout(()=>document.getElementById('notifyBar').classList.remove('show'),5000);}saveTimerState();},1000);
     saveTimerState();
   };
   const toggleTimer=()=>{if(timerRunning){stopTimer();}else{startTimer();}};
-  const resetTimer=()=>{stopTimer();const state=loadTimerState();th.value=state.h;tm.value=state.m;ts.value=state.s;timerRemainingSeconds=0;updateTimerDisplay();th.disabled=tm.disabled=ts.disabled=false;trb.disabled=true;tb.classList.remove('active');saveTimerState();};
-  const initTimer=()=>{const state=loadTimerState();th.value=state.h;tm.value=state.m;ts.value=state.s;timerRemainingSeconds=state.remainder;updateTimerDisplay();[th,tm,ts].forEach(el=>el.addEventListener('change',()=>{if(!timerRunning){timerRemainingSeconds=0;saveTimerState();}}));tsb.addEventListener('click',toggleTimer);trb.addEventListener('click',resetTimer);};
+  const resetTimer=()=>{stopTimer();timerRemainingSeconds=0;updateTimerDisplay();trb.disabled=true;saveTimerState();};
+  const initTimer=()=>{const state=loadTimerState();th.value=state.h;tm.value=state.m;ts.value=state.s;timerRemainingSeconds=state.remainder;updateTimerDisplay();[th,tm,ts].forEach(el=>el.addEventListener('change',()=>{if(timerRunning)stopTimer();timerRemainingSeconds=0;saveTimerState();}));[th,tm,ts].forEach(el=>el.addEventListener('input',()=>{if(timerRunning)stopTimer();timerRemainingSeconds=0;updateTimerDisplay();saveTimerState();}));tsb.addEventListener('click',toggleTimer);trb.addEventListener('click',resetTimer);trb.disabled=timerRemainingSeconds===0;};
   initTimer();
 
   document.getElementById('wechatPlus').addEventListener('click',()=>modCounter(WECHAT_K,1));
