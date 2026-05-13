@@ -982,25 +982,32 @@ export default {
   function renderClientList(){
     const today=getTodayStr();
     const clients=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]').filter(c=>c.date===today);
-    document.getElementById('clientList').innerHTML=clients.map((c,i)=>'<div class="client-row"><div class="client-info"><span class="client-name">'+esc(c.name)+'</span><span class="client-phone" data-full="'+esc(c.phone)+'">'+esc(maskPhone(c.phone))+'</span><button class="phone-toggle" title="显示号码">👁</button>'+(c.company?'<span class="client-note">🏢 '+esc(c.company)+'</span>':'')+(c.fund?'<span class="client-note">💰 '+esc(c.fund)+'</span>':'')+(c.note?'<span class="client-note">📝 '+esc(c.note)+'</span>':'')+'<span class="client-time">⏰ '+esc(c.time||'')+'</span></div><div class="client-actions"><button class="edit-icon" data-idx="'+i+'" title="编辑">✎</button><button class="del-icon" data-idx="'+i+'" title="删除">✕</button></div></div>').join('');
+    document.getElementById('clientList').innerHTML=clients.map((c,i)=>'<div class="client-row"><div class="client-info"><span class="client-name">'+esc(c.name)+'</span><span class="client-phone" data-full="'+esc(c.phone)+'">'+esc(maskPhone(c.phone))+'</span><button class="phone-toggle" title="显示号码">👁</button>'+(c.company?'<span class="client-note">🏢 '+esc(c.company)+'</span>':'')+(c.fund?'<span class="client-note">💰 '+esc(c.fund)+'</span>':'')+(c.note?'<span class="client-note">📝 '+esc(c.note)+'</span>':'')+'<span class="client-time">⏰ '+esc(c.time||'')+'</span></div><div class="client-actions"><button class="edit-icon" data-name="'+esc(c.name)+'" data-phone="'+esc(c.phone)+'" data-time="'+esc(c.time||'')+'" title="编辑">✎</button><button class="del-icon" data-name="'+esc(c.name)+'" data-phone="'+esc(c.phone)+'" data-time="'+esc(c.time||'')+'" title="删除">✕</button></div></div>').join('');
     document.querySelectorAll('.del-icon').forEach(b=>b.addEventListener('click',async e=>{
-      const i=parseInt(b.dataset.idx);
+      const name=b.dataset.name;
+      const phone=b.dataset.phone;
+      const time=b.dataset.time;
       const a=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
-      const c=a[i];if(!c)return;
-      a.splice(i,1);localStorage.setItem(CLIENTS_K,JSON.stringify(a));
+      const idx=a.findIndex(c=>c.name===name&&c.phone===phone&&c.time===time);
+      if(idx<0)return;
+      a.splice(idx,1);localStorage.setItem(CLIENTS_K,JSON.stringify(a));
       renderClientList();refreshAll();
-      await syncOp('removeClientByMatch',{name:c.name,phone:c.phone,time:c.time||''});
+      await syncOp('removeClientByMatch',{name:name,phone:phone,time:time});
     }));
     document.querySelectorAll('.edit-icon').forEach(b=>b.addEventListener('click',e=>{
-      const i=parseInt(b.dataset.idx);
+      const name=b.dataset.name;
+      const phone=b.dataset.phone;
+      const time=b.dataset.time;
       const a=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
-      const c=a[i];
+      const idx=a.findIndex(c=>c.name===name&&c.phone===phone&&c.time===time);
+      if(idx<0)return;
+      const c=a[idx];
       document.getElementById('custName').value=c.name;
       document.getElementById('custPhone').value=c.phone;
       document.getElementById('custCompany').value=c.company||'';
       document.getElementById('custFund').value=c.fund||'';
       document.getElementById('custNote').value=c.note||'';
-      a.splice(i,1);localStorage.setItem(CLIENTS_K,JSON.stringify(a));
+      a.splice(idx,1);localStorage.setItem(CLIENTS_K,JSON.stringify(a));
       renderClientList();refreshAll();
       document.getElementById('custName').focus();
     }));
