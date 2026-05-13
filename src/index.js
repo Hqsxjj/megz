@@ -288,7 +288,7 @@ export default {
         const wk = '周' + weekNames[new Date(d.date + 'T00:00:00').getDay()];
         const w = d.wechatCount || 0;
         const it = d.intentCount || 0;
-        const detail = (d.clients || []).map(c => c.name + (c.note ? '（' + c.note + '）' : '')).join('、') || '-';
+        const detail = (d.clients || []).map(c => c.name + (c.company ? ' [' + c.company + ']' : '') + (c.fund ? ' {' + c.fund + '}' : '') + (c.note ? ' （' + c.note + '）' : '')).join('、') || '-';
         text += '| ' + datePart + ' | ' + wk + ' | ' + w + ' | ' + it + ' | ' + detail + ' |\n';
       }
       try {
@@ -689,6 +689,7 @@ export default {
           <div style="font-weight:700;margin-bottom:14px;font-size:0.9rem;">🎯 意向登记</div>
           <div class="register-block">
             <div class="form-line"><input type="text" class="input-simple" id="custName" placeholder="姓名" autocomplete="off"><input type="text" class="input-simple" id="custPhone" placeholder="电话" autocomplete="off"></div>
+            <div class="form-line"><input type="text" class="input-simple" id="custCompany" placeholder="单位" autocomplete="off"><input type="text" class="input-simple" id="custFund" placeholder="公积金" autocomplete="off"></div>
             <input type="text" class="input-simple" id="custNote" placeholder="沟通记录 (必填)" autocomplete="off">
             <button class="btn-add" id="addClientBtn">+ 添加</button>
             <div class="client-scroll" id="clientList"></div>
@@ -981,7 +982,7 @@ export default {
   function renderClientList(){
     const today=getTodayStr();
     const clients=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]').filter(c=>c.date===today);
-    document.getElementById('clientList').innerHTML=clients.map((c,i)=>'<div class="client-row"><div class="client-info"><span class="client-name">'+esc(c.name)+'</span><span class="client-phone" data-full="'+esc(c.phone)+'">'+esc(maskPhone(c.phone))+'</span><button class="phone-toggle" title="显示号码">👁</button>'+(c.note?'<span class="client-note">📝 '+esc(c.note)+'</span>':'')+'<span class="client-time">⏰ '+esc(c.time||'')+'</span></div><div class="client-actions"><button class="edit-icon" data-idx="'+i+'" title="编辑">✎</button><button class="del-icon" data-idx="'+i+'" title="删除">✕</button></div></div>').join('');
+    document.getElementById('clientList').innerHTML=clients.map((c,i)=>'<div class="client-row"><div class="client-info"><span class="client-name">'+esc(c.name)+'</span><span class="client-phone" data-full="'+esc(c.phone)+'">'+esc(maskPhone(c.phone))+'</span><button class="phone-toggle" title="显示号码">👁</button>'+(c.company?'<span class="client-note">🏢 '+esc(c.company)+'</span>':'')+(c.fund?'<span class="client-note">💰 '+esc(c.fund)+'</span>':'')+(c.note?'<span class="client-note">📝 '+esc(c.note)+'</span>':'')+'<span class="client-time">⏰ '+esc(c.time||'')+'</span></div><div class="client-actions"><button class="edit-icon" data-idx="'+i+'" title="编辑">✎</button><button class="del-icon" data-idx="'+i+'" title="删除">✕</button></div></div>').join('');
     document.querySelectorAll('.del-icon').forEach(b=>b.addEventListener('click',async e=>{
       const i=parseInt(b.dataset.idx);
       const a=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
@@ -996,6 +997,8 @@ export default {
       const c=a[i];
       document.getElementById('custName').value=c.name;
       document.getElementById('custPhone').value=c.phone;
+      document.getElementById('custCompany').value=c.company||'';
+      document.getElementById('custFund').value=c.fund||'';
       document.getElementById('custNote').value=c.note||'';
       a.splice(i,1);localStorage.setItem(CLIENTS_K,JSON.stringify(a));
       renderClientList();refreshAll();
@@ -1090,7 +1093,7 @@ export default {
     let todoLog=[];
     if(cloudData&&cloudData.todoLog)todoLog=cloudData.todoLog;
     let timeline=[];
-    clients.forEach((c,i)=>{timeline.push({type:'client',time:c.time||'',name:c.name,phone:c.phone,note:c.note,idx:i});});
+    clients.forEach((c,i)=>{timeline.push({type:'client',time:c.time||'',name:c.name,phone:c.phone,company:c.company||'',fund:c.fund||'',note:c.note,idx:i});});
     todos.forEach(t=>{const txt=typeof t==='string'?t:t.text;const tm=t&&t.time?t.time:'';if(txt)timeline.push({type:'todo',time:tm,text:txt});});
     todoLog.forEach(t=>{const txt=typeof t==='string'?t:t.text;const tm=t&&t.time?t.time:'';const tp=t.type==='tomorrow'?' (明日)':'';if(txt)timeline.push({type:'todo',time:tm,text:txt+tp});});
     timeline.sort((a,b)=>(a.time||'').localeCompare(b.time||''));
@@ -1104,6 +1107,8 @@ export default {
                   '<div style="display:flex;align-items:center;gap:6px;margin-top:4px;">' +
                     '<div class="modal-client-phone-wrapper">📞 <span class="modal-client-phone" data-full="' + esc(e.phone) + '">' + esc(maskPhone(e.phone)) + '</span> <button class="phone-toggle" title="显示号码">👁</button></div>' +
                   '</div>' +
+                  (e.company ? '<div style="font-size:0.8rem;color:var(--text-soft);margin-top:4px;font-weight:600;">🏢 ' + esc(e.company) + '</div>' : '') +
+                  (e.fund ? '<div style="font-size:0.8rem;color:var(--text-soft);margin-top:2px;font-weight:600;">💰 ' + esc(e.fund) + '</div>' : '') +
                 '</div>' +
                 (e.time ? '<div class="modal-client-time">⏰ ' + esc(e.time) + '</div>' : '') +
               '</div>' +
@@ -1160,7 +1165,7 @@ export default {
             const all=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
             const target=all.find(c=>c.date===ds&&c.name===ti.name&&c.phone===ti.phone);
             if(target){target.note=nn;}
-            if(!target){all.push({name:ti.name,phone:ti.phone,note:nn,date:ds,time:ti.time||''});}
+            if(!target){all.push({name:ti.name,phone:ti.phone,company:ti.company,fund:ti.fund,note:nn,date:ds,time:ti.time||''});}
             localStorage.setItem(CLIENTS_K,JSON.stringify(all));
             await syncOp('updateClientNote',{name:ti.name,phone:ti.phone,note:nn});
             renderTl();
@@ -1223,16 +1228,20 @@ export default {
   async function addClient(){
     const n=document.getElementById('custName').value.trim();
     const p=document.getElementById('custPhone').value.trim();
+    const c=document.getElementById('custCompany').value.trim();
+    const f=document.getElementById('custFund').value.trim();
     const nt=document.getElementById('custNote').value.trim();
     if(!n||!p){alert('请填写姓名和电话');return;}
     if(!nt){alert('沟通记录为必填项');return;}
     const list=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
     const today=getTodayStr(),time=getCurrentTime();
-    const newClient={name:n,phone:p,note:nt,date:today,time:time};
+    const newClient={name:n,phone:p,company:c,fund:f,note:nt,date:today,time:time};
     list.push(newClient);
     localStorage.setItem(CLIENTS_K,JSON.stringify(list));
     document.getElementById('custName').value='';
     document.getElementById('custPhone').value='';
+    document.getElementById('custCompany').value='';
+    document.getElementById('custFund').value='';
     document.getElementById('custNote').value='';
     renderClientList();refreshAll();
     // 只用原子 syncOp，不再并发 saveFullState（避免竞态导致云端客户重复/覆盖）
@@ -1486,7 +1495,7 @@ export default {
   document.getElementById('addTodoBtn').addEventListener('click',addTodo);
   document.getElementById('todayTodoInput').addEventListener('keypress',e=>{if(e.key==='Enter')addTodayTodo();});
   document.getElementById('todoInput').addEventListener('keypress',e=>{if(e.key==='Enter')addTodo();});
-  ['custName','custPhone','custNote'].forEach(id=>document.getElementById(id).addEventListener('keypress',e=>{if(e.key==='Enter')addClient();}));
+  ['custName','custPhone','custCompany','custFund','custNote'].forEach(id=>document.getElementById(id).addEventListener('keypress',e=>{if(e.key==='Enter')addClient();}));
   document.getElementById('closeModalBtn').addEventListener('click',()=>document.getElementById('dateModal').classList.remove('active'));
   document.getElementById('dateModal').addEventListener('click',e=>{if(e.target===document.getElementById('dateModal'))document.getElementById('dateModal').classList.remove('active');});
 
