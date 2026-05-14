@@ -44,12 +44,12 @@ export default {
         // 读取云端现有数据
         const rawExisting = await env.DATA_KV.get(`work:${date}`);
         const existing = rawExisting ? JSON.parse(rawExisting) : {};
-        // 客户列表按 name|phone|time 合并（取并集，incoming 覆盖同 key 的旧条目）
-        // 这样多设备各自新增的客户都能保留，不会被任何一端覆盖
+        // 客户列表按 phone 号码唯一性合并（同一电话号码只保留最新记录）
+        // incoming 中的客户记录会覆盖 base 中相同电话号码的旧记录
         const mergeClients = (base, incoming) => {
           const map = new Map();
-          (base || []).forEach(c => map.set(`${c.name}|${c.phone}|${c.time||''}`, c));
-          (incoming || []).forEach(c => map.set(`${c.name}|${c.phone}|${c.time||''}`, c));
+          (base || []).forEach(c => map.set(c.phone, c));
+          (incoming || []).forEach(c => map.set(c.phone, c));
           return [...map.values()];
         };
         const mergedClients = mergeClients(existing.clients, clients);
