@@ -22,6 +22,7 @@ export default {
         date,
         wechatCount: 0,
         intentCount: 0,
+        revisitCount: 0,
         clients: [],
         todayTodos: [],
         tomorrowTodos: [],
@@ -39,7 +40,7 @@ export default {
       const items = Array.isArray(body) ? body : [body];
       let hasError = false;
       for (const item of items) {
-        const { date, wechatCount, intentCount, clients, todayTodos, tomorrowTodos, scripts, learns, todoLog, _ts } = item;
+        const { date, wechatCount, intentCount, revisitCount, clients, todayTodos, tomorrowTodos, scripts, learns, todoLog, _ts } = item;
         if (!date) { hasError = true; continue; }
         // 读取云端现有数据
         const rawExisting = await env.DATA_KV.get(`work:${date}`);
@@ -57,6 +58,7 @@ export default {
           date,
           wechatCount: Math.max(existing.wechatCount || 0, wechatCount || 0),
           intentCount: mergedClients.filter(c => c.date === date).length,
+          revisitCount: Math.max(existing.revisitCount || 0, revisitCount || 0),
           clients: mergedClients,
           todayTodos: todayTodos || existing.todayTodos || [],
           tomorrowTodos: tomorrowTodos || existing.tomorrowTodos || [],
@@ -92,7 +94,7 @@ export default {
       }
       const raw = await env.DATA_KV.get(`work:${date}`);
       const data = raw ? JSON.parse(raw) : {
-        date, wechatCount: 0, intentCount: 0, clients: [],
+        date, wechatCount: 0, intentCount: 0, revisitCount: 0, clients: [],
         todayTodos: [], tomorrowTodos: [], scripts: [], learns: [], todoLog: []
       };
       const ts = Date.now();
@@ -100,6 +102,11 @@ export default {
         case 'incWechat': {
           const delta = body.delta || 0;
           data.wechatCount = Math.max((data.wechatCount || 0) + delta, 0);
+          break;
+        }
+        case 'incRevisit': {
+          const delta = body.delta || 0;
+          data.revisitCount = Math.max((data.revisitCount || 0) + delta, 0);
           break;
         }
         case 'addClient': {
@@ -187,7 +194,8 @@ export default {
           const dateKey = key.name.replace('work:', '');
           calendar[dateKey] = {
             w: d.wechatCount || 0,
-            i: d.intentCount || 0
+            i: d.intentCount || 0,
+            r: d.revisitCount || 0
           };
         }
       }
@@ -206,7 +214,7 @@ export default {
         });
       }
       const list = await env.DATA_KV.list({ prefix: `work:${month}` });
-      let weekW = 0, monthW = 0, weekI = 0, monthI = 0;
+      let weekW = 0, monthW = 0, weekI = 0, monthI = 0, weekR = 0, monthR = 0;
       const today = new Date();
       const dow = today.getDay();
       const diff = (dow === 0 ? 6 : dow - 1);
@@ -220,13 +228,15 @@ export default {
           const d = JSON.parse(rawData);
           monthW += d.wechatCount || 0;
           monthI += d.intentCount || 0;
+          monthR += d.revisitCount || 0;
           if (d.date >= monStr && d.date <= todayStr) {
             weekW += d.wechatCount || 0;
             weekI += d.intentCount || 0;
+            weekR += d.revisitCount || 0;
           }
         }
       }
-      return new Response(JSON.stringify({ weekW, monthW, weekI, monthI }), {
+      return new Response(JSON.stringify({ weekW, monthW, weekI, monthI, weekR, monthR }), {
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
       });
     }
@@ -252,7 +262,7 @@ export default {
       const monthPrefix = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0');
 
       const list = await env.DATA_KV.list({ prefix: 'work:' + monthPrefix });
-      let weekW = 0, monthW = 0, weekI = 0, monthI = 0;
+      let weekW = 0, monthW = 0, weekI = 0, monthI = 0, weekR = 0, monthR = 0;
       const sorted = [];
       for (const key of list.keys) {
         const rawData = await env.DATA_KV.get(key.name);
@@ -261,9 +271,11 @@ export default {
         sorted.push(d);
         monthW += d.wechatCount || 0;
         monthI += d.intentCount || 0;
+        monthR += d.revisitCount || 0;
         if (d.date >= monStr && d.date <= todayStr) {
           weekW += d.wechatCount || 0;
           weekI += d.intentCount || 0;
+          weekR += d.revisitCount || 0;
         }
       }
       sorted.sort((a,b) => (a.date||'').localeCompare(b.date||''));
@@ -275,21 +287,23 @@ export default {
         : monthPrefix + '-01 ～ ' + todayStr;
       const wTotal = type === 'week' ? weekW : monthW;
       const iTotal = type === 'week' ? weekI : monthI;
+      const rTotal = type === 'week' ? weekR : monthR;
 
       let text = title + '\n\n' + dateRange + '\n\n\n';
-      text += '💬 新增微信：**' + wTotal + '**    🎯 新增意向：**' + iTotal + '**\n';
+      text += '💬 新增微信：**' + wTotal + '**    🎯 新增意向：**' + iTotal + '**    🔄 回访：**' + rTotal + '**\n';
       if (type !== 'week') {
-        text += '（💬 本周微信：**' + weekW + '**    🎯 本周意向：**' + weekI + '**）\n';
+        text += '（💬 本周微信：**' + weekW + '**    🎯 本周意向：**' + weekI + '**    🔄 本周回访：**' + weekR + '**）\n';
       }
-      text += '\n\n| 日期 | 周 | 💬 | 🎯 | 意向详情 |\n|------|----|----|----|----------|\n';
+      text += '\n\n| 日期 | 周 | 💬 | 🎯 | 🔄 | 意向详情 |\n|------|----|----|----|----|---------\n';
       for (const d of sorted) {
         if (type === 'week' && (d.date < monStr || d.date > todayStr)) continue;
         const datePart = d.date.slice(5);
         const wk = '周' + weekNames[new Date(d.date + 'T00:00:00').getDay()];
         const w = d.wechatCount || 0;
         const it = d.intentCount || 0;
+        const r = d.revisitCount || 0;
         const detail = (d.clients || []).map(c => c.name + (c.company ? ' [' + c.company + ']' : '') + (c.fund ? ' {' + c.fund + '}' : '') + (c.note ? ' （' + c.note + '）' : '')).join('、') || '-';
-        text += '| ' + datePart + ' | ' + wk + ' | ' + w + ' | ' + it + ' | ' + detail + ' |\n';
+        text += '| ' + datePart + ' | ' + wk + ' | ' + w + ' | ' + it + ' | ' + r + ' | ' + detail + ' |\n';
       }
       try {
         const whResp = await fetch(webhookUrl, {
@@ -345,6 +359,7 @@ export default {
       --radius-xs: 6px;
       --wechat-gradient: linear-gradient(135deg, #a8e6cf 0%, #56c596 50%, #2d9a6c 100%);
       --intent-gradient: linear-gradient(135deg, #ffd194 0%, #ff9a3c 50%, #ff6d00 100%);
+      --revisit-gradient: linear-gradient(135deg, #b8ceff 0%, #6e8efb 50%, #4a6cf7 100%);
       --today-gradient: linear-gradient(135deg, #ffecd2 0%, #fcb69f 50%, #ff8a65 100%);
       --stats-gradient: linear-gradient(135deg, #e0f7fa 0%, #b2ebf2 50%, #4dd0e1 100%);
       --wallpaper-url: '';
@@ -370,6 +385,7 @@ export default {
       --modal-card: #1e2938;
       --wechat-gradient: linear-gradient(135deg, #1b4332 0%, #2d6a4f 50%, #40916c 100%);
       --intent-gradient: linear-gradient(135deg, #4a2500 0%, #7c3a00 50%, #b85c00 100%);
+      --revisit-gradient: linear-gradient(135deg, #1a2260 0%, #2d3a8b 50%, #3f51b5 100%);
       --today-gradient: linear-gradient(135deg, #3e1a0a 0%, #6b2f14 50%, #a0421e 100%);
       --stats-gradient: linear-gradient(135deg, #0d3b4a 0%, #1a5c6e 50%, #2a7d8f 100%);
       --wallpaper-opacity: 0.19;
@@ -394,6 +410,7 @@ export default {
     .pin-stat-value { font-size: 2.8rem; font-weight: 900; line-height: 1; }
     .pin-wechat-value { background: var(--wechat-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
     .pin-intent-value { background: var(--intent-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .pin-revisit-value { background: var(--revisit-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
     .pin-input { width: 196px; padding: 11px 20px; border-radius: var(--radius-xs); border: 1.5px solid rgba(200,210,220,0.5); background: rgba(255,255,255,0.5); text-align: center; font-size: 1.4rem; letter-spacing: 7px; color: var(--text-main); outline: none; font-weight: 700; transition: all 0.3s; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
     body.dark-mode .pin-input { background: rgba(40,50,63,0.5); border-color: rgba(255,255,255,0.15); }
     .pin-input:focus { border-color: var(--accent-wechat); box-shadow: 0 0 0 4px rgba(44,125,160,0.15); background: rgba(255,255,255,0.7); }
@@ -468,6 +485,8 @@ export default {
     .wechat-fill::before { background: var(--wechat-gradient); }
     .intent-fill { background: var(--intent-gradient); color: white; }
     .intent-fill::before { background: var(--intent-gradient); }
+    .revisit-fill { background: var(--revisit-gradient); color: white; }
+    .revisit-fill::before { background: var(--revisit-gradient); }
     .counter-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; position: relative; z-index: 1; }
     .counter-label { font-size: 0.8rem; font-weight: 700; color: rgba(255,255,255,0.95); text-shadow: 0 1px 2px rgba(0,0,0,0.1); }
     .reset-mini { background: rgba(255,255,255,0.3); border: none; font-size: 0.7rem; color: rgba(255,255,255,0.9); cursor: pointer; padding: 4px 8px; border-radius: var(--radius-xs); font-weight: 600; position: relative; z-index: 1; backdrop-filter: blur(4px); }
@@ -636,6 +655,7 @@ export default {
     <div class="pin-stats" id="pinStatsContainer">
       <div class="pin-stat-item"><span class="pin-stat-label">💬 今日微信</span><span class="pin-stat-value pin-wechat-value" id="pinWechatNum">0</span></div>
       <div class="pin-stat-item"><span class="pin-stat-label">🎯 今日意向</span><span class="pin-stat-value pin-intent-value" id="pinIntentNum">0</span></div>
+      <div class="pin-stat-item"><span class="pin-stat-label">🔄 今日回访</span><span class="pin-stat-value pin-revisit-value" id="pinRevisitNum">0</span></div>
     </div>
     <input type="password" class="pin-input" id="pinInput" placeholder="" maxlength="6" inputmode="numeric" autofocus>
     <button class="pin-btn" id="pinUnlockBtn">解锁进入</button>
@@ -671,12 +691,19 @@ export default {
             <div class="counter-header"><span class="counter-label">🎯 今日意向</span></div>
             <div class="counter-value" id="intentNum">0</div>
           </div>
+          <div class="counter-card revisit-fill">
+            <div class="counter-header"><span class="counter-label">🔄 今日回访</span><button class="reset-mini" id="resetRevisitToday">↺</button></div>
+            <div class="counter-value" id="revisitNum">0</div>
+            <div class="button-group"><button class="circle-btn" id="revisitMinus">−</button><button class="circle-btn btn-special" id="revisitPlus">+</button></div>
+          </div>
         </div>
         <div class="stats-row">
           <div class="stat-block"><span class="label">💬本周</span> <span class="number" id="weekWechat">0</span></div>
           <div class="stat-block"><span class="label">💬本月</span> <span class="number" id="monthWechat">0</span></div>
           <div class="stat-block"><span class="label">🎯本周</span> <span class="number" id="weekIntent">0</span></div>
           <div class="stat-block"><span class="label">🎯本月</span> <span class="number" id="monthIntent">0</span></div>
+          <div class="stat-block"><span class="label">🔄本周</span> <span class="number" id="weekRevisit">0</span></div>
+          <div class="stat-block"><span class="label">🔄本月</span> <span class="number" id="monthRevisit">0</span></div>
         </div>
         <div class="card calendar-compact">
           <div class="cal-head" id="calMonthTitle"></div>
@@ -756,7 +783,7 @@ export default {
 </div>
 <script>
 (function(){
-  const WECHAT_K='wechat_v3', INTENT_K='intent_v3', CLIENTS_K='clients_v3';
+  const WECHAT_K='wechat_v3', INTENT_K='intent_v3', CLIENTS_K='clients_v3', REVISIT_K='revisit_v1';
   const DARK_K='dark_mode', LOCK_K='locked', TODAY_TODO_K='today_todo_v2', TOMORROW_TODO_K='tomorrow_todo_v2';
   const LAST_LOAD_DATE_K='last_load_date_v1', WALLPAPER_K='wp_cache', SCRIPTS_K='scripts_v1', LEARN_K='learn_v1', LOCAL_TS_K='local_ts_v1';
   const OP_QUEUE_K='op_queue_v1'; // 操作队列：持久化到 localStorage，页面关闭后下次打开继续补发
@@ -857,12 +884,13 @@ export default {
   async function saveFullState(full){
     const today=getTodayStr();
     const wm=loadMap(WECHAT_K);
+    const rm=loadMap(REVISIT_K);
     const allClients=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
     
     if(full){
       const scripts=loadScripts();
       const learns=loadLearns();
-      const dates = new Set([...Object.keys(wm), ...allClients.map(c=>c.date).filter(Boolean), today]);
+      const dates = new Set([...Object.keys(wm), ...Object.keys(rm), ...allClients.map(c=>c.date).filter(Boolean), today]);
       const ts = Date.now();
       const payload = [];
       for(const d of dates){
@@ -871,6 +899,7 @@ export default {
           date:d,
           wechatCount:wm[d]||0,
           intentCount:dClients.length,
+          revisitCount:rm[d]||0,
           clients:dClients,
           _ts:ts
         };
@@ -891,6 +920,7 @@ export default {
         date:today,
         wechatCount:wm[today]||0,
         intentCount:todayClients.length,
+        revisitCount:rm[today]||0,
         clients:todayClients,
         todayTodos:loadTodos(TODAY_TODO_K).filter(t=>(typeof t==='string'?today:(t.date||today))===today),
         tomorrowTodos:loadTodos(TOMORROW_TODO_K).filter(t=>(typeof t==='string'?today:(t.date||today))===today),
@@ -913,6 +943,10 @@ export default {
       wm[today]=Math.max(wm[today]||0, data.wechatCount||0);
       saveMap(WECHAT_K,wm);
       const im=loadMap(INTENT_K);im[today]=data.intentCount||0;saveMap(INTENT_K,im);
+      // 回访计数取最大值
+      const rm=loadMap(REVISIT_K);
+      rm[today]=Math.max(rm[today]||0, data.revisitCount||0);
+      saveMap(REVISIT_K,rm);
       // 客户列表：合并（取并集），云端新增的保留，本地新增的也保留
       if(data.clients!==undefined){
         const allClients=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
@@ -947,6 +981,7 @@ export default {
     if(!data)return false;
     const wm=loadMap(WECHAT_K);wm[date]=data.wechatCount||0;saveMap(WECHAT_K,wm);
     const im=loadMap(INTENT_K);im[date]=data.intentCount||0;saveMap(INTENT_K,im);
+    const rm=loadMap(REVISIT_K);rm[date]=data.revisitCount||0;saveMap(REVISIT_K,rm);
     if(data.clients!==undefined){
       const all=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
       const nonDay=all.filter(c=>c.date!==date);
@@ -1188,21 +1223,23 @@ export default {
     const month=getCurrentMonth();
     const cal=await cloudCalendar(month);
     if(cal){
-      const wm=loadMap(WECHAT_K), im=loadMap(INTENT_K);
+      const wm=loadMap(WECHAT_K), im=loadMap(INTENT_K), rm=loadMap(REVISIT_K);
       let changed=false;
       for(const [date, d] of Object.entries(cal)){
         const nw = Math.max(wm[date]||0, d.w||0);
         if(nw !== (wm[date]||0)){ wm[date]=nw; changed=true; }
         const ni = Math.max(im[date]||0, d.i||0);
         if(ni !== (im[date]||0)){ im[date]=ni; changed=true; }
+        const nr = Math.max(rm[date]||0, d.r||0);
+        if(nr !== (rm[date]||0)){ rm[date]=nr; changed=true; }
       }
-      if(changed){saveMap(WECHAT_K,wm);saveMap(INTENT_K,im);}
+      if(changed){saveMap(WECHAT_K,wm);saveMap(INTENT_K,im);saveMap(REVISIT_K,rm);}
       addSyncLog('✅ 拉取云端历史日历完成');
     }
   }
 
   function refreshAll(){
-    const wm=loadMap(WECHAT_K),im=loadMap(INTENT_K),today=getTodayStr();
+    const wm=loadMap(WECHAT_K),im=loadMap(INTENT_K),rm=loadMap(REVISIT_K),today=getTodayStr();
     // 意向计数直接从当日客户数派生，确保永远准确
     const allClients=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
     const todayClients=allClients.filter(c=>c.date===today);
@@ -1210,27 +1247,31 @@ export default {
     im[today]=todayIntent;saveMap(INTENT_K,im);
     document.getElementById('wechatNum').innerText=wm[today]||0;
     document.getElementById('intentNum').innerText=todayIntent;
+    document.getElementById('revisitNum').innerText=rm[today]||0;
     document.getElementById('pinWechatNum').innerText=wm[today]||0;
     document.getElementById('pinIntentNum').innerText=todayIntent;
+    document.getElementById('pinRevisitNum').innerText=rm[today]||0;
     document.getElementById('weekWechat').innerText=getWeekTotal(wm);
     document.getElementById('monthWechat').innerText=getMonthTotal(wm);
     document.getElementById('weekIntent').innerText=getWeekTotal(im);
     document.getElementById('monthIntent').innerText=getMonthTotal(im);
+    document.getElementById('weekRevisit').innerText=getWeekTotal(rm);
+    document.getElementById('monthRevisit').innerText=getMonthTotal(rm);
     const now=new Date();const wk=['周日','周一','周二','周三','周四','周五','周六'];
     document.getElementById('liveDate').innerHTML=(now.getMonth()+1)+'月'+now.getDate()+'日 '+wk[now.getDay()];
     renderCalendar(wm,im);renderClientList();renderTodos();
   }
 
-  async function modCounter(key,delta){
+  async function modCounter(key,delta,op){
     // 直接在本地值基础上增减，立即响应；服务端原子写入保证多设备最终一致
     const t=getTodayStr();
     const d=loadMap(key);
     let v=Math.max((d[t]||0)+delta,0);
     if(v===0)delete d[t];else d[t]=v;saveMap(key,d);
     refreshAll();
-    await syncOp('incWechat',{delta});
+    await syncOp(op||'incWechat',{delta});
   }
-  async function resetToday(key){const d=loadMap(key);const t=getTodayStr();const old=d[t]||0;delete d[t];saveMap(key,d);refreshAll();if(old>0)await syncOp('incWechat',{delta:-old});}
+  async function resetToday(key,op){const d=loadMap(key);const t=getTodayStr();const old=d[t]||0;delete d[t];saveMap(key,d);refreshAll();if(old>0)await syncOp(op||'incWechat',{delta:-old});}
 
   async function addClient(){
     const n=document.getElementById('custName').value.trim();
@@ -1489,9 +1530,12 @@ export default {
   const initTimer=()=>{const state=loadTimerState();th.value=state.h;tm.value=state.m;ts.value=state.s;timerRemainingSeconds=state.remainder;updateTimerDisplay();[th,tm,ts].forEach(el=>el.addEventListener('change',()=>{if(timerRunning)stopTimer();timerRemainingSeconds=0;saveTimerState();}));[th,tm,ts].forEach(el=>el.addEventListener('input',()=>{if(timerRunning)stopTimer();timerRemainingSeconds=0;updateTimerDisplay();saveTimerState();}));tsb.addEventListener('click',toggleTimer);trb.addEventListener('click',resetTimer);trb.disabled=timerRemainingSeconds===0;};
   initTimer();
 
-  document.getElementById('wechatPlus').addEventListener('click',()=>modCounter(WECHAT_K,1));
-  document.getElementById('wechatMinus').addEventListener('click',()=>modCounter(WECHAT_K,-1));
-  document.getElementById('resetWechatToday').addEventListener('click',()=>resetToday(WECHAT_K));
+  document.getElementById('wechatPlus').addEventListener('click',()=>modCounter(WECHAT_K,1,'incWechat'));
+  document.getElementById('wechatMinus').addEventListener('click',()=>modCounter(WECHAT_K,-1,'incWechat'));
+  document.getElementById('resetWechatToday').addEventListener('click',()=>resetToday(WECHAT_K,'incWechat'));
+  document.getElementById('revisitPlus').addEventListener('click',()=>modCounter(REVISIT_K,1,'incRevisit'));
+  document.getElementById('revisitMinus').addEventListener('click',()=>modCounter(REVISIT_K,-1,'incRevisit'));
+  document.getElementById('resetRevisitToday').addEventListener('click',()=>resetToday(REVISIT_K,'incRevisit'));
   document.getElementById('syncBtn').addEventListener('click',async()=>{
     _syncStatus='syncing';updateSyncIndicator();
     try{await drainQueue();await saveFullState(true);await pullLatest();await syncCalendarFromCloud();refreshAll();}catch(e){_syncStatus='error';}
@@ -1599,12 +1643,14 @@ export default {
   window.addEventListener('beforeunload',()=>{
     const today=getTodayStr();
     const wm=loadMap(WECHAT_K);
+    const rm=loadMap(REVISIT_K);
     const allClients=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
     const todayClients=allClients.filter(c=>c.date===today);
     const payload=JSON.stringify({
       date:today,
       wechatCount:wm[today]||0,
       intentCount:todayClients.length,
+      revisitCount:rm[today]||0,
       clients:todayClients,
       todayTodos:loadTodos(TODAY_TODO_K).filter(t=>(typeof t==='string'?today:(t.date||today))===today),
       tomorrowTodos:loadTodos(TOMORROW_TODO_K).filter(t=>(typeof t==='string'?today:(t.date||today))===today),
