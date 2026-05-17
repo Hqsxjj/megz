@@ -496,7 +496,10 @@ export default {
     .circle-btn:hover { background: rgba(255,255,255,0.5); }
     .btn-special { background: rgba(255,255,255,0.45); }
     .stats-row { display: flex; gap: 10px; }
-    .stat-block { flex: 1; text-align: center; border-radius: var(--radius-sm); padding: 10px 4px; border: 1px solid var(--card-border); background: var(--stats-gradient); color: white; text-shadow: 0 1px 2px rgba(0,0,0,0.1); box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+    .stat-block { flex: 1; text-align: center; border-radius: var(--radius-sm); padding: 10px 4px; border: 1px solid var(--card-border); color: white; text-shadow: 0 1px 2px rgba(0,0,0,0.1); box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+    .stat-wechat { background: var(--wechat-gradient); }
+    .stat-intent { background: var(--intent-gradient); }
+    .stat-revisit { background: var(--revisit-gradient); }
     .stat-block .label { font-size: 0.7rem; font-weight: 600; opacity: 0.9; }
     .stat-block .number { font-size: 1.35rem; font-weight: 800; margin-left: 4px; }
     .calendar-compact { padding: 10px 12px; }
@@ -698,12 +701,12 @@ export default {
           </div>
         </div>
         <div class="stats-row">
-          <div class="stat-block"><span class="label">💬本周</span> <span class="number" id="weekWechat">0</span></div>
-          <div class="stat-block"><span class="label">💬本月</span> <span class="number" id="monthWechat">0</span></div>
-          <div class="stat-block"><span class="label">🎯本周</span> <span class="number" id="weekIntent">0</span></div>
-          <div class="stat-block"><span class="label">🎯本月</span> <span class="number" id="monthIntent">0</span></div>
-          <div class="stat-block"><span class="label">🔄本周</span> <span class="number" id="weekRevisit">0</span></div>
-          <div class="stat-block"><span class="label">🔄本月</span> <span class="number" id="monthRevisit">0</span></div>
+          <div class="stat-block stat-wechat"><span class="label">💬本周</span> <span class="number" id="weekWechat">0</span></div>
+          <div class="stat-block stat-wechat"><span class="label">💬本月</span> <span class="number" id="monthWechat">0</span></div>
+          <div class="stat-block stat-intent"><span class="label">🎯本周</span> <span class="number" id="weekIntent">0</span></div>
+          <div class="stat-block stat-intent"><span class="label">🎯本月</span> <span class="number" id="monthIntent">0</span></div>
+          <div class="stat-block stat-revisit"><span class="label">🔄本周</span> <span class="number" id="weekRevisit">0</span></div>
+          <div class="stat-block stat-revisit"><span class="label">🔄本月</span> <span class="number" id="monthRevisit">0</span></div>
         </div>
         <div class="card calendar-compact">
           <div class="cal-head" id="calMonthTitle"></div>
