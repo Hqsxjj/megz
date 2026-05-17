@@ -403,11 +403,11 @@ export default {
     body.page-hidden .app-shell { display: none; }
     .pin-box { display: flex; flex-direction: column; align-items: center; gap: 22px; background: rgba(255,255,255,0.75); padding: 45px 56px; border-radius: var(--radius-ios); box-shadow: 0 25px 60px rgba(0,0,0,0.15), 0 0 0 1px rgba(255,255,255,0.3); border: 1px solid rgba(255,255,255,0.5); min-width: 448px; max-width: 588px; backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); transition: all 0.3s ease; z-index: 45; position: absolute; top: 60%; left: 50%; transform: translate(-50%, -50%); }
     body.dark-mode .pin-box { background: rgba(30,41,56,0.8); border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 25px 60px rgba(0,0,0,0.3); }
-    .pin-stats { display: flex; gap: 22px; }
-    .pin-stat-item { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 17px 25px; background: rgba(255,255,255,0.6); border-radius: var(--radius-sm); border: 1px solid rgba(255,255,255,0.5); min-width: 140px; backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
+    .pin-stats { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; }
+    .pin-stat-item { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px 16px; background: rgba(255,255,255,0.6); border-radius: var(--radius-sm); border: 1px solid rgba(255,255,255,0.5); min-width: 110px; flex: 1; backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
     body.dark-mode .pin-stat-item { background: rgba(40,50,63,0.6); border: 1px solid rgba(255,255,255,0.08); }
-    .pin-stat-label { font-size: 0.98rem; font-weight: 700; color: var(--text-soft); letter-spacing: 0.5px; }
-    .pin-stat-value { font-size: 2.8rem; font-weight: 900; line-height: 1; }
+    .pin-stat-label { font-size: 0.82rem; font-weight: 700; color: var(--text-soft); letter-spacing: 0.3px; white-space: nowrap; }
+    .pin-stat-value { font-size: 2.2rem; font-weight: 900; line-height: 1; }
     .pin-wechat-value { background: var(--wechat-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
     .pin-intent-value { background: var(--intent-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
     .pin-revisit-value { background: var(--revisit-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
@@ -604,11 +604,11 @@ export default {
       .timer-display { font-size: 2.5rem; }
       .two-columns { flex-direction: column; }
       .right-area { order: 1; } .left-area { order: 2; }
-      .pin-box { min-width: 392px; max-width: 90vw; padding: 34px 34px; gap: 17px; }
-      .pin-stats { gap: 14px; }
-      .pin-stat-item { padding: 14px 17px; min-width: 126px; gap: 6px; }
-      .pin-stat-label { font-size: 0.91rem; }
-      .pin-stat-value { font-size: 2.24rem; }
+      .pin-box { min-width: 320px; max-width: 92vw; padding: 28px 20px; gap: 14px; }
+      .pin-stats { gap: 8px; }
+      .pin-stat-item { padding: 10px 10px; min-width: 90px; gap: 4px; }
+      .pin-stat-label { font-size: 0.75rem; }
+      .pin-stat-value { font-size: 1.8rem; }
       .pin-input { width: 182px; padding: 10px 17px; font-size: 1.26rem; }
       .pin-btn { padding: 10px 28px; font-size: 0.98rem; }
 	      .script-container { left: 8px; top: 60px; max-width: 42vw; max-height: 30vh; overflow-y: auto; }
@@ -1506,7 +1506,7 @@ export default {
   pib.addEventListener('click',au);pi.addEventListener('keypress',e=>{if(e.key==='Enter')au();});
   document.getElementById('hideBtn').addEventListener('click',()=>{setLocked(true);pi.value='';pie.innerText='';});
   window.addEventListener('keydown',e=>{if(e.ctrlKey&&e.key==='z'){const a=document.activeElement;if(a&&(a.tagName==='INPUT'||a.tagName==='TEXTAREA'))return;e.preventDefault();if(document.body.classList.contains('page-hidden'))pie.innerText='请使用PIN解锁';else{setLocked(true);pi.value='';pie.innerText='';}}});
-  window.addEventListener('keydown',e=>{if(e.key==='+'||e.key==='='){e.preventDefault();modCounter(WECHAT_K,1);}else if(e.key==='-'||e.key==='_'){e.preventDefault();modCounter(WECHAT_K,-1);}});
+  window.addEventListener('keydown',e=>{if(e.key==='+'||e.key==='='){e.preventDefault();modCounter(WECHAT_K,1,'incWechat');}else if(e.key==='-'||e.key==='_'){e.preventDefault();modCounter(WECHAT_K,-1,'incWechat');}else if(e.key==='ArrowUp'){e.preventDefault();modCounter(REVISIT_K,1,'incRevisit');}else if(e.key==='ArrowDown'){e.preventDefault();modCounter(REVISIT_K,-1,'incRevisit');}});
 
   // ==================== 锁屏计时器 ====================
   const TIMER_K='timer_state_v1';
