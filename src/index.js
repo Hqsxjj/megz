@@ -289,12 +289,17 @@ export default {
       const iTotal = type === 'week' ? weekI : monthI;
       const rTotal = type === 'week' ? weekR : monthR;
 
-      let text = title + '\n\n' + dateRange + '\n\n\n';
-      text += '💬 新增微信：**' + wTotal + '**    🎯 新增意向：**' + iTotal + '**    🔄 回访：**' + rTotal + '**\n';
+      let text = '### ' + title + '\n';
+      text += '> 📅 ' + dateRange + '\n\n';
+      text += '<font color="info">💬 新增微信：**' + wTotal + '**</font>\n';
+      text += '<font color="warning">🎯 新增意向：**' + iTotal + '**</font>\n';
+      text += '<font color="comment">🔄 客户回访：**' + rTotal + '**</font>\n';
+
       if (type !== 'week') {
-        text += '（💬 本周微信：**' + weekW + '**    🎯 本周意向：**' + weekI + '**    🔄 本周回访：**' + weekR + '**）\n';
+        text += '\n> 📌 本周参考: 微信 **' + weekW + '** | 意向 **' + weekI + '** | 回访 **' + weekR + '**\n';
       }
-      text += '\n\n| 日期 | 周 | 💬 | 🎯 | 🔄 | 意向详情 |\n|------|----|----|----|----|---------\n';
+      text += '\n---\n\n';
+
       for (const d of sorted) {
         if (type === 'week' && (d.date < monStr || d.date > todayStr)) continue;
         const datePart = d.date.slice(5);
@@ -302,8 +307,18 @@ export default {
         const w = d.wechatCount || 0;
         const it = d.intentCount || 0;
         const r = d.revisitCount || 0;
-        const detail = (d.clients || []).map(c => c.name + (c.company ? ' [' + c.company + ']' : '') + (c.fund ? ' {' + c.fund + '}' : '') + (c.note ? ' （' + c.note + '）' : '')).join('、') || '-';
-        text += '| ' + datePart + ' | ' + wk + ' | ' + w + ' | ' + it + ' | ' + r + ' | ' + detail + ' |\n';
+        
+        const clients = d.clients || [];
+        let detail = '';
+        if (clients.length > 0) {
+          detail = clients.map(c => '👤 ' + c.name + (c.company ? ' [' + c.company + ']' : '') + (c.fund ? ' {' + c.fund + '}' : '') + (c.note ? ' （' + c.note + '）' : '')).join('\n> ');
+        } else {
+          detail = '*(无新增意向)*';
+        }
+        
+        text += '**📍 ' + datePart + ' ' + wk + '**\n';
+        text += '> <font color="info">微信: ' + w + '</font> | <font color="warning">意向: ' + it + '</font> | <font color="comment">回访: ' + r + '</font>\n';
+        text += '> ' + detail + '\n\n';
       }
       try {
         const whResp = await fetch(webhookUrl, {
