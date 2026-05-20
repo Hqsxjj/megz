@@ -543,33 +543,43 @@ export default {
     .modal-section-title::after { content: ''; flex: 1; height: 1px; background: var(--border-light); }
     .client-modal-list { overflow-y: auto; display: flex; flex-direction: column; gap: 16px; max-height: 62vh; padding-top: 2px; position: relative; }
     /* ===== 意向客户表格 ===== */
-    .intent-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+    .intent-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; table-layout: fixed; }
     .intent-table thead tr { background: linear-gradient(90deg, rgba(47,158,104,0.12) 0%, rgba(47,158,104,0.06) 100%); border-bottom: 2px solid rgba(47,158,104,0.25); }
     body.dark-mode .intent-table thead tr { background: linear-gradient(90deg, rgba(47,158,104,0.18) 0%, rgba(47,158,104,0.08) 100%); }
-    .intent-table th { padding: 9px 12px; font-size: 0.72rem; font-weight: 800; color: var(--accent-intent); letter-spacing: 0.4px; text-align: left; white-space: nowrap; }
-    .intent-table td { padding: 10px 12px; border-bottom: 1px solid var(--border-light); vertical-align: middle; color: var(--text-main); font-weight: 600; }
+    .intent-table th { padding: 9px 12px; font-size: 0.72rem; font-weight: 800; color: var(--accent-intent); letter-spacing: 0.4px; text-align: left; white-space: nowrap; overflow: hidden; }
+    .intent-table td { padding: 10px 12px; border-bottom: 1px solid var(--border-light); vertical-align: top; color: var(--text-main); font-weight: 600; overflow: hidden; }
     .intent-table tbody tr { transition: background 0.15s; }
     .intent-table tbody tr:hover { background: rgba(47,158,104,0.05); }
     body.dark-mode .intent-table tbody tr:hover { background: rgba(47,158,104,0.1); }
     .intent-table tbody tr:last-child td { border-bottom: none; }
-    .tbl-seq { font-size: 0.68rem; font-weight: 800; color: var(--text-light); width: 28px; text-align: center; }
-    .tbl-name { font-weight: 800; font-size: 0.88rem; white-space: nowrap; }
-    .tbl-phone-wrap { display: inline-flex; align-items: center; gap: 4px; font-family: monospace; font-size: 0.8rem; color: var(--text-soft); }
+    /* 固定宽度列：其余列压缩到最小，把空间留给沟通记录 */
+    .tbl-col-seq    { width: 32px; }
+    .tbl-col-name   { width: 72px; }
+    .tbl-col-phone  { width: 110px; }
+    .tbl-col-tag    { width: 100px; }
+    .tbl-col-note   { width: auto; }  /* 贪婪列，自动占满剩余宽度 */
+    .tbl-col-time   { width: 68px; }
+    .tbl-col-action { width: 38px; }
+    .tbl-seq { font-size: 0.68rem; font-weight: 800; color: var(--text-light); text-align: center; }
+    .tbl-name { font-weight: 800; font-size: 0.88rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .tbl-phone-wrap { display: inline-flex; align-items: center; gap: 4px; font-family: monospace; font-size: 0.78rem; color: var(--text-soft); flex-wrap: nowrap; }
     .tbl-tag { display: inline-block; padding: 2px 7px; border-radius: 20px; font-size: 0.68rem; font-weight: 700; white-space: nowrap; }
     .tbl-tag-company { background: rgba(44,125,160,0.12); color: var(--accent-wechat); }
     .tbl-tag-fund { background: rgba(255,154,60,0.15); color: #c97a00; }
     body.dark-mode .tbl-tag-fund { color: #ffb347; }
-    .tbl-note-cell { max-width: 180px; }
-    .tbl-note-text { color: var(--text-soft); font-size: 0.78rem; font-weight: 500; line-height: 1.4; word-break: break-word; }
-    .tbl-time { font-size: 0.7rem; color: var(--text-light); white-space: nowrap; }
-    .tbl-action { text-align: center; width: 32px; }
+    /* 沟通记录列：大字、左对齐、自由换行、高对比度 */
+    .tbl-note-cell { padding-top: 10px !important; padding-bottom: 10px !important; }
+    .tbl-note-text { color: var(--text-main); font-size: 0.85rem; font-weight: 600; line-height: 1.65; word-break: break-word; white-space: pre-wrap; text-align: left; }
+    .tbl-note-empty { color: var(--text-light); font-size: 0.72rem; font-style: italic; }
+    .tbl-time { font-size: 0.7rem; color: var(--text-light); white-space: nowrap; padding-top: 12px !important; }
+    .tbl-action { text-align: center; padding-top: 10px !important; }
     .edit-note-btn { font-size: 0.78rem; background: transparent; border: 1px solid var(--accent-wechat); color: var(--accent-wechat); border-radius: 50%; cursor: pointer; width: 26px; height: 26px; padding: 0; display: inline-flex; justify-content: center; align-items: center; font-weight: 700; transition: all 0.2s; }
     .edit-note-btn:hover { background: var(--accent-wechat); color: #fff; transform: scale(1.1); }
-    .tbl-note-edit-wrap { display: flex; flex-direction: column; gap: 4px; }
-    .tbl-note-edit-wrap textarea { width: 100%; min-height: 44px; background: var(--btn-bg); border: 1px solid var(--card-border); border-radius: 6px; padding: 5px 8px; font-size: 0.75rem; color: var(--text-main); outline: none; font-weight: 600; resize: vertical; }
-    .tbl-note-edit-wrap textarea:focus { border-color: var(--accent-wechat); }
+    .tbl-note-edit-wrap { display: flex; flex-direction: column; gap: 6px; }
+    .tbl-note-edit-wrap textarea { width: 100%; min-height: 80px; background: var(--btn-bg); border: 1.5px solid var(--accent-wechat); border-radius: 6px; padding: 8px 10px; font-size: 0.85rem; color: var(--text-main); outline: none; font-weight: 600; resize: vertical; line-height: 1.65; }
+    .tbl-note-edit-wrap textarea:focus { box-shadow: 0 0 0 3px rgba(44,125,160,0.15); }
     .tbl-note-edit-btns { display: flex; gap: 5px; }
-    .tbl-save-btn { font-size: 0.65rem; background: var(--accent-wechat); color: #fff; border: none; border-radius: 6px; cursor: pointer; padding: 3px 10px; font-weight: 700; }
+    .tbl-save-btn { font-size: 0.65rem; background: var(--accent-wechat); color: #fff; border: none; border-radius: 6px; cursor: pointer; padding: 4px 12px; font-weight: 700; }
     .tbl-cancel-btn { font-size: 0.65rem; background: var(--btn-bg); border: 1px solid var(--card-border); color: var(--text-soft); border-radius: 6px; cursor: pointer; padding: 3px 10px; font-weight: 700; }
     /* ===== 待办卡片（保留原样式） ===== */
     .todo-card-item { display: flex; align-items: flex-start; gap: 10px; padding: 10px 14px; background: var(--btn-bg); border-radius: var(--radius-xs); border: 1px solid var(--card-border); font-size: 0.82rem; font-weight: 600; color: var(--text-main); }
@@ -1197,6 +1207,7 @@ export default {
         html += '<div class="modal-section-title">🎯 意向客户 <span style="font-size:0.7rem;color:var(--accent-intent);margin-left:4px;font-weight:800;">'+clients_in_tl.length+'人</span></div>';
         html += '<div style="overflow-x:auto;border-radius:var(--radius-sm);border:1px solid var(--border-light);">';
         html += '<table class="intent-table">';
+        html += '<colgroup><col class="tbl-col-seq"><col class="tbl-col-name"><col class="tbl-col-phone"><col class="tbl-col-tag"><col class="tbl-col-note"><col class="tbl-col-time"><col class="tbl-col-action"></colgroup>';
         html += '<thead><tr>';
         html += '<th class="tbl-seq">#</th>';
         html += '<th>姓名</th>';
@@ -1217,10 +1228,10 @@ export default {
           if(!e.company&&!e.fund) html += '<span style="color:var(--text-light);font-size:0.72rem;">—</span>';
           html += '</div></td>';
           html += '<td class="tbl-note-cell"><div id="cn_'+e.idx+'">';
-          html += '<div class="tbl-note-text">'+(e.note?'📝 '+esc(e.note):'<span style="color:var(--text-light);font-size:0.72rem;">—</span>')+'</div>';
+          html += '<div class="tbl-note-text">'+(e.note?esc(e.note):'<span class="tbl-note-empty">点击 ✎ 添加沟通记录…</span>')+'</div>';
           html += '</div></td>';
           html += '<td class="tbl-time">'+(e.time?'⏰ '+esc(e.time):'<span style="color:var(--text-light);">—</span>')+'</td>';
-          html += '<td class="tbl-action"><button class="edit-note-btn" title="'+(e.note?'修改备注':'添加备注')+'" data-idx="'+e.idx+'">✎</button></td>';
+          html += '<td class="tbl-action"><button class="edit-note-btn" title="'+(e.note?'修改记录':'添加记录')+'" data-idx="'+e.idx+'">✎</button></td>';
           html += '</tr>';
         });
         html += '</tbody></table></div></div>';
