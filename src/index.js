@@ -535,27 +535,50 @@ export default {
     .tooltip-simple.show { opacity: 1; }
     .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--modal-bg); backdrop-filter: blur(10px); z-index: 2000; display: flex; align-items: center; justify-content: center; visibility: hidden; opacity: 0; transition: 0.2s; }
     .modal-overlay.active { visibility: visible; opacity: 1; }
-    .modal-card { background: var(--modal-card); border-radius: var(--radius-ios); width: 380px; max-width: 90vw; max-height: 70vh; padding: 20px; box-shadow: 0 20px 35px rgba(0,0,0,0.2); border: 1px solid var(--card-border); display: flex; flex-direction: column; gap: 12px; color: var(--text-main); }
-    .modal-header { display: flex; justify-content: space-between; align-items: center; font-weight: 700; font-size: 1.1rem; border-bottom: 1px solid var(--border-light); padding-bottom: 8px; }
+    .modal-card { background: var(--modal-card); border-radius: var(--radius-ios); width: 720px; max-width: 95vw; max-height: 82vh; padding: 24px 28px; box-shadow: 0 24px 48px rgba(0,0,0,0.22); border: 1px solid var(--card-border); display: flex; flex-direction: column; gap: 16px; color: var(--text-main); }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; font-weight: 700; font-size: 1.1rem; border-bottom: 1px solid var(--border-light); padding-bottom: 10px; }
     .modal-header button { background: none; border: none; font-size: 1.2rem; cursor: pointer; color: var(--text-soft); font-weight: 700; }
-    .client-modal-list { overflow-y: auto; display: flex; flex-direction: column; gap: 14px; max-height: 50vh; padding-left: 14px; padding-top: 10px; position: relative; }
-    .client-modal-list::before { content: ''; position: absolute; left: 18px; top: 14px; bottom: 0; width: 2px; background: var(--border-light); z-index: 0; }
-    .modal-client-item { position: relative; background: var(--btn-bg); border-radius: var(--radius-sm); padding: 14px 16px; border: 1px solid var(--card-border); z-index: 1; margin-left: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); }
-    .modal-client-item::before { content: ''; position: absolute; left: -31px; top: 18px; width: 10px; height: 10px; border-radius: 50%; box-shadow: 0 0 0 3px var(--card-bg); z-index: 2; }
-    .modal-client-item.intent-item::before { background: var(--accent-intent); }
-    .modal-client-item.todo-item::before { background: var(--accent-wechat); }
-    .modal-client-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; }
-    .modal-client-title-group { display: flex; flex-direction: column; gap: 3px; }
-    .modal-client-name { font-weight: 800; font-size: 0.95rem; color: var(--text-main); display: flex; align-items: center; gap: 6px; }
-    .modal-client-phone-wrapper { font-size: 0.75rem; color: var(--text-soft); font-weight: 600; padding: 2px 6px; background: rgba(0,0,0,0.03); border-radius: 4px; display: inline-flex; align-items: center; gap: 4px; }
-    .modal-client-phone { font-family: monospace; font-size: 0.8rem; }
-    .modal-client-time { font-size: 0.7rem; color: var(--text-light); font-weight: 600; display: flex; align-items: center; gap: 4px; }
-    .modal-client-note { font-size: 0.8rem; color: var(--text-soft); line-height: 1.5; background: rgba(0,0,0,0.02); padding: 8px 10px; border-radius: 6px; margin-top: 8px; font-weight: 500; }
-    .edit-note-btn { font-size: 0.85rem; background: transparent; border: 1px solid var(--accent-wechat); color: var(--accent-wechat); border-radius: 50%; cursor: pointer; width: 24px; height: 24px; padding: 0; display: inline-flex; justify-content: center; align-items: center; font-weight: 600; transition: all 0.2s; }
-    .edit-note-btn:hover { background: var(--accent-wechat); color: #fff; }
+    .modal-header-meta { display: flex; align-items: center; gap: 14px; }
+    .modal-section-title { font-size: 0.78rem; font-weight: 700; color: var(--text-soft); letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+    .modal-section-title::after { content: ''; flex: 1; height: 1px; background: var(--border-light); }
+    .client-modal-list { overflow-y: auto; display: flex; flex-direction: column; gap: 16px; max-height: 62vh; padding-top: 2px; position: relative; }
+    /* ===== 意向客户表格 ===== */
+    .intent-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+    .intent-table thead tr { background: linear-gradient(90deg, rgba(47,158,104,0.12) 0%, rgba(47,158,104,0.06) 100%); border-bottom: 2px solid rgba(47,158,104,0.25); }
+    body.dark-mode .intent-table thead tr { background: linear-gradient(90deg, rgba(47,158,104,0.18) 0%, rgba(47,158,104,0.08) 100%); }
+    .intent-table th { padding: 9px 12px; font-size: 0.72rem; font-weight: 800; color: var(--accent-intent); letter-spacing: 0.4px; text-align: left; white-space: nowrap; }
+    .intent-table td { padding: 10px 12px; border-bottom: 1px solid var(--border-light); vertical-align: middle; color: var(--text-main); font-weight: 600; }
+    .intent-table tbody tr { transition: background 0.15s; }
+    .intent-table tbody tr:hover { background: rgba(47,158,104,0.05); }
+    body.dark-mode .intent-table tbody tr:hover { background: rgba(47,158,104,0.1); }
+    .intent-table tbody tr:last-child td { border-bottom: none; }
+    .tbl-seq { font-size: 0.68rem; font-weight: 800; color: var(--text-light); width: 28px; text-align: center; }
+    .tbl-name { font-weight: 800; font-size: 0.88rem; white-space: nowrap; }
+    .tbl-phone-wrap { display: inline-flex; align-items: center; gap: 4px; font-family: monospace; font-size: 0.8rem; color: var(--text-soft); }
+    .tbl-tag { display: inline-block; padding: 2px 7px; border-radius: 20px; font-size: 0.68rem; font-weight: 700; white-space: nowrap; }
+    .tbl-tag-company { background: rgba(44,125,160,0.12); color: var(--accent-wechat); }
+    .tbl-tag-fund { background: rgba(255,154,60,0.15); color: #c97a00; }
+    body.dark-mode .tbl-tag-fund { color: #ffb347; }
+    .tbl-note-cell { max-width: 180px; }
+    .tbl-note-text { color: var(--text-soft); font-size: 0.78rem; font-weight: 500; line-height: 1.4; word-break: break-word; }
+    .tbl-time { font-size: 0.7rem; color: var(--text-light); white-space: nowrap; }
+    .tbl-action { text-align: center; width: 32px; }
+    .edit-note-btn { font-size: 0.78rem; background: transparent; border: 1px solid var(--accent-wechat); color: var(--accent-wechat); border-radius: 50%; cursor: pointer; width: 26px; height: 26px; padding: 0; display: inline-flex; justify-content: center; align-items: center; font-weight: 700; transition: all 0.2s; }
+    .edit-note-btn:hover { background: var(--accent-wechat); color: #fff; transform: scale(1.1); }
+    .tbl-note-edit-wrap { display: flex; flex-direction: column; gap: 4px; }
+    .tbl-note-edit-wrap textarea { width: 100%; min-height: 44px; background: var(--btn-bg); border: 1px solid var(--card-border); border-radius: 6px; padding: 5px 8px; font-size: 0.75rem; color: var(--text-main); outline: none; font-weight: 600; resize: vertical; }
+    .tbl-note-edit-wrap textarea:focus { border-color: var(--accent-wechat); }
+    .tbl-note-edit-btns { display: flex; gap: 5px; }
+    .tbl-save-btn { font-size: 0.65rem; background: var(--accent-wechat); color: #fff; border: none; border-radius: 6px; cursor: pointer; padding: 3px 10px; font-weight: 700; }
+    .tbl-cancel-btn { font-size: 0.65rem; background: var(--btn-bg); border: 1px solid var(--card-border); color: var(--text-soft); border-radius: 6px; cursor: pointer; padding: 3px 10px; font-weight: 700; }
+    /* ===== 待办卡片（保留原样式） ===== */
+    .todo-card-item { display: flex; align-items: flex-start; gap: 10px; padding: 10px 14px; background: var(--btn-bg); border-radius: var(--radius-xs); border: 1px solid var(--card-border); font-size: 0.82rem; font-weight: 600; color: var(--text-main); }
+    .todo-card-icon { font-size: 1rem; flex-shrink: 0; margin-top: 1px; }
+    .todo-card-text { flex: 1; line-height: 1.5; word-break: break-word; }
+    .todo-card-time { font-size: 0.68rem; color: var(--text-light); white-space: nowrap; margin-top: 2px; }
     .phone-toggle { background: none; border: none; font-size: 0.8rem; cursor: pointer; opacity: 0.6; transition: opacity 0.2s; padding: 0; outline: none; }
     .phone-toggle:hover { opacity: 1; }
-    .empty-clients { text-align: center; color: var(--text-light); padding: 20px; font-size: 0.8rem; font-weight: 600; }
+    .empty-clients { text-align: center; color: var(--text-light); padding: 30px 20px; font-size: 0.85rem; font-weight: 600; }
     .register-block { display: flex; flex-direction: column; gap: 12px; }
     .form-line { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
     .input-simple { flex: 1; background: var(--btn-bg); border: 1px solid var(--card-border); border-radius: var(--radius-xs); padding: 10px 16px; font-size: 0.85rem; color: var(--text-main); outline: none; min-width: 0; font-weight: 600; }
@@ -1158,39 +1181,64 @@ export default {
     todoLog.forEach(t=>{const txt=typeof t==='string'?t:t.text;const tm=t&&t.time?t.time:'';const tp=t.type==='tomorrow'?' (明日)':'';if(txt)timeline.push({type:'todo',time:tm,text:txt+tp});});
     timeline.sort((a,b)=>(a.time||'').localeCompare(b.time||''));
     function renderTl(){
-      document.getElementById('modalClientList').innerHTML=timeline.length===0?'<div class="empty-clients">📭 当日无记录</div>':timeline.map(e=>{
-        if(e.type==='client'){
-          return '<div class="modal-client-item intent-item">' +
-              '<div class="modal-client-header">' +
-                '<div class="modal-client-title-group">' +
-                  '<span class="modal-client-name">🎯 ' + esc(e.name) + '</span>' +
-                  '<div style="display:flex;align-items:center;gap:6px;margin-top:4px;">' +
-                    '<div class="modal-client-phone-wrapper">📞 <span class="modal-client-phone" data-full="' + esc(e.phone) + '">' + esc(maskPhone(e.phone)) + '</span> <button class="phone-toggle" title="显示号码">👁</button></div>' +
-                  '</div>' +
-                  (e.company ? '<div style="font-size:0.8rem;color:var(--text-soft);margin-top:4px;font-weight:600;">🏢 ' + esc(e.company) + '</div>' : '') +
-                  (e.fund ? '<div style="font-size:0.8rem;color:var(--text-soft);margin-top:2px;font-weight:600;">💰 ' + esc(e.fund) + '</div>' : '') +
-                '</div>' +
-                (e.time ? '<div class="modal-client-time">⏰ ' + esc(e.time) + '</div>' : '') +
-              '</div>' +
-              '<div id="cn_' + e.idx + '">' +
-                (e.note ? '<div class="modal-client-note">📝 ' + esc(e.note) + '</div>' : '') +
-                '<div style="margin-top:8px;text-align:right;">' +
-                  '<button class="edit-note-btn" title="' + (e.note ? '修改备注' : '添加备注') + '" data-idx="' + e.idx + '">✎</button>' +
-                '</div>' +
-              '</div>' +
-            '</div>';
-        }else{
-          return '<div class="modal-client-item todo-item">' +
-              '<div class="modal-client-header">' +
-                '<div class="modal-client-title-group">' +
-                  '<span class="modal-client-name" style="color:var(--accent-wechat);">✅ 待办事项</span>' +
-                  '<div style="font-size:0.85rem;color:var(--text-main);margin-top:4px;font-weight:600;line-height:1.4;">' + esc(e.text) + '</div>' +
-                '</div>' +
-                (e.time ? '<div class="modal-client-time">⏰ ' + esc(e.time) + '</div>' : '') +
-              '</div>' +
-            '</div>';
-        }
-      }).join('');
+      const clients_in_tl = timeline.filter(e=>e.type==='client');
+      const todos_in_tl   = timeline.filter(e=>e.type==='todo');
+
+      if(timeline.length===0){
+        document.getElementById('modalClientList').innerHTML='<div class="empty-clients">📭 当日无记录</div>';
+        return;
+      }
+
+      let html = '';
+
+      // ===== 意向客户表格区 =====
+      if(clients_in_tl.length>0){
+        html += '<div>';
+        html += '<div class="modal-section-title">🎯 意向客户 <span style="font-size:0.7rem;color:var(--accent-intent);margin-left:4px;font-weight:800;">'+clients_in_tl.length+'人</span></div>';
+        html += '<div style="overflow-x:auto;border-radius:var(--radius-sm);border:1px solid var(--border-light);">';
+        html += '<table class="intent-table">';
+        html += '<thead><tr>';
+        html += '<th class="tbl-seq">#</th>';
+        html += '<th>姓名</th>';
+        html += '<th>电话</th>';
+        html += '<th>公司 / 基金</th>';
+        html += '<th class="tbl-note-cell">沟通记录</th>';
+        html += '<th>时间</th>';
+        html += '<th class="tbl-action">编辑</th>';
+        html += '</tr></thead><tbody>';
+        clients_in_tl.forEach((e,i)=>{
+          html += '<tr>';
+          html += '<td class="tbl-seq">'+(i+1)+'</td>';
+          html += '<td class="tbl-name">'+esc(e.name)+'</td>';
+          html += '<td><div class="tbl-phone-wrap"><span class="modal-client-phone" data-full="'+esc(e.phone)+'">'+esc(maskPhone(e.phone))+'</span><button class="phone-toggle" title="显示号码">👁</button></div></td>';
+          html += '<td><div style="display:flex;flex-direction:column;gap:4px;">';
+          if(e.company) html += '<span class="tbl-tag tbl-tag-company">🏢 '+esc(e.company)+'</span>';
+          if(e.fund)    html += '<span class="tbl-tag tbl-tag-fund">💰 '+esc(e.fund)+'</span>';
+          if(!e.company&&!e.fund) html += '<span style="color:var(--text-light);font-size:0.72rem;">—</span>';
+          html += '</div></td>';
+          html += '<td class="tbl-note-cell"><div id="cn_'+e.idx+'">';
+          html += '<div class="tbl-note-text">'+(e.note?'📝 '+esc(e.note):'<span style="color:var(--text-light);font-size:0.72rem;">—</span>')+'</div>';
+          html += '</div></td>';
+          html += '<td class="tbl-time">'+(e.time?'⏰ '+esc(e.time):'<span style="color:var(--text-light);">—</span>')+'</td>';
+          html += '<td class="tbl-action"><button class="edit-note-btn" title="'+(e.note?'修改备注':'添加备注')+'" data-idx="'+e.idx+'">✎</button></td>';
+          html += '</tr>';
+        });
+        html += '</tbody></table></div></div>';
+      }
+
+      // ===== 待办事项区 =====
+      if(todos_in_tl.length>0){
+        html += '<div style="margin-top:'+(clients_in_tl.length>0?'4px':'0')+'">';
+        html += '<div class="modal-section-title">✅ 待办事项 <span style="font-size:0.7rem;color:var(--accent-wechat);margin-left:4px;font-weight:800;">'+todos_in_tl.length+'条</span></div>';
+        html += '<div style="display:flex;flex-direction:column;gap:6px;">';
+        todos_in_tl.forEach(e=>{
+          html += '<div class="todo-card-item"><span class="todo-card-icon">📌</span><div style="flex:1;"><div class="todo-card-text">'+esc(e.text)+'</div>'+(e.time?'<div class="todo-card-time">⏰ '+esc(e.time)+'</div>':'')+'</div></div>';
+        });
+        html += '</div></div>';
+      }
+
+      document.getElementById('modalClientList').innerHTML = html;
+
       bindEditBtns();
       document.querySelectorAll('#modalClientList .phone-toggle').forEach(b=>b.addEventListener('click',e=>{
         e.stopPropagation();
@@ -1216,7 +1264,7 @@ export default {
           const old=ti.note||'';
           const noteDiv=document.getElementById('cn_'+idx);
           if(!noteDiv)return;
-          noteDiv.innerHTML='<textarea id="ein_'+idx+'" style="width:100%;min-height:50px;background:var(--btn-bg);border:1px solid var(--card-border);border-radius:8px;padding:6px 10px;font-size:0.75rem;color:var(--text-main);outline:none;font-weight:600;">'+esc(old)+'</textarea><div style="display:flex;gap:6px;margin-top:4px;"><button id="sn_'+idx+'" style="font-size:0.65rem;background:var(--accent-wechat);color:#fff;border:none;border-radius:8px;cursor:pointer;padding:3px 10px;">保存</button><button id="cn_btn_'+idx+'" style="font-size:0.65rem;background:var(--btn-bg);border:1px solid var(--card-border);color:var(--text-soft);border-radius:8px;cursor:pointer;padding:3px 10px;">取消</button></div>';
+          noteDiv.innerHTML='<div class="tbl-note-edit-wrap"><textarea id="ein_'+idx+'">'+esc(old)+'</textarea><div class="tbl-note-edit-btns"><button id="sn_'+idx+'" class="tbl-save-btn">保存</button><button id="cn_btn_'+idx+'" class="tbl-cancel-btn">取消</button></div></div>';
           document.getElementById('sn_'+idx).onclick=async ()=>{
             const nn=document.getElementById('ein_'+idx).value.trim();
             ti.note=nn;
