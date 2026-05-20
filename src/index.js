@@ -1204,7 +1204,7 @@ export default {
         html += '<th class="tbl-seq">#</th>';
         html += '<th>姓名</th>';
         html += '<th>电话</th>';
-        html += '<th>公司 / 基金</th>';
+        html += '<th>公司 / 公积金</th>';
         html += '<th class="tbl-note-cell">沟通记录</th>';
         html += '<th>时间</th>';
         html += '<th class="tbl-action">编辑</th>';
@@ -1216,7 +1216,7 @@ export default {
           html += '<td><div class="tbl-phone-wrap"><span class="modal-client-phone" data-full="'+esc(e.phone)+'">'+esc(maskPhone(e.phone))+'</span><button class="phone-toggle" title="显示号码">👁</button></div></td>';
           html += '<td><div style="display:flex;flex-direction:column;gap:4px;">';
           if(e.company) html += '<span class="tbl-tag tbl-tag-company">🏢 '+esc(e.company)+'</span>';
-          if(e.fund)    html += '<span class="tbl-tag tbl-tag-fund">💰 '+esc(e.fund)+'</span>';
+          if(e.fund)    html += '<span class="tbl-tag tbl-tag-fund">🏦 '+esc(e.fund)+'</span>';
           if(!e.company&&!e.fund) html += '<span style="color:var(--text-light);font-size:0.72rem;">—</span>';
           html += '</div></td>';
           html += '<td class="tbl-note-cell"><div id="cn_'+e.idx+'">';
