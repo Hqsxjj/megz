@@ -535,13 +535,13 @@ export default {
     .tooltip-simple.show { opacity: 1; }
     .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--modal-bg); backdrop-filter: blur(10px); z-index: 2000; display: flex; align-items: center; justify-content: center; visibility: hidden; opacity: 0; transition: 0.2s; }
     .modal-overlay.active { visibility: visible; opacity: 1; }
-    .modal-card { background: var(--modal-card); border-radius: var(--radius-ios); width: 720px; max-width: 95vw; max-height: 82vh; padding: 24px 28px; box-shadow: 0 24px 48px rgba(0,0,0,0.22); border: 1px solid var(--card-border); display: flex; flex-direction: column; gap: 16px; color: var(--text-main); }
+    .modal-card { background: var(--modal-card); border-radius: var(--radius-ios); width: 1100px; max-width: 98vw; max-height: 90vh; padding: 24px 32px; box-shadow: 0 24px 60px rgba(0,0,0,0.25); border: 1px solid var(--card-border); display: flex; flex-direction: column; gap: 16px; color: var(--text-main); }
     .modal-header { display: flex; justify-content: space-between; align-items: center; font-weight: 700; font-size: 1.1rem; border-bottom: 1px solid var(--border-light); padding-bottom: 10px; }
     .modal-header button { background: none; border: none; font-size: 1.2rem; cursor: pointer; color: var(--text-soft); font-weight: 700; }
     .modal-header-meta { display: flex; align-items: center; gap: 14px; }
     .modal-section-title { font-size: 0.78rem; font-weight: 700; color: var(--text-soft); letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
     .modal-section-title::after { content: ''; flex: 1; height: 1px; background: var(--border-light); }
-    .client-modal-list { overflow-y: auto; display: flex; flex-direction: column; gap: 16px; max-height: 62vh; padding-top: 2px; position: relative; }
+    .client-modal-list { overflow-y: auto; display: flex; flex-direction: column; gap: 16px; max-height: 75vh; padding-top: 2px; position: relative; }
     /* ===== 意向客户表格 ===== */
     .intent-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; table-layout: fixed; }
     .intent-table thead tr { background: linear-gradient(90deg, rgba(47,158,104,0.12) 0%, rgba(47,158,104,0.06) 100%); border-bottom: 2px solid rgba(47,158,104,0.25); }
