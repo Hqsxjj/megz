@@ -497,8 +497,8 @@ export default {
 	    .menu-item { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: transparent; border: none; border-radius: var(--radius-xs); cursor: pointer; font-size: 0.8rem; font-weight: 600; color: var(--text-main); white-space: nowrap; transition: background 0.15s; width: 100%; text-align: left; }
 	    .menu-item:hover { background: var(--btn-hover); }
     .two-columns { display: flex; gap: 20px; flex: 1; min-height: 0; }
-    .left-area { flex: 1.2; display: flex; flex-direction: column; gap: 16px; min-width: 0; }
-    .right-area { flex: 2.2; display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+    .left-area { flex: 1; display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+    .right-area { flex: 2; display: flex; flex-direction: column; gap: 16px; min-width: 0; }
     .card { background: var(--card-bg); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-radius: var(--radius-ios); border: 1px solid var(--card-border); box-shadow: var(--shadow-card); padding: 18px 20px; }
     .counter-row { display: flex; gap: 14px; }
     .counter-card { flex: 1; border-radius: var(--radius-sm); padding: 12px; border: 1px solid var(--card-border); position: relative; overflow: hidden; }
@@ -649,6 +649,13 @@ export default {
       .time-input-compact { flex: 0 0 84px !important; min-width: 84px !important; padding: 0 4px !important; }
       .client-row { padding: 8px 12px; font-size: 0.8rem; }
       .todo-item { padding: 6px 10px; font-size: 0.8rem; }
+      /* PC/desktop monthly calendar font size increases */
+      .cal-head { font-size: 0.95rem; margin-bottom: 12px; }
+      .cal-weekday { font-size: 0.8rem; padding: 6px 0; }
+      .cal-day { font-size: 0.82rem; }
+      .day-number { font-size: 0.94rem; }
+      .day-badge { font-size: 0.65rem; margin-top: 4px; gap: 4px; }
+      .day-badge span { padding: 1px 4px; }
     }
     @media (min-width: 1024px) {
       .right-area {
