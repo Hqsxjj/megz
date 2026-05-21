@@ -26,9 +26,11 @@ export default {
         clients: [],
         todayTodos: [],
         tomorrowTodos: [],
+        tempClients: [],
         lastLoadDate: date
       };
       if (!data.lastLoadDate) data.lastLoadDate = date;
+      if (!data.tempClients) data.tempClients = [];
       return new Response(JSON.stringify(data), {
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
       });
@@ -40,7 +42,7 @@ export default {
       const items = Array.isArray(body) ? body : [body];
       let hasError = false;
       for (const item of items) {
-        const { date, wechatCount, intentCount, revisitCount, clients, todayTodos, tomorrowTodos, scripts, learns, todoLog, _ts } = item;
+        const { date, wechatCount, intentCount, revisitCount, clients, todayTodos, tomorrowTodos, tempClients, scripts, learns, todoLog, _ts } = item;
         if (!date) { hasError = true; continue; }
         // 读取云端现有数据
         const rawExisting = await env.DATA_KV.get(`work:${date}`);
@@ -62,6 +64,7 @@ export default {
           clients: mergedClients,
           todayTodos: todayTodos || existing.todayTodos || [],
           tomorrowTodos: tomorrowTodos || existing.tomorrowTodos || [],
+          tempClients: tempClients || existing.tempClients || [],
           scripts: scripts || existing.scripts || [],
           learns: learns || existing.learns || [],
           todoLog: todoLog || existing.todoLog || [],
@@ -95,8 +98,9 @@ export default {
       const raw = await env.DATA_KV.get(`work:${date}`);
       const data = raw ? JSON.parse(raw) : {
         date, wechatCount: 0, intentCount: 0, revisitCount: 0, clients: [],
-        todayTodos: [], tomorrowTodos: [], scripts: [], learns: [], todoLog: []
+        todayTodos: [], tomorrowTodos: [], tempClients: [], scripts: [], learns: [], todoLog: []
       };
+      if (!data.tempClients) data.tempClients = [];
       const ts = Date.now();
       switch (op) {
         case 'incWechat': {
@@ -146,6 +150,9 @@ export default {
           break;
         case 'setTomorrowTodos':
           data.tomorrowTodos = body.todos || [];
+          break;
+        case 'setTempClients':
+          data.tempClients = body.tempClients || [];
           break;
         case 'pushTodoLog':
           if (body.todo) {
@@ -767,6 +774,15 @@ export default {
           </div>
         </div>
         <div class="card">
+          <div style="font-weight:700;margin-bottom:14px;font-size:0.9rem;">⏳ 临时登记 (待晚上回访)</div>
+          <div class="register-block">
+            <div class="form-line"><input type="text" class="input-simple" id="tempCustName" placeholder="姓名" autocomplete="off"><input type="text" class="input-simple" id="tempCustPhone" placeholder="电话/联系方式" autocomplete="off"></div>
+            <input type="text" class="input-simple" id="tempCustNote" placeholder="回访备注/待聊内容" autocomplete="off">
+            <button class="btn-add" id="addTempCustBtn" style="background:var(--accent-wechat);">+ 登记</button>
+            <div class="client-scroll" id="tempClientList"></div>
+          </div>
+        </div>
+        <div class="card">
           <div class="todo-section">
             <div class="todo-title">✅ 今日待办</div>
             <div class="todo-list" id="todayTodoList"></div>
@@ -830,6 +846,7 @@ export default {
   const WECHAT_K='wechat_v3', INTENT_K='intent_v3', CLIENTS_K='clients_v3', REVISIT_K='revisit_v1';
   const DARK_K='dark_mode', LOCK_K='locked', TODAY_TODO_K='today_todo_v2', TOMORROW_TODO_K='tomorrow_todo_v2';
   const LAST_LOAD_DATE_K='last_load_date_v1', WALLPAPER_K='wp_cache', SCRIPTS_K='scripts_v1', LEARN_K='learn_v1', LOCAL_TS_K='local_ts_v1';
+  const TEMP_CLIENTS_K='temp_clients_v1';
   const OP_QUEUE_K='op_queue_v1'; // 操作队列：持久化到 localStorage，页面关闭后下次打开继续补发
   const DEFAULT_PIN='8520';
   const PULL_INTERVAL=15000; // 15秒拉一次，加快跨设备更新
@@ -950,6 +967,7 @@ export default {
         if(d===today){
           item.todayTodos=loadTodos(TODAY_TODO_K).filter(t=>(typeof t==='string'?today:(t.date||today))===today);
           item.tomorrowTodos=loadTodos(TOMORROW_TODO_K).filter(t=>(typeof t==='string'?today:(t.date||today))===today);
+          item.tempClients=JSON.parse(localStorage.getItem(TEMP_CLIENTS_K)||'[]');
           item.scripts=scripts;
           item.learns=learns;
         }
@@ -968,6 +986,7 @@ export default {
         clients:todayClients,
         todayTodos:loadTodos(TODAY_TODO_K).filter(t=>(typeof t==='string'?today:(t.date||today))===today),
         tomorrowTodos:loadTodos(TOMORROW_TODO_K).filter(t=>(typeof t==='string'?today:(t.date||today))===today),
+        tempClients:JSON.parse(localStorage.getItem(TEMP_CLIENTS_K)||'[]'),
         _ts:Date.now()
       };
       localStorage.setItem(LOCAL_TS_K,data._ts);
@@ -1006,6 +1025,8 @@ export default {
       // 待办：云端版本为准（通过 setTodayTodos/setTomorrowTodos 原子同步）
       if(data.todayTodos!==undefined)saveTodos(TODAY_TODO_K,data.todayTodos);
       if(data.tomorrowTodos!==undefined)saveTodos(TOMORROW_TODO_K,data.tomorrowTodos);
+      // 临时登记：云端版本为准
+      if(data.tempClients!==undefined)localStorage.setItem(TEMP_CLIENTS_K,JSON.stringify(data.tempClients));
       // 话术/学习
       if(data.scripts!==undefined){saveScripts(data.scripts);renderLockScripts();}
       if(data.learns!==undefined){saveLearns(data.learns);renderLockLearns();}
@@ -1033,6 +1054,7 @@ export default {
     }
     if(data.todayTodos!==undefined)saveTodos(TODAY_TODO_K,data.todayTodos);
     if(data.tomorrowTodos!==undefined)saveTodos(TOMORROW_TODO_K,data.tomorrowTodos);
+    if(data.tempClients!==undefined)localStorage.setItem(TEMP_CLIENTS_K,JSON.stringify(data.tempClients));
     if(data.scripts!==undefined)saveScripts(data.scripts);
     if(data.learns!==undefined)saveLearns(data.learns);
     if(data.lastLoadDate)localStorage.setItem(LAST_LOAD_DATE_K,data.lastLoadDate);
@@ -1328,7 +1350,7 @@ export default {
     document.getElementById('monthRevisit').innerText=getMonthTotal(rm);
     const now=new Date();const wk=['周日','周一','周二','周三','周四','周五','周六'];
     document.getElementById('liveDate').innerHTML=(now.getMonth()+1)+'月'+now.getDate()+'日 '+wk[now.getDay()];
-    renderCalendar(wm,im);renderClientList();renderTodos();
+    renderCalendar(wm,im);renderClientList();renderTodos();renderTempClientList();
   }
 
   async function modCounter(key,delta,op){
@@ -1363,6 +1385,91 @@ export default {
     renderClientList();refreshAll();
     // 只用原子 syncOp，不再并发 saveFullState（避免竞态导致云端客户重复/覆盖）
     await syncOp('addClient',{client:newClient});
+  }
+
+  async function addTempClient(){
+    const n=document.getElementById('tempCustName').value.trim();
+    const p=document.getElementById('tempCustPhone').value.trim();
+    const nt=document.getElementById('tempCustNote').value.trim();
+    if(!n||!p){alert('请填写姓名和联系方式');return;}
+    const list=JSON.parse(localStorage.getItem(TEMP_CLIENTS_K)||'[]');
+    const today=getTodayStr(),time=getCurrentTime();
+    const newClient={name:n,phone:p,note:nt,date:today,time:time};
+    list.push(newClient);
+    localStorage.setItem(TEMP_CLIENTS_K,JSON.stringify(list));
+    document.getElementById('tempCustName').value='';
+    document.getElementById('tempCustPhone').value='';
+    document.getElementById('tempCustNote').value='';
+    renderTempClientList();
+    await syncOp('setTempClients',{tempClients:list});
+  }
+
+  function renderTempClientList(){
+    const list=JSON.parse(localStorage.getItem(TEMP_CLIENTS_K)||'[]');
+    const container = document.getElementById('tempClientList');
+    if(!container) return;
+    container.innerHTML=list.map((c,i)=>'<div class="client-row"><div class="client-info"><span class="client-name">'+esc(c.name)+'</span><span class="client-phone" data-full="'+esc(c.phone)+'">'+esc(maskPhone(c.phone))+'</span><button class="phone-toggle" title="显示号码">👁</button>'+(c.note?'<span class="client-note">📝 '+esc(c.note)+'</span>':'')+'<span class="client-time">⏰ '+esc(c.time||'')+'</span></div><div class="client-actions"><button class="btn-add convert-temp-btn" data-idx="'+i+'" style="font-size:0.7rem;padding:4px 8px;background:var(--accent-intent);margin-right:4px;" title="转为正式意向客户">转意向</button><button class="del-icon del-temp-btn" data-idx="'+i+'" title="删除">✕</button></div></div>').join('');
+    
+    // 绑定删除按钮
+    container.querySelectorAll('.del-temp-btn').forEach(b=>{
+      b.onclick=async function(){
+        const idx=parseInt(this.dataset.idx);
+        const a=JSON.parse(localStorage.getItem(TEMP_CLIENTS_K)||'[]');
+        a.splice(idx,1);
+        localStorage.setItem(TEMP_CLIENTS_K,JSON.stringify(a));
+        renderTempClientList();
+        await syncOp('setTempClients',{tempClients:a});
+      };
+    });
+
+    // 绑定转意向按钮
+    container.querySelectorAll('.convert-temp-btn').forEach(b=>{
+      b.onclick=async function(){
+        const idx=parseInt(this.dataset.idx);
+        const a=JSON.parse(localStorage.getItem(TEMP_CLIENTS_K)||'[]');
+        const c=a[idx];
+        
+        // 填充正式客户登记输入框
+        document.getElementById('custName').value=c.name;
+        document.getElementById('custPhone').value=c.phone;
+        document.getElementById('custNote').value=c.note||'';
+        document.getElementById('custCompany').value='';
+        document.getElementById('custFund').value='';
+        
+        // 从临时列表中删除
+        a.splice(idx,1);
+        localStorage.setItem(TEMP_CLIENTS_K,JSON.stringify(a));
+        renderTempClientList();
+        await syncOp('setTempClients',{tempClients:a});
+        
+        // 聚焦姓名输入框，方便用户补充单位/公积金并点击添加
+        document.getElementById('custName').focus();
+        
+        // 正式卡片微缩放动画高亮
+        const card = document.getElementById('custName').closest('.card');
+        if(card){
+          card.style.transform = 'scale(1.02)';
+          card.style.transition = 'all 0.3s';
+          setTimeout(() => card.style.transform = 'none', 500);
+        }
+      };
+    });
+
+    // 绑定手机号切换
+    container.querySelectorAll('.phone-toggle').forEach(b=>b.addEventListener('click',e=>{
+      e.stopPropagation();
+      const phoneSpan=b.previousElementSibling;
+      const full=phoneSpan.dataset.full;
+      if(phoneSpan.textContent===full){
+        phoneSpan.textContent=maskPhone(full);
+        b.title='显示号码';
+        b.textContent='👁';
+      }else{
+        phoneSpan.textContent=full;
+        b.title='隐藏号码';
+        b.textContent='🙈';
+      }
+    }));
   }
 
   async function addTodayTodo(){
@@ -1616,6 +1723,8 @@ export default {
   document.getElementById('todayTodoInput').addEventListener('keypress',e=>{if(e.key==='Enter')addTodayTodo();});
   document.getElementById('todoInput').addEventListener('keypress',e=>{if(e.key==='Enter')addTodo();});
   ['custName','custPhone','custCompany','custFund','custNote'].forEach(id=>document.getElementById(id).addEventListener('keypress',e=>{if(e.key==='Enter')addClient();}));
+  document.getElementById('addTempCustBtn').addEventListener('click',addTempClient);
+  ['tempCustName','tempCustPhone','tempCustNote'].forEach(id=>document.getElementById(id).addEventListener('keypress',e=>{if(e.key==='Enter')addTempClient();}));
   document.getElementById('closeModalBtn').addEventListener('click',()=>document.getElementById('dateModal').classList.remove('active'));
   document.getElementById('dateModal').addEventListener('click',e=>{if(e.target===document.getElementById('dateModal'))document.getElementById('dateModal').classList.remove('active');});
 
@@ -1723,6 +1832,7 @@ export default {
       clients:todayClients,
       todayTodos:loadTodos(TODAY_TODO_K).filter(t=>(typeof t==='string'?today:(t.date||today))===today),
       tomorrowTodos:loadTodos(TOMORROW_TODO_K).filter(t=>(typeof t==='string'?today:(t.date||today))===today),
+      tempClients:JSON.parse(localStorage.getItem(TEMP_CLIENTS_K)||'[]'),
       scripts:loadScripts(),
       learns:loadLearns(),
       _ts:Date.now()
