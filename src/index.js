@@ -589,11 +589,17 @@ export default {
     .phone-toggle { background: none; border: none; font-size: 0.8rem; cursor: pointer; opacity: 0.6; transition: opacity 0.2s; padding: 0; outline: none; }
     .phone-toggle:hover { opacity: 1; }
     .empty-clients { text-align: center; color: var(--text-light); padding: 30px 20px; font-size: 0.85rem; font-weight: 600; }
-    .register-block { display: flex; flex-direction: column; gap: 12px; }
-    .form-line { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-    .input-simple { flex: 1; background: var(--btn-bg); border: 1px solid var(--card-border); border-radius: var(--radius-xs); padding: 10px 16px; font-size: 0.85rem; color: var(--text-main); outline: none; min-width: 0; font-weight: 600; }
-    .input-simple:focus { border-color: var(--accent-wechat); }
-    .btn-add { background: var(--accent-intent); color: white; border: none; border-radius: var(--radius-xs); padding: 10px 22px; font-weight: 700; font-size: 0.85rem; cursor: pointer; white-space: nowrap; }
+    .card-title { font-weight: 700; font-size: 0.9rem; margin-bottom: 12px; color: var(--text-main); }
+    .register-block { display: flex; flex-direction: column; gap: 8px; }
+    .form-line { display: flex; gap: 8px; align-items: center; width: 100%; }
+    .input-simple, .todo-input { flex: 1; height: 38px; padding: 0 12px; font-size: 0.85rem; background: var(--btn-bg); border: 1px solid var(--card-border); border-radius: var(--radius-xs); color: var(--text-main); outline: none; min-width: 0; font-weight: 600; box-sizing: border-box; transition: all 0.2s; }
+    .input-simple:focus, .todo-input:focus { border-color: var(--accent-wechat); box-shadow: 0 0 0 3px rgba(44,125,160,0.15); }
+    .btn-add, .todo-add-btn { height: 38px; padding: 0 18px; font-size: 0.85rem; font-weight: 700; border: none; border-radius: var(--radius-xs); color: white; cursor: pointer; white-space: nowrap; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; transition: all 0.2s; }
+    .btn-add { background: var(--accent-intent); }
+    .todo-add-btn { background: var(--accent-wechat); }
+    .btn-add:hover, .todo-add-btn:hover { opacity: 0.92; transform: translateY(-1px); }
+    .btn-add:active, .todo-add-btn:active { transform: translateY(0); }
+    .time-input-compact { flex: 0 0 92px !important; min-width: 92px !important; padding: 0 6px !important; text-align: center; }
     .client-scroll { max-height: 220px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
     .client-row { background: var(--btn-bg); border-radius: var(--radius-sm); padding: 10px 14px; display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem; border: 1px solid var(--card-border); font-weight: 600; }
     .client-info { flex: 1; display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline; }
@@ -606,16 +612,11 @@ export default {
     .del-icon { background: none; border: none; font-size: 0.9rem; color: #c97a7a; cursor: pointer; width: 28px; height: 28px; border-radius: var(--radius-xs); font-weight: 700; }
     .edit-icon { background: none; border: none; font-size: 0.9rem; color: var(--accent-wechat); cursor: pointer; width: 28px; height: 28px; border-radius: var(--radius-xs); font-weight: 700; margin-right: 4px; }
     .client-actions { display: flex; align-items: center; gap: 4px; }
-    .todo-section { margin-top: 0; }
-    .todo-title { font-weight: 700; font-size: 0.9rem; margin-bottom: 10px; color: var(--text-main); }
-    .todo-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; max-height: 200px; overflow-y: auto; }
+    .todo-list { display: flex; flex-direction: column; gap: 8px; max-height: 200px; overflow-y: auto; }
     .todo-item { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: var(--btn-bg); border-radius: var(--radius-xs); border: 1px solid var(--card-border); font-size: 0.8rem; font-weight: 600; color: var(--text-main); }
     .todo-number { font-weight: 800; color: var(--accent-wechat); min-width: 20px; font-size: 0.85rem; }
     .todo-text { flex: 1; word-break: break-word; line-height: 1.4; }
-    .todo-input-row { display: flex; gap: 8px; align-items: center; }
-    .todo-input { flex: 1; background: var(--btn-bg); border: 1px solid var(--card-border); border-radius: var(--radius-xs); padding: 8px 14px; font-size: 0.8rem; color: var(--text-main); outline: none; font-weight: 600; }
-    .todo-input:focus { border-color: var(--accent-wechat); }
-    .todo-add-btn { background: var(--accent-wechat); color: white; border: none; border-radius: var(--radius-xs); padding: 8px 18px; font-weight: 700; font-size: 0.8rem; cursor: pointer; white-space: nowrap; }
+    .todo-input-row { display: flex; gap: 8px; align-items: center; width: 100%; }
     .todo-del-btn { background: none; border: none; color: #c97a7a; cursor: pointer; font-size: 0.85rem; padding: 0 4px; }
     .sync-indicator { display: flex; align-items: center; gap: 5px; background: rgba(255,255,255,0.08); border: 1.2px solid rgba(179,179,179,0.15); height: 38px; border-radius: var(--radius-xs); padding: 0 12px; cursor: pointer; font-size: 0.72rem; color: var(--text-soft); transition: all 0.2s cubic-bezier(0.34,1.56,0.64,1); user-select: none; font-weight: 700; backdrop-filter: blur(8px); white-space: nowrap; position: relative; }
     .sync-indicator:hover { background: rgba(255,255,255,0.12); transform: translateY(-2px) scale(1.02); border-color: rgba(179,179,179,0.25); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
@@ -642,13 +643,12 @@ export default {
       .reset-mini { font-size: 0.75rem; }
       .client-scroll { max-height: 200px; }
       .todo-list { max-height: 180px; }
-      .input-simple { padding: 8px 12px; font-size: 0.82rem; }
-      .btn-add { padding: 8px 16px; font-size: 0.82rem; }
+      .card-title { font-size: 0.85rem; margin-bottom: 10px; }
+      .input-simple, .todo-input { height: 34px; padding: 0 10px; font-size: 0.8rem; }
+      .btn-add, .todo-add-btn { height: 34px; padding: 0 14px; font-size: 0.8rem; }
+      .time-input-compact { flex: 0 0 84px !important; min-width: 84px !important; padding: 0 4px !important; }
       .client-row { padding: 8px 12px; font-size: 0.8rem; }
       .todo-item { padding: 6px 10px; font-size: 0.8rem; }
-      .todo-input { padding: 6px 10px; font-size: 0.8rem; }
-      .todo-add-btn { padding: 6px 12px; font-size: 0.8rem; }
-      .todo-title { font-size: 0.85rem; }
     }
     @media (min-width: 1024px) {
       .right-area {
@@ -789,7 +789,7 @@ export default {
       </div>
       <div class="right-area">
         <div class="card">
-          <div style="font-weight:700;margin-bottom:14px;font-size:0.9rem;">意向登记</div>
+          <div class="card-title">意向登记</div>
           <div class="register-block">
             <div class="form-line"><input type="text" class="input-simple" id="custName" placeholder="姓名" autocomplete="off"><input type="text" class="input-simple" id="custPhone" placeholder="电话" autocomplete="off"></div>
             <div class="form-line"><input type="text" class="input-simple" id="custCompany" placeholder="单位" autocomplete="off"><input type="text" class="input-simple" id="custFund" placeholder="公积金" autocomplete="off"></div>
@@ -799,7 +799,7 @@ export default {
           </div>
         </div>
         <div class="card">
-          <div style="font-weight:700;margin-bottom:14px;font-size:0.9rem;">临时登记 (待晚回访)</div>
+          <div class="card-title">临时登记 (待晚回访)</div>
           <div class="register-block">
             <div class="form-line"><input type="text" class="input-simple" id="tempCustName" placeholder="姓名" autocomplete="off"><input type="text" class="input-simple" id="tempCustPhone" placeholder="电话/联系方式" autocomplete="off"></div>
             <input type="text" class="input-simple" id="tempCustNote" placeholder="回访备注/待聊内容" autocomplete="off">
@@ -808,17 +808,17 @@ export default {
           </div>
         </div>
         <div class="card">
-          <div class="todo-section">
-            <div class="todo-title">今日待办</div>
+          <div class="card-title">今日待办</div>
+          <div class="register-block">
+            <div class="todo-input-row"><input type="text" class="todo-input" id="todayTodoInput" placeholder="添加今日待办..." autocomplete="off"><input type="time" class="todo-input time-input-compact" id="todayRemindTime"><button class="todo-add-btn" id="addTodayTodoBtn">+ 添加</button></div>
             <div class="todo-list" id="todayTodoList"></div>
-            <div class="todo-input-row"><input type="text" class="todo-input" id="todayTodoInput" placeholder="添加今日待办..." autocomplete="off"><input type="time" class="todo-input" id="todayRemindTime" style="flex:0 0 100px;font-size:0.7rem;padding:8px 4px;"><button class="todo-add-btn" id="addTodayTodoBtn">+ 添加</button></div>
           </div>
         </div>
         <div class="card">
-          <div class="todo-section">
-            <div class="todo-title">明日待办</div>
+          <div class="card-title">明日待办</div>
+          <div class="register-block">
+            <div class="todo-input-row"><input type="text" class="todo-input" id="todoInput" placeholder="添加明日待办..." autocomplete="off"><input type="time" class="todo-input time-input-compact" id="tomorrowRemindTime"><button class="todo-add-btn" id="addTodoBtn">+ 添加</button></div>
             <div class="todo-list" id="tomorrowTodoList"></div>
-            <div class="todo-input-row"><input type="text" class="todo-input" id="todoInput" placeholder="添加明日待办..." autocomplete="off"><input type="time" class="todo-input" id="tomorrowRemindTime" style="flex:0 0 100px;font-size:0.7rem;padding:8px 4px;"><button class="todo-add-btn" id="addTodoBtn">+ 添加</button></div>
           </div>
         </div>
       </div>
