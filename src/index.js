@@ -729,9 +729,9 @@ export default {
   </div>
   <div class="pin-box">
     <div class="pin-stats" id="pinStatsContainer">
-      <div class="pin-stat-item"><span class="pin-stat-label">💬 今日微信</span><span class="pin-stat-value pin-wechat-value" id="pinWechatNum">0</span></div>
-      <div class="pin-stat-item"><span class="pin-stat-label">🎯 今日意向</span><span class="pin-stat-value pin-intent-value" id="pinIntentNum">0</span></div>
-      <div class="pin-stat-item"><span class="pin-stat-label">🔄 今日回访</span><span class="pin-stat-value pin-revisit-value" id="pinRevisitNum">0</span></div>
+      <div class="pin-stat-item"><span class="pin-stat-label">今日微信</span><span class="pin-stat-value pin-wechat-value" id="pinWechatNum">0</span></div>
+      <div class="pin-stat-item"><span class="pin-stat-label">今日意向</span><span class="pin-stat-value pin-intent-value" id="pinIntentNum">0</span></div>
+      <div class="pin-stat-item"><span class="pin-stat-label">今日回访</span><span class="pin-stat-value pin-revisit-value" id="pinRevisitNum">0</span></div>
     </div>
     <input type="password" class="pin-input" id="pinInput" placeholder="" maxlength="6" inputmode="numeric" autofocus>
     <button class="pin-btn" id="pinUnlockBtn">解锁进入</button>
@@ -743,15 +743,15 @@ export default {
     <div class="header-bar">
       <div class="title-section"><h3>每日工作</h3><div class="date-chip" id="liveDate"></div></div>
       <div class="action-group">
-        <button class="sync-indicator" id="syncBtn" title="点击手动同步"><span class="sync-icon" id="syncIcon">☁️</span><span id="syncLabel">同步中</span><div class="sync-tooltip" id="syncTooltip">正在连接...</div></button>
+        <button class="sync-indicator" id="syncBtn" title="点击手动同步"><span class="sync-icon" id="syncIcon">⇅</span><span id="syncLabel">同步中</span><div class="sync-tooltip" id="syncTooltip">正在连接...</div></button>
         <button class="icon-simple" id="logBtn" title="同步日志" style="font-size:0.8rem;width:auto;padding:0 12px;">日志</button>
-        <button class="icon-simple" id="hideBtn" title="一键隐藏 (Ctrl+Z)">👁</button>
-        <button class="icon-simple" id="menuToggleBtn" title="菜单">☰</button>
+        <button class="icon-simple" id="hideBtn" title="一键隐藏 (Ctrl+Z)">⊘</button>
+        <button class="icon-simple" id="menuToggleBtn" title="菜单">≡</button>
         <div class="menu-dropdown" id="menuDropdown">
-          <button class="menu-item" id="scriptBtn">📝 话术管理</button>
-          <button class="menu-item" id="learnBtn">📖 学习管理</button>
-          <button class="menu-item" id="exportBtn">📊 导出数据</button>
-          <button class="menu-item" id="darkToggleBtn">🌙 深色模式</button>
+          <button class="menu-item" id="scriptBtn">话术管理</button>
+          <button class="menu-item" id="learnBtn">学习管理</button>
+          <button class="menu-item" id="exportBtn">导出数据</button>
+          <button class="menu-item" id="darkToggleBtn">◑ 深色模式</button>
         </div>
       </div>
     </div>
@@ -759,27 +759,27 @@ export default {
       <div class="left-area">
         <div class="counter-row">
           <div class="counter-card wechat-fill">
-            <div class="counter-header"><span class="counter-label">💬 今日微信</span><button class="reset-mini" id="resetWechatToday">↺</button></div>
+            <div class="counter-header"><span class="counter-label">今日微信</span><button class="reset-mini" id="resetWechatToday">↺</button></div>
             <div class="counter-value" id="wechatNum">0</div>
             <div class="button-group"><button class="circle-btn" id="wechatMinus">−</button><button class="circle-btn btn-special" id="wechatPlus">+</button></div>
           </div>
           <div class="counter-card intent-fill">
-            <div class="counter-header"><span class="counter-label">🎯 今日意向</span></div>
+            <div class="counter-header"><span class="counter-label">今日意向</span></div>
             <div class="counter-value" id="intentNum">0</div>
           </div>
           <div class="counter-card revisit-fill">
-            <div class="counter-header"><span class="counter-label">🔄 今日回访</span><button class="reset-mini" id="resetRevisitToday">↺</button></div>
+            <div class="counter-header"><span class="counter-label">今日回访</span><button class="reset-mini" id="resetRevisitToday">↺</button></div>
             <div class="counter-value" id="revisitNum">0</div>
             <div class="button-group"><button class="circle-btn" id="revisitMinus">−</button><button class="circle-btn btn-special" id="revisitPlus">+</button></div>
           </div>
         </div>
         <div class="stats-row">
-          <div class="stat-block stat-wechat"><span class="label">💬本周</span> <span class="number" id="weekWechat">0</span></div>
-          <div class="stat-block stat-wechat"><span class="label">💬本月</span> <span class="number" id="monthWechat">0</span></div>
-          <div class="stat-block stat-intent"><span class="label">🎯本周</span> <span class="number" id="weekIntent">0</span></div>
-          <div class="stat-block stat-intent"><span class="label">🎯本月</span> <span class="number" id="monthIntent">0</span></div>
-          <div class="stat-block stat-revisit"><span class="label">🔄本周</span> <span class="number" id="weekRevisit">0</span></div>
-          <div class="stat-block stat-revisit"><span class="label">🔄本月</span> <span class="number" id="monthRevisit">0</span></div>
+          <div class="stat-block stat-wechat"><span class="label">微·本周</span> <span class="number" id="weekWechat">0</span></div>
+          <div class="stat-block stat-wechat"><span class="label">微·本月</span> <span class="number" id="monthWechat">0</span></div>
+          <div class="stat-block stat-intent"><span class="label">意·本周</span> <span class="number" id="weekIntent">0</span></div>
+          <div class="stat-block stat-intent"><span class="label">意·本月</span> <span class="number" id="monthIntent">0</span></div>
+          <div class="stat-block stat-revisit"><span class="label">访·本周</span> <span class="number" id="weekRevisit">0</span></div>
+          <div class="stat-block stat-revisit"><span class="label">访·本月</span> <span class="number" id="monthRevisit">0</span></div>
         </div>
         <div class="card calendar-compact">
           <div class="cal-head" id="calMonthTitle"></div>
@@ -828,7 +828,7 @@ export default {
 <div id="globalTooltip" class="tooltip-simple"></div>
 <div id="scriptModal" class="modal-overlay">
   <div class="modal-card script-input-modal">
-    <div class="modal-header"><span>📝 话术管理</span><button id="closeScriptModalBtn">✕</button></div>
+    <div class="modal-header"><span>话术管理</span><button id="closeScriptModalBtn">×</button></div>
     <textarea id="newScriptInput" placeholder="输入话术内容..."></textarea>
     <button class="btn-add" id="addScriptBtn" style="width:100%;">+ 添加话术</button>
     <div class="script-list" id="scriptList"></div>
@@ -836,7 +836,7 @@ export default {
 </div>
 <div id="learnModal" class="modal-overlay">
   <div class="modal-card script-input-modal">
-    <div class="modal-header"><span>📖 学习管理</span><button id="closeLearnModalBtn">✕</button></div>
+    <div class="modal-header"><span>学习管理</span><button id="closeLearnModalBtn">×</button></div>
     <textarea id="newLearnInput" placeholder="输入学习内容..."></textarea>
     <div class="learn-check-row"><input type="checkbox" id="learnShowCheck" checked><label for="learnShowCheck">锁屏显示</label></div>
     <button class="btn-add" id="addLearnBtn" style="width:100%;">保存</button>
@@ -845,9 +845,9 @@ export default {
 </div>
 <div id="exportModal" class="modal-overlay">
   <div class="modal-card" style="max-width:400px;">
-    <div class="modal-header"><span>📊 导出数据</span><button id="closeExportModalBtn">✕</button></div>
+    <div class="modal-header"><span>导出数据</span><button id="closeExportModalBtn">×</button></div>
     <div style="display:flex;flex-direction:column;gap:10px;">
-      <div style="display:flex;gap:8px;"><button class="btn-add" id="exportWeekBtn" style="flex:1;">📅 导出本周</button><button class="btn-add" id="exportMonthBtn" style="flex:1;">📆 导出本月</button></div>
+      <div style="display:flex;gap:8px;"><button class="btn-add" id="exportWeekBtn" style="flex:1;">导出本周</button><button class="btn-add" id="exportMonthBtn" style="flex:1;">导出本月</button></div>
       <input type="text" class="input-simple" id="webhookUrlInput" placeholder="企业微信 Webhook URL">
       <div style="font-size:0.65rem;color:var(--text-light);">粘贴企业微信群机器人的 Webhook 地址</div>
       <div id="exportStatus" style="font-size:0.75rem;text-align:center;min-height:20px;"></div>
@@ -856,13 +856,13 @@ export default {
 </div>
 <div id="logModal" class="modal-overlay">
   <div class="modal-card" style="max-width:420px;">
-    <div class="modal-header"><span>📜 同步日志</span><button id="closeLogModalBtn">✕</button></div>
+    <div class="modal-header"><span>同步日志</span><button id="closeLogModalBtn">×</button></div>
     <div class="log-list" id="syncLogList"></div>
   </div>
 </div>
 <div id="dateModal" class="modal-overlay">
   <div class="modal-card">
-    <div class="modal-header"><span id="modalDateTitle">时间线</span><button id="closeModalBtn">✕</button></div>
+    <div class="modal-header"><span id="modalDateTitle">时间线</span><button id="closeModalBtn">×</button></div>
     <div id="modalClientList" class="client-modal-list"></div>
   </div>
 </div>
@@ -948,13 +948,13 @@ export default {
     if(st!=='syncing'&&st!=='error'){st=qLen>0?'pending':'synced';}
     btn.className='sync-indicator '+st;
     if(st==='syncing'){
-      icon.textContent='\u2601\uFE0F';label.textContent='同步中...';
+      icon.textContent='⇅';label.textContent='同步中...';
     }else if(st==='pending'){
-      icon.textContent='\u2601\uFE0F';label.innerHTML='<span class="sync-badge">'+qLen+'</span> 待同步';
+      icon.textContent='⇅';label.innerHTML='<span class="sync-badge">'+qLen+'</span> 待同步';
     }else if(st==='error'){
-      icon.textContent='\u2601\uFE0F';label.textContent='同步失败 \u2715';
+      icon.textContent='⇅';label.textContent='同步失败';
     }else{
-      icon.textContent='\u2601\uFE0F';label.textContent='已同步 \u2713';
+      icon.textContent='⇅';label.textContent='已同步';
     }
     var timeStr='--:--';
     if(_lastSyncTime){
@@ -1119,10 +1119,10 @@ export default {
         const details=[c.company,c.fund].filter(Boolean).join(' / ')||'-';
         return '<tr>'+
           '<td><span class="client-name">'+esc(c.name)+'</span></td>'+
-          '<td><span class="client-phone" data-full="'+esc(c.phone)+'">'+esc(maskPhone(c.phone))+'</span><button class="phone-toggle" title="显示号码">👁</button></td>'+
+          '<td><span class="client-phone" data-full="'+esc(c.phone)+'">'+esc(maskPhone(c.phone))+'</span><button class="phone-toggle" title="显示号码">◎</button></td>'+
           '<td><span class="client-detail">'+esc(details)+'</span></td>'+
           '<td><span class="client-note-text">'+esc(c.note||'')+'</span></td>'+
-          '<td style="text-align:right;"><button class="edit-icon" data-name="'+esc(c.name)+'" data-phone="'+esc(c.phone)+'" data-time="'+esc(c.time||'')+'" title="编辑">✎</button><button class="del-icon" data-name="'+esc(c.name)+'" data-phone="'+esc(c.phone)+'" data-time="'+esc(c.time||'')+'" title="删除">✕</button></td>'+
+          '<td style="text-align:right;"><button class="edit-icon" data-name="'+esc(c.name)+'" data-phone="'+esc(c.phone)+'" data-time="'+esc(c.time||'')+'" title="编辑">✏</button><button class="del-icon" data-name="'+esc(c.name)+'" data-phone="'+esc(c.phone)+'" data-time="'+esc(c.time||'')+'" title="删除">×</button></td>'+
           '</tr>';
       }).join('')+'</tbody></table>';
 
@@ -1161,11 +1161,11 @@ export default {
       if(phoneSpan.textContent===full){
         phoneSpan.textContent=maskPhone(full);
         b.title='显示号码';
-        b.textContent='👁';
+        b.textContent='◎';
       }else{
         phoneSpan.textContent=full;
         b.title='隐藏号码';
-        b.textContent='🙈';
+        b.textContent='⊗';
       }
     }));
   }
@@ -1204,14 +1204,14 @@ export default {
     for(let d=1;d<=dim;d++){
       const ds=y+'-'+String(m+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
       const wv=wm[ds]||0,iv=im[ds]||0,cv=ccMap[ds]||0;
-      let bh='';if(wv>0||iv>0||cv>0)bh='<div class="day-badge">'+(wv>0?'<span>💬'+wv+'</span>':'')+(iv>0?'<span>🎯'+iv+'</span>':'')+(cv>0?'<span>👤'+cv+'</span>':'')+'</div>';
+      let bh='';if(wv>0||iv>0||cv>0)bh='<div class="day-badge">'+(wv>0?'<span>微'+wv+'</span>':'')+(iv>0?'<span>意'+iv+'</span>':'')+(cv>0?'<span>客'+cv+'</span>':'')+'</div>';
       const it=ds===ts, pt=ds<ts;
       g+='<div class="cal-day'+(it?' today':pt?' past':'')+'" data-date="'+ds+'" data-w="'+wv+'" data-i="'+iv+'"><div class="day-number">'+d+'</div>'+bh+'</div>';
     }
     document.getElementById('calGrid').innerHTML=g;
     const tip=document.getElementById('globalTooltip');
     document.querySelectorAll('.cal-day[data-date]').forEach(c=>{
-      c.addEventListener('mouseenter',e=>{tip.innerHTML='<strong>'+c.dataset.date+'</strong> 💬'+(c.dataset.w||0)+' 🎯'+(c.dataset.i||0);tip.classList.add('show');});
+      c.addEventListener('mouseenter',e=>{tip.innerHTML='<strong>'+c.dataset.date+'</strong> 微'+(c.dataset.w||0)+' 意'+(c.dataset.i||0);tip.classList.add('show');});
       c.addEventListener('mouseleave',()=>tip.classList.remove('show'));
       c.addEventListener('mousemove',e=>{tip.style.left=(e.clientX+12)+'px';tip.style.top=(e.clientY-28)+'px';});
       c.addEventListener('click',e=>{e.stopPropagation();if(c.dataset.date)showTimelineForDate(c.dataset.date);});
@@ -1252,7 +1252,7 @@ export default {
       const todos_in_tl   = timeline.filter(e=>e.type==='todo');
 
       if(timeline.length===0){
-        document.getElementById('modalClientList').innerHTML='<div class="empty-clients">📭 当日无记录</div>';
+        document.getElementById('modalClientList').innerHTML='<div class="empty-clients">— 当日无记录 —</div>';
         return;
       }
 
@@ -1277,17 +1277,17 @@ export default {
           html += '<tr>';
           html += '<td class="tbl-seq">'+(i+1)+'</td>';
           html += '<td class="tbl-name">'+esc(e.name)+'</td>';
-          html += '<td><div class="tbl-phone-wrap"><span class="modal-client-phone" data-full="'+esc(e.phone)+'">'+esc(maskPhone(e.phone))+'</span><button class="phone-toggle" title="显示号码">👁</button></div></td>';
+          html += '<td><div class="tbl-phone-wrap"><span class="modal-client-phone" data-full="'+esc(e.phone)+'">'+esc(maskPhone(e.phone))+'</span><button class="phone-toggle" title="显示号码">◎</button></div></td>';
           html += '<td><div style="display:flex;flex-direction:column;gap:4px;">';
-          if(e.company) html += '<span class="tbl-tag tbl-tag-company">🏢 '+esc(e.company)+'</span>';
-          if(e.fund)    html += '<span class="tbl-tag tbl-tag-fund">🏦 '+esc(e.fund)+'</span>';
+          if(e.company) html += '<span class="tbl-tag tbl-tag-company">'+esc(e.company)+'</span>';
+          if(e.fund)    html += '<span class="tbl-tag tbl-tag-fund">'+esc(e.fund)+'</span>';
           if(!e.company&&!e.fund) html += '<span style="color:var(--text-light);font-size:0.72rem;">—</span>';
           html += '</div></td>';
           html += '<td class="tbl-note-cell"><div id="cn_'+e.idx+'">';
-          html += '<div class="tbl-note-text">'+(e.note?esc(e.note):'<span class="tbl-note-empty">点击 ✎ 添加沟通记录…</span>')+'</div>';
+          html += '<div class="tbl-note-text">'+(e.note?esc(e.note):'<span class="tbl-note-empty">点击 ✏ 添加沟通记录…</span>')+'</div>';
           html += '</div></td>';
-          html += '<td class="tbl-time">'+(e.time?'⏰ '+esc(e.time):'<span style="color:var(--text-light);">—</span>')+'</td>';
-          html += '<td class="tbl-action"><button class="edit-note-btn" title="'+(e.note?'修改记录':'添加记录')+'" data-idx="'+e.idx+'">✎</button></td>';
+          html += '<td class="tbl-time">'+(e.time?esc(e.time):'<span style="color:var(--text-light);">—</span>')+'</td>';
+          html += '<td class="tbl-action"><button class="edit-note-btn" title="'+(e.note?'修改记录':'添加记录')+'" data-idx="'+e.idx+'">✏</button></td>';
           html += '</tr>';
         });
         html += '</tbody></table></div></div>';
@@ -1296,10 +1296,10 @@ export default {
       // ===== 待办事项区 =====
       if(todos_in_tl.length>0){
         html += '<div style="margin-top:'+(clients_in_tl.length>0?'4px':'0')+'">';
-        html += '<div class="modal-section-title">✅ 待办事项 <span style="font-size:0.7rem;color:var(--accent-wechat);margin-left:4px;font-weight:800;">'+todos_in_tl.length+'条</span></div>';
+        html += '<div class="modal-section-title">待办事项 <span style="font-size:0.7rem;color:var(--accent-wechat);margin-left:4px;font-weight:800;">'+todos_in_tl.length+'条</span></div>';
         html += '<div style="display:flex;flex-direction:column;gap:6px;">';
         todos_in_tl.forEach(e=>{
-          html += '<div class="todo-card-item"><span class="todo-card-icon">📌</span><div style="flex:1;"><div class="todo-card-text">'+esc(e.text)+'</div>'+(e.time?'<div class="todo-card-time">⏰ '+esc(e.time)+'</div>':'')+'</div></div>';
+          html += '<div class="todo-card-item"><div style="flex:1;"><div class="todo-card-text">'+esc(e.text)+'</div>'+(e.time?'<div class="todo-card-time">'+esc(e.time)+'</div>':'')+'</div></div>';
         });
         html += '</div></div>';
       }
@@ -1314,11 +1314,11 @@ export default {
         if(phoneSpan.textContent===full){
           phoneSpan.textContent=maskPhone(full);
           b.title='显示号码';
-          b.textContent='👁';
+          b.textContent='◎';
         }else{
           phoneSpan.textContent=full;
           b.title='隐藏号码';
-          b.textContent='🙈';
+          b.textContent='⊗';
         }
       }));
     }
@@ -1458,10 +1458,10 @@ export default {
       list.map((c,i)=>{
         return '<tr>'+
           '<td><span class="client-name">'+esc(c.name)+'</span></td>'+
-          '<td><span class="client-phone" data-full="'+esc(c.phone)+'">'+esc(maskPhone(c.phone))+'</span><button class="phone-toggle" title="显示号码">👁</button></td>'+
+          '<td><span class="client-phone" data-full="'+esc(c.phone)+'">'+esc(maskPhone(c.phone))+'</span><button class="phone-toggle" title="显示号码">◎</button></td>'+
           '<td><span class="client-note-text">'+esc(c.note||'')+'</span></td>'+
           '<td><span class="client-detail">'+esc(c.time||'')+'</span></td>'+
-          '<td style="text-align:right;"><button class="btn-add convert-temp-btn" data-idx="'+i+'" style="font-size:0.7rem;padding:2px 6px;background:var(--accent-intent);margin-right:4px;font-weight:700;display:inline-block;vertical-align:middle;" title="转为正式意向客户">转意向</button><button class="del-icon del-temp-btn" data-idx="'+i+'" title="删除" style="vertical-align:middle;padding:0;width:20px;height:20px;line-height:20px;display:inline-block;">✕</button></td>'+
+          '<td style="text-align:right;"><button class="btn-add convert-temp-btn" data-idx="'+i+'" style="font-size:0.7rem;padding:2px 6px;background:var(--accent-intent);margin-right:4px;font-weight:700;display:inline-block;vertical-align:middle;" title="转为正式意向客户">转意向</button><button class="del-icon del-temp-btn" data-idx="'+i+'" title="删除" style="vertical-align:middle;padding:0;width:20px;height:20px;line-height:20px;display:inline-block;">×</button></td>'+
           '</tr>';
       }).join('')+'</tbody></table>';
     
@@ -1518,11 +1518,11 @@ export default {
       if(phoneSpan.textContent===full){
         phoneSpan.textContent=maskPhone(full);
         b.title='显示号码';
-        b.textContent='👁';
+        b.textContent='◎';
       }else{
         phoneSpan.textContent=full;
         b.title='隐藏号码';
-        b.textContent='🙈';
+        b.textContent='⊗';
       }
     }));
   }
@@ -1578,7 +1578,7 @@ export default {
   const saveScripts=(a)=>localStorage.setItem(SCRIPTS_K,JSON.stringify(a));
   function renderScriptList(){
     const ss=loadScripts();
-    document.getElementById('scriptList').innerHTML=ss.length===0?'<div style="font-size:0.75rem;color:var(--text-light);padding:8px;text-align:center;">暂无话术</div>':ss.map((s,i)=>'<div class="script-item" data-si="'+i+'"><span class="script-item-text">'+esc(s)+'</span><div style="display:flex;gap:4px;align-items:center;flex-shrink:0;"><button class="edit-icon" data-si="'+i+'" title="编辑">✎</button><button class="del-icon" data-si="'+i+'">✕</button></div></div>').join('');
+    document.getElementById('scriptList').innerHTML=ss.length===0?'<div style="font-size:0.75rem;color:var(--text-light);padding:8px;text-align:center;">暂无话术</div>':ss.map((s,i)=>'<div class="script-item" data-si="'+i+'"><span class="script-item-text">'+esc(s)+'</span><div style="display:flex;gap:4px;align-items:center;flex-shrink:0;"><button class="edit-icon" data-si="'+i+'" title="编辑">✏</button><button class="del-icon" data-si="'+i+'">×</button></div></div>').join('');
     document.querySelectorAll('#scriptList .del-icon').forEach(b=>b.addEventListener('click',async e=>{
       const i=parseInt(b.dataset.si);const a=loadScripts();a.splice(i,1);saveScripts(a);renderScriptList();renderLockScripts();
       await syncOp('setScripts',{scripts:a});
@@ -1632,7 +1632,7 @@ export default {
   const saveLearns=(a)=>localStorage.setItem(LEARN_K,JSON.stringify(a));
   function renderLearnList(){
     const ls=loadLearns();
-    document.getElementById('learnList').innerHTML=ls.length===0?'<div style="font-size:0.75rem;color:var(--text-light);padding:8px;text-align:center;">暂无学习</div>':ls.map((l,i)=>'<div class="script-item"><span class="script-item-text">'+(l.show?'👁 ':'')+esc(l.text)+'</span><div style="display:flex;gap:6px;align-items:center;"><input type="checkbox" '+(l.show?'checked':'')+' data-li="'+i+'" title="显示"><button class="del-icon" data-li="'+i+'">✕</button></div></div>').join('');
+    document.getElementById('learnList').innerHTML=ls.length===0?'<div style="font-size:0.75rem;color:var(--text-light);padding:8px;text-align:center;">暂无学习</div>':ls.map((l,i)=>'<div class="script-item"><span class="script-item-text">'+esc(l.text)+'</span><div style="display:flex;gap:6px;align-items:center;"><input type="checkbox" '+(l.show?'checked':'')+' data-li="'+i+'" title="锁屏显示"><button class="del-icon" data-li="'+i+'">×</button></div></div>').join('');
     document.querySelectorAll('#learnList .del-icon').forEach(b=>b.addEventListener('click',async e=>{
       const i=parseInt(b.dataset.li);const a=loadLearns();a.splice(i,1);saveLearns(a);renderLearnList();renderLockLearns();
       await syncOp('setLearns',{learns:a});
@@ -1697,7 +1697,7 @@ export default {
   // ==================== 初始化 ====================
   function initDark(){
     const btn=document.getElementById('darkToggleBtn');
-    const updateDarkTitle=()=>{const isDark=document.body.classList.contains('dark-mode');btn.textContent=(isDark?'☀️':'🌙')+' 浅色'+(isDark?'':'深色')+'模式';btn.title=isDark?'☀️ 浅色模式':'🌙 深色模式';};
+    const updateDarkTitle=()=>{const isDark=document.body.classList.contains('dark-mode');btn.textContent=(isDark?'◐':'◑')+' '+(isDark?'浅色':'深色')+'模式';btn.title=isDark?'切换浅色模式':'切换深色模式';};
     if(localStorage.getItem(DARK_K)==='true')document.body.classList.add('dark-mode');
     updateDarkTitle();
     btn.addEventListener('click',()=>{document.body.classList.toggle('dark-mode');localStorage.setItem(DARK_K,document.body.classList.contains('dark-mode'));updateDarkTitle();});
