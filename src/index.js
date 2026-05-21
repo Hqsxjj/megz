@@ -649,8 +649,10 @@ export default {
       .time-input-compact { flex: 0 0 84px !important; min-width: 84px !important; padding: 0 4px !important; }
       .client-row { padding: 8px 12px; font-size: 0.8rem; }
       .todo-item { padding: 6px 10px; font-size: 0.8rem; }
-      /* PC/desktop monthly calendar font size increases */
+      /* PC/desktop monthly calendar font size increases and bottom alignment */
+      .calendar-compact { flex: 1; display: flex; flex-direction: column; }
       .cal-head { font-size: 0.95rem; margin-bottom: 12px; }
+      .cal-grid { flex: 1; align-content: space-around; }
       .cal-weekday { font-size: 0.8rem; padding: 6px 0; }
       .cal-day { font-size: 0.82rem; }
       .day-number { font-size: 0.94rem; }
@@ -766,7 +768,7 @@ export default {
       <div class="left-area">
         <div class="counter-row">
           <div class="counter-card wechat-fill">
-            <div class="counter-header"><span class="counter-label">今日微信</span><button class="reset-mini" id="resetWechatToday">↺</button></div>
+            <div class="counter-header"><span class="counter-label">今日微信</span></div>
             <div class="counter-value" id="wechatNum">0</div>
             <div class="button-group"><button class="circle-btn" id="wechatMinus">−</button><button class="circle-btn btn-special" id="wechatPlus">+</button></div>
           </div>
@@ -775,7 +777,7 @@ export default {
             <div class="counter-value" id="intentNum">0</div>
           </div>
           <div class="counter-card revisit-fill">
-            <div class="counter-header"><span class="counter-label">今日回访</span><button class="reset-mini" id="resetRevisitToday">↺</button></div>
+            <div class="counter-header"><span class="counter-label">今日回访</span></div>
             <div class="counter-value" id="revisitNum">0</div>
             <div class="button-group"><button class="circle-btn" id="revisitMinus">−</button><button class="circle-btn btn-special" id="revisitPlus">+</button></div>
           </div>
@@ -1770,10 +1772,8 @@ export default {
 
   document.getElementById('wechatPlus').addEventListener('click',()=>modCounter(WECHAT_K,1,'incWechat'));
   document.getElementById('wechatMinus').addEventListener('click',()=>modCounter(WECHAT_K,-1,'incWechat'));
-  document.getElementById('resetWechatToday').addEventListener('click',()=>resetToday(WECHAT_K,'incWechat'));
   document.getElementById('revisitPlus').addEventListener('click',()=>modCounter(REVISIT_K,1,'incRevisit'));
   document.getElementById('revisitMinus').addEventListener('click',()=>modCounter(REVISIT_K,-1,'incRevisit'));
-  document.getElementById('resetRevisitToday').addEventListener('click',()=>resetToday(REVISIT_K,'incRevisit'));
   document.getElementById('syncBtn').addEventListener('click',async()=>{
     _syncStatus='syncing';updateSyncIndicator();
     try{await drainQueue();await saveFullState(true);await pullLatest();await syncCalendarFromCloud();refreshAll();}catch(e){_syncStatus='error';}
