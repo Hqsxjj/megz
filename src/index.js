@@ -592,8 +592,8 @@ export default {
     .card-title { font-weight: 700; font-size: 0.9rem; margin-bottom: 12px; color: var(--text-main); }
     .register-block { display: flex; flex-direction: column; gap: 8px; }
     .form-line { display: flex; gap: 8px; align-items: center; width: 100%; }
-    .input-simple, .todo-input { flex: 1; height: 38px; padding: 0 12px; font-size: 0.85rem; background: var(--btn-bg); border: 1px solid var(--card-border); border-radius: var(--radius-xs); color: var(--text-main); outline: none; min-width: 0; font-weight: 600; box-sizing: border-box; transition: all 0.2s; }
-    .input-simple:focus, .todo-input:focus { border-color: var(--accent-wechat); box-shadow: 0 0 0 3px rgba(44,125,160,0.15); }
+    .input-simple, .todo-input { flex: 1; width: 100%; height: 38px; padding: 0 12px; font-size: 0.85rem; background: var(--btn-bg); border: 0.5px solid var(--card-border); border-radius: var(--radius-xs); color: var(--text-main); outline: none; min-width: 0; font-weight: 600; box-sizing: border-box; transition: all 0.2s; }
+    .input-simple:focus, .todo-input:focus { border-color: var(--accent-wechat); box-shadow: 0 0 0 2px rgba(44,125,160,0.12); }
     .btn-add, .todo-add-btn { height: 38px; padding: 0 18px; font-size: 0.85rem; font-weight: 700; border: none; border-radius: var(--radius-xs); color: white; cursor: pointer; white-space: nowrap; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; transition: all 0.2s; }
     .btn-add { background: var(--accent-intent); }
     .todo-add-btn { background: var(--accent-wechat); }
@@ -601,7 +601,7 @@ export default {
     .btn-add:active, .todo-add-btn:active { transform: translateY(0); }
     .time-input-compact { flex: 0 0 92px !important; min-width: 92px !important; padding: 0 6px !important; text-align: center; }
     .client-scroll { max-height: 220px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
-    .client-row { background: var(--btn-bg); border-radius: var(--radius-sm); padding: 10px 14px; display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem; border: 1px solid var(--card-border); font-weight: 600; }
+    .client-row { background: var(--btn-bg); border-radius: var(--radius-sm); padding: 10px 14px; display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem; border: 0.5px solid var(--card-border); font-weight: 600; }
     .client-info { flex: 1; display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline; }
     .client-name { font-weight: 700; }
     .client-phone { color: var(--text-soft); font-size: 0.75rem; font-weight: 600; }
@@ -613,7 +613,7 @@ export default {
     .edit-icon { background: none; border: none; font-size: 0.9rem; color: var(--accent-wechat); cursor: pointer; width: 28px; height: 28px; border-radius: var(--radius-xs); font-weight: 700; margin-right: 4px; }
     .client-actions { display: flex; align-items: center; gap: 4px; }
     .todo-list { display: flex; flex-direction: column; gap: 8px; max-height: 200px; overflow-y: auto; }
-    .todo-item { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: var(--btn-bg); border-radius: var(--radius-xs); border: 1px solid var(--card-border); font-size: 0.8rem; font-weight: 600; color: var(--text-main); }
+    .todo-item { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: var(--btn-bg); border-radius: var(--radius-xs); border: 0.5px solid var(--card-border); font-size: 0.8rem; font-weight: 600; color: var(--text-main); }
     .todo-number { font-weight: 800; color: var(--accent-wechat); min-width: 20px; font-size: 0.85rem; }
     .todo-text { flex: 1; word-break: break-word; line-height: 1.4; }
     .todo-input-row { display: flex; gap: 8px; align-items: center; width: 100%; }
@@ -676,15 +676,15 @@ export default {
     }
     /* ===== 紧凑表格与待办行样式 ===== */
     .table-compact { width: 100%; border-collapse: collapse; font-size: 0.78rem; color: var(--text-main); text-align: left; }
-    .table-compact th { padding: 4px 6px; font-weight: 700; color: var(--text-soft); border-bottom: 1.5px solid var(--card-border); font-size: 0.72rem; }
-    .table-compact td { padding: 6px 6px; border-bottom: 1px solid var(--card-border); vertical-align: middle; font-weight: 600; }
+    .table-compact th { padding: 4px 6px; font-weight: 700; color: var(--text-soft); border-bottom: 0.5px solid var(--card-border); font-size: 0.72rem; }
+    .table-compact td { padding: 6px 6px; border-bottom: 0.5px solid var(--card-border); vertical-align: middle; font-weight: 600; }
     .table-compact tr:last-child td { border-bottom: none; }
     .table-compact tr:hover { background: var(--btn-hover); }
     .client-detail { color: var(--text-light); font-size: 0.72rem; }
     .client-note-text { color: var(--text-soft); font-size: 0.75rem; word-break: break-word; }
     .client-time-text { color: var(--text-light); font-size: 0.7rem; }
     
-    .todo-item-clean { display: flex; align-items: center; gap: 8px; padding: 6px 4px; border-bottom: 1px dashed var(--card-border); font-size: 0.78rem; font-weight: 600; color: var(--text-main); transition: background 0.15s; }
+    .todo-item-clean { display: flex; align-items: center; gap: 8px; padding: 6px 4px; border-bottom: 0.5px solid var(--card-border); font-size: 0.78rem; font-weight: 600; color: var(--text-main); transition: background 0.15s; }
     .todo-item-clean:hover { background: var(--btn-hover); }
     .todo-item-clean:last-child { border-bottom: none; }
     .todo-number-clean { font-weight: 800; color: var(--accent-wechat); font-size: 0.78rem; min-width: 16px; }
