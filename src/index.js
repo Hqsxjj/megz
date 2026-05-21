@@ -412,7 +412,7 @@ export default {
       --stats-gradient: linear-gradient(135deg, #0d3b4a 0%, #1a5c6e 50%, #2a7d8f 100%);
       --wallpaper-opacity: 0.19;
     }
-    html, body { height: 100%; width: 100%; overflow: hidden; background: var(--bg-app); font-family: "等线", "DengXian", "PingFang SC", "Noto Sans SC", "Microsoft YaHei", sans-serif; font-weight: 700; transition: background 0.3s; position: relative; }
+    html, body { height: 100%; min-height: 100%; min-height: -webkit-fill-available; width: 100%; overflow: hidden; background: var(--bg-app); font-family: "等线", "DengXian", "PingFang SC", "Noto Sans SC", "Microsoft YaHei", sans-serif; font-weight: 700; transition: background 0.3s; position: relative; }
     .wallpaper-background { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; background-image: var(--wallpaper-url); background-size: cover; background-position: center; background-repeat: no-repeat; opacity: var(--wallpaper-opacity); transition: opacity 0.8s ease, background-image 0.8s ease; pointer-events: none; }
     body.dark-mode .wallpaper-background { opacity: 0.19; }
     .wallpaper-fallback { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); opacity: 0.18; pointer-events: none; }
@@ -480,7 +480,7 @@ export default {
     .script-list { max-height: 180px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
     .script-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: var(--btn-bg); border-radius: var(--radius-xs); border: 1px solid var(--card-border); font-size: 0.78rem; color: var(--text-main); font-weight: 600; }
     .script-item-text { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-right: 8px; }
-    .app-shell { height: 100%; width: 100%; display: flex; flex-direction: column; overflow: hidden; position: relative; z-index: 1; }
+    .app-shell { height: 100%; height: 100dvh; width: 100%; display: flex; flex-direction: column; overflow: hidden; position: relative; z-index: 1; }
     .container { flex: 1; display: flex; flex-direction: column; padding: 14px 18px 12px; overflow-y: auto; scrollbar-width: thin; -webkit-overflow-scrolling: touch; }
     .header-bar { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 20px; padding-bottom: 6px; border-bottom: 1px solid var(--border-light); flex-shrink: 0; }
     .title-section { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
@@ -671,19 +671,51 @@ export default {
       .timer-container { display: none !important; }
       .timer-box { padding: 16px 20px; }
       .timer-display { font-size: 2.5rem; }
-      .two-columns { flex-direction: column; }
+      .two-columns { flex-direction: column; gap: 20px; flex: none; }
+      .left-area, .right-area { flex: none; width: 100%; }
       .right-area { order: 1; } .left-area { order: 2; }
-      .pin-box { min-width: 320px; max-width: 92vw; padding: 28px 20px; gap: 14px; }
+      .container { padding: 10px 12px 10px; }
+      .header-bar { margin-bottom: 12px; padding-bottom: 8px; flex-wrap: wrap; gap: 8px; align-items: center; }
+      .title-section h3 { font-size: 1.2rem; }
+      .modal-card { padding: 16px 14px; gap: 12px; }
+      .client-modal-list { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+      .pin-box { min-width: 320px; max-width: 92vw; padding: 28px 20px; gap: 14px; top: 35%; transform: translate(-50%, -35%); }
       .pin-stats { gap: 8px; }
       .pin-stat-item { padding: 10px 10px; min-width: 90px; gap: 4px; }
       .pin-stat-label { font-size: 0.75rem; }
       .pin-stat-value { font-size: 1.8rem; }
       .pin-input { width: 182px; padding: 10px 17px; font-size: 1.26rem; }
       .pin-btn { padding: 10px 28px; font-size: 0.98rem; }
-	      .script-container { left: 8px; top: 60px; max-width: 42vw; max-height: 30vh; overflow-y: auto; }
-	      .learn-container { right: 8px; top: 60px; max-width: 52vw; max-height: 30vh; overflow-y: auto; }
-	      .script-module { padding: 8px 12px; font-size: 0.72rem; text-align: left; font-weight: 400; line-height: 1.6; }
-	      .learn-module { padding: 8px 12px; font-size: 0.7rem; }
+      .script-container { left: 8px; top: 60px; max-width: 42vw; max-height: 25vh; overflow-y: auto; }
+      .learn-container { right: 8px; top: 60px; max-width: 52vw; max-height: 25vh; overflow-y: auto; }
+      .script-module { padding: 8px 12px; font-size: 0.72rem; text-align: left; font-weight: 400; line-height: 1.6; }
+      .learn-module { padding: 8px 12px; font-size: 0.7rem; }
+      
+      /* Mobile optimization additions */
+      .card { padding: 12px 14px; border-radius: 10px; }
+      .card-title { font-size: 0.82rem; margin-bottom: 8px; }
+      .counter-row { gap: 8px; }
+      .counter-card { padding: 8px; }
+      .counter-value { font-size: 2rem; }
+      .button-group { gap: 6px; margin-top: 6px; justify-content: center; }
+      .circle-btn { width: 30px; height: 30px; font-size: 1.1rem; border-radius: 6px; }
+      .reset-mini { padding: 2px 4px; font-size: 0.6rem; }
+      .stats-row { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+      .stat-block { padding: 6px 2px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; }
+      .stat-block .label { font-size: 0.62rem; }
+      .stat-block .number { font-size: 1rem; margin-left: 0; }
+      .cal-day { aspect-ratio: auto; min-height: 38px; padding: 4px 2px; }
+      .todo-input-row { flex-wrap: wrap; gap: 8px; }
+      .todo-input { flex: 1 1 100%; }
+      .time-input-compact { flex: 1 !important; min-width: 0 !important; }
+      .todo-add-btn { flex: 1; }
+      .client-actions { flex-shrink: 0; }
+      .icon-simple { width: 32px; height: 32px; font-size: 0.95rem; }
+      .sync-indicator { height: 32px; padding: 0 8px; font-size: 0.68rem; }
+      #logBtn { height: 32px !important; padding: 0 8px !important; font-size: 0.72rem !important; }
+      .intent-table { font-size: 0.75rem; }
+      .intent-table th, .intent-table td { padding: 8px 6px; }
+      .tbl-note-cell { min-width: 200px; }
     }
     /* ===== 紧凑表格与待办行样式 ===== */
     .table-compact { width: 100%; border-collapse: collapse; font-size: 0.78rem; color: var(--text-main); text-align: left; }
