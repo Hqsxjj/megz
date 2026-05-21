@@ -359,9 +359,9 @@ export default {
       --bg-app: #f4f7fc;
       --card-bg: rgba(255,255,255,0.85);
       --card-border: #e2edf2;
-      --text-main: #1f3a4b;
-      --text-soft: #4b6f86;
-      --text-light: #7f9aae;
+      --text-main: #0c1a24;
+      --text-soft: #304755;
+      --text-light: #5a768c;
       --accent-wechat: #2c7da0;
       --accent-intent: #2f9e68;
       --accent-wechat-bg: #eef3fc;
@@ -391,9 +391,9 @@ export default {
       --bg-app: rgba(17,22,31,0.85);
       --card-bg: rgba(30,41,56,0.82);
       --card-border: #2d3a4a;
-      --text-main: #eef3fc;
-      --text-soft: #afc4dc;
-      --text-light: #829ab0;
+      --text-main: #ffffff;
+      --text-soft: #c8d6e7;
+      --text-light: #9db1c5;
       --accent-wechat: #8fb9d4;
       --accent-intent: #9aceb0;
       --btn-bg: rgba(40,50,63,0.8);
@@ -440,7 +440,8 @@ export default {
     .pin-btn:hover { opacity: 0.9; transform: translateY(-2px); box-shadow: 0 6px 20px rgba(44,125,160,0.4); }
     .pin-btn:active { transform: translateY(0); }
     .pin-error { color: #e74c3c; font-size: 1.26rem; min-height: 24px; font-weight: 600; letter-spacing: 0.5px; }
-    .timer-container { position: absolute; top: 18%; left: 50%; transform: translate(-50%, -50%); z-index: 100; }
+    .timer-container { position: absolute; top: 18%; left: 50%; transform: translate(-50%, -50%); z-index: 100; display: none; }
+    .timer-container.show { display: block; }
     .timer-box { display: flex; flex-direction: column; gap: 12px; align-items: center; background: rgba(255,255,255,0.75); padding: 24px 32px; border-radius: var(--radius-ios); box-shadow: 0 15px 40px rgba(0,0,0,0.12); border: 1px solid rgba(255,255,255,0.5); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
     body.dark-mode .timer-box { background: rgba(30,41,56,0.8); border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 15px 40px rgba(0,0,0,0.25); }
     .timer-display { font-size: 3.2rem; font-weight: 900; text-align: center; font-variant-numeric: tabular-nums; letter-spacing: 3px; color: var(--accent-wechat); text-shadow: 0 2px 8px rgba(0,0,0,0.1); height: 70px; line-height: 70px; display: block; }
@@ -667,6 +668,7 @@ export default {
       }
     }
     @media (max-width: 760px) {
+      .timer-container { display: none !important; }
       .timer-box { padding: 16px 20px; }
       .timer-display { font-size: 2.5rem; }
       .two-columns { flex-direction: column; }
@@ -708,34 +710,34 @@ export default {
 <div class="wallpaper-fallback"></div>
 <div class="wallpaper-background" id="wallpaperBackground"></div>
 <div class="privacy-wallpaper" id="privacyWallpaper"></div>
+<div class="timer-container" id="timerContainer">
+  <div class="timer-box" id="timerBox">
+    <div class="timer-display" id="timerDisplay">00:00:00</div>
+    <div class="timer-inputs">
+      <div class="timer-input-group">
+        <input type="number" class="timer-input" id="timerHours" min="0" max="23" value="0" placeholder="0">
+        <span class="timer-label">时</span>
+      </div>
+      <span class="timer-separator">:</span>
+      <div class="timer-input-group">
+        <input type="number" class="timer-input" id="timerMinutes" min="0" max="59" value="1" placeholder="0">
+        <span class="timer-label">分</span>
+      </div>
+      <span class="timer-separator">:</span>
+      <div class="timer-input-group">
+        <input type="number" class="timer-input" id="timerSeconds" min="0" max="59" value="0" placeholder="0">
+        <span class="timer-label">秒</span>
+      </div>
+    </div>
+    <div class="timer-buttons">
+      <button class="timer-btn timer-btn-start" id="timerStartBtn">启动</button>
+      <button class="timer-btn timer-btn-reset" id="timerResetBtn">重置</button>
+    </div>
+  </div>
+</div>
 <div class="privacy-mask" id="privacyMask">
   <div class="script-container" id="scriptContainer"></div>
   <div class="learn-container" id="learnContainer"></div>
-  <div class="timer-container" id="timerContainer">
-    <div class="timer-box" id="timerBox">
-      <div class="timer-display" id="timerDisplay">00:00:00</div>
-      <div class="timer-inputs">
-        <div class="timer-input-group">
-          <input type="number" class="timer-input" id="timerHours" min="0" max="23" value="0" placeholder="0">
-          <span class="timer-label">时</span>
-        </div>
-        <span class="timer-separator">:</span>
-        <div class="timer-input-group">
-          <input type="number" class="timer-input" id="timerMinutes" min="0" max="59" value="1" placeholder="0">
-          <span class="timer-label">分</span>
-        </div>
-        <span class="timer-separator">:</span>
-        <div class="timer-input-group">
-          <input type="number" class="timer-input" id="timerSeconds" min="0" max="59" value="0" placeholder="0">
-          <span class="timer-label">秒</span>
-        </div>
-      </div>
-      <div class="timer-buttons">
-        <button class="timer-btn timer-btn-start" id="timerStartBtn">启动</button>
-        <button class="timer-btn timer-btn-reset" id="timerResetBtn">重置</button>
-      </div>
-    </div>
-  </div>
   <div class="pin-box">
     <div class="pin-stats" id="pinStatsContainer">
       <div class="pin-stat-item"><span class="pin-stat-label">今日微信</span><span class="pin-stat-value pin-wechat-value" id="pinWechatNum">0</span></div>
@@ -1746,6 +1748,7 @@ export default {
   pib.addEventListener('click',au);pi.addEventListener('keypress',e=>{if(e.key==='Enter')au();});
   document.getElementById('hideBtn').addEventListener('click',()=>{setLocked(true);pi.value='';pie.innerText='';});
   window.addEventListener('keydown',e=>{if(e.ctrlKey&&e.key==='z'){const a=document.activeElement;if(a&&(a.tagName==='INPUT'||a.tagName==='TEXTAREA'))return;e.preventDefault();if(document.body.classList.contains('page-hidden'))pie.innerText='请使用PIN解锁';else{setLocked(true);pi.value='';pie.innerText='';}}});
+  window.addEventListener('keydown',e=>{if(e.ctrlKey&&e.key.toLowerCase()==='q'){const a=document.activeElement;if(a&&(a.tagName==='INPUT'||a.tagName==='TEXTAREA'))return;e.preventDefault();const tc=document.getElementById('timerContainer');if(tc)tc.classList.toggle('show');}});
   window.addEventListener('keydown',e=>{if(e.key==='+'||e.key==='='){e.preventDefault();modCounter(WECHAT_K,1,'incWechat');}else if(e.key==='-'||e.key==='_'){e.preventDefault();modCounter(WECHAT_K,-1,'incWechat');}else if(e.key==='ArrowUp'){e.preventDefault();modCounter(REVISIT_K,1,'incRevisit');}else if(e.key==='ArrowDown'){e.preventDefault();modCounter(REVISIT_K,-1,'incRevisit');}});
 
   // ==================== 锁屏计时器 ====================
