@@ -412,7 +412,7 @@ export default {
       --stats-gradient: linear-gradient(135deg, #0d3b4a 0%, #1a5c6e 50%, #2a7d8f 100%);
       --wallpaper-opacity: 0.19;
     }
-    html, body { height: 100%; width: 100%; overflow: hidden; background: var(--bg-app); font-family: "等线", "DengXian", "PingFang SC", "Noto Sans SC", "Microsoft YaHei", sans-serif; font-weight: 600; transition: background 0.3s; position: relative; }
+    html, body { height: 100%; width: 100%; overflow: hidden; background: var(--bg-app); font-family: "等线", "DengXian", "PingFang SC", "Noto Sans SC", "Microsoft YaHei", sans-serif; font-weight: 700; transition: background 0.3s; position: relative; }
     .wallpaper-background { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; background-image: var(--wallpaper-url); background-size: cover; background-position: center; background-repeat: no-repeat; opacity: var(--wallpaper-opacity); transition: opacity 0.8s ease, background-image 0.8s ease; pointer-events: none; }
     body.dark-mode .wallpaper-background { opacity: 0.19; }
     .wallpaper-fallback { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); opacity: 0.18; pointer-events: none; }
@@ -527,14 +527,14 @@ export default {
     .calendar-compact { padding: 10px 12px; }
     .cal-head { font-size: 0.8rem; font-weight: 700; color: var(--text-soft); margin-bottom: 8px; }
     .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; text-align: center; }
-    .cal-weekday { font-size: 0.65rem; font-weight: 700; color: var(--text-light); padding: 4px 0; }
-    .cal-day { aspect-ratio: 1/1; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: var(--radius-xs); font-size: 0.7rem; font-weight: 700; color: var(--text-main); background: transparent; cursor: pointer; transition: 0.2s; position: relative; }
+    .cal-weekday { font-size: 0.65rem; font-weight: 800; color: var(--text-soft); padding: 4px 0; }
+    .cal-day { aspect-ratio: 1/1; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: var(--radius-xs); font-size: 0.7rem; font-weight: 800; color: var(--text-main); background: transparent; cursor: pointer; transition: 0.2s; position: relative; }
     .cal-day:hover { background: var(--cal-hover); transform: scale(0.98); }
     .cal-day.today { background: var(--today-gradient); color: white; box-shadow: 0 0 20px rgba(255,138,101,0.5); text-shadow: 0 1px 2px rgba(0,0,0,0.2); }
-    .cal-day.past { background: rgba(128,138,150,0.08); color: var(--text-light); }
+    .cal-day.past { background: rgba(128,138,150,0.08); color: var(--text-soft); }
     body.dark-mode .cal-day.past { background: rgba(128,138,150,0.12); }
-    .day-number { font-size: 0.75rem; font-weight: 700; }
-    .day-badge { display: flex; gap: 3px; font-size: 0.5rem; margin-top: 2px; color: var(--text-soft); font-weight: 600; }
+    .day-number { font-size: 0.78rem; font-weight: 800; }
+    .day-badge { display: flex; gap: 3px; font-size: 0.5rem; margin-top: 2px; color: var(--text-soft); font-weight: 700; }
     .cal-day.today .day-badge { color: rgba(255,255,255,0.9); }
     .day-badge span { background: rgba(100,110,130,0.15); padding: 0px 3px; border-radius: var(--radius-xs); }
     .cal-day.today .day-badge span { background: rgba(255,255,255,0.3); }
