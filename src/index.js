@@ -440,9 +440,9 @@ export default {
     .pin-btn:hover { opacity: 0.9; transform: translateY(-2px); box-shadow: 0 6px 20px rgba(44,125,160,0.4); }
     .pin-btn:active { transform: translateY(0); }
     .pin-error { color: #e74c3c; font-size: 1.26rem; min-height: 24px; font-weight: 600; letter-spacing: 0.5px; }
-    .timer-container { position: absolute; top: 18%; left: 50%; transform: translate(-50%, -50%); z-index: 100; display: none; }
+    .timer-container { position: absolute; top: 18%; left: 50%; margin-left: -160px; width: 320px; z-index: 20000; display: none; cursor: grab; user-select: none; }
     .timer-container.show { display: block; }
-    .timer-box { display: flex; flex-direction: column; gap: 12px; align-items: center; background: rgba(255,255,255,0.75); padding: 24px 32px; border-radius: var(--radius-ios); box-shadow: 0 15px 40px rgba(0,0,0,0.12); border: 1px solid rgba(255,255,255,0.5); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
+    .timer-box { width: 100%; display: flex; flex-direction: column; gap: 12px; align-items: center; background: rgba(255,255,255,0.75); padding: 24px 32px; border-radius: var(--radius-ios); box-shadow: 0 15px 40px rgba(0,0,0,0.12); border: 1px solid rgba(255,255,255,0.5); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
     body.dark-mode .timer-box { background: rgba(30,41,56,0.8); border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 15px 40px rgba(0,0,0,0.25); }
     .timer-display { font-size: 3.2rem; font-weight: 900; text-align: center; font-variant-numeric: tabular-nums; letter-spacing: 3px; color: var(--accent-wechat); text-shadow: 0 2px 8px rgba(0,0,0,0.1); height: 70px; line-height: 70px; display: block; }
     .timer-box.active .timer-input, .timer-box.active .timer-label, .timer-box.active .timer-separator { display: none; }
@@ -1770,7 +1770,54 @@ export default {
   };
   const toggleTimer=()=>{if(timerRunning){stopTimer();}else{startTimer();}};
   const resetTimer=()=>{stopTimer();timerRemainingSeconds=0;updateTimerDisplay();trb.disabled=true;saveTimerState();};
-  const initTimer=()=>{const state=loadTimerState();th.value=state.h;tm.value=state.m;ts.value=state.s;timerRemainingSeconds=state.remainder;updateTimerDisplay();[th,tm,ts].forEach(el=>el.addEventListener('change',()=>{if(timerRunning)stopTimer();timerRemainingSeconds=0;saveTimerState();}));[th,tm,ts].forEach(el=>el.addEventListener('input',()=>{if(timerRunning)stopTimer();timerRemainingSeconds=0;updateTimerDisplay();saveTimerState();}));tsb.addEventListener('click',toggleTimer);trb.addEventListener('click',resetTimer);trb.disabled=timerRemainingSeconds===0;};
+  const initTimer=()=>{
+    const state=loadTimerState();
+    th.value=state.h;
+    tm.value=state.m;
+    ts.value=state.s;
+    timerRemainingSeconds=state.remainder;
+    updateTimerDisplay();
+    [th,tm,ts].forEach(el=>el.addEventListener('change',()=>{if(timerRunning)stopTimer();timerRemainingSeconds=0;saveTimerState();}));
+    [th,tm,ts].forEach(el=>el.addEventListener('input',()=>{if(timerRunning)stopTimer();timerRemainingSeconds=0;updateTimerDisplay();saveTimerState();}));
+    tsb.addEventListener('click',toggleTimer);
+    trb.addEventListener('click',resetTimer);
+    trb.disabled=timerRemainingSeconds===0;
+
+    const tc=document.getElementById('timerContainer');
+    if(tc){
+      let active=false,sx=0,sy=0,tx=0,ty=0;
+      tc.addEventListener('mousedown',e=>{
+        if(e.target.tagName==='INPUT'||e.target.tagName==='BUTTON'||e.target.closest('.timer-inputs')||e.target.closest('.timer-buttons')) return;
+        active=true;
+        sx=e.clientX-tx;
+        sy=e.clientY-ty;
+        tc.style.cursor='grabbing';
+        e.preventDefault();
+      });
+      tc.addEventListener('touchstart',e=>{
+        if(e.target.tagName==='INPUT'||e.target.tagName==='BUTTON'||e.target.closest('.timer-inputs')||e.target.closest('.timer-buttons')) return;
+        active=true;
+        sx=e.touches[0].clientX-tx;
+        sy=e.touches[0].clientY-ty;
+        tc.style.cursor='grabbing';
+      },{passive:true});
+      document.addEventListener('mousemove',e=>{
+        if(!active)return;
+        tx=e.clientX-sx;
+        ty=e.clientY-sy;
+        tc.style.transform='translate('+tx+'px,'+ty+'px)';
+      });
+      document.addEventListener('touchmove',e=>{
+        if(!active)return;
+        tx=e.touches[0].clientX-sx;
+        ty=e.touches[0].clientY-sy;
+        tc.style.transform='translate('+tx+'px,'+ty+'px)';
+      },{passive:false});
+      const endDrag=()=>{active=false;tc.style.cursor='grab';};
+      document.addEventListener('mouseup',endDrag);
+      document.addEventListener('touchend',endDrag);
+    }
+  };
   initTimer();
 
   document.getElementById('wechatPlus').addEventListener('click',()=>modCounter(WECHAT_K,1,'incWechat'));
