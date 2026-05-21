@@ -633,22 +633,29 @@ export default {
     @keyframes sync-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
     @media (min-width: 761px) {
       .right-area { order: 2; } .left-area { order: 1; }
-      .card { padding: 20px 24px; }
-      .counter-card { padding: 20px 18px; }
-      .counter-label { font-size: 1rem; }
-      .counter-value { font-size: 4rem; font-weight: 900; }
-      .circle-btn { width: 48px; height: 48px; font-size: 1.8rem; }
-      .button-group { gap: 16px; margin-top: 18px; }
-      .reset-mini { font-size: 0.8rem; }
-      .client-scroll { max-height: 260px; }
-      .todo-list { max-height: 240px; }
-      .input-simple { padding: 12px 18px; font-size: 0.9rem; }
-      .btn-add { padding: 12px 24px; font-size: 0.9rem; }
-      .client-row { padding: 12px 16px; font-size: 0.9rem; }
-      .todo-item { padding: 10px 14px; font-size: 0.85rem; }
-      .todo-input { padding: 10px 16px; font-size: 0.85rem; }
-      .todo-add-btn { padding: 10px 20px; font-size: 0.85rem; }
-      .todo-title { font-size: 0.95rem; }
+      .card { padding: 14px 16px; }
+      .counter-card { padding: 16px 14px; }
+      .counter-label { font-size: 0.85rem; }
+      .counter-value { font-size: 3.2rem; font-weight: 900; }
+      .circle-btn { width: 42px; height: 42px; font-size: 1.5rem; }
+      .button-group { gap: 12px; margin-top: 14px; }
+      .reset-mini { font-size: 0.75rem; }
+      .client-scroll { max-height: 200px; }
+      .todo-list { max-height: 180px; }
+      .input-simple { padding: 8px 12px; font-size: 0.82rem; }
+      .btn-add { padding: 8px 16px; font-size: 0.82rem; }
+      .client-row { padding: 8px 12px; font-size: 0.8rem; }
+      .todo-item { padding: 6px 10px; font-size: 0.8rem; }
+      .todo-input { padding: 6px 10px; font-size: 0.8rem; }
+      .todo-add-btn { padding: 6px 12px; font-size: 0.8rem; }
+      .todo-title { font-size: 0.85rem; }
+    }
+    @media (min-width: 1024px) {
+      .right-area {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 16px;
+      }
     }
     @media (max-width: 760px) {
       .timer-box { padding: 16px 20px; }
