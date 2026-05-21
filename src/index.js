@@ -674,6 +674,24 @@ export default {
 	      .script-module { padding: 8px 12px; font-size: 0.72rem; text-align: left; font-weight: 400; line-height: 1.6; }
 	      .learn-module { padding: 8px 12px; font-size: 0.7rem; }
     }
+    /* ===== 紧凑表格与待办行样式 ===== */
+    .table-compact { width: 100%; border-collapse: collapse; font-size: 0.78rem; color: var(--text-main); text-align: left; }
+    .table-compact th { padding: 4px 6px; font-weight: 700; color: var(--text-soft); border-bottom: 1.5px solid var(--card-border); font-size: 0.72rem; }
+    .table-compact td { padding: 6px 6px; border-bottom: 1px solid var(--card-border); vertical-align: middle; font-weight: 600; }
+    .table-compact tr:last-child td { border-bottom: none; }
+    .table-compact tr:hover { background: var(--btn-hover); }
+    .client-detail { color: var(--text-light); font-size: 0.72rem; }
+    .client-note-text { color: var(--text-soft); font-size: 0.75rem; word-break: break-word; }
+    .client-time-text { color: var(--text-light); font-size: 0.7rem; }
+    
+    .todo-item-clean { display: flex; align-items: center; gap: 8px; padding: 6px 4px; border-bottom: 1px dashed var(--card-border); font-size: 0.78rem; font-weight: 600; color: var(--text-main); transition: background 0.15s; }
+    .todo-item-clean:hover { background: var(--btn-hover); }
+    .todo-item-clean:last-child { border-bottom: none; }
+    .todo-number-clean { font-weight: 800; color: var(--accent-wechat); font-size: 0.78rem; min-width: 16px; }
+    .todo-text-clean { flex: 1; word-break: break-word; line-height: 1.4; }
+    .todo-del-btn-clean { background: none; border: none; color: #c97a7a; cursor: pointer; font-size: 0.8rem; padding: 0 4px; opacity: 0.5; transition: opacity 0.2s; }
+    .todo-del-btn-clean:hover { opacity: 1; }
+    .todo-time-tag { background: var(--card-border); color: var(--text-soft); padding: 1px 4px; border-radius: 4px; font-size: 0.65rem; margin-left: 6px; font-weight: 700; }
   </style>
 </head>
 <body>
@@ -771,7 +789,7 @@ export default {
       </div>
       <div class="right-area">
         <div class="card">
-          <div style="font-weight:700;margin-bottom:14px;font-size:0.9rem;">🎯 意向登记</div>
+          <div style="font-weight:700;margin-bottom:14px;font-size:0.9rem;">意向登记</div>
           <div class="register-block">
             <div class="form-line"><input type="text" class="input-simple" id="custName" placeholder="姓名" autocomplete="off"><input type="text" class="input-simple" id="custPhone" placeholder="电话" autocomplete="off"></div>
             <div class="form-line"><input type="text" class="input-simple" id="custCompany" placeholder="单位" autocomplete="off"><input type="text" class="input-simple" id="custFund" placeholder="公积金" autocomplete="off"></div>
@@ -781,7 +799,7 @@ export default {
           </div>
         </div>
         <div class="card">
-          <div style="font-weight:700;margin-bottom:14px;font-size:0.9rem;">⏳ 临时登记 (待晚上回访)</div>
+          <div style="font-weight:700;margin-bottom:14px;font-size:0.9rem;">临时登记 (待晚回访)</div>
           <div class="register-block">
             <div class="form-line"><input type="text" class="input-simple" id="tempCustName" placeholder="姓名" autocomplete="off"><input type="text" class="input-simple" id="tempCustPhone" placeholder="电话/联系方式" autocomplete="off"></div>
             <input type="text" class="input-simple" id="tempCustNote" placeholder="回访备注/待聊内容" autocomplete="off">
@@ -791,14 +809,14 @@ export default {
         </div>
         <div class="card">
           <div class="todo-section">
-            <div class="todo-title">✅ 今日待办</div>
+            <div class="todo-title">今日待办</div>
             <div class="todo-list" id="todayTodoList"></div>
             <div class="todo-input-row"><input type="text" class="todo-input" id="todayTodoInput" placeholder="添加今日待办..." autocomplete="off"><input type="time" class="todo-input" id="todayRemindTime" style="flex:0 0 100px;font-size:0.7rem;padding:8px 4px;"><button class="todo-add-btn" id="addTodayTodoBtn">+ 添加</button></div>
           </div>
         </div>
         <div class="card">
           <div class="todo-section">
-            <div class="todo-title">✅ 明日待办</div>
+            <div class="todo-title">明日待办</div>
             <div class="todo-list" id="tomorrowTodoList"></div>
             <div class="todo-input-row"><input type="text" class="todo-input" id="todoInput" placeholder="添加明日待办..." autocomplete="off"><input type="time" class="todo-input" id="tomorrowRemindTime" style="flex:0 0 100px;font-size:0.7rem;padding:8px 4px;"><button class="todo-add-btn" id="addTodoBtn">+ 添加</button></div>
           </div>
@@ -1090,8 +1108,25 @@ export default {
   function renderClientList(){
     const today=getTodayStr();
     const clients=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]').filter(c=>c.date===today);
-    document.getElementById('clientList').innerHTML=clients.map((c,i)=>'<div class="client-row"><div class="client-info"><span class="client-name">'+esc(c.name)+'</span><span class="client-phone" data-full="'+esc(c.phone)+'">'+esc(maskPhone(c.phone))+'</span><button class="phone-toggle" title="显示号码">👁</button>'+(c.company?'<span class="client-note">🏢 '+esc(c.company)+'</span>':'')+(c.fund?'<span class="client-note">💰 '+esc(c.fund)+'</span>':'')+(c.note?'<span class="client-note">📝 '+esc(c.note)+'</span>':'')+'<span class="client-time">⏰ '+esc(c.time||'')+'</span></div><div class="client-actions"><button class="edit-icon" data-name="'+esc(c.name)+'" data-phone="'+esc(c.phone)+'" data-time="'+esc(c.time||'')+'" title="编辑">✎</button><button class="del-icon" data-name="'+esc(c.name)+'" data-phone="'+esc(c.phone)+'" data-time="'+esc(c.time||'')+'" title="删除">✕</button></div></div>').join('');
-    document.querySelectorAll('.del-icon').forEach(b=>b.addEventListener('click',async e=>{
+    const container = document.getElementById('clientList');
+    if(!container)return;
+    if(clients.length===0){
+      container.innerHTML='<div class="empty-clients">暂无意向客户</div>';
+      return;
+    }
+    container.innerHTML='<table class="table-compact"><thead><tr><th style="width:60px;">姓名</th><th style="width:110px;">电话</th><th style="width:120px;">单位/公积金</th><th>沟通记录</th><th style="width:60px;text-align:right;">操作</th></tr></thead><tbody>'+
+      clients.map((c,i)=>{
+        const details=[c.company,c.fund].filter(Boolean).join(' / ')||'-';
+        return '<tr>'+
+          '<td><span class="client-name">'+esc(c.name)+'</span></td>'+
+          '<td><span class="client-phone" data-full="'+esc(c.phone)+'">'+esc(maskPhone(c.phone))+'</span><button class="phone-toggle" title="显示号码">👁</button></td>'+
+          '<td><span class="client-detail">'+esc(details)+'</span></td>'+
+          '<td><span class="client-note-text">'+esc(c.note||'')+'</span></td>'+
+          '<td style="text-align:right;"><button class="edit-icon" data-name="'+esc(c.name)+'" data-phone="'+esc(c.phone)+'" data-time="'+esc(c.time||'')+'" title="编辑">✎</button><button class="del-icon" data-name="'+esc(c.name)+'" data-phone="'+esc(c.phone)+'" data-time="'+esc(c.time||'')+'" title="删除">✕</button></td>'+
+          '</tr>';
+      }).join('')+'</tbody></table>';
+
+    container.querySelectorAll('.del-icon').forEach(b=>b.addEventListener('click',async e=>{
       const name=b.dataset.name;
       const phone=b.dataset.phone;
       const time=b.dataset.time;
@@ -1102,7 +1137,7 @@ export default {
       renderClientList();refreshAll();
       await syncOp('removeClientByMatch',{name:name,phone:phone,time:time});
     }));
-    document.querySelectorAll('.edit-icon').forEach(b=>b.addEventListener('click',e=>{
+    container.querySelectorAll('.edit-icon').forEach(b=>b.addEventListener('click',e=>{
       const name=b.dataset.name;
       const phone=b.dataset.phone;
       const time=b.dataset.time;
@@ -1119,7 +1154,7 @@ export default {
       renderClientList();refreshAll();
       document.getElementById('custName').focus();
     }));
-    document.querySelectorAll('.phone-toggle').forEach(b=>b.addEventListener('click',e=>{
+    container.querySelectorAll('.phone-toggle').forEach(b=>b.addEventListener('click',e=>{
       e.stopPropagation();
       const phoneSpan=b.previousElementSibling;
       const full=phoneSpan.dataset.full;
@@ -1142,12 +1177,12 @@ export default {
     const tc=document.getElementById('todayTodoList'), mc=document.getElementById('tomorrowTodoList');
     const makeItem=(t,i,list)=>{
       const txt=typeof t==='string'?t:t.text;
-      const rm=t&&t.remind?' 🔔'+esc(t.remind):'';
-      return '<div class="todo-item"><span class="todo-number">'+(i+1)+'.</span><span class="todo-text">'+esc(txt)+rm+'</span><button class="todo-del-btn" data-idx="'+i+'" data-list="'+list+'">✕</button></div>';
+      const rm=t&&t.remind?'<span class="todo-time-tag">'+esc(t.remind)+'</span>':'';
+      return '<div class="todo-item-clean"><span class="todo-number-clean">'+(i+1)+'.</span><span class="todo-text-clean">'+esc(txt)+rm+'</span><button class="todo-del-btn-clean" data-idx="'+i+'" data-list="'+list+'">✕</button></div>';
     };
     tc.innerHTML=tt.length===0?'<div style="font-size:0.75rem;color:var(--text-light);padding:6px;">暂无待办</div>':tt.map((t,i)=>makeItem(t,i,'today')).join('');
     mc.innerHTML=tm.length===0?'<div style="font-size:0.75rem;color:var(--text-light);padding:6px;">暂无待办</div>':tm.map((t,i)=>makeItem(t,i,'tomorrow')).join('');
-    document.querySelectorAll('.todo-del-btn').forEach(b=>b.addEventListener('click',async e=>{
+    document.querySelectorAll('.todo-del-btn-clean').forEach(b=>b.addEventListener('click',async e=>{
       const i=parseInt(b.dataset.idx),l=b.dataset.list;
       const todos=loadTodos(l==='today'?TODAY_TODO_K:TOMORROW_TODO_K);
       todos.splice(i,1);saveTodos(l==='today'?TODAY_TODO_K:TOMORROW_TODO_K,todos);renderTodos();
@@ -1415,7 +1450,20 @@ export default {
     const list=JSON.parse(localStorage.getItem(TEMP_CLIENTS_K)||'[]');
     const container = document.getElementById('tempClientList');
     if(!container) return;
-    container.innerHTML=list.map((c,i)=>'<div class="client-row"><div class="client-info"><span class="client-name">'+esc(c.name)+'</span><span class="client-phone" data-full="'+esc(c.phone)+'">'+esc(maskPhone(c.phone))+'</span><button class="phone-toggle" title="显示号码">👁</button>'+(c.note?'<span class="client-note">📝 '+esc(c.note)+'</span>':'')+'<span class="client-time">⏰ '+esc(c.time||'')+'</span></div><div class="client-actions"><button class="btn-add convert-temp-btn" data-idx="'+i+'" style="font-size:0.7rem;padding:4px 8px;background:var(--accent-intent);margin-right:4px;" title="转为正式意向客户">转意向</button><button class="del-icon del-temp-btn" data-idx="'+i+'" title="删除">✕</button></div></div>').join('');
+    if(list.length===0){
+      container.innerHTML='<div class="empty-clients">暂无临时登记客户</div>';
+      return;
+    }
+    container.innerHTML='<table class="table-compact"><thead><tr><th style="width:60px;">姓名</th><th style="width:110px;">电话</th><th>回访备注</th><th style="width:60px;">时间</th><th style="width:90px;text-align:right;">操作</th></tr></thead><tbody>'+
+      list.map((c,i)=>{
+        return '<tr>'+
+          '<td><span class="client-name">'+esc(c.name)+'</span></td>'+
+          '<td><span class="client-phone" data-full="'+esc(c.phone)+'">'+esc(maskPhone(c.phone))+'</span><button class="phone-toggle" title="显示号码">👁</button></td>'+
+          '<td><span class="client-note-text">'+esc(c.note||'')+'</span></td>'+
+          '<td><span class="client-detail">'+esc(c.time||'')+'</span></td>'+
+          '<td style="text-align:right;"><button class="btn-add convert-temp-btn" data-idx="'+i+'" style="font-size:0.7rem;padding:2px 6px;background:var(--accent-intent);margin-right:4px;font-weight:700;display:inline-block;vertical-align:middle;" title="转为正式意向客户">转意向</button><button class="del-icon del-temp-btn" data-idx="'+i+'" title="删除" style="vertical-align:middle;padding:0;width:20px;height:20px;line-height:20px;display:inline-block;">✕</button></td>'+
+          '</tr>';
+      }).join('')+'</tbody></table>';
     
     // 绑定删除按钮
     container.querySelectorAll('.del-temp-btn').forEach(b=>{
