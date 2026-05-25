@@ -891,7 +891,7 @@ export default {
       <div class="title-section"><h3>每日工作</h3><div class="date-chip" id="liveDate"></div></div>
       <div class="action-group">
         <button class="sync-indicator" id="syncBtn" title="点击手动同步"><span class="sync-icon" id="syncIcon">⇅</span><span id="syncLabel">同步中</span><div class="sync-tooltip" id="syncTooltip">正在连接...</div></button>
-        <button class="icon-simple" id="allClientsBtn" title="意向客户全量表">☰</button>
+        <button class="icon-simple" id="allClientsBtn" title="意向客户全量表">⊞</button>
         <button class="icon-simple" id="hideBtn" title="一键隐藏 (Ctrl+Z)">⊘</button>
         <button class="icon-simple" id="menuToggleBtn" title="菜单">≡</button>
         <div class="menu-dropdown" id="menuDropdown">
@@ -939,10 +939,10 @@ export default {
         <div class="card">
           <div class="card-title">意向登记</div>
           <div class="register-block">
-            <div class="form-line"><input type="text" class="input-simple" id="custName" placeholder="姓名" autocomplete="off"><input type="text" class="input-simple" id="custPhone" placeholder="电话" autocomplete="off"></div>
-            <div class="form-line"><input type="text" class="input-simple" id="custCompany" placeholder="单位" autocomplete="off"><input type="text" class="input-simple" id="custFund" placeholder="公积金" autocomplete="off"></div>
-            <textarea class="input-simple note-textarea" id="custNote" placeholder="沟通记录 (必填)" rows="3"></textarea>
-            <textarea class="input-simple note-textarea" id="custFollowUp" placeholder="跟进情况" rows="2"></textarea>
+            <div class="form-line"><input type="text" class="input-simple" id="custName" autocomplete="off"><input type="text" class="input-simple" id="custPhone" autocomplete="off"></div>
+            <div class="form-line"><input type="text" class="input-simple" id="custCompany" autocomplete="off"><input type="text" class="input-simple" id="custFund" autocomplete="off"></div>
+            <textarea class="input-simple note-textarea" id="custNote" rows="3"></textarea>
+            <textarea class="input-simple note-textarea" id="custFollowUp" rows="2"></textarea>
             <button class="btn-add" id="addClientBtn">+ 添加</button>
             <div class="client-scroll" id="clientList"></div>
           </div>
@@ -950,8 +950,8 @@ export default {
         <div class="card">
           <div class="card-title">临时登记 (待晚回访)</div>
           <div class="register-block">
-            <div class="form-line"><input type="text" class="input-simple" id="tempCustName" placeholder="姓名" autocomplete="off"><input type="text" class="input-simple" id="tempCustPhone" placeholder="电话/联系方式" autocomplete="off"></div>
-            <textarea class="input-simple note-textarea" id="tempCustNote" placeholder="回访备注/待聊内容" rows="2"></textarea>
+            <div class="form-line"><input type="text" class="input-simple" id="tempCustName" autocomplete="off"><input type="text" class="input-simple" id="tempCustPhone" autocomplete="off"></div>
+            <textarea class="input-simple note-textarea" id="tempCustNote" rows="2"></textarea>
             <button class="btn-add" id="addTempCustBtn" style="background:var(--accent-wechat);">+ 登记</button>
             <div class="client-scroll" id="tempClientList"></div>
           </div>
@@ -959,14 +959,14 @@ export default {
         <div class="card">
           <div class="card-title">今日待办</div>
           <div class="register-block">
-            <div class="todo-input-row"><input type="text" class="todo-input" id="todayTodoInput" placeholder="添加今日待办..." autocomplete="off"><input type="time" class="todo-input time-input-compact" id="todayRemindTime"><button class="todo-add-btn" id="addTodayTodoBtn">+ 添加</button></div>
+            <div class="todo-input-row"><input type="text" class="todo-input" id="todayTodoInput" autocomplete="off"><input type="time" class="todo-input time-input-compact" id="todayRemindTime"><button class="todo-add-btn" id="addTodayTodoBtn">+ 添加</button></div>
             <div class="todo-list" id="todayTodoList"></div>
           </div>
         </div>
         <div class="card">
           <div class="card-title">明日待办</div>
           <div class="register-block">
-            <div class="todo-input-row"><input type="text" class="todo-input" id="todoInput" placeholder="添加明日待办..." autocomplete="off"><input type="time" class="todo-input time-input-compact" id="tomorrowRemindTime"><button class="todo-add-btn" id="addTodoBtn">+ 添加</button></div>
+            <div class="todo-input-row"><input type="text" class="todo-input" id="todoInput" autocomplete="off"><input type="time" class="todo-input time-input-compact" id="tomorrowRemindTime"><button class="todo-add-btn" id="addTodoBtn">+ 添加</button></div>
             <div class="todo-list" id="tomorrowTodoList"></div>
           </div>
         </div>
@@ -978,7 +978,7 @@ export default {
 <div id="scriptModal" class="modal-overlay">
   <div class="modal-card script-input-modal">
     <div class="modal-header"><span>话术管理</span><button id="closeScriptModalBtn">×</button></div>
-    <textarea id="newScriptInput" placeholder="输入话术内容..."></textarea>
+    <textarea id="newScriptInput"></textarea>
     <button class="btn-add" id="addScriptBtn" style="width:100%;">+ 添加话术</button>
     <div class="script-list" id="scriptList"></div>
   </div>
@@ -986,7 +986,7 @@ export default {
 <div id="learnModal" class="modal-overlay">
   <div class="modal-card script-input-modal">
     <div class="modal-header"><span>学习管理</span><button id="closeLearnModalBtn">×</button></div>
-    <textarea id="newLearnInput" placeholder="输入学习内容..."></textarea>
+    <textarea id="newLearnInput"></textarea>
     <div class="learn-check-row"><input type="checkbox" id="learnShowCheck" checked><label for="learnShowCheck">锁屏显示</label></div>
     <button class="btn-add" id="addLearnBtn" style="width:100%;">保存</button>
     <div class="script-list" id="learnList"></div>
@@ -997,7 +997,7 @@ export default {
     <div class="modal-header"><span>导出数据</span><button id="closeExportModalBtn">×</button></div>
     <div style="display:flex;flex-direction:column;gap:10px;">
       <div style="display:flex;gap:8px;"><button class="btn-add" id="exportWeekBtn" style="flex:1;">导出本周</button><button class="btn-add" id="exportMonthBtn" style="flex:1;">导出本月</button></div>
-      <input type="text" class="input-simple" id="webhookUrlInput" placeholder="企业微信 Webhook URL">
+      <input type="text" class="input-simple" id="webhookUrlInput">
       <div style="font-size:0.65rem;color:var(--text-light);">粘贴企业微信群机器人的 Webhook 地址</div>
       <div id="exportStatus" style="font-size:0.75rem;text-align:center;min-height:20px;"></div>
     </div>
@@ -1639,7 +1639,7 @@ export default {
           '<td><a class="client-phone" href="tel:'+esc(c.phone)+'" data-full="'+esc(c.phone)+'">'+esc(maskPhone(c.phone))+'</a><button class="phone-toggle" title="显示号码">◎</button></td>'+
           '<td><span class="client-note-text">'+esc(c.note||'')+'</span></td>'+
           '<td><span class="client-detail">'+esc(c.time||'')+'</span></td>'+
-          '<td style="text-align:right;"><button class="btn-add convert-temp-btn" data-idx="'+i+'" style="font-size:0.7rem;padding:2px 6px;background:var(--accent-intent);margin-right:4px;font-weight:700;display:inline-block;vertical-align:middle;" title="转为正式意向客户">转意向</button><button class="del-icon del-temp-btn" data-idx="'+i+'" title="删除" style="vertical-align:middle;padding:0;width:20px;height:20px;line-height:20px;display:inline-block;">×</button></td>'+
+          '<td style="text-align:right;"><button class="convert-temp-btn" data-idx="'+i+'" title="转为正式意向客户" style="font-size:1rem;padding:0;background:none;border:none;color:var(--accent-intent);cursor:pointer;margin-right:8px;font-weight:700;">→</button><button class="del-icon del-temp-btn" data-idx="'+i+'" title="删除" style="vertical-align:middle;padding:0;width:20px;height:20px;line-height:20px;display:inline-block;">×</button></td>'+
           '</tr>';
       }).join('')+'</tbody></table>';
     
@@ -2190,12 +2190,12 @@ export default {
         tr.id = 'newClientRow';
         tr.innerHTML = 
           '<td data-label="日期" style="padding: 10px 8px; white-space: nowrap;"><input type="date" class="input-simple new-date-input" style="padding: 4px 6px; font-size: 0.8rem; width: 115px;" value="' + getTodayStr() + '"></td>' +
-          '<td data-label="姓名" style="padding: 10px 8px;"><input type="text" class="input-simple new-name-input" style="padding: 4px 6px; font-size: 0.8rem; font-weight: 700; width: 80px;" placeholder="姓名"></td>' +
-          '<td data-label="电话" style="padding: 10px 8px;"><input type="text" class="input-simple new-phone-input" style="padding: 4px 6px; font-size: 0.8rem; width: 110px;" placeholder="电话"></td>' +
-          '<td data-label="单位" style="padding: 10px 8px;"><input type="text" class="input-simple new-company-input" style="padding: 4px 6px; font-size: 0.8rem; width: 120px;" placeholder="单位"></td>' +
-          '<td data-label="公积金" style="padding: 10px 8px;"><input type="text" class="input-simple new-fund-input" style="padding: 4px 6px; font-size: 0.8rem; width: 80px;" placeholder="公积金"></td>' +
-          '<td data-label="沟通情况" style="padding: 10px 8px;"><textarea class="input-simple new-note-input" style="padding: 4px 6px; font-size: 0.8rem; width: 100%; min-height: 80px; resize: vertical; line-height: 1.6;" placeholder="沟通情况"></textarea></td>' +
-          '<td data-label="跟进情况" style="padding: 10px 8px;"><textarea class="input-simple new-follow-input" style="padding: 4px 6px; font-size: 0.8rem; width: 100%; min-height: 80px; resize: vertical; line-height: 1.6;" placeholder="跟进情况"></textarea></td>' +
+          '<td data-label="姓名" style="padding: 10px 8px;"><input type="text" class="input-simple new-name-input" style="padding: 4px 6px; font-size: 0.8rem; font-weight: 700; width: 80px;"></td>' +
+          '<td data-label="电话" style="padding: 10px 8px;"><input type="text" class="input-simple new-phone-input" style="padding: 4px 6px; font-size: 0.8rem; width: 110px;"></td>' +
+          '<td data-label="单位" style="padding: 10px 8px;"><input type="text" class="input-simple new-company-input" style="padding: 4px 6px; font-size: 0.8rem; width: 120px;"></td>' +
+          '<td data-label="公积金" style="padding: 10px 8px;"><input type="text" class="input-simple new-fund-input" style="padding: 4px 6px; font-size: 0.8rem; width: 80px;"></td>' +
+          '<td data-label="沟通情况" style="padding: 10px 8px;"><textarea class="input-simple new-note-input" style="padding: 4px 6px; font-size: 0.8rem; width: 100%; min-height: 80px; resize: vertical; line-height: 1.6;"></textarea></td>' +
+          '<td data-label="跟进情况" style="padding: 10px 8px;"><textarea class="input-simple new-follow-input" style="padding: 4px 6px; font-size: 0.8rem; width: 100%; min-height: 80px; resize: vertical; line-height: 1.6;"></textarea></td>' +
           '<td data-label="操作" style="padding: 10px 8px; text-align: center; white-space: nowrap;">' +
             '<button class="save-new-client-btn" style="background:none;border:none;color:var(--accent-wechat);cursor:pointer;font-size:0.9rem;font-weight:700;margin-right:6px;" title="保存">✓ 保存</button>' +
             '<button class="cancel-new-client-btn" style="background:none;border:none;color:var(--text-light);cursor:pointer;font-size:0.9rem;font-weight:700;" title="取消">✕ 取消</button>' +
