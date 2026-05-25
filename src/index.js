@@ -739,6 +739,52 @@ export default {
       .intent-table { font-size: 0.75rem; }
       .intent-table th, .intent-table td { padding: 8px 6px; }
       .tbl-note-cell { min-width: 200px; }
+
+      /* Mobile clients table card layout */
+      .clients-table, .clients-table thead, .clients-table tbody, .clients-table th, .clients-table td, .clients-table tr {
+        display: block;
+        width: 100% !important;
+        box-sizing: border-box;
+      }
+      .clients-table thead {
+        display: none !important;
+      }
+      .clients-table tbody tr {
+        background: var(--btn-bg);
+        border: 1px solid var(--card-border);
+        border-radius: var(--radius-sm);
+        padding: 12px 14px;
+        margin-bottom: 12px;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+      }
+      .clients-table td {
+        padding: 6px 0 !important;
+        border-bottom: 0.5px dashed var(--border-light) !important;
+        text-align: left !important;
+        font-size: 0.85rem !important;
+        display: flex;
+        align-items: flex-start;
+        justify-content: flex-start;
+        min-height: 28px;
+      }
+      .clients-table td:last-child {
+        border-bottom: none !important;
+        justify-content: center;
+      }
+      .clients-table td::before {
+        content: attr(data-label) ": ";
+        font-weight: 800;
+        color: var(--text-soft);
+        width: 80px;
+        flex-shrink: 0;
+        margin-top: 1px;
+      }
+      .clients-table td input,
+      .clients-table td textarea {
+        flex: 1;
+        width: 100% !important;
+        box-sizing: border-box !important;
+      }
     }
     /* ===== 紧凑表格与待办行样式 ===== */
     .table-compact { width: 100%; border-collapse: collapse; font-size: 0.78rem; color: var(--text-main); text-align: left; }
@@ -1986,15 +2032,15 @@ export default {
       const note = c.note || '-';
       const followUp = c.followUp || '-';
       return '<tr data-date="'+esc(c.date)+'" data-name="'+esc(c.name)+'" data-phone="'+esc(c.phone)+'">'+
-        '<td style="padding: 10px 8px; white-space: nowrap;">'+esc(c.date)+'</td>'+
-        '<td style="padding: 10px 8px; font-weight: 700;">'+esc(c.name)+'</td>'+
-        '<td style="padding: 10px 8px; white-space: nowrap;"><a class="client-phone" href="tel:'+esc(c.phone)+'" data-full="'+esc(c.phone)+'">'+esc(maskPhone(c.phone))+'</a><button class="phone-toggle" style="background:none;border:none;margin-left:4px;cursor:pointer;opacity:0.5;" title="显示号码">👁</button></td>'+
-        '<td style="padding: 10px 8px;">'+esc(company)+'</td>'+
-        '<td style="padding: 10px 8px;">'+esc(fund)+'</td>'+
-        '<td style="padding: 10px 8px; max-width: 200px; word-break: break-all;">'+esc(note)+'</td>'+
-        '<td style="padding: 10px 8px; max-width: 150px; word-break: break-all;">'+esc(followUp)+'</td>'+
-        '<td style="padding: 10px 8px; text-align: center; white-space: nowrap;">'+
-          '<button class="edit-all-client-btn" data-date="'+esc(c.date)+'" data-name="'+esc(c.name)+'" data-phone="'+esc(c.phone)+'" data-time="'+esc(c.time||'')+'" style="background:none;border:none;color:var(--accent-wechat);cursor:pointer;font-size:0.9rem;font-weight:700;margin-right:6px;" title="编辑">✎</button>'+
+        '<td data-label="日期" style="padding: 10px 8px; white-space: nowrap;">'+esc(c.date)+'</td>'+
+        '<td data-label="姓名" style="padding: 10px 8px; font-weight: 700;">'+esc(c.name)+'</td>'+
+        '<td data-label="电话" style="padding: 10px 8px; white-space: nowrap;"><a class="client-phone" href="tel:'+esc(c.phone)+'" data-full="'+esc(c.phone)+'">'+esc(maskPhone(c.phone))+'</a><button class="phone-toggle" style="background:none;border:none;margin-left:4px;cursor:pointer;opacity:0.5;" title="显示号码">👁</button></td>'+
+        '<td data-label="单位" style="padding: 10px 8px;">'+esc(company)+'</td>'+
+        '<td data-label="公积金" style="padding: 10px 8px;">'+esc(fund)+'</td>'+
+        '<td data-label="沟通情况" style="padding: 10px 8px; max-width: 200px; word-break: break-all;">'+esc(note)+'</td>'+
+        '<td data-label="跟进情况" style="padding: 10px 8px; max-width: 150px; word-break: break-all;">'+esc(followUp)+'</td>'+
+        '<td data-label="操作" style="padding: 10px 8px; text-align: center; white-space: nowrap;">'+
+          '<button class="edit-all-client-btn" data-date="'+esc(c.date)+'" data-name="'+esc(c.name)+'" data-phone="'+esc(c.phone)+'" data-time="'+esc(c.time||'')+'" style="background:none;border:none;color:var(--accent-wechat);cursor:pointer;font-size:0.9rem;font-weight:700;margin-right:6px;" title="编辑">✎ 编辑</button>'+
         '</td>'+
       '</tr>';
     }).join('');
@@ -2026,14 +2072,14 @@ export default {
       if (!c) return;
 
       tr.innerHTML = 
-        '<td style="padding: 10px 8px; white-space: nowrap;">'+esc(date)+'</td>'+
-        '<td style="padding: 10px 8px;"><input type="text" class="input-simple edit-name-input" style="padding: 4px 6px; font-size: 0.8rem; font-weight: 700; width: 80px;" value="'+esc(c.name)+'"></td>'+
-        '<td style="padding: 10px 8px;"><input type="text" class="input-simple edit-phone-input" style="padding: 4px 6px; font-size: 0.8rem; width: 110px;" value="'+esc(c.phone)+'"></td>'+
-        '<td style="padding: 10px 8px;"><input type="text" class="input-simple edit-company-input" style="padding: 4px 6px; font-size: 0.8rem; width: 120px;" value="'+esc(c.company||'')+'"></td>'+
-        '<td style="padding: 10px 8px;"><input type="text" class="input-simple edit-fund-input" style="padding: 4px 6px; font-size: 0.8rem; width: 80px;" value="'+esc(c.fund||'')+'"></td>'+
-        '<td style="padding: 10px 8px;"><textarea class="input-simple edit-note-input" style="padding: 4px 6px; font-size: 0.8rem; width: 100%; min-height: 36px; resize: vertical;">'+esc(c.note||'')+'</textarea></td>'+
-        '<td style="padding: 10px 8px;"><textarea class="input-simple edit-follow-input" style="padding: 4px 6px; font-size: 0.8rem; width: 100%; min-height: 36px; resize: vertical;">'+esc(c.followUp||'')+'</textarea></td>'+
-        '<td style="padding: 10px 8px; text-align: center; white-space: nowrap;">'+
+        '<td data-label="日期" style="padding: 10px 8px; white-space: nowrap;">'+esc(date)+'</td>'+
+        '<td data-label="姓名" style="padding: 10px 8px;"><input type="text" class="input-simple edit-name-input" style="padding: 4px 6px; font-size: 0.8rem; font-weight: 700; width: 80px;" value="'+esc(c.name)+'"></td>'+
+        '<td data-label="电话" style="padding: 10px 8px;"><input type="text" class="input-simple edit-phone-input" style="padding: 4px 6px; font-size: 0.8rem; width: 110px;" value="'+esc(c.phone)+'"></td>'+
+        '<td data-label="单位" style="padding: 10px 8px;"><input type="text" class="input-simple edit-company-input" style="padding: 4px 6px; font-size: 0.8rem; width: 120px;" value="'+esc(c.company||'')+'"></td>'+
+        '<td data-label="公积金" style="padding: 10px 8px;"><input type="text" class="input-simple edit-fund-input" style="padding: 4px 6px; font-size: 0.8rem; width: 80px;" value="'+esc(c.fund||'')+'"></td>'+
+        '<td data-label="沟通情况" style="padding: 10px 8px;"><textarea class="input-simple edit-note-input" style="padding: 4px 6px; font-size: 0.8rem; width: 100%; min-height: 36px; resize: vertical;">'+esc(c.note||'')+'</textarea></td>'+
+        '<td data-label="跟进情况" style="padding: 10px 8px;"><textarea class="input-simple edit-follow-input" style="padding: 4px 6px; font-size: 0.8rem; width: 100%; min-height: 36px; resize: vertical;">'+esc(c.followUp||'')+'</textarea></td>'+
+        '<td data-label="操作" style="padding: 10px 8px; text-align: center; white-space: nowrap;">'+
           '<button class="save-all-client-btn" style="background:none;border:none;color:var(--accent-wechat);cursor:pointer;font-size:0.9rem;font-weight:700;margin-right:6px;" title="保存">💾 保存</button>'+
           '<button class="cancel-all-client-btn" style="background:none;border:none;color:var(--text-light);cursor:pointer;font-size:0.9rem;font-weight:700;" title="取消">✕ 取消</button>'+
         '</td>';
