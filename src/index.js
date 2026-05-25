@@ -1993,7 +1993,7 @@ export default {
         '<td style="padding: 10px 8px; max-width: 200px; word-break: break-all;">'+esc(note)+'</td>'+
         '<td style="padding: 10px 8px; max-width: 150px; word-break: break-all;">'+esc(followUp)+'</td>'+
         '<td style="padding: 10px 8px; text-align: center; white-space: nowrap;">'+
-          '<button class="edit-all-client-btn" data-date="'+esc(c.date)+'" data-name="'+esc(c.name)+'" data-phone="'+esc(c.phone)+'" style="background:none;border:none;color:var(--accent-wechat);cursor:pointer;font-size:0.9rem;font-weight:700;margin-right:6px;" title="编辑">✎</button>'+
+          '<button class="edit-all-client-btn" data-date="'+esc(c.date)+'" data-name="'+esc(c.name)+'" data-phone="'+esc(c.phone)+'" data-time="'+esc(c.time||'')+'" style="background:none;border:none;color:var(--accent-wechat);cursor:pointer;font-size:0.9rem;font-weight:700;margin-right:6px;" title="编辑">✎</button>'+
         '</td>'+
       '</tr>';
     }).join('');
@@ -2017,24 +2017,70 @@ export default {
       const date = b.dataset.date;
       const name = b.dataset.name;
       const phone = b.dataset.phone;
+      const time = b.dataset.time;
+      const tr = b.closest('tr');
+      
       const all = JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
-      const matchIdx = all.findIndex(c => c.date === date && c.name === name && c.phone === phone);
-      if (matchIdx !== -1) {
-        const c = all[matchIdx];
-        document.getElementById('custName').value = c.name;
-        document.getElementById('custPhone').value = c.phone;
-        document.getElementById('custCompany').value = c.company || '';
-        document.getElementById('custFund').value = c.fund || '';
-        document.getElementById('custNote').value = c.note || '';
-        document.getElementById('custFollowUp').value = c.followUp || '';
-        all.splice(matchIdx, 1);
-        localStorage.setItem(CLIENTS_K, JSON.stringify(all));
-        syncOp('removeClientByMatch', { date, name, phone, time: c.time||'' });
-        renderClientList();
-        refreshAll();
-        document.getElementById('allClientsModal').classList.remove('active');
-        document.getElementById('custName').focus();
-      }
+      const c = all.find(item => item.date === date && item.name === name && item.phone === phone && (time ? item.time === time : true));
+      if (!c) return;
+
+      tr.innerHTML = 
+        '<td style="padding: 10px 8px; white-space: nowrap;">'+esc(date)+'</td>'+
+        '<td style="padding: 10px 8px;"><input type="text" class="input-simple edit-name-input" style="padding: 4px 6px; font-size: 0.8rem; font-weight: 700; width: 80px;" value="'+esc(c.name)+'"></td>'+
+        '<td style="padding: 10px 8px;"><input type="text" class="input-simple edit-phone-input" style="padding: 4px 6px; font-size: 0.8rem; width: 110px;" value="'+esc(c.phone)+'"></td>'+
+        '<td style="padding: 10px 8px;"><input type="text" class="input-simple edit-company-input" style="padding: 4px 6px; font-size: 0.8rem; width: 120px;" value="'+esc(c.company||'')+'"></td>'+
+        '<td style="padding: 10px 8px;"><input type="text" class="input-simple edit-fund-input" style="padding: 4px 6px; font-size: 0.8rem; width: 80px;" value="'+esc(c.fund||'')+'"></td>'+
+        '<td style="padding: 10px 8px;"><textarea class="input-simple edit-note-input" style="padding: 4px 6px; font-size: 0.8rem; width: 100%; min-height: 36px; resize: vertical;">'+esc(c.note||'')+'</textarea></td>'+
+        '<td style="padding: 10px 8px;"><textarea class="input-simple edit-follow-input" style="padding: 4px 6px; font-size: 0.8rem; width: 100%; min-height: 36px; resize: vertical;">'+esc(c.followUp||'')+'</textarea></td>'+
+        '<td style="padding: 10px 8px; text-align: center; white-space: nowrap;">'+
+          '<button class="save-all-client-btn" style="background:none;border:none;color:var(--accent-wechat);cursor:pointer;font-size:0.9rem;font-weight:700;margin-right:6px;" title="保存">💾 保存</button>'+
+          '<button class="cancel-all-client-btn" style="background:none;border:none;color:var(--text-light);cursor:pointer;font-size:0.9rem;font-weight:700;" title="取消">✕ 取消</button>'+
+        '</td>';
+
+      // Bind Save
+      tr.querySelector('.save-all-client-btn').onclick = async () => {
+        const n = tr.querySelector('.edit-name-input').value.trim();
+        const p = tr.querySelector('.edit-phone-input').value.trim();
+        const comp = tr.querySelector('.edit-company-input').value.trim();
+        const fund = tr.querySelector('.edit-fund-input').value.trim();
+        const nt = tr.querySelector('.edit-note-input').value.trim();
+        const fu = tr.querySelector('.edit-follow-input').value.trim();
+
+        if(!n){alert('姓名不能为空，请填写完整！');return;}
+        if(!p){alert('电话号码不能为空，请填写完整！');return;}
+        if(!/^1\d{10}$/.test(p)){alert('电话号码不符合11位手机号规范！');return;}
+        if(!nt){alert('沟通记录为必填项，请填写完整！');return;}
+
+        // 更新本地数据
+        const allList = JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
+        const idx = allList.findIndex(item => item.date === date && item.name === name && item.phone === phone && (time ? item.time === time : true));
+        if (idx !== -1) {
+          const updatedClient = {
+            ...allList[idx],
+            name: n,
+            phone: p,
+            company: comp,
+            fund: fund,
+            note: nt,
+            followUp: fu
+          };
+          allList[idx] = updatedClient;
+          localStorage.setItem(CLIENTS_K, JSON.stringify(allList));
+
+          // 同步云端：先删旧的，后加新的，确保原子同步更新所有字段
+          await syncOp('removeClientByMatch', { date, name, phone, time: c.time||'' });
+          await syncOp('addClient', { client: updatedClient });
+
+          loadAllClients();
+          renderClientList();
+          refreshAll();
+        }
+      };
+
+      // Bind Cancel
+      tr.querySelector('.cancel-all-client-btn').onclick = () => {
+        loadAllClients();
+      };
     }));
   }
 
