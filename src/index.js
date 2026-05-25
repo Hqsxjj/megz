@@ -779,6 +779,22 @@ export default {
         flex-shrink: 0;
         margin-top: 1px;
       }
+      .clients-table td[data-label="沟通情况"],
+      .clients-table td[data-label="跟进情况"] {
+        flex-direction: column;
+        align-items: stretch;
+        padding: 8px 0 !important;
+      }
+      .clients-table td[data-label="沟通情况"]::before,
+      .clients-table td[data-label="跟进情况"]::before {
+        width: 100%;
+        margin-bottom: 6px;
+      }
+      .clients-table td[data-label="沟通情况"] span,
+      .clients-table td[data-label="跟进情况"] span {
+        padding-left: 4px;
+        line-height: 1.4;
+      }
       .clients-table td input,
       .clients-table td textarea {
         flex: 1;
