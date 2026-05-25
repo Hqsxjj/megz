@@ -627,7 +627,8 @@ export default {
     .client-row { background: var(--btn-bg); border-radius: var(--radius-sm); padding: 10px 14px; display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem; border: 0.5px solid var(--card-border); font-weight: 600; }
     .client-info { flex: 1; display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline; }
     .client-name { font-weight: 700; }
-    .client-phone { color: var(--text-soft); font-size: 0.75rem; font-weight: 600; }
+    .client-phone, .modal-client-phone { color: var(--text-soft) !important; font-size: 0.75rem; font-weight: 600; text-decoration: none !important; cursor: pointer; }
+    .client-phone:hover, .modal-client-phone:hover { text-decoration: underline !important; }
     .phone-toggle { background: none; border: none; font-size: 0.8rem; cursor: pointer; padding: 0 2px; opacity: 0.5; transition: opacity 0.2s; vertical-align: middle; line-height: 1; }
     .phone-toggle:hover { opacity: 1; }
     .client-note { color: var(--text-light); font-size: 0.75rem; font-weight: 600; }
@@ -1210,7 +1211,7 @@ export default {
         const details=[c.company,c.fund].filter(Boolean).join(' / ')||'-';
         return '<tr>'+
           '<td><span class="client-name">'+esc(c.name)+'</span></td>'+
-          '<td><span class="client-phone" data-full="'+esc(c.phone)+'">'+esc(maskPhone(c.phone))+'</span><button class="phone-toggle" title="显示号码">◎</button></td>'+
+          '<td><a class="client-phone" href="tel:'+esc(c.phone)+'" data-full="'+esc(c.phone)+'">'+esc(maskPhone(c.phone))+'</a><button class="phone-toggle" title="显示号码">◎</button></td>'+
           '<td><span class="client-detail">'+esc(details)+'</span></td>'+
           '<td><span class="client-note-text">'+esc(c.note||'')+'</span></td>'+
           '<td><span class="client-note-text" style="color:var(--accent-wechat);font-weight:700;">'+esc(c.followUp||'-')+'</span></td>'+
@@ -1370,7 +1371,7 @@ export default {
           html += '<tr>';
           html += '<td class="tbl-seq">'+(i+1)+'</td>';
           html += '<td class="tbl-name">'+esc(e.name)+'</td>';
-          html += '<td><div class="tbl-phone-wrap"><span class="modal-client-phone" data-full="'+esc(e.phone)+'">'+esc(maskPhone(e.phone))+'</span><button class="phone-toggle" title="显示号码">◎</button></div></td>';
+          html += '<td><div class="tbl-phone-wrap"><a class="modal-client-phone" href="tel:'+esc(e.phone)+'" data-full="'+esc(e.phone)+'">'+esc(maskPhone(e.phone))+'</a><button class="phone-toggle" title="显示号码">◎</button></div></td>';
           html += '<td><div style="display:flex;flex-direction:column;gap:4px;">';
           if(e.company) html += '<span class="tbl-tag tbl-tag-company">'+esc(e.company)+'</span>';
           if(e.fund)    html += '<span class="tbl-tag tbl-tag-fund">'+esc(e.fund)+'</span>';
@@ -1555,7 +1556,7 @@ export default {
       list.map((c,i)=>{
         return '<tr>'+
           '<td><span class="client-name">'+esc(c.name)+'</span></td>'+
-          '<td><span class="client-phone" data-full="'+esc(c.phone)+'">'+esc(maskPhone(c.phone))+'</span><button class="phone-toggle" title="显示号码">◎</button></td>'+
+          '<td><a class="client-phone" href="tel:'+esc(c.phone)+'" data-full="'+esc(c.phone)+'">'+esc(maskPhone(c.phone))+'</a><button class="phone-toggle" title="显示号码">◎</button></td>'+
           '<td><span class="client-note-text">'+esc(c.note||'')+'</span></td>'+
           '<td><span class="client-detail">'+esc(c.time||'')+'</span></td>'+
           '<td style="text-align:right;"><button class="btn-add convert-temp-btn" data-idx="'+i+'" style="font-size:0.7rem;padding:2px 6px;background:var(--accent-intent);margin-right:4px;font-weight:700;display:inline-block;vertical-align:middle;" title="转为正式意向客户">转意向</button><button class="del-icon del-temp-btn" data-idx="'+i+'" title="删除" style="vertical-align:middle;padding:0;width:20px;height:20px;line-height:20px;display:inline-block;">×</button></td>'+
@@ -1987,7 +1988,7 @@ export default {
       return '<tr data-date="'+esc(c.date)+'" data-name="'+esc(c.name)+'" data-phone="'+esc(c.phone)+'">'+
         '<td style="padding: 10px 8px; white-space: nowrap;">'+esc(c.date)+'</td>'+
         '<td style="padding: 10px 8px; font-weight: 700;">'+esc(c.name)+'</td>'+
-        '<td style="padding: 10px 8px; white-space: nowrap;"><span class="client-phone" data-full="'+esc(c.phone)+'">'+esc(maskPhone(c.phone))+'</span><button class="phone-toggle" style="background:none;border:none;margin-left:4px;cursor:pointer;opacity:0.5;" title="显示号码">👁</button></td>'+
+        '<td style="padding: 10px 8px; white-space: nowrap;"><a class="client-phone" href="tel:'+esc(c.phone)+'" data-full="'+esc(c.phone)+'">'+esc(maskPhone(c.phone))+'</a><button class="phone-toggle" style="background:none;border:none;margin-left:4px;cursor:pointer;opacity:0.5;" title="显示号码">👁</button></td>'+
         '<td style="padding: 10px 8px;">'+esc(company)+'</td>'+
         '<td style="padding: 10px 8px;">'+esc(fund)+'</td>'+
         '<td style="padding: 10px 8px; max-width: 200px; word-break: break-all;">'+esc(note)+'</td>'+
