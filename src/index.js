@@ -634,6 +634,8 @@ export default {
     .form-line { display: flex; gap: 8px; align-items: center; width: 100%; }
     .input-simple, .todo-input { flex: 1; width: 100%; height: 38px; padding: 0 12px; font-size: 0.85rem; background: var(--btn-bg); border: 0.5px solid var(--card-border); border-radius: var(--radius-xs); color: var(--text-main); outline: none; min-width: 0; font-weight: 600; box-sizing: border-box; transition: all 0.2s; }
     .input-simple:focus, .todo-input:focus { border-color: var(--accent-wechat); box-shadow: 0 0 0 2px rgba(44,125,160,0.12); }
+    textarea.input-simple, .note-textarea { height: auto; min-height: 68px; padding: 10px 12px; resize: vertical; line-height: 1.6; }
+    .note-textarea { font-family: inherit; }
     .btn-add, .todo-add-btn { height: 38px; padding: 0 18px; font-size: 0.85rem; font-weight: 700; border: none; border-radius: var(--radius-xs); color: white; cursor: pointer; white-space: nowrap; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; transition: all 0.2s; }
     .btn-add { background: var(--accent-intent); }
     .todo-add-btn { background: var(--accent-wechat); }
@@ -939,8 +941,8 @@ export default {
           <div class="register-block">
             <div class="form-line"><input type="text" class="input-simple" id="custName" placeholder="姓名" autocomplete="off"><input type="text" class="input-simple" id="custPhone" placeholder="电话" autocomplete="off"></div>
             <div class="form-line"><input type="text" class="input-simple" id="custCompany" placeholder="单位" autocomplete="off"><input type="text" class="input-simple" id="custFund" placeholder="公积金" autocomplete="off"></div>
-            <input type="text" class="input-simple" id="custNote" placeholder="沟通记录 (必填)" autocomplete="off">
-            <input type="text" class="input-simple" id="custFollowUp" placeholder="跟进情况" autocomplete="off">
+            <textarea class="input-simple note-textarea" id="custNote" placeholder="沟通记录 (必填)" rows="3"></textarea>
+            <textarea class="input-simple note-textarea" id="custFollowUp" placeholder="跟进情况" rows="2"></textarea>
             <button class="btn-add" id="addClientBtn">+ 添加</button>
             <div class="client-scroll" id="clientList"></div>
           </div>
@@ -1588,7 +1590,6 @@ export default {
     const fu=document.getElementById('custFollowUp').value.trim();
     if(!n){alert('姓名不能为空，请填写完整！');return;}
     if(!p){alert('电话号码不能为空，请填写完整！');return;}
-    if(!/^1\d{10}$/.test(p)){alert('电话号码不符合11位手机号规范！');return;}
     if(!nt){alert('沟通记录为必填项，请填写完整！');return;}
     const list=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
     const today=getTodayStr(),time=getCurrentTime();
@@ -2000,7 +2001,7 @@ export default {
   document.getElementById('addTodoBtn').addEventListener('click',addTodo);
   document.getElementById('todayTodoInput').addEventListener('keypress',e=>{if(e.key==='Enter')addTodayTodo();});
   document.getElementById('todoInput').addEventListener('keypress',e=>{if(e.key==='Enter')addTodo();});
-  ['custName','custPhone','custCompany','custFund','custNote','custFollowUp'].forEach(id=>document.getElementById(id).addEventListener('keypress',e=>{if(e.key==='Enter')addClient();}));
+  ['custName','custPhone','custCompany','custFund'].forEach(id=>document.getElementById(id).addEventListener('keypress',e=>{if(e.key==='Enter')addClient();}));
   document.getElementById('addTempCustBtn').addEventListener('click',addTempClient);
   ['tempCustName','tempCustPhone','tempCustNote'].forEach(id=>document.getElementById(id).addEventListener('keypress',e=>{if(e.key==='Enter')addTempClient();}));
   document.getElementById('closeModalBtn').addEventListener('click',()=>document.getElementById('dateModal').classList.remove('active'));
@@ -2070,8 +2071,8 @@ export default {
         '<td data-label="电话" style="padding: 10px 8px; white-space: nowrap;"><a class="client-phone" href="tel:'+esc(c.phone)+'" data-full="'+esc(c.phone)+'">'+esc(maskPhone(c.phone))+'</a><button class="phone-toggle" style="background:none;border:none;margin-left:4px;cursor:pointer;opacity:0.5;" title="显示号码">👁</button></td>'+
         '<td data-label="单位" style="padding: 10px 8px;">'+esc(company)+'</td>'+
         '<td data-label="公积金" style="padding: 10px 8px;">'+esc(fund)+'</td>'+
-        '<td data-label="沟通情况" style="padding: 10px 8px; max-width: 200px; word-break: break-all;"><span style="flex: 1; word-break: break-all; white-space: pre-wrap;">'+esc(note)+'</span></td>'+
-        '<td data-label="跟进情况" style="padding: 10px 8px; max-width: 150px; word-break: break-all;"><span style="flex: 1; word-break: break-all; white-space: pre-wrap;">'+esc(followUp)+'</span></td>'+
+        '<td data-label="沟通情况" style="padding: 10px 8px; min-width: 240px; max-width: 400px; word-break: break-word;"><span style="flex: 1; word-break: break-word; white-space: pre-wrap;">'+esc(note)+'</span></td>'+
+        '<td data-label="跟进情况" style="padding: 10px 8px; min-width: 180px; max-width: 300px; word-break: break-word;"><span style="flex: 1; word-break: break-word; white-space: pre-wrap;">'+esc(followUp)+'</span></td>'+
         '<td data-label="操作" style="padding: 10px 8px; text-align: center; white-space: nowrap;">'+
           '<button class="edit-all-client-btn" data-date="'+esc(c.date)+'" data-name="'+esc(c.name)+'" data-phone="'+esc(c.phone)+'" data-time="'+esc(c.time||'')+'" style="background:none;border:none;color:var(--accent-wechat);cursor:pointer;font-size:0.9rem;font-weight:700;margin-right:6px;" title="编辑">✎ 编辑</button>'+
         '</td>'+
@@ -2110,8 +2111,8 @@ export default {
         '<td data-label="电话" style="padding: 10px 8px;"><input type="text" class="input-simple edit-phone-input" style="padding: 4px 6px; font-size: 0.8rem; width: 110px;" value="'+esc(c.phone)+'"></td>'+
         '<td data-label="单位" style="padding: 10px 8px;"><input type="text" class="input-simple edit-company-input" style="padding: 4px 6px; font-size: 0.8rem; width: 120px;" value="'+esc(c.company||'')+'"></td>'+
         '<td data-label="公积金" style="padding: 10px 8px;"><input type="text" class="input-simple edit-fund-input" style="padding: 4px 6px; font-size: 0.8rem; width: 80px;" value="'+esc(c.fund||'')+'"></td>'+
-        '<td data-label="沟通情况" style="padding: 10px 8px;"><textarea class="input-simple edit-note-input" style="padding: 4px 6px; font-size: 0.8rem; width: 100%; min-height: 36px; resize: vertical;">'+esc(c.note||'')+'</textarea></td>'+
-        '<td data-label="跟进情况" style="padding: 10px 8px;"><textarea class="input-simple edit-follow-input" style="padding: 4px 6px; font-size: 0.8rem; width: 100%; min-height: 36px; resize: vertical;">'+esc(c.followUp||'')+'</textarea></td>'+
+        '<td data-label="沟通情况" style="padding: 10px 8px;"><textarea class="input-simple edit-note-input" style="padding: 4px 6px; font-size: 0.8rem; width: 100%; min-height: 80px; resize: vertical; line-height: 1.6;">'+esc(c.note||'')+'</textarea></td>'+
+        '<td data-label="跟进情况" style="padding: 10px 8px;"><textarea class="input-simple edit-follow-input" style="padding: 4px 6px; font-size: 0.8rem; width: 100%; min-height: 80px; resize: vertical; line-height: 1.6;">'+esc(c.followUp||'')+'</textarea></td>'+
         '<td data-label="操作" style="padding: 10px 8px; text-align: center; white-space: nowrap;">'+
           '<button class="save-all-client-btn" style="background:none;border:none;color:var(--accent-wechat);cursor:pointer;font-size:0.9rem;font-weight:700;margin-right:6px;" title="保存">💾 保存</button>'+
           '<button class="cancel-all-client-btn" style="background:none;border:none;color:var(--text-light);cursor:pointer;font-size:0.9rem;font-weight:700;" title="取消">✕ 取消</button>'+
@@ -2128,7 +2129,6 @@ export default {
 
         if(!n){alert('姓名不能为空，请填写完整！');return;}
         if(!p){alert('电话号码不能为空，请填写完整！');return;}
-        if(!/^1\d{10}$/.test(p)){alert('电话号码不符合11位手机号规范！');return;}
         if(!nt){alert('沟通记录为必填项，请填写完整！');return;}
 
         // 更新本地数据
@@ -2194,8 +2194,8 @@ export default {
           '<td data-label="电话" style="padding: 10px 8px;"><input type="text" class="input-simple new-phone-input" style="padding: 4px 6px; font-size: 0.8rem; width: 110px;" placeholder="电话"></td>' +
           '<td data-label="单位" style="padding: 10px 8px;"><input type="text" class="input-simple new-company-input" style="padding: 4px 6px; font-size: 0.8rem; width: 120px;" placeholder="单位"></td>' +
           '<td data-label="公积金" style="padding: 10px 8px;"><input type="text" class="input-simple new-fund-input" style="padding: 4px 6px; font-size: 0.8rem; width: 80px;" placeholder="公积金"></td>' +
-          '<td data-label="沟通情况" style="padding: 10px 8px;"><textarea class="input-simple new-note-input" style="padding: 4px 6px; font-size: 0.8rem; width: 100%; min-height: 36px; resize: vertical;" placeholder="沟通情况"></textarea></td>' +
-          '<td data-label="跟进情况" style="padding: 10px 8px;"><textarea class="input-simple new-follow-input" style="padding: 4px 6px; font-size: 0.8rem; width: 100%; min-height: 36px; resize: vertical;" placeholder="跟进情况"></textarea></td>' +
+          '<td data-label="沟通情况" style="padding: 10px 8px;"><textarea class="input-simple new-note-input" style="padding: 4px 6px; font-size: 0.8rem; width: 100%; min-height: 80px; resize: vertical; line-height: 1.6;" placeholder="沟通情况"></textarea></td>' +
+          '<td data-label="跟进情况" style="padding: 10px 8px;"><textarea class="input-simple new-follow-input" style="padding: 4px 6px; font-size: 0.8rem; width: 100%; min-height: 80px; resize: vertical; line-height: 1.6;" placeholder="跟进情况"></textarea></td>' +
           '<td data-label="操作" style="padding: 10px 8px; text-align: center; white-space: nowrap;">' +
             '<button class="save-new-client-btn" style="background:none;border:none;color:var(--accent-wechat);cursor:pointer;font-size:0.9rem;font-weight:700;margin-right:6px;" title="保存">💾 保存</button>' +
             '<button class="cancel-new-client-btn" style="background:none;border:none;color:var(--text-light);cursor:pointer;font-size:0.9rem;font-weight:700;" title="取消">✕ 取消</button>' +
@@ -2214,7 +2214,6 @@ export default {
           if(!d){alert('请选择日期！');return;}
           if(!n){alert('姓名不能为空，请填写完整！');return;}
           if(!p){alert('电话号码不能为空，请填写完整！');return;}
-          if(!/^1\d{10}$/.test(p)){alert('电话号码不符合11位手机号规范！');return;}
           if(!nt){alert('沟通记录为必填项，请填写完整！');return;}
 
           const newClient = {
