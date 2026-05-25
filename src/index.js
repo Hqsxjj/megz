@@ -526,7 +526,7 @@ export default {
     h3 { font-size: 1.45rem; font-weight: 800; letter-spacing: -0.2px; color: var(--text-main); }
     .date-chip { background: var(--card-bg); padding: 4px 12px; border-radius: var(--radius-xs); font-size: 0.75rem; font-weight: 700; color: var(--text-soft); border: 1px solid var(--card-border); }
     .action-group { display: flex; gap: 10px; align-items: center; padding: 2px; position: relative; }
-    .icon-simple { background: #f5f5f5; border: 1px solid rgba(0,0,0,0.04); width: 38px; height: 38px; border-radius: var(--radius-xs); display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1.1rem; color: var(--text-soft); transition: all 0.2s cubic-bezier(0.34,1.56,0.64,1); user-select: none; font-weight: 600; position: relative; }
+    .icon-simple { background: #f5f5f5; border: 1px solid rgba(0,0,0,0.04); min-width: 38px; height: 38px; padding: 0 6px; border-radius: var(--radius-xs); display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 0.78rem; color: var(--text-soft); transition: all 0.2s cubic-bezier(0.34,1.56,0.64,1); user-select: none; font-weight: 600; position: relative; white-space: nowrap; }
     .icon-simple:hover { background: #e8e8e8; transform: translateY(-2px) scale(1.06); box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
     .icon-simple:active { transform: translateY(0px) scale(0.98); }
 	    .log-list { max-height: 50vh; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; font-size: 0.8rem; font-weight: 600; color: var(--text-main); margin-top: 10px; }
@@ -752,7 +752,7 @@ export default {
       .time-input-compact { flex: 1 !important; min-width: 0 !important; }
       .todo-add-btn { flex: 1; }
       .client-actions { flex-shrink: 0; }
-      .icon-simple { width: 32px; height: 32px; font-size: 0.95rem; }
+      .icon-simple { min-width: 32px; height: 32px; font-size: 0.72rem; padding: 0 4px; }
       .sync-indicator { height: 32px; padding: 0 8px; font-size: 0.68rem; }
       #logBtn { height: 32px !important; padding: 0 8px !important; font-size: 0.72rem !important; }
       .intent-table { font-size: 0.75rem; }
@@ -891,15 +891,15 @@ export default {
       <div class="title-section"><h3>每日工作</h3><div class="date-chip" id="liveDate"></div></div>
       <div class="action-group">
         <button class="sync-indicator" id="syncBtn" title="点击手动同步"><span class="sync-icon" id="syncIcon">⇅</span><span id="syncLabel">同步中</span><div class="sync-tooltip" id="syncTooltip">正在连接...</div></button>
-        <button class="icon-simple" id="allClientsBtn" title="意向客户全量表">⊞</button>
-        <button class="icon-simple" id="hideBtn" title="一键隐藏 (Ctrl+Z)">⊘</button>
+        <button class="icon-simple" id="allClientsBtn" title="意向客户全量表">全量</button>
+        <button class="icon-simple" id="hideBtn" title="一键隐藏 (Ctrl+Z)">锁屏</button>
         <button class="icon-simple" id="menuToggleBtn" title="菜单">≡</button>
         <div class="menu-dropdown" id="menuDropdown">
-          <button class="menu-item" id="logBtn">⚖ 同步日志</button>
+          <button class="menu-item" id="logBtn">同步日志</button>
           <button class="menu-item" id="scriptBtn">话术管理</button>
           <button class="menu-item" id="learnBtn">学习管理</button>
           <button class="menu-item" id="exportBtn">导出数据</button>
-          <button class="menu-item" id="darkToggleBtn">◑ 深色模式</button>
+          <button class="menu-item" id="darkToggleBtn">深色模式</button>
         </div>
       </div>
     </div>
@@ -1292,11 +1292,11 @@ export default {
         const details=[c.company,c.fund].filter(Boolean).join(' / ')||'-';
         return '<tr>'+
           '<td><span class="client-name">'+esc(c.name)+'</span></td>'+
-          '<td><a class="client-phone" href="tel:'+esc(c.phone)+'" data-full="'+esc(c.phone)+'">'+esc(maskPhone(c.phone))+'</a><button class="phone-toggle" title="显示号码">◎</button></td>'+
+          '<td><a class="client-phone" href="tel:'+esc(c.phone)+'" data-full="'+esc(c.phone)+'">'+esc(maskPhone(c.phone))+'</a><button class="phone-toggle" title="显示号码">看</button></td>'+
           '<td><span class="client-detail">'+esc(details)+'</span></td>'+
           '<td><span class="client-note-text">'+esc(c.note||'')+'</span></td>'+
           '<td><span class="client-note-text" style="color:var(--accent-wechat);font-weight:700;">'+esc(c.followUp||'-')+'</span></td>'+
-          '<td style="text-align:right;"><button class="edit-icon" data-name="'+esc(c.name)+'" data-phone="'+esc(c.phone)+'" data-time="'+esc(c.time||'')+'" title="编辑">✏</button><button class="del-icon" data-name="'+esc(c.name)+'" data-phone="'+esc(c.phone)+'" data-time="'+esc(c.time||'')+'" title="删除">×</button></td>'+
+          '<td style="text-align:right;"><button class="edit-icon" data-name="'+esc(c.name)+'" data-phone="'+esc(c.phone)+'" data-time="'+esc(c.time||'')+'" title="编辑">编</button><button class="del-icon" data-name="'+esc(c.name)+'" data-phone="'+esc(c.phone)+'" data-time="'+esc(c.time||'')+'" title="删除">×</button></td>'+
           '</tr>';
       }).join('')+'</tbody></table>';
 
@@ -1336,11 +1336,11 @@ export default {
       if(phoneSpan.textContent===full){
         phoneSpan.textContent=maskPhone(full);
         b.title='显示号码';
-        b.textContent='◎';
+        b.textContent='看';
       }else{
         phoneSpan.textContent=full;
         b.title='隐藏号码';
-        b.textContent='⊗';
+        b.textContent='隐';
       }
     }));
   }
@@ -1452,17 +1452,17 @@ export default {
           html += '<tr>';
           html += '<td class="tbl-seq">'+(i+1)+'</td>';
           html += '<td class="tbl-name">'+esc(e.name)+'</td>';
-          html += '<td><div class="tbl-phone-wrap"><a class="modal-client-phone" href="tel:'+esc(e.phone)+'" data-full="'+esc(e.phone)+'">'+esc(maskPhone(e.phone))+'</a><button class="phone-toggle" title="显示号码">◎</button></div></td>';
+          html += '<td><div class="tbl-phone-wrap"><a class="modal-client-phone" href="tel:'+esc(e.phone)+'" data-full="'+esc(e.phone)+'">'+esc(maskPhone(e.phone))+'</a><button class="phone-toggle" title="显示号码">看</button></div></td>';
           html += '<td><div style="display:flex;flex-direction:column;gap:4px;">';
           if(e.company) html += '<span class="tbl-tag tbl-tag-company">'+esc(e.company)+'</span>';
           if(e.fund)    html += '<span class="tbl-tag tbl-tag-fund">'+esc(e.fund)+'</span>';
           if(!e.company&&!e.fund) html += '<span style="color:var(--text-light);font-size:0.72rem;">—</span>';
           html += '</div></td>';
           html += '<td class="tbl-note-cell"><div id="cn_'+e.idx+'">';
-          html += '<div class="tbl-note-text">'+(e.note?esc(e.note):'<span class="tbl-note-empty">点击 ✏ 添加沟通记录…</span>')+'</div>';
+          html += '<div class="tbl-note-text">'+(e.note?esc(e.note):'<span class="tbl-note-empty">点击添加沟通记录…</span>')+'</div>';
           html += '</div></td>';
           html += '<td class="tbl-time">'+(e.time?esc(e.time):'<span style="color:var(--text-light);">—</span>')+'</td>';
-          html += '<td class="tbl-action"><button class="edit-note-btn" title="'+(e.note?'修改记录':'添加记录')+'" data-idx="'+e.idx+'">✏</button></td>';
+          html += '<td class="tbl-action"><button class="edit-note-btn" title="'+(e.note?'修改记录':'添加记录')+'" data-idx="'+e.idx+'">编</button></td>';
           html += '</tr>';
         });
         html += '</tbody></table></div></div>';
@@ -1489,11 +1489,11 @@ export default {
         if(phoneSpan.textContent===full){
           phoneSpan.textContent=maskPhone(full);
           b.title='显示号码';
-          b.textContent='◎';
+          b.textContent='看';
         }else{
           phoneSpan.textContent=full;
           b.title='隐藏号码';
-          b.textContent='⊗';
+          b.textContent='隐';
         }
       }));
     }
@@ -1636,7 +1636,7 @@ export default {
       list.map((c,i)=>{
         return '<tr>'+
           '<td><span class="client-name">'+esc(c.name)+'</span></td>'+
-          '<td><a class="client-phone" href="tel:'+esc(c.phone)+'" data-full="'+esc(c.phone)+'">'+esc(maskPhone(c.phone))+'</a><button class="phone-toggle" title="显示号码">◎</button></td>'+
+          '<td><a class="client-phone" href="tel:'+esc(c.phone)+'" data-full="'+esc(c.phone)+'">'+esc(maskPhone(c.phone))+'</a><button class="phone-toggle" title="显示号码">看</button></td>'+
           '<td><span class="client-note-text">'+esc(c.note||'')+'</span></td>'+
           '<td><span class="client-detail">'+esc(c.time||'')+'</span></td>'+
           '<td style="text-align:right;"><button class="convert-temp-btn" data-idx="'+i+'" title="转为正式意向客户" style="font-size:1rem;padding:0;background:none;border:none;color:var(--accent-intent);cursor:pointer;margin-right:8px;font-weight:700;">→</button><button class="del-icon del-temp-btn" data-idx="'+i+'" title="删除" style="vertical-align:middle;padding:0;width:20px;height:20px;line-height:20px;display:inline-block;">×</button></td>'+
@@ -1696,11 +1696,11 @@ export default {
       if(phoneSpan.textContent===full){
         phoneSpan.textContent=maskPhone(full);
         b.title='显示号码';
-        b.textContent='◎';
+        b.textContent='看';
       }else{
         phoneSpan.textContent=full;
         b.title='隐藏号码';
-        b.textContent='⊗';
+        b.textContent='隐';
       }
     }));
   }
@@ -1756,14 +1756,14 @@ export default {
   const saveScripts=(a)=>localStorage.setItem(SCRIPTS_K,JSON.stringify(a));
   function renderScriptList(){
     const ss=loadScripts();
-    document.getElementById('scriptList').innerHTML=ss.length===0?'<div style="font-size:0.75rem;color:var(--text-light);padding:8px;text-align:center;">暂无话术</div>':ss.map((s,i)=>'<div class="script-item" data-si="'+i+'"><span class="script-item-text">'+esc(s)+'</span><div style="display:flex;gap:4px;align-items:center;flex-shrink:0;"><button class="edit-icon" data-si="'+i+'" title="编辑">✏</button><button class="del-icon" data-si="'+i+'">×</button></div></div>').join('');
+    document.getElementById('scriptList').innerHTML=ss.length===0?'<div style="font-size:0.75rem;color:var(--text-light);padding:8px;text-align:center;">暂无话术</div>':ss.map((s,i)=>'<div class="script-item" data-si="'+i+'"><span class="script-item-text">'+esc(s)+'</span><div style="display:flex;gap:4px;align-items:center;flex-shrink:0;"><button class="edit-icon" data-si="'+i+'" title="编辑">编</button><button class="del-icon" data-si="'+i+'">×</button></div></div>').join('');
     document.querySelectorAll('#scriptList .del-icon').forEach(b=>b.addEventListener('click',async e=>{
       const i=parseInt(b.dataset.si);const a=loadScripts();a.splice(i,1);saveScripts(a);renderScriptList();renderLockScripts();
       await syncOp('setScripts',{scripts:a});
     }));
     document.querySelectorAll('#scriptList .edit-icon').forEach(b=>b.addEventListener('click',e=>{
       const i=parseInt(b.dataset.si);const a=loadScripts();const old=a[i];const item=document.querySelector('#scriptList .script-item[data-si="'+i+'"]');
-      item.innerHTML='<input class="input-simple" id="editScriptInput_'+i+'" value="'+esc(old).replace(/"/g,'&quot;')+'" style="flex:1;font-size:0.75rem;padding:6px 10px;min-width:0;"><div style="display:flex;gap:4px;flex-shrink:0;"><button class="btn-add" id="saveScriptEdit_'+i+'" style="font-size:0.7rem;padding:6px 12px;">保存</button><button class="del-icon" id="cancelScriptEdit_'+i+'" style="color:var(--text-soft);">✕</button></div>';
+      item.innerHTML='<input class="input-simple" id="editScriptInput_'+i+'" value="'+esc(old).replace(/"/g,'&quot;')+'" style="flex:1;font-size:0.75rem;padding:6px 10px;min-width:0;"><div style="display:flex;gap:4px;flex-shrink:0;"><button class="btn-add" id="saveScriptEdit_'+i+'" style="font-size:0.7rem;padding:6px 12px;">保存</button><button class="del-icon" id="cancelScriptEdit_'+i+'" style="color:var(--text-soft);">取消</button></div>';
       document.getElementById('saveScriptEdit_'+i).addEventListener('click',async ()=>{
         const v=document.getElementById('editScriptInput_'+i).value.trim();if(!v)return;
         a[i]=v;saveScripts(a);renderScriptList();renderLockScripts();
@@ -1864,9 +1864,9 @@ export default {
       document.getElementById('exportStatus').innerText='发送中...';
       try{
         const r=await fetch('/api/export',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type,webhookUrl})});
-        if(r.ok){document.getElementById('exportStatus').innerText='✓ 已发送到企业微信';}
-        else{document.getElementById('exportStatus').innerText='✕ 发送失败，请检查 URL';}
-      }catch(e){document.getElementById('exportStatus').innerText='✕ 网络错误';}
+        if(r.ok){document.getElementById('exportStatus').innerText='已发送到企业微信';}
+        else{document.getElementById('exportStatus').innerText='发送失败，请检查 URL';}
+      }catch(e){document.getElementById('exportStatus').innerText='网络错误';}
     }
     document.getElementById('exportWeekBtn').addEventListener('click',()=>doExport('week'));
     document.getElementById('exportMonthBtn').addEventListener('click',()=>doExport('month'));
@@ -1875,7 +1875,7 @@ export default {
   // ==================== 初始化 ====================
   function initDark(){
     const btn=document.getElementById('darkToggleBtn');
-    const updateDarkTitle=()=>{const isDark=document.body.classList.contains('dark-mode');btn.textContent=(isDark?'◐':'◑')+' '+(isDark?'浅色':'深色')+'模式';btn.title=isDark?'切换浅色模式':'切换深色模式';};
+    const updateDarkTitle=()=>{const isDark=document.body.classList.contains('dark-mode');btn.textContent=(isDark?'浅色':'深色')+'模式';btn.title=isDark?'切换浅色模式':'切换深色模式';};
     if(localStorage.getItem(DARK_K)==='true')document.body.classList.add('dark-mode');
     updateDarkTitle();
     btn.addEventListener('click',()=>{document.body.classList.toggle('dark-mode');localStorage.setItem(DARK_K,document.body.classList.contains('dark-mode'));updateDarkTitle();});
@@ -2068,13 +2068,13 @@ export default {
       return '<tr data-date="'+esc(c.date)+'" data-name="'+esc(c.name)+'" data-phone="'+esc(c.phone)+'">'+
         '<td data-label="日期" style="padding: 10px 8px; white-space: nowrap;">'+esc(c.date)+'</td>'+
         '<td data-label="姓名" style="padding: 10px 8px; font-weight: 700;">'+esc(c.name)+'</td>'+
-        '<td data-label="电话" style="padding: 10px 8px; white-space: nowrap;"><a class="client-phone" href="tel:'+esc(c.phone)+'" data-full="'+esc(c.phone)+'">'+esc(maskPhone(c.phone))+'</a><button class="phone-toggle" style="background:none;border:none;margin-left:4px;cursor:pointer;opacity:0.5;" title="显示号码">◎</button></td>'+
+        '<td data-label="电话" style="padding: 10px 8px; white-space: nowrap;"><a class="client-phone" href="tel:'+esc(c.phone)+'" data-full="'+esc(c.phone)+'">'+esc(maskPhone(c.phone))+'</a><button class="phone-toggle" style="background:none;border:none;margin-left:4px;cursor:pointer;opacity:0.5;" title="显示号码">看</button></td>'+
         '<td data-label="单位" style="padding: 10px 8px;">'+esc(company)+'</td>'+
         '<td data-label="公积金" style="padding: 10px 8px;">'+esc(fund)+'</td>'+
         '<td data-label="沟通情况" style="padding: 10px 8px; min-width: 240px; max-width: 400px; word-break: break-word;"><span style="flex: 1; word-break: break-word; white-space: pre-wrap;">'+esc(note)+'</span></td>'+
         '<td data-label="跟进情况" style="padding: 10px 8px; min-width: 180px; max-width: 300px; word-break: break-word;"><span style="flex: 1; word-break: break-word; white-space: pre-wrap;">'+esc(followUp)+'</span></td>'+
         '<td data-label="操作" style="padding: 10px 8px; text-align: center; white-space: nowrap;">'+
-          '<button class="edit-all-client-btn" data-date="'+esc(c.date)+'" data-name="'+esc(c.name)+'" data-phone="'+esc(c.phone)+'" data-time="'+esc(c.time||'')+'" style="background:none;border:none;color:var(--accent-wechat);cursor:pointer;font-size:0.9rem;font-weight:700;margin-right:6px;" title="编辑">✏ 编辑</button>'+
+          '<button class="edit-all-client-btn" data-date="'+esc(c.date)+'" data-name="'+esc(c.name)+'" data-phone="'+esc(c.phone)+'" data-time="'+esc(c.time||'')+'" style="background:none;border:none;color:var(--accent-wechat);cursor:pointer;font-size:0.9rem;font-weight:700;margin-right:6px;" title="编辑">编辑</button>'+
         '</td>'+
       '</tr>';
     }).join('');
@@ -2086,11 +2086,11 @@ export default {
       if (phoneSpan.textContent === full) {
         phoneSpan.textContent = maskPhone(full);
         b.title = '显示号码';
-        b.textContent = '◎';
+        b.textContent = '看';
       } else {
         phoneSpan.textContent = full;
         b.title = '隐藏号码';
-        b.textContent = '⊗';
+        b.textContent = '隐';
       }
     }));
 
@@ -2114,8 +2114,8 @@ export default {
         '<td data-label="沟通情况" style="padding: 10px 8px;"><textarea class="input-simple edit-note-input" style="padding: 4px 6px; font-size: 0.8rem; width: 100%; min-height: 80px; resize: vertical; line-height: 1.6;">'+esc(c.note||'')+'</textarea></td>'+
         '<td data-label="跟进情况" style="padding: 10px 8px;"><textarea class="input-simple edit-follow-input" style="padding: 4px 6px; font-size: 0.8rem; width: 100%; min-height: 80px; resize: vertical; line-height: 1.6;">'+esc(c.followUp||'')+'</textarea></td>'+
         '<td data-label="操作" style="padding: 10px 8px; text-align: center; white-space: nowrap;">'+
-          '<button class="save-all-client-btn" style="background:none;border:none;color:var(--accent-wechat);cursor:pointer;font-size:0.9rem;font-weight:700;margin-right:6px;" title="保存">✓ 保存</button>'+
-          '<button class="cancel-all-client-btn" style="background:none;border:none;color:var(--text-light);cursor:pointer;font-size:0.9rem;font-weight:700;" title="取消">✕ 取消</button>'+
+          '<button class="save-all-client-btn" style="background:none;border:none;color:var(--accent-wechat);cursor:pointer;font-size:0.9rem;font-weight:700;margin-right:6px;" title="保存">保存</button>'+
+          '<button class="cancel-all-client-btn" style="background:none;border:none;color:var(--text-light);cursor:pointer;font-size:0.9rem;font-weight:700;" title="取消">取消</button>'+
         '</td>';
 
       // Bind Save
@@ -2197,8 +2197,8 @@ export default {
           '<td data-label="沟通情况" style="padding: 10px 8px;"><textarea class="input-simple new-note-input" placeholder="沟通情况" style="padding: 4px 6px; font-size: 0.8rem; width: 100%; min-height: 80px; resize: vertical; line-height: 1.6;"></textarea></td>' +
           '<td data-label="跟进情况" style="padding: 10px 8px;"><textarea class="input-simple new-follow-input" placeholder="跟进情况" style="padding: 4px 6px; font-size: 0.8rem; width: 100%; min-height: 80px; resize: vertical; line-height: 1.6;"></textarea></td>' +
           '<td data-label="操作" style="padding: 10px 8px; text-align: center; white-space: nowrap;">' +
-            '<button class="save-new-client-btn" style="background:none;border:none;color:var(--accent-wechat);cursor:pointer;font-size:0.9rem;font-weight:700;margin-right:6px;" title="保存">✓ 保存</button>' +
-            '<button class="cancel-new-client-btn" style="background:none;border:none;color:var(--text-light);cursor:pointer;font-size:0.9rem;font-weight:700;" title="取消">✕ 取消</button>' +
+            '<button class="save-new-client-btn" style="background:none;border:none;color:var(--accent-wechat);cursor:pointer;font-size:0.9rem;font-weight:700;margin-right:6px;" title="保存">保存</button>' +
+            '<button class="cancel-new-client-btn" style="background:none;border:none;color:var(--text-light);cursor:pointer;font-size:0.9rem;font-weight:700;" title="取消">取消</button>' +
           '</td>';
         tbody.insertBefore(tr, tbody.firstChild);
 
