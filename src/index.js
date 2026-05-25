@@ -976,7 +976,7 @@ export default {
 </div>
 <div id="allClientsModal" class="modal-overlay">
   <div class="modal-card" style="width:100vw;height:100vh;max-width:100vw;max-height:100vh;margin:0;border-radius:0;border:none;box-sizing:border-box;">
-    <div class="modal-header"><span>📋 意向客户全量登记表</span><button id="closeAllClientsModalBtn">✕</button></div>
+    <div class="modal-header"><div style="display:flex;align-items:center;gap:12px;"><span>📋 意向客户全量登记表</span><button id="allClientsAddBtn" class="btn-add" style="font-size:0.75rem;padding:4px 12px;height:28px;">+ 新增意向</button></div><button id="closeAllClientsModalBtn">✕</button></div>
     <div style="overflow-x:auto;flex:1;min-height:0;margin-top:10px;">
       <table class="clients-table" style="width:100%;border-collapse:collapse;text-align:left;font-size:0.8rem;font-weight:500;">
         <thead>
@@ -1062,9 +1062,9 @@ export default {
     }finally{_draining=false;updateSyncIndicator();}
   }
   // 每次操作：先写队列（持久化），再尝试发送
-  async function syncOp(op,payload){
-    const today=getTodayStr();
-    const item={_qid:Date.now()+'_'+Math.random().toString(36).slice(2),date:today,op,...payload};
+  async function syncOp(op,payload,customDate){
+    const targetDate=customDate||getTodayStr();
+    const item={_qid:Date.now()+'_'+Math.random().toString(36).slice(2),date:targetDate,op,...payload};
     const q=loadOpQueue();q.push(item);saveOpQueue(q);
     await drainQueue();
   }
@@ -2115,8 +2115,8 @@ export default {
           localStorage.setItem(CLIENTS_K, JSON.stringify(allList));
 
           // 同步云端：先删旧的，后加新的，确保原子同步更新所有字段
-          await syncOp('removeClientByMatch', { date, name, phone, time: c.time||'' });
-          await syncOp('addClient', { client: updatedClient });
+          await syncOp('removeClientByMatch', { date, name, phone, time: c.time||'' }, date);
+          await syncOp('addClient', { client: updatedClient }, date);
 
           loadAllClients();
           renderClientList();
@@ -2144,6 +2144,79 @@ export default {
         document.getElementById('allClientsModal').classList.remove('active');
       }
     });
+
+    const addBtn = document.getElementById('allClientsAddBtn');
+    if (addBtn) {
+      addBtn.addEventListener('click', () => {
+        if (document.getElementById('newClientRow')) return;
+        const tbody = document.getElementById('allClientsTableBody');
+        const emptyTd = tbody.querySelector('td[colspan="8"]');
+        if (emptyTd) {
+          tbody.innerHTML = '';
+        }
+        const tr = document.createElement('tr');
+        tr.id = 'newClientRow';
+        tr.innerHTML = 
+          '<td data-label="日期" style="padding: 10px 8px; white-space: nowrap;"><input type="date" class="input-simple new-date-input" style="padding: 4px 6px; font-size: 0.8rem; width: 115px;" value="' + getTodayStr() + '"></td>' +
+          '<td data-label="姓名" style="padding: 10px 8px;"><input type="text" class="input-simple new-name-input" style="padding: 4px 6px; font-size: 0.8rem; font-weight: 700; width: 80px;" placeholder="姓名"></td>' +
+          '<td data-label="电话" style="padding: 10px 8px;"><input type="text" class="input-simple new-phone-input" style="padding: 4px 6px; font-size: 0.8rem; width: 110px;" placeholder="电话"></td>' +
+          '<td data-label="单位" style="padding: 10px 8px;"><input type="text" class="input-simple new-company-input" style="padding: 4px 6px; font-size: 0.8rem; width: 120px;" placeholder="单位"></td>' +
+          '<td data-label="公积金" style="padding: 10px 8px;"><input type="text" class="input-simple new-fund-input" style="padding: 4px 6px; font-size: 0.8rem; width: 80px;" placeholder="公积金"></td>' +
+          '<td data-label="沟通情况" style="padding: 10px 8px;"><textarea class="input-simple new-note-input" style="padding: 4px 6px; font-size: 0.8rem; width: 100%; min-height: 36px; resize: vertical;" placeholder="沟通情况"></textarea></td>' +
+          '<td data-label="跟进情况" style="padding: 10px 8px;"><textarea class="input-simple new-follow-input" style="padding: 4px 6px; font-size: 0.8rem; width: 100%; min-height: 36px; resize: vertical;" placeholder="跟进情况"></textarea></td>' +
+          '<td data-label="操作" style="padding: 10px 8px; text-align: center; white-space: nowrap;">' +
+            '<button class="save-new-client-btn" style="background:none;border:none;color:var(--accent-wechat);cursor:pointer;font-size:0.9rem;font-weight:700;margin-right:6px;" title="保存">💾 保存</button>' +
+            '<button class="cancel-new-client-btn" style="background:none;border:none;color:var(--text-light);cursor:pointer;font-size:0.9rem;font-weight:700;" title="取消">✕ 取消</button>' +
+          '</td>';
+        tbody.insertBefore(tr, tbody.firstChild);
+
+        tr.querySelector('.save-new-client-btn').onclick = async () => {
+          const d = tr.querySelector('.new-date-input').value.trim();
+          const n = tr.querySelector('.new-name-input').value.trim();
+          const p = tr.querySelector('.new-phone-input').value.trim();
+          const comp = tr.querySelector('.new-company-input').value.trim();
+          const fund = tr.querySelector('.new-fund-input').value.trim();
+          const nt = tr.querySelector('.new-note-input').value.trim();
+          const fu = tr.querySelector('.new-follow-input').value.trim();
+
+          if(!d){alert('请选择日期！');return;}
+          if(!n){alert('姓名不能为空，请填写完整！');return;}
+          if(!p){alert('电话号码不能为空，请填写完整！');return;}
+          if(!/^1\d{10}$/.test(p)){alert('电话号码不符合11位手机号规范！');return;}
+          if(!nt){alert('沟通记录为必填项，请填写完整！');return;}
+
+          const newClient = {
+            name: n,
+            phone: p,
+            company: comp,
+            fund: fund,
+            note: nt,
+            followUp: fu,
+            date: d,
+            time: getCurrentTime()
+          };
+
+          const allList = JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
+          allList.push(newClient);
+          localStorage.setItem(CLIENTS_K, JSON.stringify(allList));
+
+          const countForDate = allList.filter(c => c.date === d).length;
+          const im = loadMap(INTENT_K);
+          im[d] = countForDate;
+          saveMap(INTENT_K, im);
+
+          await syncOp('addClient', { client: newClient }, d);
+
+          loadAllClients();
+          renderClientList();
+          refreshAll();
+        };
+
+        tr.querySelector('.cancel-new-client-btn').onclick = () => {
+          loadAllClients();
+        };
+      });
+    }
   }
 
   initLogs();initDark();initWp();initScriptFeature();initLearnFeature();initExport();initAllClientsBtn();
