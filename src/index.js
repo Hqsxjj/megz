@@ -397,7 +397,7 @@ export default {
     :root {
       --bg-app: #ededed;
       --card-bg: #ffffff;
-      --card-border: rgba(0,0,0,0.06);
+      --card-border: #e0e0e0;
       --text-main: #191919;
       --text-soft: #5e5e5e;
       --text-light: #8e8e8e;
@@ -474,7 +474,7 @@ export default {
     .pin-revisit-value { background: var(--revisit-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
     .pin-input { width: 196px; padding: 11px 20px; border-radius: var(--radius-xs); border: 1.5px solid rgba(0,0,0,0.08); background: #fafafa; text-align: center; font-size: 1.4rem; letter-spacing: 7px; color: var(--text-main); outline: none; font-weight: 700; transition: all 0.3s; }
     body.dark-mode .pin-input { background: rgba(38,38,38,0.6); border-color: rgba(255,255,255,0.08); }
-    .pin-input:focus { border-color: var(--accent-wechat); box-shadow: 0 0 0 4px rgba(7,193,96,0.12); background: #ffffff; }
+    .pin-input:focus { border-color: var(--accent-wechat); box-shadow: 0 0 0 4px rgba(7,193,96,0.25); background: #ffffff; }
     .pin-btn { background: var(--accent-wechat); border: none; color: white; padding: 11px 45px; border-radius: var(--radius-xs); font-weight: 700; cursor: pointer; font-size: 1.12rem; letter-spacing: 1px; transition: all 0.2s; box-shadow: 0 4px 15px rgba(7,193,96,0.25); }
     .pin-btn:hover { opacity: 0.9; transform: translateY(-2px); box-shadow: 0 6px 20px rgba(7,193,96,0.35); }
     .pin-btn:active { transform: translateY(0); }
@@ -489,7 +489,7 @@ export default {
     .timer-input-group { display: flex; flex-direction: column; gap: 4px; align-items: center; }
     .timer-input { width: 50px; padding: 8px 6px; text-align: center; font-size: 1rem; font-weight: 700; border: 1.5px solid rgba(0,0,0,0.08); border-radius: var(--radius-xs); background: #fafafa; color: var(--text-main); outline: none; transition: all 0.2s; }
     body.dark-mode .timer-input { background: rgba(38,38,38,0.6); border-color: rgba(255,255,255,0.08); }
-    .timer-input:focus { border-color: var(--accent-wechat); box-shadow: 0 0 0 3px rgba(7,193,96,0.12); background: #ffffff; }
+    .timer-input:focus { border-color: var(--accent-wechat); box-shadow: 0 0 0 3px rgba(7,193,96,0.25); background: #ffffff; }
     .timer-label { font-size: 0.75rem; font-weight: 600; color: var(--text-soft); }
     .timer-separator { font-size: 1.2rem; font-weight: 700; color: var(--text-main); margin-bottom: 12px; }
     .timer-buttons { display: flex; gap: 8px; justify-content: center; transition: all 0.3s ease; }
@@ -617,7 +617,7 @@ export default {
     .edit-note-btn:hover { background: var(--accent-wechat); color: #fff; transform: scale(1.1); }
     .tbl-note-edit-wrap { display: flex; flex-direction: column; gap: 6px; }
     .tbl-note-edit-wrap textarea { width: 100%; min-height: 90px; background: var(--btn-bg); border: 1.5px solid var(--accent-wechat); border-radius: 6px; padding: 8px 10px; font-size: 0.86rem; color: var(--text-main); outline: none; font-weight: 600; resize: vertical; line-height: 1.7; }
-    .tbl-note-edit-wrap textarea:focus { box-shadow: 0 0 0 3px rgba(7,193,96,0.15); }
+    .tbl-note-edit-wrap textarea:focus { box-shadow: 0 0 0 3px rgba(7,193,96,0.25); }
     .tbl-note-edit-btns { display: flex; gap: 5px; }
     .tbl-save-btn { font-size: 0.65rem; background: var(--accent-wechat); color: #fff; border: none; border-radius: 6px; cursor: pointer; padding: 4px 12px; font-weight: 700; }
     .tbl-cancel-btn { font-size: 0.65rem; background: var(--btn-bg); border: 1px solid var(--card-border); color: var(--text-soft); border-radius: 6px; cursor: pointer; padding: 4px 12px; font-weight: 700; }
@@ -633,7 +633,7 @@ export default {
     .register-block { display: flex; flex-direction: column; gap: 8px; }
     .form-line { display: flex; gap: 8px; align-items: center; width: 100%; }
     .input-simple, .todo-input { flex: 1; width: 100%; height: 38px; padding: 0 12px; font-size: 0.85rem; background: var(--btn-bg); border: 0.5px solid var(--card-border); border-radius: var(--radius-xs); color: var(--text-main); outline: none; min-width: 0; font-weight: 600; box-sizing: border-box; transition: all 0.2s; }
-    .input-simple:focus, .todo-input:focus { border-color: var(--accent-wechat); box-shadow: 0 0 0 2px rgba(7,193,96,0.12); }
+    .input-simple:focus, .todo-input:focus { border-color: var(--accent-wechat); box-shadow: 0 0 0 2px rgba(7,193,96,0.25); }
     textarea.input-simple, .note-textarea { height: auto; min-height: 68px; padding: 10px 12px; resize: vertical; line-height: 1.6; }
     .note-textarea { font-family: inherit; }
     .btn-add, .todo-add-btn { height: 38px; padding: 0 18px; font-size: 0.85rem; font-weight: 700; border: none; border-radius: var(--radius-xs); color: white; cursor: pointer; white-space: nowrap; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; transition: all 0.2s; }
