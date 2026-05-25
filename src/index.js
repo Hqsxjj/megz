@@ -137,6 +137,23 @@ export default {
           }
           break;
         }
+        case 'updateClient': {
+          if (body.matchName && body.matchPhone && body.client) {
+            data.clients = data.clients || [];
+            const idx = data.clients.findIndex(c =>
+              c.name === body.matchName &&
+              c.phone === body.matchPhone &&
+              (body.matchTime ? c.time === body.matchTime : true)
+            );
+            if (idx >= 0) {
+              data.clients[idx] = body.client;
+            } else {
+              data.clients.push(body.client);
+            }
+            data.intentCount = data.clients.length;
+          }
+          break;
+        }
         case 'updateClientNote': {
           if (body.name && body.phone && body.note !== undefined) {
             data.clients = (data.clients || []).map(c =>
@@ -2130,9 +2147,8 @@ export default {
           allList[idx] = updatedClient;
           localStorage.setItem(CLIENTS_K, JSON.stringify(allList));
 
-          // 同步云端：先删旧的，后加新的，确保原子同步更新所有字段
-          await syncOp('removeClientByMatch', { date, name, phone, time: c.time||'' }, date);
-          await syncOp('addClient', { client: updatedClient }, date);
+          // 原子更新云端：一次操作完成替换，避免竞态和 time 为空时的匹配失败
+          await syncOp('updateClient', { matchName: name, matchPhone: phone, matchTime: c.time||'', client: updatedClient }, date);
 
           loadAllClients();
           renderClientList();
