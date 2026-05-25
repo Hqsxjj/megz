@@ -928,7 +928,7 @@ export default {
   </div>
 </div>
 <div id="allClientsModal" class="modal-overlay">
-  <div class="modal-card" style="width:800px;max-width:95vw;max-height:85vh;">
+  <div class="modal-card" style="width:100vw;height:100vh;max-width:100vw;max-height:100vh;margin:0;border-radius:0;border:none;box-sizing:border-box;">
     <div class="modal-header"><span>📋 意向客户全量登记表</span><button id="closeAllClientsModalBtn">✕</button></div>
     <div style="overflow-x:auto;flex:1;min-height:0;margin-top:10px;">
       <table class="clients-table" style="width:100%;border-collapse:collapse;text-align:left;font-size:0.8rem;font-weight:500;">
@@ -1506,8 +1506,10 @@ export default {
     const f=document.getElementById('custFund').value.trim();
     const nt=document.getElementById('custNote').value.trim();
     const fu=document.getElementById('custFollowUp').value.trim();
-    if(!n||!p){alert('请填写姓名和电话');return;}
-    if(!nt){alert('沟通记录为必填项');return;}
+    if(!n){alert('姓名不能为空，请填写完整！');return;}
+    if(!p){alert('电话号码不能为空，请填写完整！');return;}
+    if(!/^1\d{10}$/.test(p)){alert('电话号码不符合11位手机号规范！');return;}
+    if(!nt){alert('沟通记录为必填项，请填写完整！');return;}
     const list=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
     const today=getTodayStr(),time=getCurrentTime();
     const newClient={name:n,phone:p,company:c,fund:f,note:nt,followUp:fu,date:today,time:time};
@@ -1992,7 +1994,6 @@ export default {
         '<td style="padding: 10px 8px; max-width: 150px; word-break: break-all;">'+esc(followUp)+'</td>'+
         '<td style="padding: 10px 8px; text-align: center; white-space: nowrap;">'+
           '<button class="edit-all-client-btn" data-date="'+esc(c.date)+'" data-name="'+esc(c.name)+'" data-phone="'+esc(c.phone)+'" style="background:none;border:none;color:var(--accent-wechat);cursor:pointer;font-size:0.9rem;font-weight:700;margin-right:6px;" title="编辑">✎</button>'+
-          '<button class="del-all-client-btn" data-date="'+esc(c.date)+'" data-name="'+esc(c.name)+'" data-phone="'+esc(c.phone)+'" data-time="'+esc(c.time||'')+'" style="background:none;border:none;color:#c97a7a;cursor:pointer;font-size:0.9rem;font-weight:700;" title="删除">✕</button>'+
         '</td>'+
       '</tr>';
     }).join('');
@@ -2033,25 +2034,6 @@ export default {
         refreshAll();
         document.getElementById('allClientsModal').classList.remove('active');
         document.getElementById('custName').focus();
-      }
-    }));
-
-    tbody.querySelectorAll('.del-all-client-btn').forEach(b => b.addEventListener('click', e => {
-      const date = b.dataset.date;
-      const name = b.dataset.name;
-      const phone = b.dataset.phone;
-      const time = b.dataset.time;
-      if (confirm('确定要删除客户 '+name+' 吗？')) {
-        const all = JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
-        const matchIdx = all.findIndex(c => c.date === date && c.name === name && c.phone === phone);
-        if (matchIdx !== -1) {
-          all.splice(matchIdx, 1);
-          localStorage.setItem(CLIENTS_K, JSON.stringify(all));
-          syncOp('removeClientByMatch', { date, name, phone, time });
-          loadAllClients();
-          renderClientList();
-          refreshAll();
-        }
       }
     }));
   }
