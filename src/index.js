@@ -2037,8 +2037,8 @@ export default {
         '<td data-label="电话" style="padding: 10px 8px; white-space: nowrap;"><a class="client-phone" href="tel:'+esc(c.phone)+'" data-full="'+esc(c.phone)+'">'+esc(maskPhone(c.phone))+'</a><button class="phone-toggle" style="background:none;border:none;margin-left:4px;cursor:pointer;opacity:0.5;" title="显示号码">👁</button></td>'+
         '<td data-label="单位" style="padding: 10px 8px;">'+esc(company)+'</td>'+
         '<td data-label="公积金" style="padding: 10px 8px;">'+esc(fund)+'</td>'+
-        '<td data-label="沟通情况" style="padding: 10px 8px; max-width: 200px; word-break: break-all;">'+esc(note)+'</td>'+
-        '<td data-label="跟进情况" style="padding: 10px 8px; max-width: 150px; word-break: break-all;">'+esc(followUp)+'</td>'+
+        '<td data-label="沟通情况" style="padding: 10px 8px; max-width: 200px; word-break: break-all;"><span style="flex: 1; word-break: break-all; white-space: pre-wrap;">'+esc(note)+'</span></td>'+
+        '<td data-label="跟进情况" style="padding: 10px 8px; max-width: 150px; word-break: break-all;"><span style="flex: 1; word-break: break-all; white-space: pre-wrap;">'+esc(followUp)+'</span></td>'+
         '<td data-label="操作" style="padding: 10px 8px; text-align: center; white-space: nowrap;">'+
           '<button class="edit-all-client-btn" data-date="'+esc(c.date)+'" data-name="'+esc(c.name)+'" data-phone="'+esc(c.phone)+'" data-time="'+esc(c.time||'')+'" style="background:none;border:none;color:var(--accent-wechat);cursor:pointer;font-size:0.9rem;font-weight:700;margin-right:6px;" title="编辑">✎ 编辑</button>'+
         '</td>'+
