@@ -247,7 +247,29 @@ export default {
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
       });
     }
-
+    // 获取全量意向客户
+    if (path === '/api/all-clients' && request.method === 'GET') {
+      const list = await env.DATA_KV.list({ prefix: 'work:' });
+      const allClients = [];
+      for (const key of list.keys) {
+        const raw = await env.DATA_KV.get(key.name);
+        if (raw) {
+          try {
+            const d = JSON.parse(raw);
+            if (d.clients) {
+              d.clients.forEach(c => {
+                c.date = c.date || key.name.replace('work:', '');
+                allClients.push(c);
+              });
+            }
+          } catch(e) {}
+        }
+      }
+      allClients.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+      return new Response(JSON.stringify(allClients), {
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+      });
+    }
 
     // 导出数据并发送企业微信 webhook
     if (path === '/api/export' && request.method === 'POST') {
@@ -787,10 +809,11 @@ export default {
       <div class="title-section"><h3>每日工作</h3><div class="date-chip" id="liveDate"></div></div>
       <div class="action-group">
         <button class="sync-indicator" id="syncBtn" title="点击手动同步"><span class="sync-icon" id="syncIcon">⇅</span><span id="syncLabel">同步中</span><div class="sync-tooltip" id="syncTooltip">正在连接...</div></button>
-        <button class="icon-simple" id="logBtn" title="同步日志" style="font-size:0.8rem;width:auto;padding:0 12px;">日志</button>
+        <button class="icon-simple" id="allClientsBtn" title="意向客户全量表">📋</button>
         <button class="icon-simple" id="hideBtn" title="一键隐藏 (Ctrl+Z)">⊘</button>
         <button class="icon-simple" id="menuToggleBtn" title="菜单">≡</button>
         <div class="menu-dropdown" id="menuDropdown">
+          <button class="menu-item" id="logBtn">⚖ 同步日志</button>
           <button class="menu-item" id="scriptBtn">话术管理</button>
           <button class="menu-item" id="learnBtn">学习管理</button>
           <button class="menu-item" id="exportBtn">导出数据</button>
@@ -837,6 +860,7 @@ export default {
             <div class="form-line"><input type="text" class="input-simple" id="custName" placeholder="姓名" autocomplete="off"><input type="text" class="input-simple" id="custPhone" placeholder="电话" autocomplete="off"></div>
             <div class="form-line"><input type="text" class="input-simple" id="custCompany" placeholder="单位" autocomplete="off"><input type="text" class="input-simple" id="custFund" placeholder="公积金" autocomplete="off"></div>
             <input type="text" class="input-simple" id="custNote" placeholder="沟通记录 (必填)" autocomplete="off">
+            <input type="text" class="input-simple" id="custFollowUp" placeholder="跟进情况" autocomplete="off">
             <button class="btn-add" id="addClientBtn">+ 添加</button>
             <div class="client-scroll" id="clientList"></div>
           </div>
@@ -901,6 +925,30 @@ export default {
   <div class="modal-card" style="max-width:420px;">
     <div class="modal-header"><span>同步日志</span><button id="closeLogModalBtn">×</button></div>
     <div class="log-list" id="syncLogList"></div>
+  </div>
+</div>
+<div id="allClientsModal" class="modal-overlay">
+  <div class="modal-card" style="width:800px;max-width:95vw;max-height:85vh;">
+    <div class="modal-header"><span>📋 意向客户全量登记表</span><button id="closeAllClientsModalBtn">✕</button></div>
+    <div style="overflow-x:auto;flex:1;min-height:0;margin-top:10px;">
+      <table class="clients-table" style="width:100%;border-collapse:collapse;text-align:left;font-size:0.8rem;font-weight:500;">
+        <thead>
+          <tr style="border-bottom:2px solid var(--border-light);color:var(--text-soft);font-weight:700;">
+            <th style="padding:10px 8px;">日期</th>
+            <th style="padding:10px 8px;">姓名</th>
+            <th style="padding:10px 8px;">电话</th>
+            <th style="padding:10px 8px;">单位</th>
+            <th style="padding:10px 8px;">公积金</th>
+            <th style="padding:10px 8px;">沟通情况</th>
+            <th style="padding:10px 8px;">跟进情况</th>
+            <th style="padding:10px 8px;text-align:center;">操作</th>
+          </tr>
+        </thead>
+        <tbody id="allClientsTableBody">
+          <!-- JS 动态渲染 -->
+        </tbody>
+      </table>
+    </div>
   </div>
 </div>
 <div id="dateModal" class="modal-overlay">
@@ -1157,7 +1205,7 @@ export default {
       container.innerHTML='<div class="empty-clients">暂无意向客户</div>';
       return;
     }
-    container.innerHTML='<table class="table-compact"><thead><tr><th style="width:60px;">姓名</th><th style="width:110px;">电话</th><th style="width:120px;">单位/公积金</th><th>沟通记录</th><th style="width:60px;text-align:right;">操作</th></tr></thead><tbody>'+
+    container.innerHTML='<table class="table-compact"><thead><tr><th style="width:60px;">姓名</th><th style="width:110px;">电话</th><th style="width:120px;">单位/公积金</th><th>沟通记录</th><th>跟进情况</th><th style="width:60px;text-align:right;">操作</th></tr></thead><tbody>'+
       clients.map((c,i)=>{
         const details=[c.company,c.fund].filter(Boolean).join(' / ')||'-';
         return '<tr>'+
@@ -1165,6 +1213,7 @@ export default {
           '<td><span class="client-phone" data-full="'+esc(c.phone)+'">'+esc(maskPhone(c.phone))+'</span><button class="phone-toggle" title="显示号码">◎</button></td>'+
           '<td><span class="client-detail">'+esc(details)+'</span></td>'+
           '<td><span class="client-note-text">'+esc(c.note||'')+'</span></td>'+
+          '<td><span class="client-note-text" style="color:var(--accent-wechat);font-weight:700;">'+esc(c.followUp||'-')+'</span></td>'+
           '<td style="text-align:right;"><button class="edit-icon" data-name="'+esc(c.name)+'" data-phone="'+esc(c.phone)+'" data-time="'+esc(c.time||'')+'" title="编辑">✏</button><button class="del-icon" data-name="'+esc(c.name)+'" data-phone="'+esc(c.phone)+'" data-time="'+esc(c.time||'')+'" title="删除">×</button></td>'+
           '</tr>';
       }).join('')+'</tbody></table>';
@@ -1193,6 +1242,7 @@ export default {
       document.getElementById('custCompany').value=c.company||'';
       document.getElementById('custFund').value=c.fund||'';
       document.getElementById('custNote').value=c.note||'';
+      document.getElementById('custFollowUp').value=c.followUp||'';
       a.splice(idx,1);localStorage.setItem(CLIENTS_K,JSON.stringify(a));
       renderClientList();refreshAll();
       document.getElementById('custName').focus();
@@ -1455,11 +1505,12 @@ export default {
     const c=document.getElementById('custCompany').value.trim();
     const f=document.getElementById('custFund').value.trim();
     const nt=document.getElementById('custNote').value.trim();
+    const fu=document.getElementById('custFollowUp').value.trim();
     if(!n||!p){alert('请填写姓名和电话');return;}
     if(!nt){alert('沟通记录为必填项');return;}
     const list=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
     const today=getTodayStr(),time=getCurrentTime();
-    const newClient={name:n,phone:p,company:c,fund:f,note:nt,date:today,time:time};
+    const newClient={name:n,phone:p,company:c,fund:f,note:nt,followUp:fu,date:today,time:time};
     list.push(newClient);
     localStorage.setItem(CLIENTS_K,JSON.stringify(list));
     document.getElementById('custName').value='';
@@ -1467,6 +1518,7 @@ export default {
     document.getElementById('custCompany').value='';
     document.getElementById('custFund').value='';
     document.getElementById('custNote').value='';
+    document.getElementById('custFollowUp').value='';
     renderClientList();refreshAll();
     // 只用原子 syncOp，不再并发 saveFullState（避免竞态导致云端客户重复/覆盖）
     await syncOp('addClient',{client:newClient});
@@ -1866,7 +1918,7 @@ export default {
   document.getElementById('addTodoBtn').addEventListener('click',addTodo);
   document.getElementById('todayTodoInput').addEventListener('keypress',e=>{if(e.key==='Enter')addTodayTodo();});
   document.getElementById('todoInput').addEventListener('keypress',e=>{if(e.key==='Enter')addTodo();});
-  ['custName','custPhone','custCompany','custFund','custNote'].forEach(id=>document.getElementById(id).addEventListener('keypress',e=>{if(e.key==='Enter')addClient();}));
+  ['custName','custPhone','custCompany','custFund','custNote','custFollowUp'].forEach(id=>document.getElementById(id).addEventListener('keypress',e=>{if(e.key==='Enter')addClient();}));
   document.getElementById('addTempCustBtn').addEventListener('click',addTempClient);
   ['tempCustName','tempCustPhone','tempCustNote'].forEach(id=>document.getElementById(id).addEventListener('keypress',e=>{if(e.key==='Enter')addTempClient();}));
   document.getElementById('closeModalBtn').addEventListener('click',()=>document.getElementById('dateModal').classList.remove('active'));
@@ -1904,7 +1956,122 @@ export default {
     }
   },30000);
 
-  initLogs();initDark();initWp();initScriptFeature();initLearnFeature();initExport();
+  // ==================== 意向客户全量表 ====================
+  async function loadAllClients() {
+    try {
+      const r = await fetch('/api/all-clients');
+      if (r.ok) {
+        const data = await r.json();
+        renderAllClientsTable(data);
+      }
+    } catch(e) {
+      const local = JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
+      local.sort((a,b) => (b.date||'').localeCompare(a.date||''));
+      renderAllClientsTable(local);
+    }
+  }
+
+  function renderAllClientsTable(clients) {
+    const tbody = document.getElementById('allClientsTableBody');
+    if (clients.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: var(--text-light); padding: 20px;">📭 暂无意向客户数据</td></tr>';
+      return;
+    }
+    tbody.innerHTML = clients.map((c, idx) => {
+      const company = c.company || '-';
+      const fund = c.fund || '-';
+      const note = c.note || '-';
+      const followUp = c.followUp || '-';
+      return '<tr data-date="'+esc(c.date)+'" data-name="'+esc(c.name)+'" data-phone="'+esc(c.phone)+'">'+
+        '<td style="padding: 10px 8px; white-space: nowrap;">'+esc(c.date)+'</td>'+
+        '<td style="padding: 10px 8px; font-weight: 700;">'+esc(c.name)+'</td>'+
+        '<td style="padding: 10px 8px; white-space: nowrap;"><span class="client-phone" data-full="'+esc(c.phone)+'">'+esc(maskPhone(c.phone))+'</span><button class="phone-toggle" style="background:none;border:none;margin-left:4px;cursor:pointer;opacity:0.5;" title="显示号码">👁</button></td>'+
+        '<td style="padding: 10px 8px;">'+esc(company)+'</td>'+
+        '<td style="padding: 10px 8px;">'+esc(fund)+'</td>'+
+        '<td style="padding: 10px 8px; max-width: 200px; word-break: break-all;">'+esc(note)+'</td>'+
+        '<td style="padding: 10px 8px; max-width: 150px; word-break: break-all;">'+esc(followUp)+'</td>'+
+        '<td style="padding: 10px 8px; text-align: center; white-space: nowrap;">'+
+          '<button class="edit-all-client-btn" data-date="'+esc(c.date)+'" data-name="'+esc(c.name)+'" data-phone="'+esc(c.phone)+'" style="background:none;border:none;color:var(--accent-wechat);cursor:pointer;font-size:0.9rem;font-weight:700;margin-right:6px;" title="编辑">✎</button>'+
+          '<button class="del-all-client-btn" data-date="'+esc(c.date)+'" data-name="'+esc(c.name)+'" data-phone="'+esc(c.phone)+'" data-time="'+esc(c.time||'')+'" style="background:none;border:none;color:#c97a7a;cursor:pointer;font-size:0.9rem;font-weight:700;" title="删除">✕</button>'+
+        '</td>'+
+      '</tr>';
+    }).join('');
+
+    tbody.querySelectorAll('.phone-toggle').forEach(b => b.addEventListener('click', e => {
+      e.stopPropagation();
+      const phoneSpan = b.previousElementSibling;
+      const full = phoneSpan.dataset.full;
+      if (phoneSpan.textContent === full) {
+        phoneSpan.textContent = maskPhone(full);
+        b.title = '显示号码';
+        b.textContent = '👁';
+      } else {
+        phoneSpan.textContent = full;
+        b.title = '隐藏号码';
+        b.textContent = '🙈';
+      }
+    }));
+
+    tbody.querySelectorAll('.edit-all-client-btn').forEach(b => b.addEventListener('click', e => {
+      const date = b.dataset.date;
+      const name = b.dataset.name;
+      const phone = b.dataset.phone;
+      const all = JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
+      const matchIdx = all.findIndex(c => c.date === date && c.name === name && c.phone === phone);
+      if (matchIdx !== -1) {
+        const c = all[matchIdx];
+        document.getElementById('custName').value = c.name;
+        document.getElementById('custPhone').value = c.phone;
+        document.getElementById('custCompany').value = c.company || '';
+        document.getElementById('custFund').value = c.fund || '';
+        document.getElementById('custNote').value = c.note || '';
+        document.getElementById('custFollowUp').value = c.followUp || '';
+        all.splice(matchIdx, 1);
+        localStorage.setItem(CLIENTS_K, JSON.stringify(all));
+        syncOp('removeClientByMatch', { date, name, phone, time: c.time||'' });
+        renderClientList();
+        refreshAll();
+        document.getElementById('allClientsModal').classList.remove('active');
+        document.getElementById('custName').focus();
+      }
+    }));
+
+    tbody.querySelectorAll('.del-all-client-btn').forEach(b => b.addEventListener('click', e => {
+      const date = b.dataset.date;
+      const name = b.dataset.name;
+      const phone = b.dataset.phone;
+      const time = b.dataset.time;
+      if (confirm('确定要删除客户 '+name+' 吗？')) {
+        const all = JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
+        const matchIdx = all.findIndex(c => c.date === date && c.name === name && c.phone === phone);
+        if (matchIdx !== -1) {
+          all.splice(matchIdx, 1);
+          localStorage.setItem(CLIENTS_K, JSON.stringify(all));
+          syncOp('removeClientByMatch', { date, name, phone, time });
+          loadAllClients();
+          renderClientList();
+          refreshAll();
+        }
+      }
+    }));
+  }
+
+  function initAllClientsBtn() {
+    document.getElementById('allClientsBtn').addEventListener('click', () => {
+      loadAllClients();
+      document.getElementById('allClientsModal').classList.add('active');
+    });
+    document.getElementById('closeAllClientsModalBtn').addEventListener('click', () => {
+      document.getElementById('allClientsModal').classList.remove('active');
+    });
+    document.getElementById('allClientsModal').addEventListener('click', e => {
+      if (e.target === document.getElementById('allClientsModal')) {
+        document.getElementById('allClientsModal').classList.remove('active');
+      }
+    });
+  }
+
+  initLogs();initDark();initWp();initScriptFeature();initLearnFeature();initExport();initAllClientsBtn();
   // 菜单下拉
   (function(){
     const toggle=document.getElementById('menuToggleBtn');
