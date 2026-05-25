@@ -451,7 +451,7 @@ export default {
       --stats-gradient: linear-gradient(135deg, #0d2626 0%, #143d3d 50%, #1a5252 100%);
       --wallpaper-opacity: 0.12;
     }
-    html, body { height: 100%; min-height: 100%; min-height: -webkit-fill-available; width: 100%; overflow: hidden; background: var(--bg-app); font-family: "等线", "DengXian", "PingFang SC", "Noto Sans SC", "Microsoft YaHei", sans-serif; font-weight: 700; transition: background 0.3s; position: relative; }
+    html, body { height: 100%; min-height: 100%; min-height: -webkit-fill-available; width: 100%; overflow: hidden; background: var(--bg-app); font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue", sans-serif; font-weight: 700; transition: background 0.3s; position: relative; }
     .wallpaper-background { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; background-image: var(--wallpaper-url); background-size: cover; background-position: center; background-repeat: no-repeat; opacity: var(--wallpaper-opacity); transition: opacity 0.8s ease, background-image 0.8s ease; pointer-events: none; }
     body.dark-mode .wallpaper-background { opacity: 0.12; }
     .wallpaper-fallback { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; background: linear-gradient(135deg, #a8e6cf 0%, #dcedc1 100%); opacity: 0.15; pointer-events: none; }
@@ -891,7 +891,7 @@ export default {
       <div class="title-section"><h3>每日工作</h3><div class="date-chip" id="liveDate"></div></div>
       <div class="action-group">
         <button class="sync-indicator" id="syncBtn" title="点击手动同步"><span class="sync-icon" id="syncIcon">⇅</span><span id="syncLabel">同步中</span><div class="sync-tooltip" id="syncTooltip">正在连接...</div></button>
-        <button class="icon-simple" id="allClientsBtn" title="意向客户全量表">📋</button>
+        <button class="icon-simple" id="allClientsBtn" title="意向客户全量表">☰</button>
         <button class="icon-simple" id="hideBtn" title="一键隐藏 (Ctrl+Z)">⊘</button>
         <button class="icon-simple" id="menuToggleBtn" title="菜单">≡</button>
         <div class="menu-dropdown" id="menuDropdown">
@@ -1011,7 +1011,7 @@ export default {
 </div>
 <div id="allClientsModal" class="modal-overlay">
   <div class="modal-card" style="width:100vw;height:100vh;max-width:100vw;max-height:100vh;margin:0;border-radius:0;border:none;box-sizing:border-box;">
-    <div class="modal-header"><div style="display:flex;align-items:center;gap:12px;"><span>📋 意向客户全量登记表</span><button id="allClientsAddBtn" class="btn-add" style="font-size:0.75rem;padding:4px 12px;height:28px;">+ 新增意向</button></div><button id="closeAllClientsModalBtn">✕</button></div>
+    <div class="modal-header"><div style="display:flex;align-items:center;gap:12px;"><span>意向客户全量登记表</span><button id="allClientsAddBtn" class="btn-add" style="font-size:0.75rem;padding:4px 12px;height:28px;">+ 新增意向</button></div><button id="closeAllClientsModalBtn">✕</button></div>
     <div style="overflow-x:auto;flex:1;min-height:0;margin-top:10px;">
       <table class="clients-table" style="width:100%;border-collapse:collapse;text-align:left;font-size:0.8rem;font-weight:500;">
         <thead>
@@ -1436,7 +1436,7 @@ export default {
       // ===== 意向客户表格区 =====
       if(clients_in_tl.length>0){
         html += '<div>';
-        html += '<div class="modal-section-title">🎯 意向客户 <span style="font-size:0.7rem;color:var(--accent-intent);margin-left:4px;font-weight:800;">'+clients_in_tl.length+'人</span></div>';
+        html += '<div class="modal-section-title">意向客户<span style="font-size:0.7rem;color:var(--accent-intent);margin-left:4px;font-weight:800;">'+clients_in_tl.length+'人</span></div>';
         html += '<div style="overflow-x:auto;border-radius:var(--radius-sm);border:1px solid var(--border-light);">';
         html += '<table class="intent-table">';
         html += '<thead><tr>';
@@ -1864,9 +1864,9 @@ export default {
       document.getElementById('exportStatus').innerText='发送中...';
       try{
         const r=await fetch('/api/export',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type,webhookUrl})});
-        if(r.ok){document.getElementById('exportStatus').innerText='✅ 已发送到企业微信';}
-        else{document.getElementById('exportStatus').innerText='❌ 发送失败，请检查 URL';}
-      }catch(e){document.getElementById('exportStatus').innerText='❌ 网络错误';}
+        if(r.ok){document.getElementById('exportStatus').innerText='✓ 已发送到企业微信';}
+        else{document.getElementById('exportStatus').innerText='✕ 发送失败，请检查 URL';}
+      }catch(e){document.getElementById('exportStatus').innerText='✕ 网络错误';}
     }
     document.getElementById('exportWeekBtn').addEventListener('click',()=>doExport('week'));
     document.getElementById('exportMonthBtn').addEventListener('click',()=>doExport('month'));
@@ -2057,7 +2057,7 @@ export default {
   function renderAllClientsTable(clients) {
     const tbody = document.getElementById('allClientsTableBody');
     if (clients.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: var(--text-light); padding: 20px;">📭 暂无意向客户数据</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: var(--text-light); padding: 20px;">暂无数据</td></tr>';
       return;
     }
     tbody.innerHTML = clients.map((c, idx) => {
@@ -2068,13 +2068,13 @@ export default {
       return '<tr data-date="'+esc(c.date)+'" data-name="'+esc(c.name)+'" data-phone="'+esc(c.phone)+'">'+
         '<td data-label="日期" style="padding: 10px 8px; white-space: nowrap;">'+esc(c.date)+'</td>'+
         '<td data-label="姓名" style="padding: 10px 8px; font-weight: 700;">'+esc(c.name)+'</td>'+
-        '<td data-label="电话" style="padding: 10px 8px; white-space: nowrap;"><a class="client-phone" href="tel:'+esc(c.phone)+'" data-full="'+esc(c.phone)+'">'+esc(maskPhone(c.phone))+'</a><button class="phone-toggle" style="background:none;border:none;margin-left:4px;cursor:pointer;opacity:0.5;" title="显示号码">👁</button></td>'+
+        '<td data-label="电话" style="padding: 10px 8px; white-space: nowrap;"><a class="client-phone" href="tel:'+esc(c.phone)+'" data-full="'+esc(c.phone)+'">'+esc(maskPhone(c.phone))+'</a><button class="phone-toggle" style="background:none;border:none;margin-left:4px;cursor:pointer;opacity:0.5;" title="显示号码">◎</button></td>'+
         '<td data-label="单位" style="padding: 10px 8px;">'+esc(company)+'</td>'+
         '<td data-label="公积金" style="padding: 10px 8px;">'+esc(fund)+'</td>'+
         '<td data-label="沟通情况" style="padding: 10px 8px; min-width: 240px; max-width: 400px; word-break: break-word;"><span style="flex: 1; word-break: break-word; white-space: pre-wrap;">'+esc(note)+'</span></td>'+
         '<td data-label="跟进情况" style="padding: 10px 8px; min-width: 180px; max-width: 300px; word-break: break-word;"><span style="flex: 1; word-break: break-word; white-space: pre-wrap;">'+esc(followUp)+'</span></td>'+
         '<td data-label="操作" style="padding: 10px 8px; text-align: center; white-space: nowrap;">'+
-          '<button class="edit-all-client-btn" data-date="'+esc(c.date)+'" data-name="'+esc(c.name)+'" data-phone="'+esc(c.phone)+'" data-time="'+esc(c.time||'')+'" style="background:none;border:none;color:var(--accent-wechat);cursor:pointer;font-size:0.9rem;font-weight:700;margin-right:6px;" title="编辑">✎ 编辑</button>'+
+          '<button class="edit-all-client-btn" data-date="'+esc(c.date)+'" data-name="'+esc(c.name)+'" data-phone="'+esc(c.phone)+'" data-time="'+esc(c.time||'')+'" style="background:none;border:none;color:var(--accent-wechat);cursor:pointer;font-size:0.9rem;font-weight:700;margin-right:6px;" title="编辑">✏ 编辑</button>'+
         '</td>'+
       '</tr>';
     }).join('');
@@ -2086,11 +2086,11 @@ export default {
       if (phoneSpan.textContent === full) {
         phoneSpan.textContent = maskPhone(full);
         b.title = '显示号码';
-        b.textContent = '👁';
+        b.textContent = '◎';
       } else {
         phoneSpan.textContent = full;
         b.title = '隐藏号码';
-        b.textContent = '🙈';
+        b.textContent = '⊗';
       }
     }));
 
@@ -2114,7 +2114,7 @@ export default {
         '<td data-label="沟通情况" style="padding: 10px 8px;"><textarea class="input-simple edit-note-input" style="padding: 4px 6px; font-size: 0.8rem; width: 100%; min-height: 80px; resize: vertical; line-height: 1.6;">'+esc(c.note||'')+'</textarea></td>'+
         '<td data-label="跟进情况" style="padding: 10px 8px;"><textarea class="input-simple edit-follow-input" style="padding: 4px 6px; font-size: 0.8rem; width: 100%; min-height: 80px; resize: vertical; line-height: 1.6;">'+esc(c.followUp||'')+'</textarea></td>'+
         '<td data-label="操作" style="padding: 10px 8px; text-align: center; white-space: nowrap;">'+
-          '<button class="save-all-client-btn" style="background:none;border:none;color:var(--accent-wechat);cursor:pointer;font-size:0.9rem;font-weight:700;margin-right:6px;" title="保存">💾 保存</button>'+
+          '<button class="save-all-client-btn" style="background:none;border:none;color:var(--accent-wechat);cursor:pointer;font-size:0.9rem;font-weight:700;margin-right:6px;" title="保存">✓ 保存</button>'+
           '<button class="cancel-all-client-btn" style="background:none;border:none;color:var(--text-light);cursor:pointer;font-size:0.9rem;font-weight:700;" title="取消">✕ 取消</button>'+
         '</td>';
 
@@ -2197,7 +2197,7 @@ export default {
           '<td data-label="沟通情况" style="padding: 10px 8px;"><textarea class="input-simple new-note-input" style="padding: 4px 6px; font-size: 0.8rem; width: 100%; min-height: 80px; resize: vertical; line-height: 1.6;" placeholder="沟通情况"></textarea></td>' +
           '<td data-label="跟进情况" style="padding: 10px 8px;"><textarea class="input-simple new-follow-input" style="padding: 4px 6px; font-size: 0.8rem; width: 100%; min-height: 80px; resize: vertical; line-height: 1.6;" placeholder="跟进情况"></textarea></td>' +
           '<td data-label="操作" style="padding: 10px 8px; text-align: center; white-space: nowrap;">' +
-            '<button class="save-new-client-btn" style="background:none;border:none;color:var(--accent-wechat);cursor:pointer;font-size:0.9rem;font-weight:700;margin-right:6px;" title="保存">💾 保存</button>' +
+            '<button class="save-new-client-btn" style="background:none;border:none;color:var(--accent-wechat);cursor:pointer;font-size:0.9rem;font-weight:700;margin-right:6px;" title="保存">✓ 保存</button>' +
             '<button class="cancel-new-client-btn" style="background:none;border:none;color:var(--text-light);cursor:pointer;font-size:0.9rem;font-weight:700;" title="取消">✕ 取消</button>' +
           '</td>';
         tbody.insertBefore(tr, tbody.firstChild);
