@@ -1038,6 +1038,133 @@ export default {
     .todo-del-btn-clean:hover { opacity: 1; }
     .todo-time-tag { background: var(--card-border); color: var(--text-soft); padding: 1px 4px; border-radius: 4px; font-size: 0.65rem; margin-left: 6px; font-weight: 700; }
 
+    /* ===== 客户端卡片排版样式 ===== */
+    .client-card-item {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius-sm);
+      padding: 12px 14px;
+      margin-bottom: 12px;
+      box-shadow: var(--shadow-card);
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      position: relative;
+    }
+    .client-card-item:hover {
+      border-color: rgba(7, 193, 96, 0.4);
+      box-shadow: 0 6px 16px rgba(0,0,0,0.06);
+      transform: translateY(-1px);
+    }
+    body.dark-mode .client-card-item:hover {
+      border-color: rgba(7, 193, 96, 0.5);
+      box-shadow: 0 6px 16px rgba(0,0,0,0.25);
+    }
+    .client-card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .client-card-primary {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .client-card-name {
+      font-size: 0.88rem;
+      font-weight: 800;
+      color: var(--text-main);
+    }
+    .client-card-phone-wrap {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--btn-bg);
+      padding: 2px 8px;
+      border-radius: 12px;
+    }
+    .client-card-phone {
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--accent-intent);
+      text-decoration: none;
+    }
+    .client-card-time {
+      font-size: 0.72rem;
+      color: var(--text-light);
+      font-weight: 600;
+    }
+    .client-card-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .client-card-tag {
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: var(--radius-xs);
+    }
+    .client-card-tag-company {
+      background: var(--accent-intent-bg);
+      color: var(--accent-intent);
+      border: 0.5px solid rgba(7, 193, 96, 0.2);
+    }
+    .client-card-tag-fund {
+      background: rgba(255, 183, 77, 0.1);
+      color: #e67e22;
+      border: 0.5px solid rgba(255, 183, 77, 0.2);
+    }
+    body.dark-mode .client-card-tag-fund {
+      background: rgba(230, 126, 34, 0.15);
+      color: #f39c12;
+    }
+    .client-card-body {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      background: rgba(0,0,0,0.015);
+      padding: 8px;
+      border-radius: 6px;
+      border: 0.5px solid var(--border-light);
+    }
+    body.dark-mode .client-card-body {
+      background: rgba(255,255,255,0.01);
+    }
+    .client-card-content-block {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      font-size: 0.78rem;
+      border-left: 2px solid var(--border-light);
+      padding-left: 8px;
+    }
+    .client-card-content-block.follow-up {
+      border-left-color: var(--accent-wechat);
+    }
+    .client-card-label {
+      font-size: 0.65rem;
+      font-weight: 800;
+      color: var(--text-light);
+      letter-spacing: 0.5px;
+    }
+    .client-card-text {
+      color: var(--text-soft);
+      font-weight: 600;
+      line-height: 1.45;
+      word-break: break-all;
+    }
+    .client-card-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-top: 4px;
+      border-top: 1px dashed var(--border-light);
+      padding-top: 8px;
+    }
+
     /* ==================== Android 专属适配 ==================== */
     body.android { font-family: Roboto, "Noto Sans SC", "Noto Sans", "Droid Sans Fallback", sans-serif; }
     /* Android 使用 static vh 避免 toolbar 收展导致 dvh 布局抖动 */
@@ -1549,18 +1676,40 @@ export default {
       container.innerHTML='<div class="empty-clients">暂无意向客户</div>';
       return;
     }
-    container.innerHTML='<table class="table-compact"><thead><tr><th style="width:60px;">姓名</th><th style="width:110px;">电话</th><th style="width:120px;">单位/公积金</th><th>沟通记录</th><th>跟进情况</th><th style="width:90px;text-align:right;">操作</th></tr></thead><tbody>'+
-      clients.map((c,i)=>{
-        const details=[c.company,c.fund].filter(Boolean).join(' / ')||'-';
-        return '<tr>'+
-          '<td><span class="client-name">'+esc(c.name)+'</span></td>'+
-          '<td><a class="client-phone" href="tel:'+esc(c.phone)+'" data-full="'+esc(c.phone)+'">'+esc(maskPhone(c.phone))+'</a><button class="phone-toggle" title="显示号码">看</button></td>'+
-          '<td><span class="client-detail">'+esc(details)+'</span></td>'+
-          '<td><span class="client-note-text">'+esc(c.note||'')+'</span></td>'+
-          '<td><span class="client-note-text" style="color:var(--accent-wechat);font-weight:700;">'+esc(c.followUp||'-')+'</span></td>'+
-          '<td style="text-align:right;"><button class="export-single-btn" data-name="'+esc(c.name)+'" data-phone="'+esc(c.phone)+'" data-time="'+esc(c.time||'')+'" title="导出">出</button><button class="edit-icon" data-name="'+esc(c.name)+'" data-phone="'+esc(c.phone)+'" data-time="'+esc(c.time||'')+'" title="编辑">编</button><button class="del-icon" data-name="'+esc(c.name)+'" data-phone="'+esc(c.phone)+'" data-time="'+esc(c.time||'')+'" title="删除">×</button></td>'+
-          '</tr>';
-      }).join('')+'</tbody></table>';
+    container.innerHTML=clients.map((c,i)=>{
+      return '<div class="client-card-item">'+
+        '<div class="client-card-top">'+
+          '<div class="client-card-primary">'+
+            '<span class="client-card-name">'+esc(c.name)+'</span>'+
+            '<span class="client-card-phone-wrap">'+
+              '<a class="client-phone" href="tel:'+esc(c.phone)+'" data-full="'+esc(c.phone)+'">'+esc(maskPhone(c.phone))+'</a>'+
+              '<button class="phone-toggle" title="显示号码">看</button>'+
+            '</span>'+
+          '</div>'+
+          (c.time ? '<span class="client-card-time">'+esc(c.time)+'</span>' : '')+
+        '</div>'+
+        '<div class="client-card-tags">'+
+          (c.company ? '<span class="client-card-tag client-card-tag-company">'+esc(c.company)+'</span>' : '')+
+          (c.fund ? '<span class="client-card-tag client-card-tag-fund">公积金: '+esc(c.fund)+'</span>' : '')+
+        '</div>'+
+        '<div class="client-card-body">'+
+          '<div class="client-card-content-block">'+
+            '<span class="client-card-label">沟通记录</span>'+
+            '<span class="client-card-text">'+esc(c.note||'')+'</span>'+
+          '</div>'+
+          (c.followUp ? 
+            '<div class="client-card-content-block follow-up">'+
+              '<span class="client-card-label">跟进情况</span>'+
+              '<span class="client-card-text" style="color:var(--accent-wechat);">'+esc(c.followUp)+'</span>'+
+            '</div>' : '')+
+        '</div>'+
+        '<div class="client-card-actions">'+
+          '<button class="export-single-btn" data-name="'+esc(c.name)+'" data-phone="'+esc(c.phone)+'" data-time="'+esc(c.time||'')+'" title="导出">出</button>'+
+          '<button class="edit-icon" data-name="'+esc(c.name)+'" data-phone="'+esc(c.phone)+'" data-time="'+esc(c.time||'')+'" title="编辑">编</button>'+
+          '<button class="del-icon" data-name="'+esc(c.name)+'" data-phone="'+esc(c.phone)+'" data-time="'+esc(c.time||'')+'" title="删除">×</button>'+
+        '</div>'+
+      '</div>';
+    }).join('');
 
     container.querySelectorAll('.del-icon').forEach(b=>b.addEventListener('click',async e=>{
       const name=b.dataset.name;
@@ -1728,39 +1877,42 @@ export default {
 
       let html = '';
 
-      // ===== 意向客户表格区 =====
+      // ===== 意向客户区 =====
       if(clients_in_tl.length>0){
         html += '<div>';
         html += '<div class="modal-section-title">意向客户<span style="font-size:0.7rem;color:var(--accent-intent);margin-left:4px;font-weight:800;">'+clients_in_tl.length+'人</span></div>';
-        html += '<div style="overflow-x:auto;border-radius:var(--radius-sm);border:1px solid var(--border-light);">';
-        html += '<table class="intent-table">';
-        html += '<thead><tr>';
-        html += '<th class="tbl-seq">#</th>';
-        html += '<th>姓名</th>';
-        html += '<th>电话</th>';
-        html += '<th>公司 / 公积金</th>';
-        html += '<th class="tbl-note-cell">沟通记录</th>';
-        html += '<th>时间</th>';
-        html += '<th class="tbl-action">操作</th>';
-        html += '</tr></thead><tbody>';
+        html += '<div style="display:flex;flex-direction:column;gap:10px;">';
         clients_in_tl.forEach((e,i)=>{
-          html += '<tr>';
-          html += '<td class="tbl-seq">'+(i+1)+'</td>';
-          html += '<td class="tbl-name">'+esc(e.name)+'</td>';
-          html += '<td><div class="tbl-phone-wrap"><a class="modal-client-phone" href="tel:'+esc(e.phone)+'" data-full="'+esc(e.phone)+'">'+esc(maskPhone(e.phone))+'</a><button class="phone-toggle" title="显示号码">看</button></div></td>';
-          html += '<td><div style="display:flex;flex-direction:column;gap:4px;">';
-          if(e.company) html += '<span class="tbl-tag tbl-tag-company">'+esc(e.company)+'</span>';
-          if(e.fund)    html += '<span class="tbl-tag tbl-tag-fund">'+esc(e.fund)+'</span>';
-          if(!e.company&&!e.fund) html += '<span style="color:var(--text-light);font-size:0.72rem;">—</span>';
-          html += '</div></td>';
-          html += '<td class="tbl-note-cell"><div id="cn_'+e.idx+'">';
-          html += '<div class="tbl-note-text">'+(e.note?esc(e.note):'<span class="tbl-note-empty">点击添加沟通记录…</span>')+'</div>';
-          html += '</div></td>';
-          html += '<td class="tbl-time">'+(e.time?esc(e.time):'<span style="color:var(--text-light);">—</span>')+'</td>';
-          html += '<td class="tbl-action" style="white-space:nowrap;"><button class="export-timeline-single-btn" data-idx="'+e.idx+'" title="导出">出</button><button class="edit-note-btn" title="'+(e.note?'修改记录':'添加记录')+'" data-idx="'+e.idx+'">编</button></td>';
-          html += '</tr>';
+          html += '<div class="client-card-item">'+
+            '<div class="client-card-top">'+
+              '<div class="client-card-primary">'+
+                '<span class="client-card-name">'+esc(e.name)+'</span>'+
+                '<span class="client-card-phone-wrap">'+
+                  '<a class="modal-client-phone" href="tel:'+esc(e.phone)+'" data-full="'+esc(e.phone)+'">'+esc(maskPhone(e.phone))+'</a>'+
+                  '<button class="phone-toggle" title="显示号码">看</button>'+
+                '</span>'+
+              '</div>'+
+              (e.time ? '<span class="client-card-time">'+esc(e.time)+'</span>' : '')+
+            '</div>'+
+            '<div class="client-card-tags">'+
+              (e.company ? '<span class="client-card-tag client-card-tag-company">'+esc(e.company)+'</span>' : '')+
+              (e.fund ? '<span class="client-card-tag client-card-tag-fund">公积金: '+esc(e.fund)+'</span>' : '')+
+            '</div>'+
+            '<div class="client-card-body">'+
+              '<div class="client-card-content-block">'+
+                '<span class="client-card-label">沟通记录</span>'+
+                '<div id="cn_'+e.idx+'">'+
+                  '<div class="tbl-note-text" style="cursor:pointer;">'+(e.note?esc(e.note):'<span class="tbl-note-empty">点击添加沟通记录…</span>')+'</div>'+
+                '</div>'+
+              '</div>'+
+            '</div>'+
+            '<div class="client-card-actions">'+
+              '<button class="export-timeline-single-btn" data-idx="'+e.idx+'" title="导出">出</button>'+
+              '<button class="edit-note-btn" title="'+(e.note?'修改记录':'添加记录')+'" data-idx="'+e.idx+'">编</button>'+
+            '</div>'+
+          '</div>';
         });
-        html += '</tbody></table></div></div>';
+        html += '</div></div>';
       }
 
       // ===== 待办事项区 =====
@@ -1972,16 +2124,30 @@ export default {
       container.innerHTML='<div class="empty-clients">暂无临时登记客户</div>';
       return;
     }
-    container.innerHTML='<table class="table-compact"><thead><tr><th style="width:60px;">姓名</th><th style="width:110px;">电话</th><th>回访备注</th><th style="width:60px;">时间</th><th style="width:90px;text-align:right;">操作</th></tr></thead><tbody>'+
-      list.map((c,i)=>{
-        return '<tr>'+
-          '<td><span class="client-name">'+esc(c.name)+'</span></td>'+
-          '<td><a class="client-phone" href="tel:'+esc(c.phone)+'" data-full="'+esc(c.phone)+'">'+esc(maskPhone(c.phone))+'</a><button class="phone-toggle" title="显示号码">看</button></td>'+
-          '<td><span class="client-note-text">'+esc(c.note||'')+'</span></td>'+
-          '<td><span class="client-detail">'+esc(c.time||'')+'</span></td>'+
-          '<td style="text-align:right;"><button class="convert-temp-btn" data-idx="'+i+'" title="转为正式意向客户" style="font-size:1rem;padding:0;background:none;border:none;color:var(--accent-intent);cursor:pointer;margin-right:8px;font-weight:700;">→</button><button class="del-icon del-temp-btn" data-idx="'+i+'" title="删除" style="vertical-align:middle;padding:0;width:20px;height:20px;line-height:20px;display:inline-block;">×</button></td>'+
-          '</tr>';
-      }).join('')+'</tbody></table>';
+    container.innerHTML=list.map((c,i)=>{
+      return '<div class="client-card-item">'+
+        '<div class="client-card-top">'+
+          '<div class="client-card-primary">'+
+            '<span class="client-card-name">'+esc(c.name)+'</span>'+
+            '<span class="client-card-phone-wrap">'+
+              '<a class="client-phone" href="tel:'+esc(c.phone)+'" data-full="'+esc(c.phone)+'">'+esc(maskPhone(c.phone))+'</a>'+
+              '<button class="phone-toggle" title="显示号码">看</button>'+
+            '</span>'+
+          '</div>'+
+          (c.time ? '<span class="client-card-time">'+esc(c.time)+'</span>' : '')+
+        '</div>'+
+        '<div class="client-card-body">'+
+          '<div class="client-card-content-block">'+
+            '<span class="client-card-label">回访备注</span>'+
+            '<span class="client-card-text">'+esc(c.note||'')+'</span>'+
+          '</div>'+
+        '</div>'+
+        '<div class="client-card-actions">'+
+          '<button class="convert-temp-btn" data-idx="'+i+'" title="转为正式意向客户" style="font-size:1.1rem;padding:0;background:none;border:none;color:var(--accent-intent);cursor:pointer;margin-right:8px;font-weight:700;">→</button>'+
+          '<button class="del-icon del-temp-btn" data-idx="'+i+'" title="删除" style="vertical-align:middle;padding:0;width:20px;height:20px;line-height:20px;display:inline-block;">×</button>'+
+        '</div>'+
+      '</div>';
+    }).join('');
     
     // 绑定删除按钮
     container.querySelectorAll('.del-temp-btn').forEach(b=>{
