@@ -298,6 +298,63 @@ export default {
           headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
         });
       }
+
+      // 导出全量意向客户
+      if (type === 'all_clients') {
+        const list = await env.DATA_KV.list({ prefix: 'work:' });
+        const allClients = [];
+        for (const key of list.keys) {
+          const raw = await env.DATA_KV.get(key.name);
+          if (raw) {
+            try {
+              const d = JSON.parse(raw);
+              if (d.clients) {
+                (d.clients || []).forEach(c => {
+                  allClients.push({ ...c, date: c.date || key.name.replace('work:', '') });
+                });
+              }
+            } catch(e) {}
+          }
+        }
+        allClients.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+
+        const weekNames = ['日', '一', '二', '三', '四', '五', '六'];
+        const total = allClients.length;
+
+        let text = '### 📋 意向客户全量表\n';
+        text += '> 共计 **' + total + '** 位意向客户\n\n';
+        text += '---\n\n';
+
+        for (const c of allClients) {
+          const datePart = (c.date || '').slice(5);
+          const wk = c.date ? ' 周' + weekNames[new Date(c.date + 'T00:00:00').getDay()] : '';
+          text += '**👤 ' + c.name + '**\n';
+          text += '> 📅 ' + datePart + wk + ' | 🕐 ' + (c.time || '—') + '\n';
+          text += '> 📱 ' + (c.phone || '—') + '\n';
+          text += '> 🏢 ' + (c.company || '—') + ' | 💰 公积金: ' + (c.fund || '—') + '\n';
+          if (c.note) text += '> 📝 沟通: ' + c.note.replace(/\n/g, ' ') + '\n';
+          if (c.followUp) text += '> 📋 跟进: ' + c.followUp.replace(/\n/g, ' ') + '\n';
+          text += '\n';
+        }
+
+        try {
+          const whResp = await fetch(webhookUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ msgtype: 'markdown', markdown: { content: text } })
+          });
+          if (whResp.ok) {
+            return new Response(JSON.stringify({ success: true }), {
+              headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+            });
+          }
+        } catch (e) {}
+        return new Response(JSON.stringify({ error: 'webhook 发送失败' }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+
       const today = new Date();
       const dow = today.getDay();
       const diff = dow === 0 ? 6 : dow - 1;
@@ -1019,7 +1076,7 @@ export default {
   <div class="modal-card" style="max-width:400px;">
     <div class="modal-header"><span>导出数据</span><button id="closeExportModalBtn">×</button></div>
     <div style="display:flex;flex-direction:column;gap:10px;">
-      <div style="display:flex;gap:8px;"><button class="btn-add" id="exportWeekBtn" style="flex:1;">导出本周</button><button class="btn-add" id="exportMonthBtn" style="flex:1;">导出本月</button></div>
+      <div style="display:flex;gap:8px;"><button class="btn-add" id="exportWeekBtn" style="flex:1;">导出本周</button><button class="btn-add" id="exportMonthBtn" style="flex:1;">导出本月</button><button class="btn-add" id="exportAllClientsBtn" style="flex:1;background:var(--intent-gradient);">导出全量意向</button></div>
       <input type="text" class="input-simple" id="webhookUrlInput" placeholder="企业微信 Webhook URL">
       <div style="font-size:0.65rem;color:var(--text-light);">粘贴企业微信群机器人的 Webhook 地址</div>
       <div id="exportStatus" style="font-size:0.75rem;text-align:center;min-height:20px;"></div>
@@ -1895,6 +1952,7 @@ export default {
     }
     document.getElementById('exportWeekBtn').addEventListener('click',()=>doExport('week'));
     document.getElementById('exportMonthBtn').addEventListener('click',()=>doExport('month'));
+    document.getElementById('exportAllClientsBtn').addEventListener('click',()=>doExport('all_clients'));
   }
 
   // ==================== Android 设备检测 ====================
