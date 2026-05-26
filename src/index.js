@@ -728,7 +728,7 @@ export default {
       .pin-stat-value { font-size: 1.8rem; }
       .pin-input { width: 182px; padding: 10px 17px; font-size: 1.26rem; }
       .pin-btn { padding: 10px 28px; font-size: 0.98rem; }
-      .script-container { left: 8px; top: 60px; max-width: 42vw; max-height: 25vh; overflow-y: auto; }
+      .script-container { display: none !important; }
       .learn-container { right: 8px; top: 60px; max-width: 52vw; max-height: 25vh; overflow-y: auto; }
       .script-module { padding: 8px 12px; font-size: 0.72rem; text-align: left; font-weight: 400; line-height: 1.6; }
       .learn-module { padding: 8px 12px; font-size: 0.7rem; }
@@ -839,6 +839,23 @@ export default {
     .todo-del-btn-clean { background: none; border: none; color: #c97a7a; cursor: pointer; font-size: 0.8rem; padding: 0 4px; opacity: 0.5; transition: opacity 0.2s; }
     .todo-del-btn-clean:hover { opacity: 1; }
     .todo-time-tag { background: var(--card-border); color: var(--text-soft); padding: 1px 4px; border-radius: 4px; font-size: 0.65rem; margin-left: 6px; font-weight: 700; }
+
+    /* ==================== Android 专属适配 ==================== */
+    body.android { font-family: Roboto, "Noto Sans SC", "Noto Sans", "Droid Sans Fallback", sans-serif; }
+    /* Android dvh 会导致浏览器工具栏显示/隐藏时布局抖动，改用 % */
+    body.android .app-shell { height: 100%; }
+    /* Android backdrop-filter 性能差，降低或关闭 */
+    body.android .card { backdrop-filter: none; -webkit-backdrop-filter: none; }
+    body.android .menu-dropdown { backdrop-filter: none; -webkit-backdrop-filter: none; }
+    body.android .pin-box { backdrop-filter: none; -webkit-backdrop-filter: none; }
+    body.android .privacy-mask { backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px); }
+    body.android .modal-overlay { backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px); }
+    body.android .circle-btn { backdrop-filter: none; }
+    body.android .reset-mini { backdrop-filter: none; }
+    /* Android 上 position:fixed 配合 overflow:hidden 有兼容问题，取消 body overflow */
+    body.android { overflow-y: auto; }
+    /* Android 调整锁屏 PIN 框位置，避开虚拟键盘区域 */
+    body.android .pin-box { top: 45%; }
   </style>
 </head>
 <body>
@@ -1872,7 +1889,12 @@ export default {
     document.getElementById('exportMonthBtn').addEventListener('click',()=>doExport('month'));
   }
 
-  // ==================== 初始化 ====================
+  // ==================== Android 设备检测 ====================
+  function initAndroid(){
+    const ua=navigator.userAgent||"";
+    const isAndroid=/Android/.test(ua)&&!/iPhone|iPad|iPod/.test(ua);
+    if(isAndroid)document.body.classList.add("android");
+  }
   function initDark(){
     const btn=document.getElementById('darkToggleBtn');
     const updateDarkTitle=()=>{const isDark=document.body.classList.contains('dark-mode');btn.textContent=(isDark?'浅色':'深色')+'模式';btn.title=isDark?'切换浅色模式':'切换深色模式';};
@@ -2250,7 +2272,7 @@ export default {
     }
   }
 
-  initLogs();initDark();initWp();initScriptFeature();initLearnFeature();initExport();initAllClientsBtn();
+  initAndroid();initLogs();initDark();initWp();initScriptFeature();initLearnFeature();initExport();initAllClientsBtn();
   // 菜单下拉
   (function(){
     const toggle=document.getElementById('menuToggleBtn');
