@@ -1435,8 +1435,8 @@ export default {
     <div class="modal-header">
       <div style="display:flex;align-items:center;gap:12px;">
         <span style="font-weight: 800;">表格快捷拨号</span>
-        <button class="btn-add" id="xlsSelectBtn" style="font-size:0.75rem;padding:4px 12px;height:28px;">选择表格/VCF文件</button>
-        <input type="file" id="xlsFileInput" accept=".xls,.xlsx,.csv,.vcf" style="display:none;">
+        <button class="btn-add" id="xlsSelectBtn" style="font-size:0.75rem;padding:4px 12px;height:28px;">选择Excel/CSV文件</button>
+        <input type="file" id="xlsFileInput" accept=".xls,.xlsx,.csv" style="display:none;">
       </div>
       <button id="closeXlsDialModalBtn" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:var(--text-soft);">✕</button>
     </div>
@@ -2517,62 +2517,42 @@ export default {
   }
 
   function handleExcelImport(file) {
-    const ext = (file.name || "").split(".").pop().toLowerCase();
-    if (ext === "vcf") {
-      handleVcfImport(file);
-      return;
-    }
     const reader = new FileReader();
     reader.onload = function(e) {
       try {
         const data = new Uint8Array(e.target.result);
-        const workbook = XLSX.read(data, { type: "array" });
+        const workbook = XLSX.read(data, { type: 'array' });
         const firstSheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[firstSheetName];
-        const json = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
+        const json = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
         if (json.length === 0) {
-          document.getElementById('xlsImportStatus').innerText = '导入失败：表格无数据';
+          document.getElementById('xlsImportStatus').innerText = '❌ 导入失败：表格无数据';
           return;
         }
-
-        const headers = json[0].map(h => String(h || '').trim());
+        
+        const headers = json[0];
         let nameIdx = -1, phoneIdx = -1, companyIdx = -1, noteIdx = -1;
-
-        // 第一轮：表头关键字匹配
         for (let i = 0; i < headers.length; i++) {
-          const h = headers[i];
-          if (!h) continue;
-          if (/姓名|客户|联系人|name/i.test(h)) nameIdx = i;
+          const h = String(headers[i] || '').trim();
+          if (/姓名|客户|name/i.test(h)) nameIdx = i;
           else if (/电话|手机|号码|phone|tel|mobile/i.test(h)) phoneIdx = i;
-          else if (/单位|公司|企业|组织|company|firm|org|work/i.test(h)) companyIdx = i;
-          else if (/备注|沟通|记录|跟进|说明|note|remark/i.test(h)) noteIdx = i;
+          else if (/单位|公司|企业|company|firm|work/i.test(h)) companyIdx = i;
+          else if (/备注|沟通|记录|跟进|note|remark/i.test(h)) noteIdx = i;
         }
-
-        // 第二轮：扫描数据行找含手机号的列（最多50行）
+        
         if (phoneIdx === -1) {
-          const rowCount = Math.min(json.length, 50);
-          const phoneHits = new Array(headers.length).fill(0);
-          for (let r = 1; r < rowCount; r++) {
-            const row = json[r];
-            if (!row) continue;
-            for (let i = 0; i < headers.length; i++) {
-              const v = String(row[i] || '').replace(/[^\d]/g, '');
-              if (/1\d{10}/.test(v) || /\d{7,}/.test(v)) phoneHits[i]++;
+          for (let i = 0; i < headers.length; i++) {
+            if (/1\d{10}/.test(String(json[1]?.[i] || ''))) {
+              phoneIdx = i;
+              break;
             }
           }
-          let bestIdx = -1, bestScore = 0;
-          for (let i = 0; i < phoneHits.length; i++) {
-            if (phoneHits[i] > bestScore) { bestScore = phoneHits[i]; bestIdx = i; }
-          }
-          if (bestIdx >= 0) phoneIdx = bestIdx;
         }
+        if (nameIdx === -1) nameIdx = 0;
 
-        // 第三轮：名字列选第一个非电话/公司/备注列
-        if (nameIdx === -1) {
-          for (let i = 0; i < headers.length; i++) {
-            if (i !== phoneIdx && i !== companyIdx && i !== noteIdx) { nameIdx = i; break; }
-          }
-          if (nameIdx === -1) nameIdx = 0;
+        if (phoneIdx === -1) {
+          document.getElementById('xlsImportStatus').innerText = '❌ 导入失败：无法识别“电话”字段，请确保包含电话列';
+          return;
         }
 
         const parsedCustomers = [];
@@ -2581,35 +2561,20 @@ export default {
         for (let r = 1; r < json.length; r++) {
           const row = json[r];
           if (!row || row.length === 0) continue;
-
-          let phoneVal = '';
-          if (phoneIdx >= 0) {
-            phoneVal = String(row[phoneIdx] || '').replace(/[^\d+]/g, '');
-          }
-
-          // 如果该列没有有效电话，从整行扫描提取
-          if (!phoneVal || !/1\d{10}|\d{7,}/.test(phoneVal)) {
-            for (let i = 0; i < (row.length || 0); i++) {
-              const v = String(row[i] || '').replace(/[^\d]/g, '');
-              if (/1\d{10}/.test(v)) { phoneVal = v; break; }
-            }
-            if (!phoneVal) {
-              for (let i = 0; i < (row.length || 0); i++) {
-                const v = String(row[i] || '').replace(/[^\d]/g, '');
-                if (/\d{7,}/.test(v)) { phoneVal = v; break; }
-              }
-            }
-          }
+          
+          let phoneVal = String(row[phoneIdx] || '').trim();
+          phoneVal = phoneVal.replace(/[^\d+]/g, '');
           if (!phoneVal) continue;
+          
           if (phoneSet.has(phoneVal)) continue;
           phoneSet.add(phoneVal);
 
-          const nameVal = nameIdx >= 0 ? String(row[nameIdx] || '').trim() : '';
-          const companyVal = companyIdx >= 0 ? String(row[companyIdx] || '').trim() : '';
-          const noteVal = noteIdx >= 0 ? String(row[noteIdx] || '').trim() : '';
+          const nameVal = nameIdx !== -1 ? String(row[nameIdx] || '').trim() : '客户';
+          const companyVal = companyIdx !== -1 ? String(row[companyIdx] || '').trim() : '';
+          const noteVal = noteIdx !== -1 ? String(row[noteIdx] || '').trim() : '';
 
           parsedCustomers.push({
-            name: nameVal || ('客户' + phoneVal.slice(-4)),
+            name: nameVal || '未知姓名',
             phone: phoneVal,
             company: companyVal,
             note: noteVal,
@@ -2620,119 +2585,22 @@ export default {
         }
 
         if (parsedCustomers.length === 0) {
-          document.getElementById('xlsImportStatus').innerText = '导入失败：未找到有效电话号码';
+          document.getElementById('xlsImportStatus').innerText = '❌ 导入失败：无有效客户数据';
           return;
         }
 
-        const srcLabel = file.name || '文件';
-        document.getElementById('xlsImportStatus').innerHTML = '成功导入 <strong style="color:var(--accent-intent);">' + parsedCustomers.length + '</strong> 位客户 <span style="font-size:0.7rem;color:var(--text-soft);">(' + srcLabel + ')</span>';
-
+        document.getElementById('xlsImportStatus').innerHTML = '✅ 成功导入 <strong style="color:var(--accent-intent);">' + parsedCustomers.length + '</strong> 位客户 ' +
+          '(匹配: 姓名 → ' + (headers[nameIdx] || '第一列') + ', 电话 → ' + (headers[phoneIdx] || '电话列') + ')';
+        
         window.importedXlsClients = parsedCustomers;
         saveXlsClients();
         renderXlsDialCards();
 
       } catch(err) {
-        document.getElementById('xlsImportStatus').innerText = '解析失败：' + err.message;
+        document.getElementById('xlsImportStatus').innerText = '❌ 解析失败：' + err.message;
       }
     };
     reader.readAsArrayBuffer(file);
-  }
-
-  // ==================== VCF 通讯录导入 ====================
-  function handleVcfImport(file) {
-    const reader = new FileReader();
-    reader.onload = function(e) {
-      try {
-        const text = e.target.result;
-        const parsedCustomers = [];
-        const phoneSet = new Set();
-
-        const blocks = text.split(/END:VCARD\s*/i);
-        for (let bi = 0; bi < blocks.length; bi++) {
-          const block = blocks[bi];
-          if (!block || block.length < 5) continue;
-
-          let name = '', phone = '', company = '', note = '';
-
-          // FN: 全名
-          const fnMatch = block.match(/^FN[:;][^\n]*?(\S[^\n]*)/im);
-          if (fnMatch) name = fnMatch[1].trim();
-
-          // N: 结构化姓名 (LastName;FirstName)
-          if (!name) {
-            const nMatch = block.match(/^N[:;][^\n]*?(\S[^\n]*)/im);
-            if (nMatch) {
-              const parts = nMatch[1].split(';').filter(Boolean);
-              name = parts.join(' ').trim();
-            }
-          }
-
-          // TEL 电话
-          const telRegex = /^TEL[^:]*:([^\n]+)/gim;
-          const telMatches = [];
-          let tm;
-          while ((tm = telRegex.exec(block)) !== null) {
-            telMatches.push(tm[1].trim());
-          }
-          if (telMatches.length > 0) {
-            for (const t of telMatches) {
-              const clean = t.replace(/[^\d+]/g, '');
-              if (/1\d{10}/.test(clean)) { phone = clean; break; }
-            }
-            if (!phone) {
-              phone = telMatches[0].replace(/[^\d+]/g, '');
-            }
-          }
-
-          // ORG: 组织
-          const orgMatch = block.match(/^ORG[:;][^\n]*?(\S[^\n]*)/im);
-          if (orgMatch) company = orgMatch[1].trim();
-
-          // NOTE: 备注
-          const noteMatch = block.match(/^NOTE[:;][^\n]*?(\S[^\n]*)/im);
-          if (noteMatch) note = noteMatch[1].trim();
-
-          // EMAIL 兜底名字
-          if (!name) {
-            const emailMatch = block.match(/^EMAIL[^:]*:([^\n@]+)/im);
-            if (emailMatch) name = emailMatch[1].trim();
-          }
-
-          if (!phone) continue;
-          const cleanPhone = phone.replace(/[^\d+]/g, '');
-          if (!cleanPhone || cleanPhone.length < 7) continue;
-          if (phoneSet.has(cleanPhone)) continue;
-          phoneSet.add(cleanPhone);
-
-          if (!name) name = '联系人' + cleanPhone.slice(-4);
-
-          parsedCustomers.push({
-            name: name,
-            phone: cleanPhone,
-            company: company,
-            note: note,
-            dialedStatus: 'todo',
-            duration: '',
-            callNote: ''
-          });
-        }
-
-        if (parsedCustomers.length === 0) {
-          document.getElementById('xlsImportStatus').innerText = '导入失败：通讯录中未找到有效电话号码';
-          return;
-        }
-
-        document.getElementById('xlsImportStatus').innerHTML = '成功从通讯录导入 <strong style="color:var(--accent-intent);">' + parsedCustomers.length + '</strong> 位联系人 <span style="font-size:0.7rem;color:var(--text-soft);">(' + (file.name || 'VCF') + ')</span>';
-
-        window.importedXlsClients = parsedCustomers;
-        saveXlsClients();
-        renderXlsDialCards();
-
-      } catch(err) {
-        document.getElementById('xlsImportStatus').innerText = 'VCF解析失败：' + err.message;
-      }
-    };
-    reader.readAsText(file, 'utf-8');
   }
 
   function renderXlsDialCards() {
