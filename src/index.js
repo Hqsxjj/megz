@@ -1,10 +1,77 @@
 // 每日工作 - Cloudflare Worker 版本
 // 部署后绑定 DATA_KV 即可使用
 
+async function getAllKVKeys(env, prefix) {
+  let keys = [];
+  let cursor = undefined;
+  while (true) {
+    const list = await env.DATA_KV.list({ prefix, cursor });
+    keys.push(...list.keys);
+    if (list.list_complete || !list.cursor) {
+      break;
+    }
+    cursor = list.cursor;
+  }
+  return keys;
+}
+
+async function getKVValuesConcurrently(env, keys) {
+  const results = [];
+  const concurrency = 30;
+  for (let i = 0; i < keys.length; i += concurrency) {
+    const chunk = keys.slice(i, i + concurrency);
+    const promises = chunk.map(key => env.DATA_KV.get(key.name).then(val => ({ name: key.name, val })));
+    const resolved = await Promise.all(promises);
+    results.push(...resolved);
+  }
+  return results;
+}
+
+async function sendWebhookMarkdown(url, baseHeader, items, itemFormatter) {
+  let currentText = baseHeader;
+  let part = 1;
+  const sendChunk = async (content) => {
+    const whResp = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ msgtype: 'markdown', markdown: { content } })
+    });
+    if (!whResp.ok) {
+      throw new Error('HTTP ' + whResp.status + ': ' + (await whResp.text()));
+    }
+  };
+
+  for (const item of items) {
+    const itemText = itemFormatter(item);
+    if (currentText.length + itemText.length > 4000) {
+      await sendChunk(currentText);
+      part++;
+      currentText = '### ' + (baseHeader.match(/###\s*([^\n]+)/)?.[1] || '导出数据') + ' (续' + part + ')\n\n---\n\n' + itemText;
+    } else {
+      currentText += itemText;
+    }
+  }
+  if (currentText.length > 0) {
+    await sendChunk(currentText);
+  }
+}
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
     const path = url.pathname;
+
+    // CORS preflight handler
+    if (request.method === 'OPTIONS') {
+      return new Response(null, {
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type',
+          'Access-Control-Max-Age': '86400'
+        }
+      });
+    }
 
     // ==================== API 接口 ====================
     
@@ -42,7 +109,7 @@ export default {
       const items = Array.isArray(body) ? body : [body];
       let hasError = false;
       for (const item of items) {
-        const { date, wechatCount, intentCount, revisitCount, clients, todayTodos, tomorrowTodos, tempClients, scripts, learns, todoLog, _ts } = item;
+        const { date, wechatCount, intentCount, revisitCount, clients, todayTodos, tomorrowTodos, tempClients, scripts, learns, todoLog, webhookUrl, _ts } = item;
         if (!date) { hasError = true; continue; }
         // 读取云端现有数据
         const rawExisting = await env.DATA_KV.get(`work:${date}`);
@@ -59,7 +126,7 @@ export default {
         const merged = {
           date,
           wechatCount: Math.max(existing.wechatCount || 0, wechatCount || 0),
-          intentCount: mergedClients.filter(c => c.date === date).length,
+          intentCount: mergedClients.length,
           revisitCount: Math.max(existing.revisitCount || 0, revisitCount || 0),
           clients: mergedClients,
           todayTodos: todayTodos || existing.todayTodos || [],
@@ -68,6 +135,7 @@ export default {
           scripts: scripts || existing.scripts || [],
           learns: learns || existing.learns || [],
           todoLog: todoLog || existing.todoLog || [],
+          webhookUrl: webhookUrl || existing.webhookUrl || '',
           lastLoadDate: date,
           lastModified: new Date().toISOString(),
           _ts: _ts || Date.now()
@@ -120,6 +188,7 @@ export default {
           }
           break;
         }
+        // DEPRECATED: Use removeClientByMatch instead to avoid index mismatch on multi-device concurrent deletes
         case 'removeClientByIndex': {
           if (body.index !== undefined && body.index >= 0) {
             data.clients = data.clients || [];
@@ -186,6 +255,9 @@ export default {
           data.clients = body.clients || [];
           data.intentCount = (body.clients || []).length;
           break;
+        case 'setWebhookUrl':
+          data.webhookUrl = body.webhookUrl || '';
+          break;
         default:
           return new Response(JSON.stringify({ error: '未知操作: ' + op }), {
             status: 400,
@@ -209,18 +281,20 @@ export default {
           headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
         });
       }
-      const list = await env.DATA_KV.list({ prefix: `work:${month}` });
+      const keys = await getAllKVKeys(env, 'work:' + month);
+      const keyValues = await getKVValuesConcurrently(env, keys);
       const calendar = {};
-      for (const key of list.keys) {
-        const rawData = await env.DATA_KV.get(key.name);
-        if (rawData) {
-          const d = JSON.parse(rawData);
-          const dateKey = key.name.replace('work:', '');
-          calendar[dateKey] = {
-            w: d.wechatCount || 0,
-            i: d.intentCount || 0,
-            r: d.revisitCount || 0
-          };
+      for (const kv of keyValues) {
+        if (kv.val) {
+          try {
+            const d = JSON.parse(kv.val);
+            const dateKey = kv.name.replace('work:', '');
+            calendar[dateKey] = {
+              w: d.wechatCount || 0,
+              i: d.intentCount || 0,
+              r: d.revisitCount || 0
+            };
+          } catch(e) {}
         }
       }
       return new Response(JSON.stringify(calendar), {
@@ -237,27 +311,29 @@ export default {
           headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
         });
       }
-      const list = await env.DATA_KV.list({ prefix: `work:${month}` });
+      const keys = await getAllKVKeys(env, 'work:' + month);
+      const keyValues = await getKVValuesConcurrently(env, keys);
       let weekW = 0, monthW = 0, weekI = 0, monthI = 0, weekR = 0, monthR = 0;
       const today = new Date();
       const dow = today.getDay();
       const diff = (dow === 0 ? 6 : dow - 1);
       const mon = new Date(today);
       mon.setDate(today.getDate() - diff);
-      const monStr = `${mon.getFullYear()}-${String(mon.getMonth()+1).padStart(2,'0')}-${String(mon.getDate()).padStart(2,'0')}`;
-      const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
-      for (const key of list.keys) {
-        const rawData = await env.DATA_KV.get(key.name);
-        if (rawData) {
-          const d = JSON.parse(rawData);
-          monthW += d.wechatCount || 0;
-          monthI += d.intentCount || 0;
-          monthR += d.revisitCount || 0;
-          if (d.date >= monStr && d.date <= todayStr) {
-            weekW += d.wechatCount || 0;
-            weekI += d.intentCount || 0;
-            weekR += d.revisitCount || 0;
-          }
+      const monStr = mon.getFullYear() + '-' + String(mon.getMonth()+1).padStart(2,'0') + '-' + String(mon.getDate()).padStart(2,'0');
+      const todayStr = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0') + '-' + String(today.getDate()).padStart(2,'0');
+      for (const kv of keyValues) {
+        if (kv.val) {
+          try {
+            const d = JSON.parse(kv.val);
+            monthW += d.wechatCount || 0;
+            monthI += d.intentCount || 0;
+            monthR += d.revisitCount || 0;
+            if (d.date >= monStr && d.date <= todayStr) {
+              weekW += d.wechatCount || 0;
+              weekI += d.intentCount || 0;
+              weekR += d.revisitCount || 0;
+            }
+          } catch(e) {}
         }
       }
       return new Response(JSON.stringify({ weekW, monthW, weekI, monthI, weekR, monthR }), {
@@ -266,16 +342,16 @@ export default {
     }
     // 获取全量意向客户
     if (path === '/api/all-clients' && request.method === 'GET') {
-      const list = await env.DATA_KV.list({ prefix: 'work:' });
+      const keys = await getAllKVKeys(env, 'work:');
+      const keyValues = await getKVValuesConcurrently(env, keys);
       const allClients = [];
-      for (const key of list.keys) {
-        const raw = await env.DATA_KV.get(key.name);
-        if (raw) {
+      for (const kv of keyValues) {
+        if (kv.val) {
           try {
-            const d = JSON.parse(raw);
+            const d = JSON.parse(kv.val);
             if (d.clients) {
               d.clients.forEach(c => {
-                c.date = c.date || key.name.replace('work:', '');
+                c.date = c.date || kv.name.replace('work:', '');
                 allClients.push(c);
               });
             }
@@ -299,44 +375,35 @@ export default {
         });
       }
 
-      // 导出全量意向客户
-      if (type === 'all_clients') {
-        const list = await env.DATA_KV.list({ prefix: 'work:' });
-        const allClients = [];
-        for (const key of list.keys) {
-          const raw = await env.DATA_KV.get(key.name);
-          if (raw) {
-            try {
-              const d = JSON.parse(raw);
-              if (d.clients) {
-                (d.clients || []).forEach(c => {
-                  allClients.push({ ...c, date: c.date || key.name.replace('work:', '') });
-                });
-              }
-            } catch(e) {}
-          }
-        }
-        allClients.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+      // SSRF Defence: Only allow official Weixin Work domain prefixes
+      if (!webhookUrl.startsWith('https://qyapi.weixin.qq.com/')) {
+        return new Response(JSON.stringify({ error: 'SSRF 安全防御：仅允许向企业微信官方域名发送 Webhook 请求' }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
 
+      // 导出单个意向客户
+      if (type === 'single_client') {
+        const client = body.client;
+        if (!client) {
+          return new Response(JSON.stringify({ error: '缺少 client 参数' }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
         const weekNames = ['日', '一', '二', '三', '四', '五', '六'];
-        const total = allClients.length;
-
-        let text = '### 意向客户全量表\n';
-        text += '> 共计 **' + total + '** 位意向客户\n\n';
-        text += '---\n\n';
-
-        for (const c of allClients) {
-          const datePart = (c.date || '').slice(5);
-          const wk = c.date ? ' 周' + weekNames[new Date(c.date + 'T00:00:00').getDay()] : '';
-          text += '**【' + c.name + '】**\n';
-          text += '> 日期: ' + datePart + wk + ' | 时间: ' + (c.time || '—') + '\n';
-          text += '> 电话: ' + (c.phone || '—') + '\n';
-          text += '> 单位: ' + (c.company || '—') + ' | 公积金: ' + (c.fund || '—') + '\n';
-          if (c.note) text += '> 沟通: ' + c.note.replace(/\n/g, ' ') + '\n';
-          if (c.followUp) text += '> 跟进: ' + c.followUp.replace(/\n/g, ' ') + '\n';
-          text += '\n';
-        }
-
+        const datePart = (client.date || '').slice(5);
+        const wk = client.date ? ' 周' + weekNames[new Date(client.date + 'T00:00:00').getDay()] : '';
+        
+        let text = '### 🎯 意向客户导出登记\n';
+        text += '**【' + client.name + '】**\n';
+        text += '> 日期: ' + datePart + wk + ' | 时间: ' + (client.time || '—') + '\n';
+        text += '> 电话: ' + (client.phone || '—') + '\n';
+        text += '> 单位: ' + (client.company || '—') + ' | 公积金: ' + (client.fund || '—') + '\n';
+        if (client.note) text += '> 沟通: ' + client.note.replace(/\n/g, ' ') + '\n';
+        if (client.followUp) text += '> 跟进: ' + client.followUp.replace(/\n/g, ' ') + '\n';
+        
         try {
           const whResp = await fetch(webhookUrl, {
             method: 'POST',
@@ -348,11 +415,65 @@ export default {
               headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
             });
           }
-        } catch (e) {}
-        return new Response(JSON.stringify({ error: 'webhook 发送失败' }), {
-          status: 500,
-          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-        });
+          return new Response(JSON.stringify({ error: '企业微信接口返回错误: ' + whResp.status }), {
+            status: whResp.status,
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
+        } catch (e) {
+          return new Response(JSON.stringify({ error: '发送 webhook 遇到网络错误: ' + e.message }), {
+            status: 500,
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+      }
+
+      // 导出全量意向客户
+      if (type === 'all_clients') {
+        const keys = await getAllKVKeys(env, 'work:');
+        const keyValues = await getKVValuesConcurrently(env, keys);
+        const allClients = [];
+        for (const kv of keyValues) {
+          if (kv.val) {
+            try {
+              const d = JSON.parse(kv.val);
+              if (d.clients) {
+                (d.clients || []).forEach(c => {
+                  allClients.push({ ...c, date: c.date || kv.name.replace('work:', '') });
+                });
+              }
+            } catch(e) {}
+          }
+        }
+        allClients.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+
+        const weekNames = ['日', '一', '二', '三', '四', '五', '六'];
+        const total = allClients.length;
+
+        const baseHeader = '### 意向客户全量表\n> 共计 **' + total + '** 位意向客户\n\n---\n\n';
+        const itemFormatter = (c) => {
+          const datePart = (c.date || '').slice(5);
+          const wk = c.date ? ' 周' + weekNames[new Date(c.date + 'T00:00:00').getDay()] : '';
+          let itemText = '**【' + c.name + '】**\n';
+          itemText += '> 日期: ' + datePart + wk + ' | 时间: ' + (c.time || '—') + '\n';
+          itemText += '> 电话: ' + (c.phone || '—') + '\n';
+          itemText += '> 单位: ' + (c.company || '—') + ' | 公积金: ' + (c.fund || '—') + '\n';
+          if (c.note) itemText += '> 沟通: ' + c.note.replace(/\n/g, ' ') + '\n';
+          if (c.followUp) itemText += '> 跟进: ' + c.followUp.replace(/\n/g, ' ') + '\n';
+          itemText += '\n';
+          return itemText;
+        };
+
+        try {
+          await sendWebhookMarkdown(webhookUrl, baseHeader, allClients, itemFormatter);
+          return new Response(JSON.stringify({ success: true }), {
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
+        } catch (e) {
+          return new Response(JSON.stringify({ error: 'Webhook 发送失败: ' + e.message }), {
+            status: 500,
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
       }
 
       const today = new Date();
@@ -364,22 +485,24 @@ export default {
       const todayStr = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0') + '-' + String(today.getDate()).padStart(2,'0');
       const monthPrefix = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0');
 
-      const list = await env.DATA_KV.list({ prefix: 'work:' + monthPrefix });
+      const keys = await getAllKVKeys(env, 'work:' + monthPrefix);
+      const keyValues = await getKVValuesConcurrently(env, keys);
       let weekW = 0, monthW = 0, weekI = 0, monthI = 0, weekR = 0, monthR = 0;
       const sorted = [];
-      for (const key of list.keys) {
-        const rawData = await env.DATA_KV.get(key.name);
-        if (!rawData) continue;
-        const d = JSON.parse(rawData);
-        sorted.push(d);
-        monthW += d.wechatCount || 0;
-        monthI += d.intentCount || 0;
-        monthR += d.revisitCount || 0;
-        if (d.date >= monStr && d.date <= todayStr) {
-          weekW += d.wechatCount || 0;
-          weekI += d.intentCount || 0;
-          weekR += d.revisitCount || 0;
-        }
+      for (const kv of keyValues) {
+        if (!kv.val) continue;
+        try {
+          const d = JSON.parse(kv.val);
+          sorted.push(d);
+          monthW += d.wechatCount || 0;
+          monthI += d.intentCount || 0;
+          monthR += d.revisitCount || 0;
+          if (d.date >= monStr && d.date <= todayStr) {
+            weekW += d.wechatCount || 0;
+            weekI += d.intentCount || 0;
+            weekR += d.revisitCount || 0;
+          }
+        } catch(e) {}
       }
       sorted.sort((a,b) => (a.date||'').localeCompare(b.date||''));
 
@@ -392,19 +515,20 @@ export default {
       const iTotal = type === 'week' ? weekI : monthI;
       const rTotal = type === 'week' ? weekR : monthR;
 
-      let text = '### ' + title + '\n';
-      text += '> 📅 ' + dateRange + '\n\n';
-      text += '<font color="info">💬 新增微信：**' + wTotal + '**</font>\n';
-      text += '<font color="warning">🎯 新增意向：**' + iTotal + '**</font>\n';
-      text += '<font color="comment">🔄 客户回访：**' + rTotal + '**</font>\n';
+      const baseHeader = '### ' + title + '\n' +
+        '> 📅 ' + dateRange + '\n\n' +
+        '<font color="info">💬 新增微信：**' + wTotal + '**</font>\n' +
+        '<font color="warning">🎯 新增意向：**' + iTotal + '**</font>\n' +
+        '<font color="comment">🔄 客户回访：**' + rTotal + '**</font>\n' +
+        (type !== 'week' ? '\n> 📌 本周参考: 微信 **' + weekW + '** | 意向 **' + weekI + '** | 回访 **' + weekR + '**\n' : '') +
+        '\n---\n\n';
 
-      if (type !== 'week') {
-        text += '\n> 📌 本周参考: 微信 **' + weekW + '** | 意向 **' + weekI + '** | 回访 **' + weekR + '**\n';
-      }
-      text += '\n---\n\n';
+      const activeDays = sorted.filter(d => {
+        if (type === 'week' && (d.date < monStr || d.date > todayStr)) return false;
+        return true;
+      });
 
-      for (const d of sorted) {
-        if (type === 'week' && (d.date < monStr || d.date > todayStr)) continue;
+      const itemFormatter = (d) => {
         const datePart = d.date.slice(5);
         const wk = '周' + weekNames[new Date(d.date + 'T00:00:00').getDay()];
         const w = d.wechatCount || 0;
@@ -419,26 +543,23 @@ export default {
           detail = '*(无新增意向)*';
         }
         
-        text += '**📍 ' + datePart + ' ' + wk + '**\n';
-        text += '> <font color="info">微信: ' + w + '</font> | <font color="warning">意向: ' + it + '</font> | <font color="comment">回访: ' + r + '</font>\n';
-        text += '> ' + detail + '\n\n';
-      }
+        let itemText = '**📍 ' + datePart + ' ' + wk + '**\n';
+        itemText += '> <font color="info">微信: ' + w + '</font> | <font color="warning">意向: ' + it + '</font> | <font color="comment">回访: ' + r + '</font>\n';
+        itemText += '> ' + detail + '\n\n';
+        return itemText;
+      };
+
       try {
-        const whResp = await fetch(webhookUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ msgtype: 'markdown', markdown: { content: text } })
+        await sendWebhookMarkdown(webhookUrl, baseHeader, activeDays, itemFormatter);
+        return new Response(JSON.stringify({ success: true }), {
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
         });
-        if (whResp.ok) {
-          return new Response(JSON.stringify({ success: true }), {
-            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-          });
-        }
-      } catch (e) {}
-      return new Response(JSON.stringify({ error: 'webhook 发送失败' }), {
-        status: 500,
-        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-      });
+      } catch (e) {
+        return new Response(JSON.stringify({ error: 'Webhook 发送失败: ' + e.message }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
     }
 
     // ==================== HTML 页面 ====================
@@ -712,9 +833,13 @@ export default {
     .phone-toggle { background: none; border: none; font-size: 0.8rem; cursor: pointer; padding: 0 2px; opacity: 0.5; transition: opacity 0.2s; vertical-align: middle; line-height: 1; }
     .phone-toggle:hover { opacity: 1; }
     .client-note { color: var(--text-light); font-size: 0.75rem; font-weight: 600; }
-    .client-time { color: var(--text-light); font-size: 0.65rem; font-weight: 500; }
     .del-icon { background: none; border: none; font-size: 0.9rem; color: #c97a7a; cursor: pointer; width: 28px; height: 28px; border-radius: var(--radius-xs); font-weight: 700; }
     .edit-icon { background: none; border: none; font-size: 0.9rem; color: var(--accent-wechat); cursor: pointer; width: 28px; height: 28px; border-radius: var(--radius-xs); font-weight: 700; margin-right: 4px; }
+    .export-single-btn { background: none; border: none; font-size: 0.9rem; color: var(--accent-intent); cursor: pointer; width: 28px; height: 28px; border-radius: var(--radius-xs); font-weight: 700; margin-right: 4px; }
+    .export-timeline-single-btn { font-size: 0.78rem; background: transparent; border: 1px solid var(--accent-intent); color: var(--accent-intent); border-radius: 50%; cursor: pointer; width: 26px; height: 26px; padding: 0; display: inline-flex; justify-content: center; align-items: center; font-weight: 700; transition: all 0.2s; margin-right: 4px; }
+    .export-timeline-single-btn:hover { background: var(--accent-intent); color: #fff; transform: scale(1.1); }
+    .sync-indicator.offline { border-color: rgba(231,76,60,0.6); background: rgba(231,76,60,0.05); }
+    body.dark-mode .sync-indicator.offline { border-color: rgba(231,76,60,0.7); background: rgba(231,76,60,0.1); }
     .client-actions { display: flex; align-items: center; gap: 4px; }
     .todo-list { display: flex; flex-direction: column; gap: 8px; max-height: 200px; overflow-y: auto; }
     .todo-item { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: var(--btn-bg); border-radius: var(--radius-xs); border: 0.5px solid var(--card-border); font-size: 0.8rem; font-weight: 600; color: var(--text-main); }
@@ -1165,13 +1290,41 @@ export default {
         const item=q[0];
         const {_qid,...body}=item;
         let ok=false;
+        let status=0;
+        let errMsg='';
+        if(!item._retry)item._retry=0;
         try{
           const r=await fetch('/api/sync',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+          status=r.status;
           if(r.ok){const d=await r.json();if(d._ts)localStorage.setItem(LOCAL_TS_K,d._ts);ok=true;anyOk=true;}
-        }catch(e){}
-        if(!ok){_syncStatus='pending';updateSyncIndicator();break;}
-        saveOpQueue(loadOpQueue().filter(i=>i._qid!==_qid));
-        updateSyncIndicator();
+          else{errMsg='HTTP '+r.status;}
+        }catch(e){errMsg=e.message||'网络连接错误';}
+        if(ok){
+          saveOpQueue(loadOpQueue().filter(function(i){return i._qid!==_qid;}));
+          updateSyncIndicator();
+        }else{
+          if(status>=400&&status<500){
+            addSyncLog('⚠️ 放弃无效操作 ['+item.op+']: '+errMsg);
+            saveOpQueue(loadOpQueue().filter(function(i){return i._qid!==_qid;}));
+            updateSyncIndicator();
+            continue;
+          }
+          item._retry++;
+          if(item._retry>=5){
+            addSyncLog('❌ 操作 ['+item.op+'] 重试 5 次失败已丢弃: '+errMsg);
+            saveOpQueue(loadOpQueue().filter(function(i){return i._qid!==_qid;}));
+            updateSyncIndicator();
+            continue;
+          }
+          const currentQueue=loadOpQueue();
+          const currentItemIdx=currentQueue.findIndex(function(i){return i._qid===_qid;});
+          if(currentItemIdx>=0){
+            currentQueue[currentItemIdx]._retry=item._retry;
+            saveOpQueue(currentQueue);
+          }
+          _syncStatus='pending';updateSyncIndicator();
+          break;
+        }
       }
       if(loadOpQueue().length===0){_syncStatus='synced';if(anyOk){_lastSyncTime=new Date();addSyncLog('✅ 增量队列推送云端成功');}}
     }finally{_draining=false;updateSyncIndicator();}
@@ -1198,10 +1351,13 @@ export default {
     var q=loadOpQueue();
     var qLen=q.length;
     var st=_syncStatus;
-    if(st!=='syncing'&&st!=='error'){st=qLen>0?'pending':'synced';}
+    if(!navigator.onLine)st='offline';
+    if(st!=='syncing'&&st!=='error'&&st!=='offline'){st=qLen>0?'pending':'synced';}
     btn.className='sync-indicator '+st;
     if(st==='syncing'){
       icon.textContent='⇅';label.textContent='同步中...';
+    }else if(st==='offline'){
+      icon.textContent='🔌';label.textContent='离线模式';
     }else if(st==='pending'){
       icon.textContent='⇅';label.innerHTML='<span class="sync-badge">'+qLen+'</span> 待同步';
     }else if(st==='error'){
@@ -1225,6 +1381,7 @@ export default {
     const wm=loadMap(WECHAT_K);
     const rm=loadMap(REVISIT_K);
     const allClients=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
+    const webhookUrl=localStorage.getItem('webhook_url')||'';
     
     if(full){
       const scripts=loadScripts();
@@ -1240,6 +1397,7 @@ export default {
           intentCount:dClients.length,
           revisitCount:rm[d]||0,
           clients:dClients,
+          webhookUrl:webhookUrl,
           _ts:ts
         };
         if(d===today){
@@ -1265,6 +1423,7 @@ export default {
         todayTodos:loadTodos(TODAY_TODO_K).filter(t=>(typeof t==='string'?today:(t.date||today))===today),
         tomorrowTodos:loadTodos(TOMORROW_TODO_K).filter(t=>(typeof t==='string'?today:(t.date||today))===today),
         tempClients:JSON.parse(localStorage.getItem(TEMP_CLIENTS_K)||'[]'),
+        webhookUrl:webhookUrl,
         _ts:Date.now()
       };
       localStorage.setItem(LOCAL_TS_K,data._ts);
@@ -1275,7 +1434,13 @@ export default {
   // 从 KV 拉取最新数据，如果云端更新则覆盖本地
   async function pullLatest(){
     const today=getTodayStr();
-    const data=await cloudGet(today);
+    let data=null;
+    try{
+      data=await cloudGet(today);
+    }catch(errVal){
+      addSyncLog('⚠️ 同步拉取异常: '+errVal.message);
+      return;
+    }
     if(!data)return;
     const localTs=parseInt(localStorage.getItem(LOCAL_TS_K)||'0');
     if((data._ts||0)>localTs){
@@ -1308,6 +1473,8 @@ export default {
       // 话术/学习
       if(data.scripts!==undefined){saveScripts(data.scripts);renderLockScripts();}
       if(data.learns!==undefined){saveLearns(data.learns);renderLockLearns();}
+      // 同步 Webhook URL 并保存到本地，解耦 DOM 访问
+      if(data.webhookUrl!==undefined)localStorage.setItem('webhook_url',data.webhookUrl);
       localStorage.setItem(LOCAL_TS_K,data._ts);
       refreshAll();
       addSyncLog('✅ 拉取并合并云端最新数据完成');
@@ -1320,7 +1487,13 @@ export default {
   // 跨天从云端恢复数据（页面加载时使用）
   async function loadFromCloud(date){
     if(!date)date=getTodayStr();
-    const data=await cloudGet(date);
+    let data=null;
+    try{
+      data=await cloudGet(date);
+    }catch(errVal){
+      addSyncLog('⚠️ 跨天数据拉取异常: '+errVal.message);
+      return false;
+    }
     if(!data)return false;
     const wm=loadMap(WECHAT_K);wm[date]=data.wechatCount||0;saveMap(WECHAT_K,wm);
     const im=loadMap(INTENT_K);im[date]=data.intentCount||0;saveMap(INTENT_K,im);
@@ -1335,6 +1508,7 @@ export default {
     if(data.tempClients!==undefined)localStorage.setItem(TEMP_CLIENTS_K,JSON.stringify(data.tempClients));
     if(data.scripts!==undefined)saveScripts(data.scripts);
     if(data.learns!==undefined)saveLearns(data.learns);
+    if(data.webhookUrl!==undefined)localStorage.setItem('webhook_url',data.webhookUrl);
     if(data.lastLoadDate)localStorage.setItem(LAST_LOAD_DATE_K,data.lastLoadDate);
     localStorage.setItem(LOCAL_TS_K,data._ts||Date.now());
     return true;
@@ -1367,7 +1541,7 @@ export default {
       container.innerHTML='<div class="empty-clients">暂无意向客户</div>';
       return;
     }
-    container.innerHTML='<table class="table-compact"><thead><tr><th style="width:60px;">姓名</th><th style="width:110px;">电话</th><th style="width:120px;">单位/公积金</th><th>沟通记录</th><th>跟进情况</th><th style="width:60px;text-align:right;">操作</th></tr></thead><tbody>'+
+    container.innerHTML='<table class="table-compact"><thead><tr><th style="width:60px;">姓名</th><th style="width:110px;">电话</th><th style="width:120px;">单位/公积金</th><th>沟通记录</th><th>跟进情况</th><th style="width:90px;text-align:right;">操作</th></tr></thead><tbody>'+
       clients.map((c,i)=>{
         const details=[c.company,c.fund].filter(Boolean).join(' / ')||'-';
         return '<tr>'+
@@ -1376,7 +1550,7 @@ export default {
           '<td><span class="client-detail">'+esc(details)+'</span></td>'+
           '<td><span class="client-note-text">'+esc(c.note||'')+'</span></td>'+
           '<td><span class="client-note-text" style="color:var(--accent-wechat);font-weight:700;">'+esc(c.followUp||'-')+'</span></td>'+
-          '<td style="text-align:right;"><button class="edit-icon" data-name="'+esc(c.name)+'" data-phone="'+esc(c.phone)+'" data-time="'+esc(c.time||'')+'" title="编辑">编</button><button class="del-icon" data-name="'+esc(c.name)+'" data-phone="'+esc(c.phone)+'" data-time="'+esc(c.time||'')+'" title="删除">×</button></td>'+
+          '<td style="text-align:right;"><button class="export-single-btn" data-name="'+esc(c.name)+'" data-phone="'+esc(c.phone)+'" data-time="'+esc(c.time||'')+'" title="导出">出</button><button class="edit-icon" data-name="'+esc(c.name)+'" data-phone="'+esc(c.phone)+'" data-time="'+esc(c.time||'')+'" title="编辑">编</button><button class="del-icon" data-name="'+esc(c.name)+'" data-phone="'+esc(c.phone)+'" data-time="'+esc(c.time||'')+'" title="删除">×</button></td>'+
           '</tr>';
       }).join('')+'</tbody></table>';
 
@@ -1409,6 +1583,38 @@ export default {
       renderClientList();refreshAll();
       await syncOp('removeClientByMatch',{name:name,phone:phone,time:time});
       document.getElementById('custName').focus();
+    }));
+    container.querySelectorAll('.export-single-btn').forEach(b=>b.addEventListener('click',async e=>{
+      const name=b.dataset.name;
+      const phone=b.dataset.phone;
+      const time=b.dataset.time;
+      const a=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
+      const c=a.find(item=>item.name===name&&item.phone===phone&&(time?item.time===time:true));
+      if(!c)return;
+      const savedUrl=(localStorage.getItem('webhook_url')||'').trim();
+      if(!savedUrl){
+        alert('请先在主菜单 → 导出数据 中配置企业微信 Webhook URL');
+        return;
+      }
+      b.textContent='...';
+      b.disabled=true;
+      try{
+        const r=await fetch('/api/export',{
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({type:'single_client',webhookUrl:savedUrl,client:c})
+        });
+        if(r.ok){
+          alert('客户已成功导出到企业微信！');
+        }else{
+          const err=await r.json();
+          alert('导出失败: ' + (err.error || r.statusText));
+        }
+      }catch(errVal){
+        alert('网络错误: ' + errVal.message);
+      }
+      b.textContent='出';
+      b.disabled=false;
     }));
     container.querySelectorAll('.phone-toggle').forEach(b=>b.addEventListener('click',e=>{
       e.stopPropagation();
@@ -1527,7 +1733,7 @@ export default {
         html += '<th>公司 / 公积金</th>';
         html += '<th class="tbl-note-cell">沟通记录</th>';
         html += '<th>时间</th>';
-        html += '<th class="tbl-action">编辑</th>';
+        html += '<th class="tbl-action">操作</th>';
         html += '</tr></thead><tbody>';
         clients_in_tl.forEach((e,i)=>{
           html += '<tr>';
@@ -1543,7 +1749,7 @@ export default {
           html += '<div class="tbl-note-text">'+(e.note?esc(e.note):'<span class="tbl-note-empty">点击添加沟通记录…</span>')+'</div>';
           html += '</div></td>';
           html += '<td class="tbl-time">'+(e.time?esc(e.time):'<span style="color:var(--text-light);">—</span>')+'</td>';
-          html += '<td class="tbl-action"><button class="edit-note-btn" title="'+(e.note?'修改记录':'添加记录')+'" data-idx="'+e.idx+'">编</button></td>';
+          html += '<td class="tbl-action" style="white-space:nowrap;"><button class="export-timeline-single-btn" data-idx="'+e.idx+'" title="导出">出</button><button class="edit-note-btn" title="'+(e.note?'修改记录':'添加记录')+'" data-idx="'+e.idx+'">编</button></td>';
           html += '</tr>';
         });
         html += '</tbody></table></div></div>';
@@ -1563,6 +1769,50 @@ export default {
       document.getElementById('modalClientList').innerHTML = html;
 
       bindEditBtns();
+      // Bind Timeline Single Client Export
+      document.querySelectorAll('.export-timeline-single-btn').forEach(btn=>{
+        btn.onclick=async function(){
+          const idx=parseInt(this.dataset.idx);
+          const ti=timeline.find(t=>t.type==='client'&&t.idx===idx);
+          if(!ti)return;
+          const savedUrl=(localStorage.getItem('webhook_url')||'').trim();
+          if(!savedUrl){
+            alert('请先在主菜单 → 导出数据 中配置企业微信 Webhook URL');
+            return;
+          }
+          btn.textContent='...';
+          btn.disabled=true;
+          try{
+            const r=await fetch('/api/export',{
+              method:'POST',
+              headers:{'Content-Type':'application/json'},
+              body:JSON.stringify({
+                type:'single_client',
+                webhookUrl:savedUrl,
+                client:{
+                  date:ds,
+                  name:ti.name,
+                  phone:ti.phone,
+                  company:ti.company,
+                  fund:ti.fund,
+                  note:ti.note,
+                  time:ti.time
+                }
+              })
+            });
+            if(r.ok){
+              alert('客户已成功导出到企业微信！');
+            }else{
+              const err=await r.json();
+              alert('导出失败: ' + (err.error || r.statusText));
+            }
+          }catch(errVal){
+            alert('网络错误: ' + errVal.message);
+          }
+          btn.textContent='出';
+          btn.disabled=false;
+        };
+      });
       document.querySelectorAll('#modalClientList .phone-toggle').forEach(b=>b.addEventListener('click',e=>{
         e.stopPropagation();
         const phoneSpan=b.previousElementSibling;
@@ -1931,24 +2181,36 @@ export default {
 
   // ==================== 导出 ====================
   function initExport(){
-    const savedUrl=localStorage.getItem('webhook_url')||'';
-    document.getElementById('webhookUrlInput').value=savedUrl;
     document.getElementById('exportBtn').addEventListener('click',()=>{
       document.getElementById('exportStatus').innerText='';
+      document.getElementById('webhookUrlInput').value=localStorage.getItem('webhook_url')||'';
       document.getElementById('exportModal').classList.add('active');
     });
     document.getElementById('closeExportModalBtn').addEventListener('click',()=>document.getElementById('exportModal').classList.remove('active'));
     document.getElementById('exportModal').addEventListener('click',e=>{if(e.target===document.getElementById('exportModal'))document.getElementById('exportModal').classList.remove('active');});
+    
+    // Bind blur to immediately sync the webhookUrl to KV
+    document.getElementById('webhookUrlInput').addEventListener('blur',()=>{
+      const val=document.getElementById('webhookUrlInput').value.trim();
+      localStorage.setItem('webhook_url',val);
+      syncOp('setWebhookUrl',{webhookUrl:val});
+    });
+
     async function doExport(type){
       const webhookUrl=document.getElementById('webhookUrlInput').value.trim();
       if(!webhookUrl){document.getElementById('exportStatus').innerText='请填写 Webhook URL';return;}
       localStorage.setItem('webhook_url',webhookUrl);
+      syncOp('setWebhookUrl',{webhookUrl:webhookUrl});
+      
       document.getElementById('exportStatus').innerText='发送中...';
       try{
         const r=await fetch('/api/export',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type,webhookUrl})});
         if(r.ok){document.getElementById('exportStatus').innerText='已发送到企业微信';}
-        else{document.getElementById('exportStatus').innerText='发送失败，请检查 URL';}
-      }catch(e){document.getElementById('exportStatus').innerText='网络错误';}
+        else{
+          const err=await r.json();
+          document.getElementById('exportStatus').innerText='发送失败: '+(err.error||r.statusText);
+        }
+      }catch(e){document.getElementById('exportStatus').innerText='网络错误: '+e.message;}
     }
     document.getElementById('exportWeekBtn').addEventListener('click',()=>doExport('week'));
     document.getElementById('exportMonthBtn').addEventListener('click',()=>doExport('month'));
@@ -1998,8 +2260,15 @@ export default {
   }
   function setLocked(l){if(l){localStorage.setItem(LOCK_K,'true');document.body.classList.add('page-hidden');setTimeout(()=>{const pi=document.getElementById('pinInput');if(pi)pi.focus();},100);}else{localStorage.setItem(LOCK_K,'false');document.body.classList.remove('page-hidden');const tc=document.getElementById('timerContainer');if(tc)tc.classList.remove('show');}}
 
+  function hashPinSimple(str){
+    let hash = 5381;
+    for (let i = 0; i < str.length; i++) {
+      hash = ((hash << 5) + hash) + str.charCodeAt(i);
+    }
+    return (hash >>> 0).toString(16);
+  }
   const pi=document.getElementById('pinInput'),pib=document.getElementById('pinUnlockBtn'),pie=document.getElementById('pinError');
-  function au(){const e=pi.value.trim();if(e===DEFAULT_PIN){localStorage.setItem(UNLOCK_TS_K,Date.now());setLocked(false);pi.value='';pie.innerText='';refreshAll();}else{pie.innerText='PIN码错误';pi.value='';setTimeout(()=>pi.focus(),50);}}
+  function au(){const e=pi.value.trim();if(hashPinSimple(e)==='7c7e0cd4'){localStorage.setItem(UNLOCK_TS_K,Date.now());setLocked(false);pi.value='';pie.innerText='';refreshAll();}else{pie.innerText='PIN码错误';pi.value='';setTimeout(function(){pi.focus();},50);}}
   pib.addEventListener('click',au);pi.addEventListener('keypress',e=>{if(e.key==='Enter')au();});
   document.getElementById('hideBtn').addEventListener('click',()=>{setLocked(true);pi.value='';pie.innerText='';});
   window.addEventListener('keydown',e=>{if(e.ctrlKey&&e.key==='z'){const a=document.activeElement;if(a&&(a.tagName==='INPUT'||a.tagName==='TEXTAREA'))return;e.preventDefault();if(document.body.classList.contains('page-hidden'))pie.innerText='请使用PIN解锁';else{setLocked(true);pi.value='';pie.innerText='';}}});
@@ -2095,13 +2364,47 @@ export default {
   document.getElementById('closeModalBtn').addEventListener('click',()=>document.getElementById('dateModal').classList.remove('active'));
   document.getElementById('dateModal').addEventListener('click',e=>{if(e.target===document.getElementById('dateModal'))document.getElementById('dateModal').classList.remove('active');});
 
-  // 云端同步：每 15s 排空队列并拉取最新数据
+  // 云端同步：自适应动态调度排空队列与数据拉取
+  function scheduleNextTick(){
+    if(syncTimer)clearTimeout(syncTimer);
+    syncTimer=setTimeout(async function(){
+      if(!document.hidden && navigator.onLine){
+        try{await drainQueue();await pullLatest();}catch(e){}
+      }
+      scheduleNextTick();
+    },PULL_INTERVAL);
+  }
+
+  window.triggerFastSync=function(){
+    if(syncTimer)clearTimeout(syncTimer);
+    drainQueue().then(function(){
+      pullLatest().catch(function(){});
+    }).finally(function(){
+      scheduleNextTick();
+    });
+  };
+
   function startSyncTimer(){
-    if(syncTimer)clearInterval(syncTimer);
-    function tick(){if(!document.hidden){drainQueue().catch(()=>{});pullLatest().catch(()=>{}); } }
-    syncTimer=setInterval(tick,PULL_INTERVAL);
-    // 切回标签时立即同步（拉取其他设备的更新 + 重试未发成功的操作 + 同步日历）
-    document.addEventListener('visibilitychange',()=>{if(!document.hidden){tick();syncCalendarFromCloud().then(()=>refreshAll()).catch(()=>{});}});
+    scheduleNextTick();
+    // 切回标签时立即触发极速同步并刷新历史日历
+    document.addEventListener('visibilitychange',function(){
+      if(!document.hidden){
+        window.triggerFastSync();
+        syncCalendarFromCloud().then(function(){refreshAll();}).catch(function(){});
+      }
+    });
+    // 监听网络连接状态事件，提供即时状态感知和自动重试
+    window.addEventListener('online',function(){
+      addSyncLog('🌐 网络已恢复，正在重试同步...');
+      _syncStatus='syncing';
+      updateSyncIndicator();
+      window.triggerFastSync();
+    });
+    window.addEventListener('offline',function(){
+      addSyncLog('📡 网络已断开，切换到本地离线模式');
+      _syncStatus='offline';
+      updateSyncIndicator();
+    });
   }
 
   // 提醒检查
@@ -2162,6 +2465,7 @@ export default {
         '<td data-label="沟通情况" style="padding: 10px 8px; min-width: 240px; max-width: 400px; word-break: break-word;"><span style="flex: 1; word-break: break-word; white-space: pre-wrap;">'+esc(note)+'</span></td>'+
         '<td data-label="跟进情况" style="padding: 10px 8px; min-width: 180px; max-width: 300px; word-break: break-word;"><span style="flex: 1; word-break: break-word; white-space: pre-wrap;">'+esc(followUp)+'</span></td>'+
         '<td data-label="操作" style="padding: 10px 8px; text-align: center; white-space: nowrap;">'+
+          '<button class="export-all-single-btn" data-date="'+esc(c.date)+'" data-name="'+esc(c.name)+'" data-phone="'+esc(c.phone)+'" data-time="'+esc(c.time||'')+'" style="background:none;border:none;color:var(--accent-intent);cursor:pointer;font-size:0.9rem;font-weight:700;margin-right:6px;" title="导出">导出</button>'+
           '<button class="edit-all-client-btn" data-date="'+esc(c.date)+'" data-name="'+esc(c.name)+'" data-phone="'+esc(c.phone)+'" data-time="'+esc(c.time||'')+'" style="background:none;border:none;color:var(--accent-wechat);cursor:pointer;font-size:0.9rem;font-weight:700;margin-right:6px;" title="编辑">编辑</button>'+
         '</td>'+
       '</tr>';
@@ -2180,6 +2484,40 @@ export default {
         b.title = '隐藏号码';
         b.textContent = '隐';
       }
+    }));
+
+    tbody.querySelectorAll('.export-all-single-btn').forEach(b => b.addEventListener('click', async e => {
+      const date = b.dataset.date;
+      const name = b.dataset.name;
+      const phone = b.dataset.phone;
+      const time = b.dataset.time;
+      const all = JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
+      const c = all.find(item => item.date === date && item.name === name && item.phone === phone && (time ? item.time === time : true));
+      if (!c) return;
+      const savedUrl = (localStorage.getItem('webhook_url') || '').trim();
+      if (!savedUrl) {
+        alert('请先在主菜单 → 导出数据 中配置企业微信 Webhook URL');
+        return;
+      }
+      b.textContent = '发送中...';
+      b.disabled = true;
+      try {
+        const r = await fetch('/api/export', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: 'single_client', webhookUrl: savedUrl, client: c })
+        });
+        if (r.ok) {
+          alert('客户已成功导出到企业微信！');
+        } else {
+          const err = await r.json();
+          alert('导出失败: ' + (err.error || r.statusText));
+        }
+      } catch (errVal) {
+        alert('网络错误: ' + errVal.message);
+      }
+      b.textContent = '导出';
+      b.disabled = false;
     }));
 
     tbody.querySelectorAll('.edit-all-client-btn').forEach(b => b.addEventListener('click', e => {
