@@ -1441,15 +1441,17 @@ export default {
       <button id="closeXlsDialModalBtn" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:var(--text-soft);">✕</button>
     </div>
     <div id="xlsImportStatus" style="font-size:0.75rem;color:var(--text-light);font-weight:600;min-height:18px;">请选择一个 .xlsx, .xls 或 .csv 表格文件</div>
-    <div class="xls-dial-content" style="flex:1;min-height:0;overflow-y:auto;margin-top:4px;">
+    <div class="xls-dial-content" id="xlsDialDropZone" style="flex:1;min-height:0;overflow-y:auto;margin-top:4px;position:relative;">
+      <div id="xlsDialDropOverlay" style="display:none;position:absolute;inset:0;background:rgba(7,193,96,0.08);border:2px dashed #07c160;border-radius:8px;z-index:10;align-items:center;justify-content:center;font-weight:800;font-size:0.9rem;color:#07c160;pointer-events:none;">释放文件以导入</div>
       <div id="xlsDialCardsContainer" style="display:flex;flex-direction:column;gap:10px;">
-        <div style="text-align:center;padding:40px;color:var(--text-light);font-size:0.8rem;">导入表格后将自动在此生成拨号卡片</div>
+        <div style="text-align:center;padding:40px;color:var(--text-light);font-size:0.8rem;">拖拽或选择表格文件即可生成拨号卡片</div>
       </div>
     </div>
   </div>
 </div>
 <div id="callAssistOverlay" class="modal-overlay" style="z-index:3000;background:rgba(0,0,0,0.65);">
-  <div class="modal-card" style="max-width:380px;width:90vw;padding:24px;gap:14px;border-radius:16px;text-align:center;box-shadow: 0 15px 40px rgba(0,0,0,0.4);">
+  <div class="modal-card" style="max-width:380px;width:90vw;padding:24px;gap:14px;border-radius:16px;text-align:center;box-shadow: 0 15px 40px rgba(0,0,0,0.4);position:relative;">
+    <button id="callAssistCloseBtn" style="position:absolute;top:10px;right:14px;background:none;border:none;font-size:1.2rem;cursor:pointer;color:var(--text-soft);line-height:1;">✕</button>
     <div style="font-size:0.72rem;color:var(--text-light);font-weight:800;letter-spacing:1px;text-transform:uppercase;">正在呼叫</div>
     <div id="callAssistName" style="font-size:1.2rem;font-weight:900;color:var(--text-main);margin-top:4px;">张三</div>
     <div id="callAssistPhone" style="font-size:0.9rem;font-weight:700;color:var(--accent-intent);margin-top:2px;">183****7751</div>
@@ -1483,6 +1485,7 @@ export default {
   const DARK_K='dark_mode', LOCK_K='locked', TODAY_TODO_K='today_todo_v2', TOMORROW_TODO_K='tomorrow_todo_v2';
   const LAST_LOAD_DATE_K='last_load_date_v1', WALLPAPER_K='wp_cache', SCRIPTS_K='scripts_v1', LEARN_K='learn_v1', LOCAL_TS_K='local_ts_v1';
   const TEMP_CLIENTS_K='temp_clients_v1';
+  const XLS_CLIENTS_K='xls_clients_v1';
   const OP_QUEUE_K='op_queue_v1'; // 操作队列：持久化到 localStorage，页面关闭后下次打开继续补发
   const DEFAULT_PIN='8520';
   const PULL_INTERVAL=15000; // 15秒拉一次，加快跨设备更新
@@ -2590,6 +2593,7 @@ export default {
           '(匹配: 姓名 → ' + (headers[nameIdx] || '第一列') + ', 电话 → ' + (headers[phoneIdx] || '电话列') + ')';
         
         window.importedXlsClients = parsedCustomers;
+        saveXlsClients();
         renderXlsDialCards();
 
       } catch(err) {
@@ -2604,7 +2608,7 @@ export default {
     if (!container) return;
     const list = window.importedXlsClients || [];
     if (list.length === 0) {
-      container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-light);font-size:0.8rem;">导入表格后将自动在此生成拨号卡片</div>';
+      container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-light);font-size:0.8rem;">拖拽或选择表格文件即可生成拨号卡片</div>';
       return;
     }
 
@@ -2710,7 +2714,21 @@ export default {
     }, 1000);
   }
 
+  function saveXlsClients() {
+    const list = window.importedXlsClients || [];
+    if (list.length > 0) localStorage.setItem(XLS_CLIENTS_K, JSON.stringify(list));
+    else localStorage.removeItem(XLS_CLIENTS_K);
+  }
+  function loadXlsClients() {
+    try {
+      const raw = localStorage.getItem(XLS_CLIENTS_K);
+      if (raw) { window.importedXlsClients = JSON.parse(raw); return true; }
+    } catch(e) {}
+    return false;
+  }
+
   function initXlsDialFeature() {
+    loadXlsClients();
     document.getElementById('xlsDialBtn').addEventListener('click', () => {
       loadSheetJS(() => {
         document.getElementById('xlsDialModal').classList.add('active');
@@ -2730,6 +2748,33 @@ export default {
       if (file) handleExcelImport(file);
     });
 
+    // 拖拽导入
+    const dropZone = document.getElementById('xlsDialDropZone');
+    const dropOverlay = document.getElementById('xlsDialDropOverlay');
+    let dragCounter = 0;
+    ['dragenter','dragover','dragleave','drop'].forEach(evt => {
+      dropZone.addEventListener(evt, e => { e.preventDefault(); e.stopPropagation(); });
+    });
+    dropZone.addEventListener('dragenter', () => {
+      dragCounter++;
+      if (dragCounter === 1) dropOverlay.style.display = 'flex';
+    });
+    dropZone.addEventListener('dragleave', () => {
+      dragCounter--;
+      if (dragCounter === 0) dropOverlay.style.display = 'none';
+    });
+    dropZone.addEventListener('drop', e => {
+      dragCounter = 0;
+      dropOverlay.style.display = 'none';
+      const file = e.dataTransfer.files[0];
+      if (file) handleExcelImport(file);
+    });
+
+    document.getElementById('callAssistCloseBtn').addEventListener('click', () => {
+      if (callInterval) clearInterval(callInterval);
+      document.getElementById('callAssistOverlay').classList.remove('active');
+      renderXlsDialCards();
+    });
     document.getElementById('callConnectedBtn').addEventListener('click', () => {
       document.getElementById('callAssistStatus').innerText = '已接通，通话时长累计中...';
       document.getElementById('callConnectedBtn').style.display = 'none';
@@ -2749,6 +2794,7 @@ export default {
       if (c) {
         c.dialedStatus = 'failed';
         c.duration = '00:00';
+        saveXlsClients();
       }
     });
 
@@ -2767,6 +2813,7 @@ export default {
       if (c) {
         c.dialedStatus = 'success';
         c.duration = finalDuration;
+        saveXlsClients();
       }
     });
 
@@ -2777,6 +2824,7 @@ export default {
 
       const noteVal = document.getElementById('callLogNote').value.trim();
       c.callNote = noteVal;
+      saveXlsClients();
 
       const isRegisterIntent = document.getElementById('callLogRegisterIntent').checked;
       
