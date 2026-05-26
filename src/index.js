@@ -1334,7 +1334,7 @@ export default {
       renderClientList();refreshAll();
       await syncOp('removeClientByMatch',{name:name,phone:phone,time:time});
     }));
-    container.querySelectorAll('.edit-icon').forEach(b=>b.addEventListener('click',e=>{
+    container.querySelectorAll('.edit-icon').forEach(b=>b.addEventListener('click',async e=>{
       const name=b.dataset.name;
       const phone=b.dataset.phone;
       const time=b.dataset.time;
@@ -1350,6 +1350,7 @@ export default {
       document.getElementById('custFollowUp').value=c.followUp||'';
       a.splice(idx,1);localStorage.setItem(CLIENTS_K,JSON.stringify(a));
       renderClientList();refreshAll();
+      await syncOp('removeClientByMatch',{name:name,phone:phone,time:time});
       document.getElementById('custName').focus();
     }));
     container.querySelectorAll('.phone-toggle').forEach(b=>b.addEventListener('click',e=>{
