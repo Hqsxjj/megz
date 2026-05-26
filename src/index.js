@@ -98,6 +98,8 @@ export default {
       };
       if (!data.lastLoadDate) data.lastLoadDate = date;
       if (!data.tempClients) data.tempClients = [];
+      // Inject global webhook URL so it persists across all dates and new days
+      data.webhookUrl = await env.DATA_KV.get('config:webhook_url') || '';
       return new Response(JSON.stringify(data), {
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
       });
@@ -111,6 +113,12 @@ export default {
       for (const item of items) {
         const { date, wechatCount, intentCount, revisitCount, clients, todayTodos, tomorrowTodos, tempClients, scripts, learns, todoLog, webhookUrl, _ts } = item;
         if (!date) { hasError = true; continue; }
+        
+        // If a non-empty Webhook URL is supplied, persist it globally
+        if (webhookUrl) {
+          await env.DATA_KV.put('config:webhook_url', webhookUrl);
+        }
+
         // 读取云端现有数据
         const rawExisting = await env.DATA_KV.get(`work:${date}`);
         const existing = rawExisting ? JSON.parse(rawExisting) : {};
@@ -257,6 +265,7 @@ export default {
           break;
         case 'setWebhookUrl':
           data.webhookUrl = body.webhookUrl || '';
+          await env.DATA_KV.put('config:webhook_url', data.webhookUrl);
           break;
         default:
           return new Response(JSON.stringify({ error: '未知操作: ' + op }), {
