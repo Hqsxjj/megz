@@ -405,8 +405,7 @@ export default {
         const datePart = (client.date || '').slice(5);
         const wk = client.date ? ' 周' + weekNames[new Date(client.date + 'T00:00:00').getDay()] : '';
         
-        let text = '### 🎯 意向客户导出登记\n';
-        text += '**【' + client.name + '】**\n';
+        let text = '**【' + client.name + '】**\n';
         text += '> 日期: ' + datePart + wk + ' | 时间: ' + (client.time || '—') + '\n';
         text += '> 电话: ' + (client.phone || '—') + '\n';
         text += '> 单位: ' + (client.company || '—') + ' | 公积金: ' + (client.fund || '—') + '\n';
