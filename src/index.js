@@ -321,19 +321,19 @@ export default {
         const weekNames = ['日', '一', '二', '三', '四', '五', '六'];
         const total = allClients.length;
 
-        let text = '### 📋 意向客户全量表\n';
+        let text = '### 意向客户全量表\n';
         text += '> 共计 **' + total + '** 位意向客户\n\n';
         text += '---\n\n';
 
         for (const c of allClients) {
           const datePart = (c.date || '').slice(5);
           const wk = c.date ? ' 周' + weekNames[new Date(c.date + 'T00:00:00').getDay()] : '';
-          text += '**👤 ' + c.name + '**\n';
-          text += '> 📅 ' + datePart + wk + ' | 🕐 ' + (c.time || '—') + '\n';
-          text += '> 📱 ' + (c.phone || '—') + '\n';
-          text += '> 🏢 ' + (c.company || '—') + ' | 💰 公积金: ' + (c.fund || '—') + '\n';
-          if (c.note) text += '> 📝 沟通: ' + c.note.replace(/\n/g, ' ') + '\n';
-          if (c.followUp) text += '> 📋 跟进: ' + c.followUp.replace(/\n/g, ' ') + '\n';
+          text += '**【' + c.name + '】**\n';
+          text += '> 日期: ' + datePart + wk + ' | 时间: ' + (c.time || '—') + '\n';
+          text += '> 电话: ' + (c.phone || '—') + '\n';
+          text += '> 单位: ' + (c.company || '—') + ' | 公积金: ' + (c.fund || '—') + '\n';
+          if (c.note) text += '> 沟通: ' + c.note.replace(/\n/g, ' ') + '\n';
+          if (c.followUp) text += '> 跟进: ' + c.followUp.replace(/\n/g, ' ') + '\n';
           text += '\n';
         }
 
@@ -1091,7 +1091,7 @@ export default {
 </div>
 <div id="allClientsModal" class="modal-overlay">
   <div class="modal-card" style="width:100vw;height:100vh;max-width:100vw;max-height:100vh;margin:0;border-radius:0;border:none;box-sizing:border-box;">
-    <div class="modal-header"><div style="display:flex;align-items:center;gap:12px;"><span>意向客户全量登记表</span><button id="allClientsAddBtn" class="btn-add" style="font-size:0.75rem;padding:4px 12px;height:28px;">+ 新增意向</button></div><button id="closeAllClientsModalBtn">✕</button></div>
+    <div class="modal-header"><div style="display:flex;align-items:center;gap:12px;"><span>意向客户全量登记表</span><button id="allClientsAddBtn" class="btn-add" style="font-size:0.75rem;padding:4px 12px;height:28px;">+ 新增意向</button><button id="allClientsExportBtn" class="btn-add" style="font-size:0.75rem;padding:4px 12px;height:28px;background:var(--intent-gradient);">导出</button></div><button id="closeAllClientsModalBtn">✕</button></div>
     <div style="overflow-x:auto;flex:1;min-height:0;margin-top:10px;">
       <table class="clients-table" style="width:100%;border-collapse:collapse;text-align:left;font-size:0.8rem;font-weight:500;">
         <thead>
@@ -2339,6 +2339,24 @@ export default {
         tr.querySelector('.cancel-new-client-btn').onclick = () => {
           loadAllClients();
         };
+      });
+    }
+
+    // 一键导出全量意向
+    const exportBtn = document.getElementById('allClientsExportBtn');
+    if (exportBtn) {
+      exportBtn.addEventListener('click', async () => {
+        const webhookUrl = (localStorage.getItem('webhook_url') || '').trim();
+        if (!webhookUrl) { alert('请先在主菜单 → 导出数据 中配置企业微信 Webhook URL'); return; }
+        exportBtn.textContent = '发送中...';
+        exportBtn.disabled = true;
+        try {
+          const r = await fetch('/api/export', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'all_clients', webhookUrl }) });
+          if (r.ok) { alert('已发送到企业微信'); }
+          else { alert('发送失败，请检查 Webhook URL'); }
+        } catch(e) { alert('网络错误'); }
+        exportBtn.textContent = '导出';
+        exportBtn.disabled = false;
       });
     }
   }
