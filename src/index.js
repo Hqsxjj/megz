@@ -1536,9 +1536,10 @@ export default {
             const co=clients.find(c=>c.name===ti.name&&c.phone===ti.phone);
             if(co)co.note=nn;
             const all=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
-            const target=all.find(c=>c.date===ds&&c.name===ti.name&&c.phone===ti.phone);
+            let target=all.find(c=>c.date===ds&&c.name===ti.name&&c.phone===ti.phone);
+            if(!target){target=all.find(c=>c.name===ti.name&&c.phone===ti.phone);}
             if(target){target.note=nn;}
-            if(!target){all.push({name:ti.name,phone:ti.phone,company:ti.company,fund:ti.fund,note:nn,date:ds,time:ti.time||''});}
+            else{all.push({name:ti.name,phone:ti.phone,company:ti.company,fund:ti.fund,note:nn,date:ds,time:ti.time||''});}
             localStorage.setItem(CLIENTS_K,JSON.stringify(all));
             await syncOp('updateClientNote',{name:ti.name,phone:ti.phone,note:nn});
             renderTl();
