@@ -2163,7 +2163,6 @@ export default {
         '<td data-label="跟进情况" style="padding: 10px 8px; min-width: 180px; max-width: 300px; word-break: break-word;"><span style="flex: 1; word-break: break-word; white-space: pre-wrap;">'+esc(followUp)+'</span></td>'+
         '<td data-label="操作" style="padding: 10px 8px; text-align: center; white-space: nowrap;">'+
           '<button class="edit-all-client-btn" data-date="'+esc(c.date)+'" data-name="'+esc(c.name)+'" data-phone="'+esc(c.phone)+'" data-time="'+esc(c.time||'')+'" style="background:none;border:none;color:var(--accent-wechat);cursor:pointer;font-size:0.9rem;font-weight:700;margin-right:6px;" title="编辑">编辑</button>'+
-          '<button class="export-one-client-btn" data-date="'+esc(c.date)+'" data-name="'+esc(c.name)+'" data-phone="'+esc(c.phone)+'" data-time="'+esc(c.time||'')+'" data-company="'+esc(company)+'" data-fund="'+esc(fund)+'" data-note="'+esc(note).replace(/"/g,'&quot;')+'" data-followup="'+esc(followUp).replace(/"/g,'&quot;')+'" style="background:none;border:none;color:var(--intent-gradient);cursor:pointer;font-size:0.9rem;font-weight:700;" title="导出到企业微信">导出</button>'+
         '</td>'+
       '</tr>';
     }).join('');
@@ -2249,30 +2248,6 @@ export default {
       tr.querySelector('.cancel-all-client-btn').onclick = () => {
         loadAllClients();
       };
-    }));
-
-    // 单独导出某个意向客户到企业微信
-    tbody.querySelectorAll('.export-one-client-btn').forEach(b => b.addEventListener('click', async e => {
-      e.stopPropagation();
-      const webhookUrl = (localStorage.getItem('webhook_url') || '').trim();
-      if (!webhookUrl) { alert('请先在主菜单 → 导出数据 中配置企业微信 Webhook URL'); return; }
-      const d = b.dataset;
-      const datePart = (d.date || '').slice(5);
-      const weekNames = ['日', '一', '二', '三', '四', '五', '六'];
-      const wk = d.date ? ' 周' + weekNames[new Date(d.date + 'T00:00:00').getDay()] : '';
-      let text = '### 意向客户\n';
-      text += '> 日期: ' + datePart + wk + ' | 时间: ' + (d.time || '—') + '\n';
-      text += '> 姓名: **' + d.name + '**\n';
-      text += '> 电话: ' + (d.phone || '—') + '\n';
-      text += '> 单位: ' + (d.company === '-' ? '—' : d.company) + ' | 公积金: ' + (d.fund === '-' ? '—' : d.fund) + '\n';
-      if (d.note && d.note !== '-') text += '> 沟通: ' + d.note.replace(/\n/g, ' ') + '\n';
-      if (d.followup && d.followup !== '-') text += '> 跟进: ' + d.followup.replace(/\n/g, ' ') + '\n';
-      b.textContent = '发送中...'; b.disabled = true;
-      try {
-        const r = await fetch(webhookUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ msgtype: 'markdown', markdown: { content: text } }) });
-        if (r.ok) { b.textContent = '已发'; setTimeout(() => { b.textContent = '导出'; b.disabled = false; }, 1500); }
-        else { alert('发送失败'); b.textContent = '导出'; b.disabled = false; }
-      } catch(ex) { alert('网络错误'); b.textContent = '导出'; b.disabled = false; }
     }));
   }
 
