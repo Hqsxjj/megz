@@ -759,6 +759,8 @@ export default {
       .intent-table th, .intent-table td { padding: 8px 6px; }
       .tbl-note-cell { min-width: 200px; }
 
+      /* Mobile: 全量客户弹窗留出空白可点区域 */
+      #allClientsModal .modal-card { max-height: 93vh !important; max-width: 100vw !important; margin-top: 7vh !important; border-radius: 16px 16px 0 0 !important; }
       /* Mobile clients table card layout */
       .clients-table, .clients-table thead, .clients-table tbody, .clients-table th, .clients-table td, .clients-table tr {
         display: block;
@@ -842,8 +844,8 @@ export default {
 
     /* ==================== Android 专属适配 ==================== */
     body.android { font-family: Roboto, "Noto Sans SC", "Noto Sans", "Droid Sans Fallback", sans-serif; }
-    /* Android dvh 会导致浏览器工具栏显示/隐藏时布局抖动，改用 % */
-    body.android .app-shell { height: 100%; }
+    /* Android 使用 static vh 避免 toolbar 收展导致 dvh 布局抖动 */
+    body.android .app-shell { height: 100vh; height: -webkit-fill-available; }
     /* Android backdrop-filter 性能差，降低或关闭 */
     body.android .card { backdrop-filter: none; -webkit-backdrop-filter: none; }
     body.android .menu-dropdown { backdrop-filter: none; -webkit-backdrop-filter: none; }
@@ -852,9 +854,7 @@ export default {
     body.android .modal-overlay { backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px); }
     body.android .circle-btn { backdrop-filter: none; }
     body.android .reset-mini { backdrop-filter: none; }
-    /* Android 上 position:fixed 配合 overflow:hidden 有兼容问题，取消 body overflow */
-    body.android { overflow-y: auto; }
-    /* Android 调整锁屏 PIN 框位置，避开虚拟键盘区域 */
+    /* Android 调整锁屏 PIN 框位置 */
     body.android .pin-box { top: 45%; }
   </style>
 </head>
@@ -2195,6 +2195,11 @@ export default {
     });
     document.getElementById('allClientsModal').addEventListener('click', e => {
       if (e.target === document.getElementById('allClientsModal')) {
+        document.getElementById('allClientsModal').classList.remove('active');
+        return;
+      }
+      const card = document.querySelector('#allClientsModal .modal-card');
+      if (card && card.contains(e.target) && !e.target.closest('button, input, textarea, a, select, label, tr')) {
         document.getElementById('allClientsModal').classList.remove('active');
       }
     });
