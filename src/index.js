@@ -2276,7 +2276,7 @@ export default {
     return (hash >>> 0).toString(16);
   }
   const pi=document.getElementById('pinInput'),pib=document.getElementById('pinUnlockBtn'),pie=document.getElementById('pinError');
-  function au(){const e=pi.value.trim();if(hashPinSimple(e)==='7c7e0cd4'){localStorage.setItem(UNLOCK_TS_K,Date.now());setLocked(false);pi.value='';pie.innerText='';refreshAll();}else{pie.innerText='PIN码错误';pi.value='';setTimeout(function(){pi.focus();},50);}}
+  function au(){const e=pi.value.trim();if(hashPinSimple(e)==='7c7cacd4'){localStorage.setItem(UNLOCK_TS_K,Date.now());setLocked(false);pi.value='';pie.innerText='';refreshAll();}else{pie.innerText='PIN码错误';pi.value='';setTimeout(function(){pi.focus();},50);}}
   pib.addEventListener('click',au);pi.addEventListener('keypress',e=>{if(e.key==='Enter')au();});
   document.getElementById('hideBtn').addEventListener('click',()=>{setLocked(true);pi.value='';pie.innerText='';});
   window.addEventListener('keydown',e=>{if(e.ctrlKey&&e.key==='z'){const a=document.activeElement;if(a&&(a.tagName==='INPUT'||a.tagName==='TEXTAREA'))return;e.preventDefault();if(document.body.classList.contains('page-hidden'))pie.innerText='请使用PIN解锁';else{setLocked(true);pi.value='';pie.innerText='';}}});
