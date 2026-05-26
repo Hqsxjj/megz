@@ -264,23 +264,6 @@ export default {
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
       });
     }
-    // 配置同步（webhook URL 跨设备同步）
-    if (path === '/api/config' && request.method === 'GET') {
-      const raw = await env.DATA_KV.get('config:webhook');
-      return new Response(JSON.stringify({ webhookUrl: raw || '' }), {
-        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-      });
-    }
-    if (path === '/api/config' && request.method === 'POST') {
-      const body = await request.json();
-      if (body.webhookUrl !== undefined) {
-        await env.DATA_KV.put('config:webhook', body.webhookUrl);
-      }
-      return new Response(JSON.stringify({ success: true }), {
-        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-      });
-    }
-
     // 获取全量意向客户
     if (path === '/api/all-clients' && request.method === 'GET') {
       const list = await env.DATA_KV.list({ prefix: 'work:' });
@@ -857,13 +840,6 @@ export default {
         padding: 12px 14px;
         margin-bottom: 12px;
         box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-        position: relative;
-      }
-      .export-one-btn {
-        position: absolute;
-        top: 10px;
-        right: 10px;
-        z-index: 5;
       }
       .clients-table td {
         padding: 6px 0 !important;
@@ -1954,23 +1930,6 @@ export default {
   }
 
   // ==================== 导出 ====================
-  async function syncWebhookUrl(){
-    try{
-      const r=await fetch('/api/config');
-      if(r.ok){
-        const d=await r.json();
-        if(d.webhookUrl && !localStorage.getItem('webhook_url')){
-          localStorage.setItem('webhook_url', d.webhookUrl);
-        }
-      }
-    }catch(e){}
-  }
-  async function saveWebhookUrl(url){
-    localStorage.setItem('webhook_url', url);
-    try{await fetch('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({webhookUrl:url})});}catch(e){}
-  }
-  syncWebhookUrl();
-
   function initExport(){
     const savedUrl=localStorage.getItem('webhook_url')||'';
     document.getElementById('webhookUrlInput').value=savedUrl;
@@ -1983,7 +1942,7 @@ export default {
     async function doExport(type){
       const webhookUrl=document.getElementById('webhookUrlInput').value.trim();
       if(!webhookUrl){document.getElementById('exportStatus').innerText='请填写 Webhook URL';return;}
-      await saveWebhookUrl(webhookUrl);
+      localStorage.setItem('webhook_url',webhookUrl);
       document.getElementById('exportStatus').innerText='发送中...';
       try{
         const r=await fetch('/api/export',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type,webhookUrl})});
