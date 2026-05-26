@@ -1167,6 +1167,54 @@ export default {
       padding-top: 8px;
     }
 
+    /* ===== 快捷拨号卡片样式 ===== */
+    .xls-dial-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius-sm);
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      box-shadow: var(--shadow-card);
+      position: relative;
+      transition: all 0.2s ease;
+    }
+    .xls-dial-card:hover {
+      border-color: rgba(7, 193, 96, 0.4);
+    }
+    .xls-dial-card.dialed {
+      opacity: 0.75;
+      border-color: var(--border-light);
+      background: rgba(0, 0, 0, 0.005);
+    }
+    body.dark-mode .xls-dial-card.dialed {
+      background: rgba(255, 255, 255, 0.003);
+    }
+    .xls-dial-badge {
+      font-size: 0.65rem;
+      font-weight: 800;
+      padding: 2px 6px;
+      border-radius: 4px;
+      position: absolute;
+      top: 12px;
+      right: 14px;
+    }
+    .xls-dial-badge-todo {
+      background: var(--btn-bg);
+      color: var(--text-soft);
+    }
+    .xls-dial-badge-success {
+      background: rgba(7, 193, 96, 0.1);
+      color: var(--accent-intent);
+      border: 0.5px solid rgba(7, 193, 96, 0.2);
+    }
+    .xls-dial-badge-failed {
+      background: rgba(231, 76, 60, 0.1);
+      color: #e74c3c;
+      border: 0.5px solid rgba(231, 76, 60, 0.2);
+    }
+
     /* ==================== Android 专属适配 ==================== */
     body.android { font-family: Roboto, "Noto Sans SC", "Noto Sans", "Droid Sans Fallback", sans-serif; }
     /* Android 使用 static vh 避免 toolbar 收展导致 dvh 布局抖动 */
@@ -1233,6 +1281,7 @@ export default {
       <div class="title-section"><h3>每日工作</h3><div class="date-chip" id="liveDate"></div></div>
       <div class="action-group">
         <button class="sync-indicator" id="syncBtn" title="点击手动同步"><span class="sync-icon" id="syncIcon">⇅</span><span id="syncLabel">同步中</span><div class="sync-tooltip" id="syncTooltip">正在连接...</div></button>
+        <button class="icon-simple" id="xlsDialBtn" title="表格快捷拨号">拨号</button>
         <button class="icon-simple" id="allClientsBtn" title="意向客户全量表">全量</button>
         <button class="icon-simple" id="hideBtn" title="一键隐藏 (Ctrl+Z)">锁屏</button>
         <button class="icon-simple" id="menuToggleBtn" title="菜单">≡</button>
@@ -1379,6 +1428,53 @@ export default {
   <div class="modal-card">
     <div class="modal-header"><span id="modalDateTitle">时间线</span><button id="closeModalBtn">×</button></div>
     <div id="modalClientList" class="client-modal-list"></div>
+  </div>
+</div>
+<div id="xlsDialModal" class="modal-overlay">
+  <div class="modal-card" style="max-width:680px; width:95vw; height:90vh; padding: 20px 24px;">
+    <div class="modal-header">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <span style="font-weight: 800;">表格快捷拨号</span>
+        <button class="btn-add" id="xlsSelectBtn" style="font-size:0.75rem;padding:4px 12px;height:28px;">选择Excel/CSV文件</button>
+        <input type="file" id="xlsFileInput" accept=".xls,.xlsx,.csv" style="display:none;">
+      </div>
+      <button id="closeXlsDialModalBtn" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:var(--text-soft);">✕</button>
+    </div>
+    <div id="xlsImportStatus" style="font-size:0.75rem;color:var(--text-light);font-weight:600;min-height:18px;">请选择一个 .xlsx, .xls 或 .csv 表格文件</div>
+    <div class="xls-dial-content" style="flex:1;min-height:0;overflow-y:auto;margin-top:4px;">
+      <div id="xlsDialCardsContainer" style="display:flex;flex-direction:column;gap:10px;">
+        <div style="text-align:center;padding:40px;color:var(--text-light);font-size:0.8rem;">导入表格后将自动在此生成拨号卡片</div>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="callAssistOverlay" class="modal-overlay" style="z-index:3000;background:rgba(0,0,0,0.65);">
+  <div class="modal-card" style="max-width:380px;width:90vw;padding:24px;gap:14px;border-radius:16px;text-align:center;box-shadow: 0 15px 40px rgba(0,0,0,0.4);">
+    <div style="font-size:0.72rem;color:var(--text-light);font-weight:800;letter-spacing:1px;text-transform:uppercase;">正在呼叫</div>
+    <div id="callAssistName" style="font-size:1.2rem;font-weight:900;color:var(--text-main);margin-top:4px;">张三</div>
+    <div id="callAssistPhone" style="font-size:0.9rem;font-weight:700;color:var(--accent-intent);margin-top:2px;">183****7751</div>
+    
+    <div style="background:var(--btn-bg);padding:14px;border-radius:12px;margin:4px 0;border:1px solid var(--border-light);">
+      <div id="callAssistTimer" style="font-size:2.2rem;font-weight:900;font-family:monospace;color:var(--text-main);">00:00</div>
+      <div id="callAssistStatus" style="font-size:0.72rem;color:var(--text-soft);font-weight:700;margin-top:4px;">呼叫发起中...</div>
+    </div>
+
+    <div id="callAssistControls" style="display:flex;gap:10px;justify-content:center;">
+      <button id="callConnectedBtn" class="btn-add" style="background:#07c160;flex:1;height:38px;">已接通</button>
+      <button id="callFailedBtn" class="btn-add" style="background:#e74c3c;flex:1;height:38px;">未接通 / 忙</button>
+      <button id="callHangupBtn" class="btn-add" style="background:#7f8c8d;flex:1;height:38px;display:none;">挂断并记录</button>
+    </div>
+
+    <div id="callLogForm" style="display:none;text-align:left;flex-direction:column;gap:10px;margin-top:6px;">
+      <div class="client-card-content-block" style="margin:0;padding-left:0;border-left:none;">
+        <span class="client-card-label">通话小记 (沟通与跟进)</span>
+        <textarea class="input-simpleNote" id="callLogNote" placeholder="请输入沟通结果..." style="width:100%;height:68px;margin-top:4px;font-size:0.78rem;padding:8px 10px;background:var(--btn-bg);border:0.5px solid var(--card-border);border-radius:var(--radius-xs);color:var(--text-main);outline:none;font-weight:600;resize:vertical;"></textarea>
+      </div>
+      <div style="display:flex;gap:6px;align-items:center;margin-top:2px;">
+        <input type="checkbox" id="callLogRegisterIntent" style="width:14px;height:14px;"><label for="callLogRegisterIntent" style="font-size:0.75rem;font-weight:700;color:var(--text-soft);cursor:pointer;user-select:none;">同步登记为正式意向客户</label>
+      </div>
+      <button id="callLogSaveBtn" class="btn-add" style="width:100%;height:38px;background:var(--intent-gradient);font-size:0.8rem;">保存记录</button>
+    </div>
   </div>
 </div>
 <script>
@@ -2393,6 +2489,329 @@ export default {
     document.getElementById('exportAllClientsBtn').addEventListener('click',()=>doExport('all_clients'));
   }
 
+  // ==================== Excel 导入与快捷拨号 ====================
+  function loadSheetJS(callback) {
+    if (window.XLSX) {
+      if (callback) callback();
+      return;
+    }
+    const script = document.createElement('script');
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    script.onload = () => {
+      console.log('✅ SheetJS loaded successfully');
+      if (callback) callback();
+    };
+    script.onerror = () => {
+      const fallback = document.createElement('script');
+      fallback.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+      fallback.onload = () => {
+        console.log('✅ SheetJS loaded successfully from backup');
+        if (callback) callback();
+      };
+      document.head.appendChild(fallback);
+    };
+    document.head.appendChild(script);
+  }
+
+  function handleExcelImport(file) {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      try {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const firstSheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[firstSheetName];
+        const json = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+        if (json.length === 0) {
+          document.getElementById('xlsImportStatus').innerText = '❌ 导入失败：表格无数据';
+          return;
+        }
+        
+        const headers = json[0];
+        let nameIdx = -1, phoneIdx = -1, companyIdx = -1, noteIdx = -1;
+        for (let i = 0; i < headers.length; i++) {
+          const h = String(headers[i] || '').trim();
+          if (/姓名|客户|name/i.test(h)) nameIdx = i;
+          else if (/电话|手机|号码|phone|tel|mobile/i.test(h)) phoneIdx = i;
+          else if (/单位|公司|企业|company|firm|work/i.test(h)) companyIdx = i;
+          else if (/备注|沟通|记录|跟进|note|remark/i.test(h)) noteIdx = i;
+        }
+        
+        if (phoneIdx === -1) {
+          for (let i = 0; i < headers.length; i++) {
+            if (/1\d{10}/.test(String(json[1]?.[i] || ''))) {
+              phoneIdx = i;
+              break;
+            }
+          }
+        }
+        if (nameIdx === -1) nameIdx = 0;
+
+        if (phoneIdx === -1) {
+          document.getElementById('xlsImportStatus').innerText = '❌ 导入失败：无法识别“电话”字段，请确保包含电话列';
+          return;
+        }
+
+        const parsedCustomers = [];
+        const phoneSet = new Set();
+
+        for (let r = 1; r < json.length; r++) {
+          const row = json[r];
+          if (!row || row.length === 0) continue;
+          
+          let phoneVal = String(row[phoneIdx] || '').trim();
+          phoneVal = phoneVal.replace(/[^\d+]/g, '');
+          if (!phoneVal) continue;
+          
+          if (phoneSet.has(phoneVal)) continue;
+          phoneSet.add(phoneVal);
+
+          const nameVal = nameIdx !== -1 ? String(row[nameIdx] || '').trim() : '客户';
+          const companyVal = companyIdx !== -1 ? String(row[companyIdx] || '').trim() : '';
+          const noteVal = noteIdx !== -1 ? String(row[noteIdx] || '').trim() : '';
+
+          parsedCustomers.push({
+            name: nameVal || '未知姓名',
+            phone: phoneVal,
+            company: companyVal,
+            note: noteVal,
+            dialedStatus: 'todo',
+            duration: '',
+            callNote: ''
+          });
+        }
+
+        if (parsedCustomers.length === 0) {
+          document.getElementById('xlsImportStatus').innerText = '❌ 导入失败：无有效客户数据';
+          return;
+        }
+
+        document.getElementById('xlsImportStatus').innerHTML = '✅ 成功导入 <strong style="color:var(--accent-intent);">' + parsedCustomers.length + '</strong> 位客户 ' +
+          '(匹配: 姓名 → ' + (headers[nameIdx] || '第一列') + ', 电话 → ' + (headers[phoneIdx] || '电话列') + ')';
+        
+        window.importedXlsClients = parsedCustomers;
+        renderXlsDialCards();
+
+      } catch(err) {
+        document.getElementById('xlsImportStatus').innerText = '❌ 解析失败：' + err.message;
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
+  function renderXlsDialCards() {
+    const container = document.getElementById('xlsDialCardsContainer');
+    if (!container) return;
+    const list = window.importedXlsClients || [];
+    if (list.length === 0) {
+      container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-light);font-size:0.8rem;">导入表格后将自动在此生成拨号卡片</div>';
+      return;
+    }
+
+    container.innerHTML = list.map((c, i) => {
+      let badgeHtml = '<span class="xls-dial-badge xls-dial-badge-todo">待拨打</span>';
+      let cardClass = 'xls-dial-card';
+      if (c.dialedStatus === 'success') {
+        badgeHtml = '<span class="xls-dial-badge xls-dial-badge-success">已接通 (' + (c.duration || '00:00') + ')</span>';
+        cardClass += ' dialed';
+      } else if (c.dialedStatus === 'failed') {
+        badgeHtml = '<span class="xls-dial-badge xls-dial-badge-failed">未接通</span>';
+        cardClass += ' dialed';
+      }
+
+      return '<div class="' + cardClass + '" id="xdc_' + i + '">' +
+        badgeHtml +
+        '<div class="client-card-top">' +
+          '<div class="client-card-primary">' +
+            '<span class="client-card-name">' + esc(c.name) + '</span>' +
+            '<span class="client-card-phone-wrap">' +
+              '<a class="client-phone" href="tel:' + esc(c.phone) + '" data-full="' + esc(c.phone) + '">' + esc(maskPhone(c.phone)) + '</a>' +
+              '<button class="phone-toggle" title="显示号码">看</button>' +
+            '</span>' +
+          '</div>' +
+        '</div>' +
+        '<div class="client-card-tags">' +
+          (c.company ? '<span class="client-card-tag client-card-tag-company">' + esc(c.company) + '</span>' : '') +
+        '</div>' +
+        '<div class="client-card-body">' +
+          '<div class="client-card-content-block">' +
+            '<span class="client-card-label">表格备注</span>' +
+            '<span class="client-card-text">' + esc(c.note || '(空)') + '</span>' +
+          '</div>' +
+          (c.callNote ? 
+            '<div class="client-card-content-block follow-up">' +
+              '<span class="client-card-label">通话小记</span>' +
+              '<span class="client-card-text" style="color:var(--accent-wechat);">' + esc(c.callNote) + '</span>' +
+            '</div>' : '') +
+        '</div>' +
+        '<div class="client-card-actions" style="border-top:none;padding-top:0;margin-top:0;justify-content:flex-end;">' +
+          '<button class="btn-add xls-card-dial-btn" data-idx="' + i + '" style="font-size:0.75rem;padding:4px 14px;height:30px;background:var(--intent-gradient);">拨打</button>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+
+    container.querySelectorAll('.phone-toggle').forEach(b => b.addEventListener('click', e => {
+      e.stopPropagation();
+      const phoneSpan = b.previousElementSibling;
+      const full = phoneSpan.dataset.full;
+      if (phoneSpan.textContent === full) {
+        phoneSpan.textContent = maskPhone(full);
+        b.title = '显示号码';
+        b.textContent = '看';
+      } else {
+        phoneSpan.textContent = full;
+        b.title = '隐藏号码';
+        b.textContent = '隐';
+      }
+    }));
+
+    container.querySelectorAll('.xls-card-dial-btn').forEach(btn => {
+      btn.onclick = function() {
+        const idx = parseInt(this.dataset.idx);
+        startCallAssistant(idx);
+      };
+    });
+  }
+
+  let callInterval = null;
+  let callSeconds = 0;
+  let currentCallIdx = -1;
+
+  function startCallAssistant(idx) {
+    const list = window.importedXlsClients || [];
+    const c = list[idx];
+    if (!c) return;
+
+    currentCallIdx = idx;
+    callSeconds = 0;
+
+    document.getElementById('callAssistName').innerText = c.name;
+    document.getElementById('callAssistPhone').innerText = maskPhone(c.phone);
+    document.getElementById('callAssistTimer').innerText = '00:00';
+    document.getElementById('callAssistStatus').innerText = '拨号已唤起，请在系统电话拨打...';
+    
+    document.getElementById('callConnectedBtn').style.display = 'block';
+    document.getElementById('callFailedBtn').style.display = 'block';
+    document.getElementById('callHangupBtn').style.display = 'none';
+    document.getElementById('callLogForm').style.display = 'none';
+    document.getElementById('callLogNote').value = '';
+    document.getElementById('callLogRegisterIntent').checked = false;
+
+    document.getElementById('callAssistOverlay').classList.add('active');
+
+    location.href = 'tel:' + c.phone;
+
+    if (callInterval) clearInterval(callInterval);
+    callInterval = setInterval(() => {
+      callSeconds++;
+      const min = String(Math.floor(callSeconds / 60)).padStart(2, '0');
+      const sec = String(callSeconds % 60).padStart(2, '0');
+      document.getElementById('callAssistTimer').innerText = min + ':' + sec;
+    }, 1000);
+  }
+
+  function initXlsDialFeature() {
+    document.getElementById('xlsDialBtn').addEventListener('click', () => {
+      loadSheetJS(() => {
+        document.getElementById('xlsDialModal').classList.add('active');
+      });
+    });
+
+    document.getElementById('closeXlsDialModalBtn').addEventListener('click', () => {
+      document.getElementById('xlsDialModal').classList.remove('active');
+    });
+
+    document.getElementById('xlsSelectBtn').addEventListener('click', () => {
+      document.getElementById('xlsFileInput').click();
+    });
+
+    document.getElementById('xlsFileInput').addEventListener('change', e => {
+      const file = e.target.files[0];
+      if (file) handleExcelImport(file);
+    });
+
+    document.getElementById('callConnectedBtn').addEventListener('click', () => {
+      document.getElementById('callAssistStatus').innerText = '已接通，通话时长累计中...';
+      document.getElementById('callConnectedBtn').style.display = 'none';
+      document.getElementById('callFailedBtn').style.display = 'none';
+      document.getElementById('callHangupBtn').style.display = 'block';
+    });
+
+    document.getElementById('callFailedBtn').addEventListener('click', () => {
+      if (callInterval) clearInterval(callInterval);
+      document.getElementById('callAssistStatus').innerText = '通话未接通 / 忙 / 挂断';
+      document.getElementById('callConnectedBtn').style.display = 'none';
+      document.getElementById('callFailedBtn').style.display = 'none';
+      document.getElementById('callLogForm').style.display = 'flex';
+      
+      const list = window.importedXlsClients || [];
+      const c = list[currentCallIdx];
+      if (c) {
+        c.dialedStatus = 'failed';
+        c.duration = '00:00';
+      }
+    });
+
+    document.getElementById('callHangupBtn').addEventListener('click', () => {
+      if (callInterval) clearInterval(callInterval);
+      const min = String(Math.floor(callSeconds / 60)).padStart(2, '0');
+      const sec = String(callSeconds % 60).padStart(2, '0');
+      const finalDuration = min + ':' + sec;
+
+      document.getElementById('callAssistStatus').innerText = '通话已结束 (累计时长: ' + finalDuration + ')';
+      document.getElementById('callHangupBtn').style.display = 'none';
+      document.getElementById('callLogForm').style.display = 'flex';
+
+      const list = window.importedXlsClients || [];
+      const c = list[currentCallIdx];
+      if (c) {
+        c.dialedStatus = 'success';
+        c.duration = finalDuration;
+      }
+    });
+
+    document.getElementById('callLogSaveBtn').addEventListener('click', async () => {
+      const list = window.importedXlsClients || [];
+      const c = list[currentCallIdx];
+      if (!c) return;
+
+      const noteVal = document.getElementById('callLogNote').value.trim();
+      c.callNote = noteVal;
+
+      const isRegisterIntent = document.getElementById('callLogRegisterIntent').checked;
+      
+      if (isRegisterIntent) {
+        const all = JSON.parse(localStorage.getItem(CLIENTS_K) || '[]');
+        const today = getTodayStr();
+        const timeStr = getCurrentTime();
+        
+        const newClient = {
+          name: c.name,
+          phone: c.phone,
+          company: c.company || '',
+          fund: '',
+          note: '【表格导入拨号】' + (c.dialedStatus === 'success' ? '已接通(' + c.duration + ')' : '未接通') + '：' + noteVal,
+          date: today,
+          time: timeStr
+        };
+
+        const exist = all.findIndex(item => item.name === newClient.name && item.phone === newClient.phone && item.date === today);
+        if (exist >= 0) all[exist] = newClient;
+        else all.push(newClient);
+        
+        localStorage.setItem(CLIENTS_K, JSON.stringify(all));
+        renderClientList();
+        refreshAll();
+        await syncOp('addClient', { client: newClient }, today);
+      } else {
+        await modCounter(REVISIT_K, 1, 'incRevisit');
+      }
+
+      document.getElementById('callAssistOverlay').classList.remove('active');
+      renderXlsDialCards();
+    });
+  }
+
   // ==================== Android 设备检测 ====================
   function initAndroid(){
     const ua=navigator.userAgent||"";
@@ -2875,7 +3294,7 @@ export default {
     }
   }
 
-  initAndroid();initLogs();initDark();initWp();initScriptFeature();initLearnFeature();initExport();initAllClientsBtn();
+  initAndroid();initLogs();initDark();initWp();initScriptFeature();initLearnFeature();initExport();initAllClientsBtn();initXlsDialFeature();
   // 菜单下拉
   (function(){
     const toggle=document.getElementById('menuToggleBtn');
