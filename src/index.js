@@ -621,6 +621,8 @@ export default {
       --text-light: #6b6b6b;
       --accent-wechat: #07c160;
       --accent-intent: #07c160;
+      --accent-wechat-bg: #17241c;
+      --accent-intent-bg: #17241c;
       --btn-bg: rgba(38,38,38,0.85);
       --btn-hover: #2c2c2c;
       --cal-hover: #222222;
