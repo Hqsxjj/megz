@@ -761,9 +761,8 @@ export default {
 
       /* Mobile: 全量客户弹窗留出空白可点区域 */
       #allClientsModal .modal-card { max-height: 93vh !important; max-width: 100vw !important; margin-top: 7vh !important; border-radius: 16px 16px 0 0 !important; }
-      /* Mobile: 隐藏操作列 */
-      #allClientsModal th:last-child,
-      #allClientsModal td[data-label="操作"] { display: none !important; }
+      /* Mobile: 隐藏操作列标签，保留编辑按钮 */
+      #allClientsModal td[data-label="操作"]::before { content: none !important; }
       /* Mobile clients table card layout */
       .clients-table, .clients-table thead, .clients-table tbody, .clients-table th, .clients-table td, .clients-table tr {
         display: block;
