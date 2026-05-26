@@ -499,6 +499,10 @@ export default {
     .timer-btn-start:active { transform: translateY(0); }
     .timer-btn-reset { background: rgba(0,0,0,0.04); color: var(--text-main); }
     body.dark-mode .timer-btn-reset { background: rgba(255,255,255,0.06); }
+    body.dark-mode .icon-simple { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.06); color: var(--text-main); }
+    body.dark-mode .icon-simple:hover { background: rgba(255,255,255,0.1); box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+    body.dark-mode .sync-indicator { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.06); color: var(--text-main); }
+    body.dark-mode .sync-indicator:hover { background: rgba(255,255,255,0.1); box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
     .timer-btn-reset:hover { background: rgba(0,0,0,0.08); }
     .timer-display.completed { animation: pulse 0.6s ease-in-out; }
     @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
