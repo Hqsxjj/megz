@@ -2638,6 +2638,14 @@ export default {
     reader.readAsArrayBuffer(file);
   }
 
+  // ==================== Quoted-Printable 解码 ====================
+  function decodeQP(str) {
+    if (!str || str.indexOf('=') === -1) return str;
+    try {
+      return decodeURIComponent(str.replace(/=([0-9A-Fa-f]{2})/g, '%$1'));
+    } catch(e) { return str; }
+  }
+
   // ==================== VCF 通讯录导入 ====================
   function handleVcfImport(file) {
     const reader = new FileReader();
@@ -2654,43 +2662,64 @@ export default {
 
           let name = '', phone = '', company = '', note = '';
 
+          // 辅助函数：从 vCard 属性行提取值（支持 v2.1 QP 编码和 v3.0 纯文本）
+          const getPropValue = (propName) => {
+            const lines = block.split(/\r?\n/);
+            for (const line of lines) {
+              const idx = line.indexOf(':');
+              if (idx === -1) continue;
+              const keyPart = line.substring(0, idx).toUpperCase();
+              // 匹配属性名（可能是 FN;CHARSET=... 或 FN: 形式）
+              if (keyPart === propName || keyPart.startsWith(propName + ';') || keyPart.startsWith(propName + ':')) {
+                let val = line.substring(idx + 1).trim();
+                // 检测 QP 编码
+                if (/ENCODING\s*=\s*QUOTED-PRINTABLE/i.test(keyPart)) {
+                  val = decodeQP(val);
+                }
+                return val;
+              }
+            }
+            return '';
+          };
+
           // FN: 全名
-          const fnMatch = block.match(/^FN[:;][^\n]*?(\S[^\n]*)/im);
-          if (fnMatch) name = fnMatch[1].trim();
+          name = getPropValue('FN');
 
           // N: 结构化姓名 (LastName;FirstName)
           if (!name) {
-            const nMatch = block.match(/^N[:;][^\n]*?(\S[^\n]*)/im);
-            if (nMatch) {
-              const parts = nMatch[1].split(';').filter(Boolean);
+            const nVal = getPropValue('N');
+            if (nVal) {
+              const parts = nVal.split(';').filter(Boolean);
               name = parts.join(' ').trim();
             }
           }
 
-          // TEL 电话
-          const telRegex = /^TEL[^:]*:([^\n]+)/gim;
-          const telMatches = [];
-          let tm;
-          while ((tm = telRegex.exec(block)) !== null) {
-            telMatches.push(tm[1].trim());
+          // TEL 电话（支持 v2.1 TEL;CELL: 和 v3.0 TEL;TYPE=CELL:）
+          const telLines = [];
+          const lines = block.split(/\r?\n/);
+          for (const line of lines) {
+            const idx = line.indexOf(':');
+            if (idx === -1) continue;
+            const keyPart = line.substring(0, idx).toUpperCase();
+            if (keyPart === 'TEL' || keyPart.startsWith('TEL;') || keyPart.startsWith('TEL:')) {
+              telLines.push(line.substring(idx + 1).trim());
+            }
           }
-          if (telMatches.length > 0) {
-            for (const t of telMatches) {
+          if (telLines.length > 0) {
+            for (const t of telLines) {
               const clean = t.replace(/[^\d+]/g, '');
               if (/1\d{10}/.test(clean)) { phone = clean; break; }
             }
             if (!phone) {
-              phone = telMatches[0].replace(/[^\d+]/g, '');
+              phone = telLines[0].replace(/[^\d+]/g, '');
             }
           }
 
           // ORG: 组织
-          const orgMatch = block.match(/^ORG[:;][^\n]*?(\S[^\n]*)/im);
-          if (orgMatch) company = orgMatch[1].trim();
+          company = getPropValue('ORG');
 
           // NOTE: 备注
-          const noteMatch = block.match(/^NOTE[:;][^\n]*?(\S[^\n]*)/im);
-          if (noteMatch) note = noteMatch[1].trim();
+          note = getPropValue('NOTE');
 
           // EMAIL 兜底名字
           if (!name) {
