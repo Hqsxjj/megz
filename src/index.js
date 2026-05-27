@@ -39,6 +39,10 @@ async function sendWebhookMarkdown(url, baseHeader, items, itemFormatter) {
     if (!whResp.ok) {
       throw new Error('HTTP ' + whResp.status + ': ' + (await whResp.text()));
     }
+    const body = await whResp.json();
+    if (body.errcode !== 0) {
+      throw new Error('WeChat API 错误 [' + body.errcode + ']: ' + (body.errmsg || '未知'));
+    }
   };
 
   for (const item of items) {
@@ -3286,8 +3290,11 @@ export default {
         try {
           const r = await fetch('/api/export', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'all_clients', webhookUrl }) });
           if (r.ok) { alert('已发送到企业微信'); }
-          else { alert('发送失败，请检查 Webhook URL'); }
-        } catch(e) { alert('网络错误'); }
+          else {
+            try { const err = await r.json(); alert('发送失败: ' + (err.error || r.statusText)); }
+            catch(_) { alert('发送失败，请检查 Webhook URL'); }
+          }
+        } catch(e) { alert('网络错误: ' + e.message); }
         exportBtn.textContent = '导出';
         exportBtn.disabled = false;
       });
