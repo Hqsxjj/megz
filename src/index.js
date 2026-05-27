@@ -1502,14 +1502,16 @@ export default {
 <div id="xlsDialModal" class="modal-overlay">
   <div class="modal-card" style="max-width:680px; width:95vw; height:90vh; padding: 20px 24px;">
     <div class="modal-header">
-      <div style="display:flex;align-items:center;gap:12px;">
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
         <span style="font-weight: 800;">表格快捷拨号</span>
         <button class="btn-add" id="xlsSelectBtn" style="font-size:0.75rem;padding:4px 12px;height:28px;">选择Excel/CSV文件</button>
         <input type="file" id="xlsFileInput" accept=".xls,.xlsx,.csv" style="display:none;">
+        <button class="btn-add" id="vcfSelectBtn" style="font-size:0.75rem;padding:4px 12px;height:28px;background:var(--revisit-gradient);">选择VCF通讯录</button>
+        <input type="file" id="vcfFileInput" accept=".vcf,.vcard" style="display:none;">
       </div>
       <button id="closeXlsDialModalBtn" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:var(--text-soft);">✕</button>
     </div>
-    <div id="xlsImportStatus" style="font-size:0.75rem;color:var(--text-light);font-weight:600;min-height:18px;">请选择一个 .xlsx, .xls 或 .csv 表格文件</div>
+    <div id="xlsImportStatus" style="font-size:0.75rem;color:var(--text-light);font-weight:600;min-height:18px;">请选择 .xlsx/.xls/.csv 表格文件，或 .vcf 通讯录文件</div>
     <div class="xls-dial-content" style="flex:1;min-height:0;overflow-y:auto;margin-top:4px;">
       <div id="xlsDialCardsContainer" style="display:flex;flex-direction:column;gap:10px;">
         <div style="text-align:center;padding:40px;color:var(--text-light);font-size:0.8rem;">导入表格后将自动在此生成拨号卡片</div>
@@ -2590,6 +2592,114 @@ export default {
     document.head.appendChild(script);
   }
 
+  // ==================== VCF 通讯录解析 ====================
+  function decodeQuotedPrintableUtf8(qpStr) {
+    // 把 =XX=XX 序列转成 UTF-8 字节数组，再用 TextDecoder 解码
+    // 处理软换行（行末的 = 后紧跟 CRLF/LF，表示续行）
+    const withoutSoftWrap = qpStr.replace(/=\r?\n/g, '');
+    const bytes = [];
+    let i = 0;
+    while (i < withoutSoftWrap.length) {
+      if (withoutSoftWrap[i] === '=' && i + 2 < withoutSoftWrap.length) {
+        const hex = withoutSoftWrap.slice(i + 1, i + 3);
+        if (/^[0-9A-Fa-f]{2}$/.test(hex)) {
+          bytes.push(parseInt(hex, 16));
+          i += 3;
+          continue;
+        }
+      }
+      bytes.push(withoutSoftWrap.charCodeAt(i));
+      i++;
+    }
+    try {
+      return new TextDecoder('utf-8').decode(new Uint8Array(bytes));
+    } catch(e) {
+      return qpStr; // 解码失败时原样返回
+    }
+  }
+
+  function handleVcfImport(file) {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      try {
+        const text = e.target.result;
+        // 按 VCARD 块切分（兼容 CRLF 和 LF）
+        const blocks = text.split(/BEGIN:VCARD/i).slice(1);
+        if (blocks.length === 0) {
+          document.getElementById('xlsImportStatus').innerText = '❌ 未找到联系人，请确认是有效的 .vcf 文件';
+          return;
+        }
+
+        const parsedCustomers = [];
+        const phoneSet = new Set();
+
+        for (const block of blocks) {
+          // 解析 FN（姓名）
+          let name = '';
+          const fnQpMatch = block.match(/FN[^:]*QUOTED-PRINTABLE[^:]*:([^\r\n]+)/i);
+          const fnUtf8Match = block.match(/FN;CHARSET=UTF-8:([^\r\n]+)/i);
+          const fnPlainMatch = block.match(/FN:([^\r\n]+)/i);
+          if (fnQpMatch) {
+            // 可能有续行（行末=后换行），先合并续行再解码
+            let rawQp = fnQpMatch[1];
+            // 查找此行之后紧接的续行（以空格或=开头）
+            const afterFn = block.slice(block.indexOf(fnQpMatch[0]) + fnQpMatch[0].length);
+            const contLines = afterFn.match(/^(=\r?\n[^\r\n]+)*/); // 简单续行
+            if (contLines && contLines[0]) rawQp += contLines[0];
+            name = decodeQuotedPrintableUtf8(rawQp).trim();
+          } else if (fnUtf8Match) {
+            name = fnUtf8Match[1].trim();
+          } else if (fnPlainMatch) {
+            name = fnPlainMatch[1].trim();
+          }
+
+          // 解析 ORG（单位）
+          let company = '';
+          const orgQpMatch = block.match(/ORG[^:]*QUOTED-PRINTABLE[^:]*:([^\r\n]+)/i);
+          const orgPlainMatch = block.match(/ORG[^:;]*:([^\r\n]+)/i);
+          if (orgQpMatch) {
+            company = decodeQuotedPrintableUtf8(orgQpMatch[1]).trim();
+          } else if (orgPlainMatch) {
+            company = orgPlainMatch[1].trim();
+          }
+
+          // 解析所有电话（TEL 行），取第一个有效手机号
+          const telMatches = [...block.matchAll(/TEL[^:]*:([^\r\n]+)/gi)];
+          for (const tm of telMatches) {
+            let phone = tm[1].trim().replace(/[^\d+]/g, '');
+            if (!phone) continue;
+            if (phoneSet.has(phone)) break; // 已存在跳过整个联系人
+            phoneSet.add(phone);
+            parsedCustomers.push({
+              name: name || '未知姓名',
+              phone,
+              company,
+              note: '',
+              dialedStatus: 'todo',
+              duration: '',
+              callNote: ''
+            });
+            break; // 每个联系人只取第一个号码
+          }
+        }
+
+        if (parsedCustomers.length === 0) {
+          document.getElementById('xlsImportStatus').innerText = '❌ 解析失败：未找到有效联系人（含电话）';
+          return;
+        }
+
+        document.getElementById('xlsImportStatus').innerHTML =
+          '✅ VCF 导入成功：共 <strong style="color:var(--accent-intent);">' + parsedCustomers.length + '</strong> 位联系人（已按电话去重）';
+
+        window.importedXlsClients = parsedCustomers;
+        renderXlsDialCards();
+      } catch(err) {
+        document.getElementById('xlsImportStatus').innerText = '❌ VCF 解析失败：' + err.message;
+      }
+    };
+    reader.readAsText(file, 'utf-8');
+  }
+
   function handleExcelImport(file) {
     const reader = new FileReader();
     reader.onload = function(e) {
@@ -2805,6 +2915,17 @@ export default {
     document.getElementById('xlsFileInput').addEventListener('change', e => {
       const file = e.target.files[0];
       if (file) handleExcelImport(file);
+      e.target.value = ''; // 允许重复选同一文件
+    });
+
+    document.getElementById('vcfSelectBtn').addEventListener('click', () => {
+      document.getElementById('vcfFileInput').click();
+    });
+
+    document.getElementById('vcfFileInput').addEventListener('change', e => {
+      const file = e.target.files[0];
+      if (file) handleVcfImport(file);
+      e.target.value = ''; // 允许重复选同一文件
     });
 
     document.getElementById('callConnectedBtn').addEventListener('click', () => {
