@@ -493,6 +493,65 @@ export default {
         }
       }
 
+      // 逐条导出全量意向客户（每个客户一条消息）
+      if (type === 'all_clients_solo') {
+        const keys = await getAllKVKeys(env, 'work:');
+        const keyValues = await getKVValuesConcurrently(env, keys);
+        const allClients = [];
+        for (const kv of keyValues) {
+          if (kv.val) {
+            try {
+              const d = JSON.parse(kv.val);
+              if (d.clients) {
+                (d.clients || []).forEach(c => {
+                  allClients.push({ ...c, date: c.date || kv.name.replace('work:', '') });
+                });
+              }
+            } catch(e) {}
+          }
+        }
+        allClients.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+
+        const weekNames = ['日', '一', '二', '三', '四', '五', '六'];
+        const buildText = (c) => {
+          const datePart = (c.date || '').slice(5);
+          const wk = c.date ? ' 周' + weekNames[new Date(c.date + 'T00:00:00').getDay()] : '';
+          let text = '> 姓名：' + c.name + '\n';
+          text += '> 日期: ' + datePart + wk + ' | 时间: ' + (c.time || '—') + '\n';
+          text += '> 电话: ' + (c.phone || '—') + '\n';
+          text += '> 单位: ' + (c.company || '—') + ' | 公积金: ' + (c.fund || '—') + '\n';
+          if (c.note) text += '> 沟通: ' + c.note.replace(/\n/g, ' ') + '\n';
+          if (c.followUp) text += '> 跟进: ' + c.followUp.replace(/\n/g, ' ') + '\n';
+          return text;
+        };
+
+        let sent = 0, failed = 0;
+        const concurrency = 3;
+        for (let i = 0; i < allClients.length; i += concurrency) {
+          const batch = allClients.slice(i, i + concurrency);
+          const results = await Promise.all(batch.map(async (c) => {
+            try {
+              const whResp = await fetch(webhookUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ msgtype: 'markdown', markdown: { content: buildText(c) } })
+              });
+              if (!whResp.ok) throw new Error('HTTP ' + whResp.status);
+              const body = await whResp.json();
+              if (body.errcode !== 0) throw new Error('[errcode ' + body.errcode + '] ' + (body.errmsg || ''));
+              return true;
+            } catch(e) { return false; }
+          }));
+          for (const r of results) {
+            if (r) sent++; else failed++;
+          }
+        }
+
+        return new Response(JSON.stringify({ success: true, sent, failed, total: allClients.length }), {
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+
       const today = new Date();
       const dow = today.getDay();
       const diff = dow === 0 ? 6 : dow - 1;
@@ -1396,7 +1455,8 @@ export default {
   <div class="modal-card" style="max-width:400px;">
     <div class="modal-header"><span>导出数据</span><button id="closeExportModalBtn">×</button></div>
     <div style="display:flex;flex-direction:column;gap:10px;">
-      <div style="display:flex;gap:8px;"><button class="btn-add" id="exportWeekBtn" style="flex:1;">导出本周</button><button class="btn-add" id="exportMonthBtn" style="flex:1;">导出本月</button><button class="btn-add" id="exportAllClientsBtn" style="flex:1;background:var(--intent-gradient);">导出全量意向</button></div>
+      <div style="display:flex;gap:8px;"><button class="btn-add" id="exportWeekBtn" style="flex:1;">导出本周</button><button class="btn-add" id="exportMonthBtn" style="flex:1;">导出本月</button><button class="btn-add" id="exportAllClientsBtn" style="flex:1;background:var(--intent-gradient);">导出全量</button></div>
+      <div style="display:flex;gap:8px;"><button class="btn-add" id="exportSoloBtn" style="flex:1;background:var(--revisit-gradient);">逐条导出全量</button></div>
       <input type="text" class="input-simple" id="webhookUrlInput" placeholder="企业微信 Webhook URL">
       <div style="font-size:0.65rem;color:var(--text-light);">粘贴企业微信群机器人的 Webhook 地址</div>
       <div id="exportStatus" style="font-size:0.75rem;text-align:center;min-height:20px;"></div>
@@ -2486,7 +2546,14 @@ export default {
       document.getElementById('exportStatus').innerText='发送中...';
       try{
         const r=await fetch('/api/export',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type,webhookUrl})});
-        if(r.ok){document.getElementById('exportStatus').innerText='已发送到企业微信';}
+        if(r.ok){
+          const data = await r.json();
+          if (data.sent !== undefined) {
+            document.getElementById('exportStatus').innerText = '已发送 ' + data.sent + '/' + data.total + (data.failed > 0 ? '（' + data.failed + ' 条失败）' : '');
+          } else {
+            document.getElementById('exportStatus').innerText = '已发送到企业微信';
+          }
+        }
         else{
           const err=await r.json();
           document.getElementById('exportStatus').innerText='发送失败: '+(err.error||r.statusText);
@@ -2496,6 +2563,7 @@ export default {
     document.getElementById('exportWeekBtn').addEventListener('click',()=>doExport('week'));
     document.getElementById('exportMonthBtn').addEventListener('click',()=>doExport('month'));
     document.getElementById('exportAllClientsBtn').addEventListener('click',()=>doExport('all_clients'));
+    document.getElementById('exportSoloBtn').addEventListener('click',()=>doExport('all_clients_solo'));
   }
 
   // ==================== Excel 导入与快捷拨号 ====================
