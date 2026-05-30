@@ -126,7 +126,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:inputType="textUri"
-                        android:text="https://mrgz.yg1215.dpdns.org/"
+                        android:text="https://megz.yg1215.dpdns.org/"
                         android:textColor="@color/text_main"
                         android:textSize="14sp"
                         android:textStyle="bold" />
