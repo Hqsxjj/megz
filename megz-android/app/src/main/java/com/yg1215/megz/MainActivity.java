@@ -198,6 +198,9 @@ public class MainActivity extends AppCompatActivity {
 
         // Register custom JS Interface for Recording Files check
         webView.addJavascriptInterface(new DialerJSInterface(), "AndroidDialer");
+
+        // Asynchronously check for in-app updates
+        checkForUpdates();
     }
 
     // JS Bridge class accessible in dialer_html.js
@@ -658,6 +661,166 @@ public class MainActivity extends AppCompatActivity {
                 Toast.makeText(this, "再按一次退出 每日工作", Toast.LENGTH_SHORT).show();
                 backPressedTime = System.currentTimeMillis();
             }
+        }
+    }
+
+    // ==================== App Auto-Update Feature ====================
+
+    private void checkForUpdates() {
+        if (targetUrl == null || targetUrl.isEmpty()) return;
+
+        new Thread(() -> {
+            try {
+                // Construct the version check API URL (e.g. targetUrl + "/api/app-version")
+                String apiUrl = targetUrl;
+                if (!apiUrl.endsWith("/")) {
+                    apiUrl += "/";
+                }
+                apiUrl += "api/app-version";
+
+                java.net.URL url = new java.net.URL(apiUrl);
+                java.net.HttpURLConnection conn = (java.net.HttpURLConnection) url.openConnection();
+                conn.setConnectTimeout(5000);
+                conn.setReadTimeout(5000);
+                conn.setRequestMethod("GET");
+
+                if (conn.getResponseCode() == 200) {
+                    java.io.InputStream is = conn.getInputStream();
+                    java.io.BufferedReader reader = new java.io.BufferedReader(new java.io.InputStreamReader(is, "UTF-8"));
+                    StringBuilder sb = new StringBuilder();
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        sb.append(line);
+                    }
+                    reader.close();
+                    is.close();
+
+                    String json = sb.toString();
+                    org.json.JSONObject obj = new org.json.JSONObject(json);
+                    int serverVersionCode = obj.getInt("versionCode");
+                    String serverVersionName = obj.getString("versionName");
+                    String apkUrl = obj.getString("apkUrl");
+                    String changeLog = obj.optString("changeLog", "");
+
+                    int currentVersionCode = getPackageManager().getPackageInfo(getPackageName(), 0).versionCode;
+
+                    if (serverVersionCode > currentVersionCode) {
+                        runOnUiThread(() -> showUpdateDialog(serverVersionName, apkUrl, changeLog));
+                    }
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }).start();
+    }
+
+    private void showUpdateDialog(String versionName, String apkUrl, String changeLog) {
+        new AlertDialog.Builder(this)
+                .setTitle("发现新版本 V" + versionName)
+                .setMessage("更新日志：\n" + changeLog + "\n\n是否立即下载并更新？")
+                .setPositiveButton("立即更新", (dialog, which) -> {
+                    // Check Install Unknown Apps permission on Oreo+ before downloading
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                        if (!getPackageManager().canRequestPackageInstalls()) {
+                            try {
+                                Intent intent = new Intent(android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES);
+                                intent.setData(Uri.parse("package:" + getPackageName()));
+                                startActivity(intent);
+                                Toast.makeText(this, "请开启允许安装未知应用权限，然后重新点击更新！", Toast.LENGTH_LONG).show();
+                            } catch (Exception e) {
+                                e.printStackTrace();
+                            }
+                            return;
+                        }
+                    }
+                    startApkDownload(apkUrl);
+                })
+                .setNegativeButton("以后再说", null)
+                .setCancelable(false)
+                .show();
+    }
+
+    private void startApkDownload(String apkUrl) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("正在下载最新版更新包...");
+        builder.setCancelable(false);
+
+        ProgressBar pb = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
+        pb.setIndeterminate(false);
+        pb.setMax(100);
+        pb.setProgress(0);
+
+        int padding = (int) (16 * getResources().getDisplayMetrics().density);
+        android.widget.LinearLayout layout = new android.widget.LinearLayout(this);
+        layout.setOrientation(android.widget.LinearLayout.VERTICAL);
+        layout.setPadding(padding, padding, padding, padding);
+        layout.addView(pb);
+        builder.setView(layout);
+
+        AlertDialog progressDialog = builder.create();
+        progressDialog.show();
+
+        new Thread(() -> {
+            try {
+                java.net.URL url = new java.net.URL(apkUrl);
+                java.net.HttpURLConnection conn = (java.net.HttpURLConnection) url.openConnection();
+                conn.connect();
+
+                int fileLength = conn.getContentLength();
+                java.io.InputStream input = new java.io.BufferedInputStream(url.openStream());
+
+                File apkFile = new File(getExternalCacheDir(), "megz_update.apk");
+                java.io.OutputStream output = new java.io.FileOutputStream(apkFile);
+
+                byte[] data = new byte[4096];
+                long total = 0;
+                int count;
+                while ((count = input.read(data)) != -1) {
+                    total += count;
+                    if (fileLength > 0) {
+                        int progress = (int) (total * 100 / fileLength);
+                        runOnUiThread(() -> pb.setProgress(progress));
+                    }
+                    output.write(data, 0, count);
+                }
+
+                output.flush();
+                output.close();
+                input.close();
+
+                runOnUiThread(() -> {
+                    progressDialog.dismiss();
+                    installApk(apkFile);
+                });
+            } catch (Exception e) {
+                e.printStackTrace();
+                runOnUiThread(() -> {
+                    progressDialog.dismiss();
+                    Toast.makeText(MainActivity.this, "下载更新失败，请检查网络！", Toast.LENGTH_SHORT).show();
+                });
+            }
+        }).start();
+    }
+
+    private void installApk(File file) {
+        if (file == null || !file.exists()) return;
+
+        Intent intent = new Intent(Intent.ACTION_VIEW);
+        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+            Uri apkUri = androidx.core.content.FileProvider.getUriForFile(this, "com.yg1215.megz.fileprovider", file);
+            intent.setDataAndType(apkUri, "application/vnd.android.package-archive");
+            intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        } else {
+            intent.setDataAndType(Uri.fromFile(file), "application/vnd.android.package-archive");
+        }
+        
+        try {
+            startActivity(intent);
+        } catch (Exception e) {
+            e.printStackTrace();
+            Toast.makeText(this, "无法启动安装程序，请手动安装！", Toast.LENGTH_LONG).show();
         }
     }
 }
