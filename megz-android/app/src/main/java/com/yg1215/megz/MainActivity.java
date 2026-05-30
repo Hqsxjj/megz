@@ -84,20 +84,58 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         
-        // Enable Premium Full-Screen Immersive Status Bar (No separation gap) Programmatically
+        // 1. Force Hardware Acceleration at Window level for high performance rendering
+        getWindow().setFlags(
+            android.view.WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED,
+            android.view.WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED
+        );
+
+        // 2. Unlock High Screen Refresh Rate (90Hz / 120Hz / 144Hz) programmatically to resolve stuttering
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+            try {
+                android.view.Display display = getWindowManager().getDefaultDisplay();
+                android.view.Display.Mode[] modes = display.getSupportedModes();
+                if (modes != null && modes.length > 0) {
+                    android.view.Display.Mode bestMode = null;
+                    float highestRate = 0f;
+                    for (android.view.Display.Mode mode : modes) {
+                        if (mode.getRefreshRate() > highestRate) {
+                            highestRate = mode.getRefreshRate();
+                            bestMode = mode;
+                        }
+                    }
+                    if (bestMode != null && highestRate > 60f) {
+                        android.view.WindowManager.LayoutParams lp = getWindow().getAttributes();
+                        lp.preferredDisplayModeId = bestMode.getModeId();
+                        getWindow().setAttributes(lp);
+                    }
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+
+        // 3. Enable Premium Immersive Full-Screen (Transparent Status & Bottom Navigation Bars, No black edges)
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
-            getWindow().getDecorView().setSystemUiVisibility(
-                android.view.View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN |
-                android.view.View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-            );
+            int flags = android.view.View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN |
+                        android.view.View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION |
+                        android.view.View.SYSTEM_UI_FLAG_LAYOUT_STABLE;
+            
+            getWindow().getDecorView().setSystemUiVisibility(flags);
             getWindow().setStatusBarColor(android.graphics.Color.TRANSPARENT);
+            getWindow().setNavigationBarColor(android.graphics.Color.TRANSPARENT);
             
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
-                getWindow().getDecorView().setSystemUiVisibility(
-                    android.view.View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN |
-                    android.view.View.SYSTEM_UI_FLAG_LAYOUT_STABLE |
-                    android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
-                );
+                flags |= android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
+            }
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                flags |= android.view.View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
+            }
+            getWindow().getDecorView().setSystemUiVisibility(flags);
+            
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                getWindow().setNavigationBarContrastEnforced(false);
+                getWindow().setStatusBarContrastEnforced(false);
             }
         }
 
@@ -106,11 +144,10 @@ public class MainActivity extends AppCompatActivity {
         // Bind layout views
         webView = findViewById(R.id.webView);
         
-        // Push WebView's content viewport down by the status bar height to prevent overlapping with system icons
+        // Push WebView's content down by the status bar height and up by navigation bar height to prevent overlapping
         int statusBarHeight = getStatusBarHeight();
-        if (statusBarHeight > 0) {
-            webView.setPadding(0, statusBarHeight, 0, 0);
-        }
+        int navBarHeight = getNavigationBarHeight();
+        webView.setPadding(0, statusBarHeight, 0, navBarHeight);
 
         progressBar = findViewById(R.id.progressBar);
         offlineLayout = findViewById(R.id.offlineLayout);
@@ -247,6 +284,9 @@ public class MainActivity extends AppCompatActivity {
         // WebApp performance configurations
         webSettings.setCacheMode(WebSettings.LOAD_DEFAULT);
         webSettings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
+        
+        // Force the WebView to render using GPU Hardware layer for ultra-smooth rendering
+        webView.setLayerType(android.view.View.LAYER_TYPE_HARDWARE, null);
 
         // Customize clients
         webView.setWebViewClient(new CustomWebViewClient());
@@ -905,6 +945,15 @@ public class MainActivity extends AppCompatActivity {
     private int getStatusBarHeight() {
         int result = 0;
         int resourceId = getResources().getIdentifier("status_bar_height", "dimen", "android");
+        if (resourceId > 0) {
+            result = getResources().getDimensionPixelSize(resourceId);
+        }
+        return result;
+    }
+
+    private int getNavigationBarHeight() {
+        int result = 0;
+        int resourceId = getResources().getIdentifier("navigation_bar_height", "dimen", "android");
         if (resourceId > 0) {
             result = getResources().getDimensionPixelSize(resourceId);
         }
