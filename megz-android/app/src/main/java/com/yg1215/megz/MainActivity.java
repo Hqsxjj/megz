@@ -28,6 +28,8 @@ public class MainActivity extends AppCompatActivity {
     private static final String PREFS_NAME = "MegzPrefs";
     private static final String KEY_TARGET_URL = "targetUrl";
     private static final int FILECHOOSER_RESULTCODE = 1;
+    private static final int REQUEST_CALL_PERMISSION = 2;
+    private String pendingPhoneUrl;
 
     private WebView webView;
     private ProgressBar progressBar;
@@ -177,14 +179,13 @@ public class MainActivity extends AppCompatActivity {
         private boolean handleSpecialSchemes(String url) {
             // Handle native dialing trigger
             if (url.startsWith("tel:")) {
-                try {
-                    Intent intent = new Intent(Intent.ACTION_DIAL, Uri.parse(url));
-                    startActivity(intent);
-                    return true;
-                } catch (Exception e) {
-                    Toast.makeText(MainActivity.this, "拨号组件启动失败", Toast.LENGTH_SHORT).show();
-                    return true;
+                pendingPhoneUrl = url;
+                if (androidx.core.content.ContextCompat.checkSelfPermission(MainActivity.this, android.Manifest.permission.CALL_PHONE) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                    placeDirectCall(url);
+                } else {
+                    androidx.core.app.ActivityCompat.requestPermissions(MainActivity.this, new String[]{android.Manifest.permission.CALL_PHONE}, REQUEST_CALL_PERMISSION);
                 }
+                return true;
             }
             // Handle native mail trigger
             if (url.startsWith("mailto:")) {
@@ -320,6 +321,44 @@ public class MainActivity extends AppCompatActivity {
             }
             uploadMessage.onReceiveValue(results);
             uploadMessage = null;
+        }
+    }
+
+    private void placeDirectCall(String url) {
+        try {
+            Intent intent = new Intent(Intent.ACTION_CALL, Uri.parse(url));
+            startActivity(intent);
+        } catch (SecurityException e) {
+            fallbackToDial(url);
+        } catch (Exception e) {
+            fallbackToDial(url);
+        }
+    }
+
+    private void fallbackToDial(String url) {
+        try {
+            Intent intent = new Intent(Intent.ACTION_DIAL, Uri.parse(url));
+            startActivity(intent);
+        } catch (Exception ex) {
+            Toast.makeText(MainActivity.this, "无法启动拨号组件", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == REQUEST_CALL_PERMISSION) {
+            if (grantResults.length > 0 && grantResults[0] == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                if (pendingPhoneUrl != null) {
+                    placeDirectCall(pendingPhoneUrl);
+                }
+            } else {
+                Toast.makeText(this, "未授予直接通话权限，已切换为系统拨号盘", Toast.LENGTH_SHORT).show();
+                if (pendingPhoneUrl != null) {
+                    fallbackToDial(pendingPhoneUrl);
+                }
+            }
+            pendingPhoneUrl = null;
         }
     }
 
