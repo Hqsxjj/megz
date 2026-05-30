@@ -5,14 +5,39 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
     
-    <!-- Phone Receiver Shape -->
+    <!-- Glowing Accent Circular Halo -->
+    <path
+        android:fillColor="#07C160"
+        android:pathData="M54,54m-28,0a28,28 0,1 1,56 0a28,28 0,1 1,-56 0"
+        android:alpha="0.08" />
+
+    <!-- Stylized Calendar/SIM Card Geometric Shield (Center: 54,54) -->
+    <!-- Draw outer glowing emerald card frame -->
+    <path
+        android:fillColor="#07C160"
+        android:pathData="M38,36h32c3.3,0 6,2.7 6,6v24c0,3.3 -2.7,6 -6,6h-32c-3.3,0 -6,-2.7 -6,-6v-24c0,-3.3 2.7,-6 6,-6z"
+        android:alpha="0.2" />
+        
+    <!-- Crisp White inner card frame with gold-emerald gradients -->
+    <path
+        android:strokeColor="#07C160"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round"
+        android:pathData="M40,36h28c4.4,0 8,3.6 8,8v20c0,4.4 -3.6,8 -8,8h-28c-4.4,0 -8,-3.6 -8,-8v-20c0,-4.4 3.6,-8 8,-8z" />
+
+    <!-- Premium Golden Dual-SIM chip horizontal slot accents -->
+    <path
+        android:fillColor="#FFD700"
+        android:pathData="M34,44h8v2h-8z M34,48h8v2h-8z"
+        android:alpha="0.8" />
+
+    <!-- Central Glowing White Phone Receiver Handset (Modern Curved shape) -->
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M38.2,33.5 C37,32.3 35.2,32.3 34,33.5 L28,39.5 C27.3,40.2 27,41.2 27.2,42.2 C28.5,54.7 38.3,64.5 50.8,65.8 C51.8,66 52.8,65.7 53.5,65 L59.5,59 C60.7,57.8 60.7,56 59.5,54.8 L52,47.3 C50.8,46.1 49,46.1 47.8,47.3 L45,50.1 C40.8,47.8 37.2,44.2 34.9,40 L37.7,37.2 C38.9,36 38.9,34.2 37.7,33 L30.2,25.5" />
+        android:pathData="M45,46a2,2 0,0 1,2.8 -0.4l3.5,2.6a2,2 0,0 1,0.3 2.8l-1.5,1.8c2.4,1.8 4.2,3.6 6,6l1.8,-1.5a2,2 0,0 1,2.8 0.3l2.6,3.5a2,2 0,0 1,-0.4 2.8l-3.2,2.4c-4.8,-0.5 -8.6,-4.3 -9.1,-9.1z" />
         
-    <!-- Modern checkmark logo on top right (Checklist badge) -->
+    <!-- Top Right Sparkle/Work Star -->
     <path
-        android:fillColor="#E0FCEE"
-        android:pathData="M70,30 L58,42 L52,36 L48,40 L58,50 L74,34 Z" />
-        
+        android:fillColor="#FFD700"
+        android:pathData="M66,32l1,3l3,1l-3,1l-1,3l-1,-3l-3,-1l3,-1z" />
 </vector>
