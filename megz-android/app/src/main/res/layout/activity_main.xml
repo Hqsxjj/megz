@@ -22,6 +22,17 @@
         android:progressDrawable="@color/accent_wechat"
         android:visibility="gone" />
 
+    <!-- Hidden top-right Settings Trigger Area -->
+    <View
+        android:id="@+id/btnHiddenSettings"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_alignParentEnd="true"
+        android:layout_alignParentTop="true"
+        android:background="@android:color/transparent"
+        android:clickable="true"
+        android:focusable="true" />
+
     <!-- Offline Fallback UI -->
     <LinearLayout
         android:id="@+id/offlineLayout"
@@ -219,7 +230,7 @@
                     android:layout_height="48dp"
                     android:layout_marginTop="20dp"
                     android:backgroundTint="@color/accent_wechat"
-                    android:text="保存并进入"
+                    android:text="保存配置并返回"
                     android:textColor="@color/white"
                     android:textStyle="bold"
                     app:cornerRadius="6dp" />

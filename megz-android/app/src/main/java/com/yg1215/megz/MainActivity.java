@@ -97,14 +97,23 @@ public class MainActivity extends AppCompatActivity {
         btnSaveUrl = findViewById(R.id.btnSaveUrl);
         btnRetry = findViewById(R.id.btnRetry);
 
-        // Load targeted configurations
+        // Load targeted configurations (defaulting to the user's domain immediately!)
         SharedPreferences prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
-        targetUrl = prefs.getString(KEY_TARGET_URL, null);
+        targetUrl = prefs.getString(KEY_TARGET_URL, "https://go.yg1215.dpdns.org/");
+        
+        // If not saved in SharedPreferences yet, save the default targetUrl immediately
+        if (!prefs.contains(KEY_TARGET_URL)) {
+            SharedPreferences.Editor editor = prefs.edit();
+            editor.putString(KEY_TARGET_URL, targetUrl);
+            editor.apply();
+        }
+
         dualSimEnabled = prefs.getBoolean(KEY_DUAL_SIM, true);
         rotationInterval = prefs.getInt(KEY_ROTATION_INTERVAL, 5);
         dialCount = prefs.getInt(KEY_DIAL_COUNT, 0);
 
         // Populate config UI values
+        editUrl.setText(targetUrl);
         switchDualSim.setChecked(dualSimEnabled);
         if (rotationInterval == 10) {
             radio10.setChecked(true);
@@ -139,6 +148,7 @@ public class MainActivity extends AppCompatActivity {
             editor.putInt(KEY_ROTATION_INTERVAL, selectedInterval);
             editor.apply();
 
+            boolean urlChanged = !inputUrl.equals(targetUrl);
             targetUrl = inputUrl;
             dualSimEnabled = isDualSimChecked;
             rotationInterval = selectedInterval;
@@ -146,8 +156,10 @@ public class MainActivity extends AppCompatActivity {
             configLayout.setVisibility(View.GONE);
             webView.setVisibility(View.VISIBLE);
             
-            initWebViewSettings();
-            webView.loadUrl(targetUrl);
+            if (urlChanged) {
+                webView.loadUrl(targetUrl);
+            }
+            Toast.makeText(MainActivity.this, "配置已成功保存！", Toast.LENGTH_SHORT).show();
         });
 
         btnRetry.setOnClickListener(v -> {
@@ -156,15 +168,29 @@ public class MainActivity extends AppCompatActivity {
             webView.reload();
         });
 
-        // If URL not configured, show first launch config screen
-        if (targetUrl == null || targetUrl.isEmpty()) {
-            webView.setVisibility(View.GONE);
-            configLayout.setVisibility(View.VISIBLE);
-        } else {
-            initWebViewSettings();
-            webView.loadUrl(targetUrl);
-        }
+        // ALWAYS directly show webView and load targetUrl immediately without prompting
+        configLayout.setVisibility(View.GONE);
+        webView.setVisibility(View.VISIBLE);
+        initWebViewSettings();
+        webView.loadUrl(targetUrl);
         
+        // Bind and setup the hidden top-right corner settings trigger!
+        findViewById(R.id.btnHiddenSettings).setOnClickListener(v -> {
+            if (configLayout.getVisibility() == View.VISIBLE) {
+                configLayout.setVisibility(View.GONE);
+            } else {
+                // Populate/reload current config UI values
+                editUrl.setText(targetUrl);
+                switchDualSim.setChecked(dualSimEnabled);
+                if (rotationInterval == 10) {
+                    radio10.setChecked(true);
+                } else {
+                    radio5.setChecked(true);
+                }
+                configLayout.setVisibility(View.VISIBLE);
+            }
+        });
+
         // Add URL reset configuration feature on long pressing the app backdrop/WebView top
         findViewById(android.R.id.content).setOnLongClickListener(v -> {
             showResetUrlDialog();
