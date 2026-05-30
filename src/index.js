@@ -1,6 +1,8 @@
 // 每日工作 - Cloudflare Worker 版本
 // 部署后绑定 DATA_KV 即可使用
 
+import { DIALER_HTML } from './dialer_html.js';
+
 async function getAllKVKeys(env, prefix) {
   let keys = [];
   let cursor = undefined;
@@ -79,6 +81,53 @@ export default {
           'Access-Control-Allow-Headers': 'Content-Type',
           'Access-Control-Max-Age': '86400'
         }
+      });
+    }
+
+    // ==================== BHP 拨号器接口与页面并入 ====================
+    
+    // 1. 获取拨号器数据
+    if (path === '/api/dialer/data' && request.method === 'GET') {
+      const data = await env.DATA_KV.get('dialer:data');
+      return new Response(data || JSON.stringify({ clients: [] }), {
+        headers: {
+          'Content-Type': 'application/json; charset=UTF-8',
+          'Access-Control-Allow-Origin': '*'
+        }
+      });
+    }
+
+    // 2. 保存拨号器数据
+    if (path === '/api/dialer/data' && request.method === 'POST') {
+      try {
+        const body = await request.json();
+        await env.DATA_KV.put('dialer:data', JSON.stringify(body));
+        return new Response(JSON.stringify({ success: true }), {
+          headers: {
+            'Content-Type': 'application/json; charset=UTF-8',
+            'Access-Control-Allow-Origin': '*'
+          }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ error: e.message }), {
+          status: 400,
+          headers: {
+            'Content-Type': 'application/json; charset=UTF-8',
+            'Access-Control-Allow-Origin': '*'
+          }
+        });
+      }
+    }
+
+    // 3. 代理 SheetJS 资源以加快文件解析加载
+    if (path === '/xlsx.full.min.js') {
+      return fetch('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js');
+    }
+
+    // 4. 服务拨号器单页 HTML
+    if (path === '/dialer' || path === '/dialer/') {
+      return new Response(DIALER_HTML, {
+        headers: { 'Content-Type': 'text/html; charset=UTF-8' }
       });
     }
 
@@ -1304,7 +1353,7 @@ export default {
       <div class="action-group">
         <button class="sync-indicator" id="syncBtn" title="点击手动同步"><span class="sync-icon" id="syncIcon">⇅</span><span id="syncLabel">同步中</span><div class="sync-tooltip" id="syncTooltip">正在连接...</div></button>
         <button class="icon-simple" id="allClientsBtn" title="意向客户全量表">全量</button>
-        <button class="icon-simple" id="dialerBtn" title="快捷拨号助手" onclick="window.open('https://bhp.yg1215.dpdns.org', '_blank')">拨号</button>
+        <button class="icon-simple" id="dialerBtn" title="快捷拨号助手" onclick="window.open('/dialer', '_blank')">拨号</button>
         <button class="icon-simple" id="hideBtn" title="一键隐藏 (Ctrl+Z)">锁屏</button>
         <button class="icon-simple" id="menuToggleBtn" title="菜单">≡</button>
         <div class="menu-dropdown" id="menuDropdown">
