@@ -24,8 +24,8 @@ jobs:
     - name: Build Android Debug APK
       run: |
         cd megz-android
-        # Initialize gradle wrapper inside GitHub cloud runner to download and build automatically
-        gradle wrapper
+        # Initialize gradle wrapper using exactly version 8.2 to ensure full compatibility
+        gradle wrapper --gradle-version 8.2
         chmod +x gradlew
         ./gradlew assembleDebug
 
