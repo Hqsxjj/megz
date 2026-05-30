@@ -5,11 +5,20 @@
     android:layout_height="match_parent"
     android:background="@color/bg_app">
 
+    <!-- Status Bar Background Placeholder (Clean blank white spacer) -->
+    <View
+        android:id="@+id/statusBarBackground"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_alignParentTop="true"
+        android:background="@color/white" />
+
     <!-- WebView Content -->
     <WebView
         android:id="@+id/webView"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:layout_below="@id/statusBarBackground"
         android:visibility="visible" />
 
     <!-- Horizontal WeChat-style Loader ProgressBar -->
@@ -18,7 +27,7 @@
         style="@android:style/Widget.ProgressBar.Horizontal"
         android:layout_width="match_parent"
         android:layout_height="3.5dp"
-        android:layout_alignParentTop="true"
+        android:layout_below="@id/statusBarBackground"
         android:progressDrawable="@color/accent_wechat"
         android:visibility="gone" />
 
@@ -28,7 +37,7 @@
         android:layout_width="48dp"
         android:layout_height="48dp"
         android:layout_alignParentEnd="true"
-        android:layout_alignParentTop="true"
+        android:layout_below="@id/statusBarBackground"
         android:background="@android:color/transparent"
         android:clickable="true"
         android:focusable="true" />

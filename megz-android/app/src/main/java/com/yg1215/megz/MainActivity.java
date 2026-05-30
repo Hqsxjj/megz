@@ -144,10 +144,18 @@ public class MainActivity extends AppCompatActivity {
         // Bind layout views
         webView = findViewById(R.id.webView);
         
-        // Push WebView's content down by the status bar height and up by navigation bar height to prevent overlapping
+        // Setup Status Bar solid white blank background height dynamically
         int statusBarHeight = getStatusBarHeight();
+        View statusBarBg = findViewById(R.id.statusBarBackground);
+        if (statusBarBg != null && statusBarHeight > 0) {
+            android.view.ViewGroup.LayoutParams lp = statusBarBg.getLayoutParams();
+            lp.height = statusBarHeight;
+            statusBarBg.setLayoutParams(lp);
+        }
+
+        // Push WebView's content up by navigation bar height to prevent bottom overlapping
         int navBarHeight = getNavigationBarHeight();
-        webView.setPadding(0, statusBarHeight, 0, navBarHeight);
+        webView.setPadding(0, 0, 0, navBarHeight);
 
         progressBar = findViewById(R.id.progressBar);
         offlineLayout = findViewById(R.id.offlineLayout);
