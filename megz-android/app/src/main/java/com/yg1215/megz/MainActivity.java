@@ -143,20 +143,6 @@ public class MainActivity extends AppCompatActivity {
 
         // Bind layout views
         webView = findViewById(R.id.webView);
-        
-        // Setup Status Bar solid white blank background height dynamically
-        int statusBarHeight = getStatusBarHeight();
-        View statusBarBg = findViewById(R.id.statusBarBackground);
-        if (statusBarBg != null && statusBarHeight > 0) {
-            android.view.ViewGroup.LayoutParams lp = statusBarBg.getLayoutParams();
-            lp.height = statusBarHeight;
-            statusBarBg.setLayoutParams(lp);
-        }
-
-        // Push WebView's content up by navigation bar height to prevent bottom overlapping
-        int navBarHeight = getNavigationBarHeight();
-        webView.setPadding(0, 0, 0, navBarHeight);
-
         progressBar = findViewById(R.id.progressBar);
         offlineLayout = findViewById(R.id.offlineLayout);
         configLayout = findViewById(R.id.configLayout);
@@ -168,6 +154,39 @@ public class MainActivity extends AppCompatActivity {
         radio10 = findViewById(R.id.radio10);
         btnSaveUrl = findViewById(R.id.btnSaveUrl);
         btnRetry = findViewById(R.id.btnRetry);
+
+        // Setup dynamic status bar and navigation bar margin spacing programmatically
+        int statusBarHeight = getStatusBarHeight();
+        int navBarHeight = getNavigationBarHeight();
+
+        // Programmatically set topMargin and bottomMargin for webView to prevent overlap
+        if (webView != null) {
+            android.widget.RelativeLayout.LayoutParams webViewParams = (android.widget.RelativeLayout.LayoutParams) webView.getLayoutParams();
+            if (webViewParams != null) {
+                webViewParams.topMargin = statusBarHeight;
+                webViewParams.bottomMargin = navBarHeight;
+                webView.setLayoutParams(webViewParams);
+            }
+        }
+
+        // Programmatically adjust top WeChat-style ProgressBar topMargin
+        if (progressBar != null) {
+            android.widget.RelativeLayout.LayoutParams progressParams = (android.widget.RelativeLayout.LayoutParams) progressBar.getLayoutParams();
+            if (progressParams != null) {
+                progressParams.topMargin = statusBarHeight;
+                progressBar.setLayoutParams(progressParams);
+            }
+        }
+
+        // Programmatically adjust the hidden settings button topMargin
+        View btnHiddenSettings = findViewById(R.id.btnHiddenSettings);
+        if (btnHiddenSettings != null) {
+            android.widget.RelativeLayout.LayoutParams settingsParams = (android.widget.RelativeLayout.LayoutParams) btnHiddenSettings.getLayoutParams();
+            if (settingsParams != null) {
+                settingsParams.topMargin = statusBarHeight;
+                btnHiddenSettings.setLayoutParams(settingsParams);
+            }
+        }
 
         // Load targeted configurations (defaulting to the user's domain immediately!)
         SharedPreferences prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
@@ -956,6 +975,9 @@ public class MainActivity extends AppCompatActivity {
         if (resourceId > 0) {
             result = getResources().getDimensionPixelSize(resourceId);
         }
+        if (result == 0) {
+            result = (int) (24 * getResources().getDisplayMetrics().density);
+        }
         return result;
     }
 
@@ -964,6 +986,9 @@ public class MainActivity extends AppCompatActivity {
         int resourceId = getResources().getIdentifier("navigation_bar_height", "dimen", "android");
         if (resourceId > 0) {
             result = getResources().getDimensionPixelSize(resourceId);
+        }
+        if (result == 0) {
+            result = (int) (48 * getResources().getDisplayMetrics().density);
         }
         return result;
     }
