@@ -52,6 +52,7 @@ public class MainActivity extends AppCompatActivity {
     private ProgressBar progressBar;
     private View offlineLayout;
     private View configLayout;
+    private View loadingLayout;
     private EditText editUrl;
     private SwitchCompat switchDualSim;
     private RadioGroup radioGroupInterval;
@@ -82,6 +83,24 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        
+        // Enable Premium Full-Screen Immersive Status Bar (No separation gap) Programmatically
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+            getWindow().getDecorView().setSystemUiVisibility(
+                android.view.View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN |
+                android.view.View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+            );
+            getWindow().setStatusBarColor(android.graphics.Color.TRANSPARENT);
+            
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+                getWindow().getDecorView().setSystemUiVisibility(
+                    android.view.View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN |
+                    android.view.View.SYSTEM_UI_FLAG_LAYOUT_STABLE |
+                    android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
+                );
+            }
+        }
+
         setContentView(R.layout.activity_main);
 
         // Bind layout views
@@ -89,6 +108,7 @@ public class MainActivity extends AppCompatActivity {
         progressBar = findViewById(R.id.progressBar);
         offlineLayout = findViewById(R.id.offlineLayout);
         configLayout = findViewById(R.id.configLayout);
+        loadingLayout = findViewById(R.id.loadingLayout);
         editUrl = findViewById(R.id.editUrl);
         switchDualSim = findViewById(R.id.switchDualSim);
         radioGroupInterval = findViewById(R.id.radioGroupInterval);
@@ -430,11 +450,28 @@ public class MainActivity extends AppCompatActivity {
         public void onPageStarted(WebView view, String url, Bitmap favicon) {
             progressBar.setVisibility(View.VISIBLE);
             progressBar.setProgress(0);
+            
+            // Show premium loading overlay immediately when start loading
+            if (loadingLayout != null) {
+                loadingLayout.setVisibility(View.VISIBLE);
+                loadingLayout.setAlpha(1.0f);
+            }
         }
 
         @Override
         public void onPageFinished(WebView view, String url) {
             progressBar.setVisibility(View.GONE);
+            
+            // Smoothly fade out the loading overlay with professional alpha transition
+            if (loadingLayout != null && loadingLayout.getVisibility() == View.VISIBLE) {
+                loadingLayout.animate()
+                        .alpha(0.0f)
+                        .setDuration(400)
+                        .withEndAction(() -> {
+                            loadingLayout.setVisibility(View.GONE);
+                            loadingLayout.setAlpha(1.0f);
+                        });
+            }
         }
 
         @Override
@@ -443,6 +480,11 @@ public class MainActivity extends AppCompatActivity {
             if (request.isForMainFrame()) {
                 webView.setVisibility(View.GONE);
                 offlineLayout.setVisibility(View.VISIBLE);
+                
+                // Instantly hide loading overlay so the user can see offline retry view
+                if (loadingLayout != null) {
+                    loadingLayout.setVisibility(View.GONE);
+                }
             }
         }
     }
