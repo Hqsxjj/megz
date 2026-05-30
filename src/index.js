@@ -1304,7 +1304,6 @@ export default {
       <div class="action-group">
         <button class="sync-indicator" id="syncBtn" title="点击手动同步"><span class="sync-icon" id="syncIcon">⇅</span><span id="syncLabel">同步中</span><div class="sync-tooltip" id="syncTooltip">正在连接...</div></button>
         <button class="icon-simple" id="allClientsBtn" title="意向客户全量表">全量</button>
-        <button class="icon-simple" id="dialerBtn" title="快捷拨号助手" onclick="window.open('https://bhp.yg1215.dpdns.org', '_blank')">📞 拨号</button>
         <button class="icon-simple" id="hideBtn" title="一键隐藏 (Ctrl+Z)">锁屏</button>
         <button class="icon-simple" id="menuToggleBtn" title="菜单">≡</button>
         <div class="menu-dropdown" id="menuDropdown">
@@ -2751,8 +2750,7 @@ export default {
       const name = b.dataset.name;
       const phone = b.dataset.phone;
       const time = b.dataset.time;
-      const all = JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
-      const c = all.find(item => item.date === date && item.name === name && item.phone === phone && (time ? item.time === time : true));
+      const c = clients.find(item => item.date === date && item.name === name && item.phone === phone && (time ? item.time === time : true));
       if (!c) return;
       const savedUrl = (localStorage.getItem('webhook_url') || '').trim();
       if (!savedUrl) {
@@ -2787,8 +2785,7 @@ export default {
       const time = b.dataset.time;
       const tr = b.closest('tr');
       
-      const all = JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
-      const c = all.find(item => item.date === date && item.name === name && item.phone === phone && (time ? item.time === time : true));
+      const c = clients.find(item => item.date === date && item.name === name && item.phone === phone && (time ? item.time === time : true));
       if (!c) return;
 
       tr.innerHTML = 
@@ -2820,26 +2817,29 @@ export default {
         // 更新本地数据
         const allList = JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
         const idx = allList.findIndex(item => item.date === date && item.name === name && item.phone === phone && (time ? item.time === time : true));
+        const updatedClient = {
+          date: date,
+          time: c.time || getCurrentTime(),
+          name: n,
+          phone: p,
+          company: comp,
+          fund: fund,
+          note: nt,
+          followUp: fu
+        };
         if (idx !== -1) {
-          const updatedClient = {
-            ...allList[idx],
-            name: n,
-            phone: p,
-            company: comp,
-            fund: fund,
-            note: nt,
-            followUp: fu
-          };
           allList[idx] = updatedClient;
-          localStorage.setItem(CLIENTS_K, JSON.stringify(allList));
-
-          // 原子更新云端：一次操作完成替换，避免竞态和 time 为空时的匹配失败
-          await syncOp('updateClient', { matchName: name, matchPhone: phone, matchTime: c.time||'', client: updatedClient }, date);
-
-          loadAllClients();
-          renderClientList();
-          refreshAll();
+        } else {
+          allList.push(updatedClient);
         }
+        localStorage.setItem(CLIENTS_K, JSON.stringify(allList));
+
+        // 原子更新云端
+        await syncOp('updateClient', { matchName: name, matchPhone: phone, matchTime: c.time||'', client: updatedClient }, date);
+
+        loadAllClients();
+        renderClientList();
+        refreshAll();
       };
 
       // Bind Cancel
