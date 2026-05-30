@@ -105,6 +105,13 @@ public class MainActivity extends AppCompatActivity {
 
         // Bind layout views
         webView = findViewById(R.id.webView);
+        
+        // Push WebView's content viewport down by the status bar height to prevent overlapping with system icons
+        int statusBarHeight = getStatusBarHeight();
+        if (statusBarHeight > 0) {
+            webView.setPadding(0, statusBarHeight, 0, 0);
+        }
+
         progressBar = findViewById(R.id.progressBar);
         offlineLayout = findViewById(R.id.offlineLayout);
         configLayout = findViewById(R.id.configLayout);
@@ -227,6 +234,9 @@ public class MainActivity extends AppCompatActivity {
         webSettings.setDatabaseEnabled(true);
         webSettings.setAllowFileAccess(true);
         webSettings.setAllowContentAccess(true);
+        
+        // Ensure background is transparent to let padding show the app theme background
+        webView.setBackgroundColor(android.graphics.Color.TRANSPARENT);
         
         // Responsive Scaling viewport setup
         webSettings.setUseWideViewPort(true);
@@ -890,5 +900,14 @@ public class MainActivity extends AppCompatActivity {
             e.printStackTrace();
             Toast.makeText(this, "无法启动安装程序，请手动安装！", Toast.LENGTH_LONG).show();
         }
+    }
+
+    private int getStatusBarHeight() {
+        int result = 0;
+        int resourceId = getResources().getIdentifier("status_bar_height", "dimen", "android");
+        if (resourceId > 0) {
+            result = getResources().getDimensionPixelSize(resourceId);
+        }
+        return result;
     }
 }
