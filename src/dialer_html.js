@@ -906,7 +906,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
       </div>
       <div id="callAssistNoteRow" style="display:none;margin-top:4px;width:100%;text-align:left;">
         <span style="font-size:0.7rem;color:var(--text-light);font-weight:800;">备注：</span>
-        <span id="callAssistNote" style="font-size:0.72rem;font-weight:700;color:var(--text-soft);line-height:1.4;word-break:break-all;"></span>
+        <span id="callAssistNote" style="font-size:0.72rem;font-weight:700;color:var(--text-soft);line-height:1.4;word-break:break-all;white-space:pre-wrap;"></span>
       </div>
       <div style="display:flex;justify-content:center;margin-top:4px;width:100%;">
         <a id="callAssistDialLink" class="btn-modal btn-success" style="width:100%;text-decoration:none;display:flex;align-items:center;justify-content:center;font-size:0.85rem;height:38px;box-shadow:var(--wechat-gradient);border-radius:var(--radius-xs);">立即拨打</a>
@@ -1375,7 +1375,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
           if (/姓名|客户|联系人|name|contact/i.test(cellVal)) matches++;
           if (/电话|手机|号码|phone|tel|mobile/i.test(cellVal)) matches++;
           if (/单位|公司|企业|company|firm|work/i.test(cellVal)) matches++;
-          if (/备注|沟通|记录|跟进|note|remark/i.test(cellVal)) matches++;
+          if (/备注|沟通|记录|跟进|说明|介绍|详情|note|remark/i.test(cellVal)) matches++;
         }
         var hasPhoneData = false;
         for (var j = 0; j < row.length; j++) {
@@ -1400,7 +1400,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
           if (/姓名|客户|name/i.test(h)) nameIdx = i;
           else if (/电话|手机|号码|phone|tel|mobile/i.test(h)) phoneIdx = i;
           else if (/单位|公司|企业|company|firm|work/i.test(h)) companyIdx = i;
-          else if (/备注|沟通|记录|跟进|note|remark/i.test(h)) noteIdx = i;
+          else if (/备注|沟通|记录|跟进|说明|介绍|详情|note|remark/i.test(h)) noteIdx = i;
         }
         
         if (phoneIdx === -1) {
@@ -1498,7 +1498,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
                 if (/有限公司|有限责任|集团|公司|企业|厂|店|中心|商行|工作室/i.test(s)) {
                   companyScore += 15;
                 }
-                if (/意向|跟进|记录|备注|挂断|接通|无效|微信|电话|加微信|想买/i.test(s)) {
+                if (/意向|跟进|记录|备注|挂断|接通|无效|微信|电话|加微信|想买|说明|介绍|详情/i.test(s)) {
                   noteScoreCount += 10;
                 }
                 if (s.length > 8) {
@@ -1777,7 +1777,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
       document.getElementById('pillNote').className = 'client-card-tag';
       document.getElementById('pillNote').style.background = 'rgba(0,0,0,0.04)';
       document.getElementById('pillNote').style.color = 'var(--text-light)';
-      document.getElementById('pillNote').innerHTML = '备注 ➔ 无';
+      document.getElementById('pillNote').innerHTML = '备注 ➔ VCF (NOTE)';
 
       document.getElementById('aiAdjustControls').style.display = 'none';
       document.getElementById('aiToggleAdjustBtn').style.display = 'none';
@@ -1838,7 +1838,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
       function isValidNameHeuristic(str) {
         if (!str) return false;
         // Filter out common UI labels and keywords
-        if (/姓名|电话|手机|号码|公司|备注|联系人|客户|微信|意向|跟进|记录|挂断|接通|无效|加微信|想买|tel|phone|mobile|name/i.test(str)) {
+        if (/姓名|电话|手机|号码|公司|备注|联系人|客户|微信|意向|跟进|记录|挂断|接通|无效|加微信|想买|说明|介绍|详情|tel|phone|mobile|name/i.test(str)) {
           return false;
         }
         // Filter out corporate suffixes
@@ -1998,7 +1998,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
             var part = remainingParts[j];
             if (part !== name && part !== company) {
               // Skip UI labels/metadata in notes to keep them clean
-              if (/姓名|电话|手机|号码|公司|备注|联系人|客户|微信/i.test(part) && part.length <= 4) {
+              if (/姓名|电话|手机|号码|公司|备注|联系人|客户|微信|说明|介绍|详情/i.test(part) && part.length <= 4) {
                 continue;
               }
               noteParts.push(part);
@@ -2569,6 +2569,14 @@ export const DIALER_HTML = `<!DOCTYPE html>
             if (mOQ) { company = decodeQPUtf8(mOQ[1]).trim(); }
             else if (mOP) { company = mOP[1].trim(); }
 
+            var note = '';
+            var mNQ = blk.match(/NOTE[^:]*QUOTED-PRINTABLE[^:]*:([^\\r\\n]+)/i);
+            var mNU = blk.match(/NOTE;CHARSET=UTF-8:([^\\r\\n]+)/i);
+            var mNP = blk.match(/NOTE[^:;]*:([^\\r\\n]+)/i);
+            if (mNQ) { note = decodeQPUtf8(mNQ[1]).trim(); }
+            else if (mNU) { note = mNU[1].trim(); }
+            else if (mNP) { note = mNP[1].trim(); }
+
             var telLines = blk.match(/TEL[^:]*:([^\\r\\n]+)/gi) || [];
             for (var ti = 0; ti < telLines.length; ti++) {
               var ci = telLines[ti].indexOf(':');
@@ -2577,7 +2585,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
               if (!phone) continue;
               if (phoneSet.has(phone)) break;
               phoneSet.add(phone);
-              list.push({ name: name || '未知姓名', phone: phone, company: company, note: '', dialedStatus: 'todo', duration: '', callNote: '' });
+              list.push({ name: name || '未知姓名', phone: phone, company: company, note: note, dialedStatus: 'todo', duration: '', callNote: '' });
               break;
             }
           }
@@ -2702,8 +2710,17 @@ export const DIALER_HTML = `<!DOCTYPE html>
           '</div>' +
           '<div class="client-card-tags" style="margin-top: 2px;">' +
             (c.company ? '<span class="client-card-tag client-card-tag-company">' + esc(c.company) + '</span>' : '') +
-            (c.note ? '<span class="client-card-tag client-card-tag-note" data-note="' + esc(c.note) + '" title="点击查看资料备注" style="cursor:pointer; background:rgba(74,108,247,0.08); color:#4a6cf7; border:0.5px solid rgba(74,108,247,0.18);">查看备注</span>' : '') +
           '</div>' +
+          (c.note ? 
+            '<div class="client-card-body" style="margin-top: 4px;">' +
+              '<div class="client-card-content-block follow-up" style="background:rgba(74,108,247,0.03); border-left:3px solid #4a6cf7; padding: 6px 8px; border-radius: 0 var(--radius-xs) var(--radius-xs) 0;">' +
+                '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px;">' +
+                  '<span class="client-card-label" style="color:#4a6cf7; font-weight:800; font-size:0.65rem;">资料备注</span>' +
+                  '<span class="client-card-tag-note" data-note="' + esc(c.note) + '" style="font-size:0.6rem; color:#4a6cf7; cursor:pointer; text-decoration:underline;">[放大查看]</span>' +
+                '</div>' +
+                '<span class="client-card-text" style="color:var(--text-soft); white-space:pre-wrap; display:block; margin-top:2px;">' + esc(c.note) + '</span>' +
+              '</div>' +
+            '</div>' : '') +
           (c.callNote ? 
             '<div class="client-card-body" style="margin-top: 4px;">' +
               '<div class="client-card-content-block follow-up">' +
