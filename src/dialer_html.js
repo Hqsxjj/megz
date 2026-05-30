@@ -912,6 +912,12 @@ export const DIALER_HTML = `<!DOCTYPE html>
         <a id="callAssistDialLink" class="btn-modal btn-success" style="width:100%;text-decoration:none;display:flex;align-items:center;justify-content:center;font-size:0.85rem;height:38px;box-shadow:var(--wechat-gradient);border-radius:var(--radius-xs);">立即拨打</a>
       </div>
       
+      <!-- Recording Player Container inside Call Assistant Modal -->
+      <div id="callAssistRecContainer" style="display:none;text-align:left;flex-direction:column;gap:4px;width:100%;margin-top:4px;">
+        <span class="client-card-label" style="font-size:0.65rem;color:var(--accent-wechat);font-weight:800;">通话录音</span>
+        <div id="callAssistAudioWrapper"></div>
+      </div>
+      
       <!-- Remark Input Field (Directly Visible) -->
       <div style="text-align:left;display:flex;flex-direction:column;gap:4px;width:100%;">
         <span class="client-card-label" style="font-size:0.65rem;color:var(--text-light);font-weight:800;">通话小记 / 沟通记录</span>
@@ -2728,6 +2734,16 @@ export const DIALER_HTML = `<!DOCTYPE html>
                 '<span class="client-card-text" style="color:var(--accent-wechat);">' + esc(c.callNote) + '</span>' +
               '</div>' +
             '</div>' : '') +
+          (typeof AndroidDialer !== 'undefined' && AndroidDialer.hasRecording(c.phone) ? 
+            '<div class="client-card-body" style="margin-top: 4px;">' +
+              '<div class="client-card-content-block" style="background:rgba(9,187,7,0.03); border-left:3px solid var(--accent-wechat); padding: 6px 8px; border-radius: 0 var(--radius-xs) var(--radius-xs) 0;">' +
+                '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px;">' +
+                  '<span class="client-card-label" style="color:var(--accent-wechat); font-weight:800; font-size:0.65rem;">通话录音</span>' +
+                  '<span style="font-size:0.6rem; color:var(--accent-wechat); font-weight:bold;">[本地录音就绪]</span>' +
+                '</div>' +
+                '<audio src="/api/local-recording?phone=' + encodeURIComponent(c.phone) + '" controls style="width: 100%; height: 32px; outline: none; margin-top: 4px; display: block;"></audio>' +
+              '</div>' +
+            '</div>' : '') +
           '<div class="client-card-actions">' +
             '<a href="tel:' + esc(c.phone) + '" class="btn-primary xls-card-dial-btn" data-idx="' + i + '" style="font-size:0.75rem;padding:2px 12px;height:28px;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;">拨打</a>' +
           '</div>' +
@@ -2993,6 +3009,20 @@ export const DIALER_HTML = `<!DOCTYPE html>
         dialLink.href = 'tel:' + c.phone;
       }
 
+      // Check and render local recording file if available
+      var recContainer = document.getElementById('callAssistRecContainer');
+      var audioWrapper = document.getElementById('callAssistAudioWrapper');
+      if (recContainer && audioWrapper) {
+        var hasRec = (typeof AndroidDialer !== 'undefined' && AndroidDialer.hasRecording(c.phone));
+        if (hasRec) {
+          audioWrapper.innerHTML = '<audio src="/api/local-recording?phone=' + encodeURIComponent(c.phone) + '" controls style="width: 100%; height: 32px; outline: none; margin-top: 4px; display: block;"></audio>';
+          recContainer.style.display = 'flex';
+        } else {
+          audioWrapper.innerHTML = '';
+          recContainer.style.display = 'none';
+        }
+      }
+
       document.getElementById('callAssistOverlay').classList.add('active');
     }
 
@@ -3018,6 +3048,17 @@ export const DIALER_HTML = `<!DOCTYPE html>
                 document.getElementById('callLogNote').value = '已接通，通话时长 ' + duration + ' 秒。';
               } else {
                 document.getElementById('callLogNote').value = '已拨打未接通。';
+              }
+            }
+
+            // Immediately check and display the new local recording file if available!
+            var recContainer = document.getElementById('callAssistRecContainer');
+            var audioWrapper = document.getElementById('callAssistAudioWrapper');
+            if (recContainer && audioWrapper) {
+              var hasRec = (typeof AndroidDialer !== 'undefined' && AndroidDialer.hasRecording(c.phone));
+              if (hasRec) {
+                audioWrapper.innerHTML = '<audio src="/api/local-recording?phone=' + encodeURIComponent(c.phone) + '" controls style="width: 100%; height: 32px; outline: none; margin-top: 4px; display: block;"></audio>';
+                recContainer.style.display = 'flex';
               }
             }
           }

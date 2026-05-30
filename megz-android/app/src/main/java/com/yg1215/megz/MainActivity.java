@@ -8,14 +8,17 @@ import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Environment;
 import android.provider.CallLog;
 import android.telecom.PhoneAccountHandle;
 import android.telecom.TelecomManager;
 import android.view.View;
+import android.webkit.JavascriptInterface;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceError;
 import android.webkit.WebResourceRequest;
+import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
@@ -30,6 +33,8 @@ import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.SwitchCompat;
 
+import java.io.File;
+import java.io.FileInputStream;
 import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
@@ -63,6 +68,16 @@ public class MainActivity extends AppCompatActivity {
     private ValueCallback<Uri[]> uploadMessage;
     private String pendingPhoneUrl;
     private long backPressedTime;
+
+    // Standard Chinese Android ROM Call Recording paths
+    private static final String[] RECORDING_PATHS = {
+        "/MIUI/sound_recorder/call_rec", // Xiaomi MIUI
+        "/Sounds/CallRecord",            // Huawei EMUI
+        "/record",                       // Huawei alternate
+        "/Record/PhoneRecord",           // OPPO ColorOS
+        "/Record/Call",                  // VIVO FuntouchOS
+        "/录音/通话录音"                   // General Chinese ROMs
+    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -180,6 +195,81 @@ public class MainActivity extends AppCompatActivity {
         // Customize clients
         webView.setWebViewClient(new CustomWebViewClient());
         webView.setWebChromeClient(new CustomWebChromeClient());
+
+        // Register custom JS Interface for Recording Files check
+        webView.addJavascriptInterface(new DialerJSInterface(), "AndroidDialer");
+    }
+
+    // JS Bridge class accessible in dialer_html.js
+    public class DialerJSInterface {
+        @JavascriptInterface
+        public boolean hasRecording(String phone) {
+            File rec = findCallRecordingFile(phone);
+            return rec != null && rec.exists();
+        }
+    }
+
+    // Chinese Android ROM call recording file scanner
+    private File findCallRecordingFile(String phoneNumber) {
+        String cleanNumber = phoneNumber.replaceAll("[^\\d]", "");
+        if (cleanNumber.isEmpty()) return null;
+
+        // 1. Try to query via MediaStore (Highly robust on Android 11+ and Tiramisu+)
+        try {
+            Uri uri = android.provider.MediaStore.Audio.Media.EXTERNAL_CONTENT_URI;
+            String[] projection = {
+                android.provider.MediaStore.Audio.Media.DATA,
+                android.provider.MediaStore.Audio.Media.DATE_MODIFIED
+            };
+            
+            // Search for audio files whose file path or display name contains the phone number
+            String selection = android.provider.MediaStore.Audio.Media.DATA + " LIKE ? OR " +
+                               android.provider.MediaStore.Audio.Media.DISPLAY_NAME + " LIKE ?";
+            String[] selectionArgs = new String[]{"%" + cleanNumber + "%", "%" + cleanNumber + "%"};
+            String sortOrder = android.provider.MediaStore.Audio.Media.DATE_MODIFIED + " DESC";
+            
+            Cursor cursor = getContentResolver().query(uri, projection, selection, selectionArgs, sortOrder);
+            if (cursor != null) {
+                if (cursor.moveToFirst()) {
+                    String filePath = cursor.getString(cursor.getColumnIndexOrThrow(android.provider.MediaStore.Audio.Media.DATA));
+                    cursor.close();
+                    if (filePath != null) {
+                        File file = new File(filePath);
+                        if (file.exists() && file.isFile()) {
+                            return file;
+                        }
+                    }
+                } else {
+                    cursor.close();
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        // 2. Fallback to direct directory scanning (for older versions or if MediaStore hasn't indexed yet)
+        File sdCard = Environment.getExternalStorageDirectory();
+        File bestMatch = null;
+        long latestTime = 0;
+
+        for (String path : RECORDING_PATHS) {
+            File dir = new File(sdCard, path);
+            if (dir.exists() && dir.isDirectory()) {
+                File[] files = dir.listFiles();
+                if (files != null) {
+                    for (File f : files) {
+                        if (f.isFile() && f.getName().contains(cleanNumber)) {
+                            long fileTime = f.lastModified();
+                            if (fileTime > latestTime) {
+                                latestTime = fileTime;
+                                bestMatch = f;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return bestMatch;
     }
 
     private void showResetUrlDialog() {
@@ -221,15 +311,35 @@ public class MainActivity extends AppCompatActivity {
             if (url.startsWith("tel:")) {
                 pendingPhoneUrl = url;
                 
-                // Request dynamic permissions for Direct Call and Call Logs simultaneously
-                if (androidx.core.content.ContextCompat.checkSelfPermission(MainActivity.this, android.Manifest.permission.CALL_PHONE) == android.content.pm.PERMISSION_GRANTED &&
-                    androidx.core.content.ContextCompat.checkSelfPermission(MainActivity.this, android.Manifest.permission.READ_CALL_LOG) == android.content.pm.PERMISSION_GRANTED) {
+                // Determine targeted permissions based on SDK Version (Android 13+)
+                String[] permissions;
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                    permissions = new String[]{
+                        android.Manifest.permission.CALL_PHONE,
+                        android.Manifest.permission.READ_CALL_LOG,
+                        android.Manifest.permission.READ_MEDIA_AUDIO
+                    };
+                } else {
+                    permissions = new String[]{
+                        android.Manifest.permission.CALL_PHONE,
+                        android.Manifest.permission.READ_CALL_LOG,
+                        android.Manifest.permission.READ_EXTERNAL_STORAGE
+                    };
+                }
+
+                // Check permissions
+                boolean hasAll = true;
+                for (String p : permissions) {
+                    if (androidx.core.content.ContextCompat.checkSelfPermission(MainActivity.this, p) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                        hasAll = false;
+                        break;
+                    }
+                }
+
+                if (hasAll) {
                     placeDirectCall(url);
                 } else {
-                    androidx.core.app.ActivityCompat.requestPermissions(MainActivity.this, new String[]{
-                        android.Manifest.permission.CALL_PHONE,
-                        android.Manifest.permission.READ_CALL_LOG
-                    }, REQUEST_CALL_PERMISSION);
+                    androidx.core.app.ActivityCompat.requestPermissions(MainActivity.this, permissions, REQUEST_CALL_PERMISSION);
                 }
                 return true;
             }
@@ -255,6 +365,36 @@ public class MainActivity extends AppCompatActivity {
             }
             // Standard web URL loading
             return false;
+        }
+
+        // Intercept local recording file streams and proxy them under same origin to bypass Same-Origin-Policy
+        @Override
+        public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
+            Uri uri = request.getUrl();
+            String path = uri.getPath();
+            
+            if (path != null && path.equals("/api/local-recording")) {
+                String phone = uri.getQueryParameter("phone");
+                if (phone != null) {
+                    File file = findCallRecordingFile(phone);
+                    if (file != null && file.exists()) {
+                        try {
+                            FileInputStream fis = new FileInputStream(file);
+                            
+                            // Map extension to correct audio MIME type
+                            String mimeType = "audio/mpeg";
+                            if (file.getName().endsWith(".wav")) mimeType = "audio/wav";
+                            else if (file.getName().endsWith(".amr")) mimeType = "audio/amr";
+                            else if (file.getName().endsWith(".m4a")) mimeType = "audio/mp4";
+                            
+                            return new WebResourceResponse(mimeType, "UTF-8", fis);
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                    }
+                }
+            }
+            return super.shouldInterceptRequest(view, request);
         }
 
         @Override
@@ -404,7 +544,7 @@ public class MainActivity extends AppCompatActivity {
             String phoneNumber = pendingPhoneUrl.replace("tel:", "").trim();
             pendingPhoneUrl = null; // Clear pending call immediately to avoid double execution on reload
             
-            // Query latest Outgoing Call duration in a small background handler or simple query
+            // Query latest Outgoing Call duration
             int duration = getLastOutgoingCallDuration(phoneNumber);
             if (duration >= 0) {
                 // Smoothly inject call duration directly back to the WebView's JS callback!
