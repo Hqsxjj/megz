@@ -4,9 +4,13 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.Bundle;
+import android.provider.CallLog;
+import android.telecom.PhoneAccountHandle;
+import android.telecom.TelecomManager;
 import android.view.View;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
@@ -18,29 +22,46 @@ import android.webkit.WebViewClient;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ProgressBar;
+import android.widget.RadioButton;
+import android.widget.RadioGroup;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.SwitchCompat;
+
+import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
 
     private static final String PREFS_NAME = "MegzPrefs";
     private static final String KEY_TARGET_URL = "targetUrl";
+    private static final String KEY_DUAL_SIM = "dualSimEnabled";
+    private static final String KEY_ROTATION_INTERVAL = "rotationInterval";
+    private static final String KEY_DIAL_COUNT = "dialCount";
+
     private static final int FILECHOOSER_RESULTCODE = 1;
     private static final int REQUEST_CALL_PERMISSION = 2;
-    private String pendingPhoneUrl;
 
     private WebView webView;
     private ProgressBar progressBar;
     private View offlineLayout;
     private View configLayout;
     private EditText editUrl;
+    private SwitchCompat switchDualSim;
+    private RadioGroup radioGroupInterval;
+    private RadioButton radio5;
+    private RadioButton radio10;
     private Button btnSaveUrl;
     private Button btnRetry;
 
     private String targetUrl;
+    private boolean dualSimEnabled;
+    private int rotationInterval;
+    private int dialCount;
+
     private ValueCallback<Uri[]> uploadMessage;
+    private String pendingPhoneUrl;
     private long backPressedTime;
 
     @Override
@@ -54,48 +75,70 @@ public class MainActivity extends AppCompatActivity {
         offlineLayout = findViewById(R.id.offlineLayout);
         configLayout = findViewById(R.id.configLayout);
         editUrl = findViewById(R.id.editUrl);
+        switchDualSim = findViewById(R.id.switchDualSim);
+        radioGroupInterval = findViewById(R.id.radioGroupInterval);
+        radio5 = findViewById(R.id.radio5);
+        radio10 = findViewById(R.id.radio10);
         btnSaveUrl = findViewById(R.id.btnSaveUrl);
         btnRetry = findViewById(R.id.btnRetry);
 
-        // Load targeted URL
+        // Load targeted configurations
         SharedPreferences prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
         targetUrl = prefs.getString(KEY_TARGET_URL, null);
+        dualSimEnabled = prefs.getBoolean(KEY_DUAL_SIM, true);
+        rotationInterval = prefs.getInt(KEY_ROTATION_INTERVAL, 5);
+        dialCount = prefs.getInt(KEY_DIAL_COUNT, 0);
 
-        btnSaveUrl.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                String inputUrl = editUrl.getText().toString().trim();
-                if (inputUrl.isEmpty()) {
-                    Toast.makeText(MainActivity.this, "请输入网址！", Toast.LENGTH_SHORT).show();
-                    return;
-                }
-                
-                // Prepend protocol if missing
-                if (!inputUrl.startsWith("http://") && !inputUrl.startsWith("https://")) {
-                    inputUrl = "https://" + inputUrl;
-                }
+        // Populate config UI values
+        switchDualSim.setChecked(dualSimEnabled);
+        if (rotationInterval == 10) {
+            radio10.setChecked(true);
+        } else {
+            radio5.setChecked(true);
+        }
 
-                // Persist URL
-                SharedPreferences.Editor editor = prefs.edit();
-                editor.putString(KEY_TARGET_URL, inputUrl);
-                editor.apply();
+        switchDualSim.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            findViewById(R.id.layoutInterval).setVisibility(isChecked ? View.VISIBLE : View.GONE);
+        });
+        findViewById(R.id.layoutInterval).setVisibility(dualSimEnabled ? View.VISIBLE : View.GONE);
 
-                targetUrl = inputUrl;
-                configLayout.setVisibility(View.GONE);
-                webView.setVisibility(View.VISIBLE);
-                
-                initWebViewSettings();
-                webView.loadUrl(targetUrl);
+        btnSaveUrl.setOnClickListener(v -> {
+            String inputUrl = editUrl.getText().toString().trim();
+            if (inputUrl.isEmpty()) {
+                Toast.makeText(MainActivity.this, "请输入网址！", Toast.LENGTH_SHORT).show();
+                return;
             }
+            
+            // Prepend protocol if missing
+            if (!inputUrl.startsWith("http://") && !inputUrl.startsWith("https://")) {
+                inputUrl = "https://" + inputUrl;
+            }
+
+            boolean isDualSimChecked = switchDualSim.isChecked();
+            int selectedInterval = radio10.isChecked() ? 10 : 5;
+
+            // Persist configurations
+            SharedPreferences.Editor editor = prefs.edit();
+            editor.putString(KEY_TARGET_URL, inputUrl);
+            editor.putBoolean(KEY_DUAL_SIM, isDualSimChecked);
+            editor.putInt(KEY_ROTATION_INTERVAL, selectedInterval);
+            editor.apply();
+
+            targetUrl = inputUrl;
+            dualSimEnabled = isDualSimChecked;
+            rotationInterval = selectedInterval;
+
+            configLayout.setVisibility(View.GONE);
+            webView.setVisibility(View.VISIBLE);
+            
+            initWebViewSettings();
+            webView.loadUrl(targetUrl);
         });
 
-        btnRetry.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                offlineLayout.setVisibility(View.GONE);
-                webView.setVisibility(View.VISIBLE);
-                webView.reload();
-            }
+        btnRetry.setOnClickListener(v -> {
+            offlineLayout.setVisibility(View.GONE);
+            webView.setVisibility(View.VISIBLE);
+            webView.reload();
         });
 
         // If URL not configured, show first launch config screen
@@ -108,12 +151,9 @@ public class MainActivity extends AppCompatActivity {
         }
         
         // Add URL reset configuration feature on long pressing the app backdrop/WebView top
-        findViewById(android.R.id.content).setOnLongClickListener(new View.OnLongClickListener() {
-            @Override
-            public boolean onLongClick(View v) {
-                showResetUrlDialog();
-                return true;
-            }
+        findViewById(android.R.id.content).setOnLongClickListener(v -> {
+            showResetUrlDialog();
+            return true;
         });
     }
 
@@ -145,19 +185,19 @@ public class MainActivity extends AppCompatActivity {
     private void showResetUrlDialog() {
         new AlertDialog.Builder(this)
                 .setTitle("重置系统网址")
-                .setMessage("确定要重置当前配置的系统服务网址吗？重置后可重新配置。")
-                .setPositiveButton("重置", new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        SharedPreferences prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
-                        SharedPreferences.Editor editor = prefs.edit();
-                        editor.remove(KEY_TARGET_URL);
-                        editor.apply();
-                        
-                        Toast.makeText(MainActivity.this, "配置已清空，请重新启动App或输入网址！", Toast.LENGTH_SHORT).show();
-                        webView.setVisibility(View.GONE);
-                        configLayout.setVisibility(View.VISIBLE);
-                    }
+                .setMessage("确定要重置当前配置的系统服务与拨号轮换设置吗？重置后可重新配置。")
+                .setPositiveButton("重置", (dialog, which) -> {
+                    SharedPreferences prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+                    SharedPreferences.Editor editor = prefs.edit();
+                    editor.remove(KEY_TARGET_URL);
+                    editor.remove(KEY_DUAL_SIM);
+                    editor.remove(KEY_ROTATION_INTERVAL);
+                    editor.remove(KEY_DIAL_COUNT);
+                    editor.apply();
+                    
+                    Toast.makeText(MainActivity.this, "配置已清空，请重新启动App或输入网址！", Toast.LENGTH_SHORT).show();
+                    webView.setVisibility(View.GONE);
+                    configLayout.setVisibility(View.VISIBLE);
                 })
                 .setNegativeButton("取消", null)
                 .show();
@@ -180,10 +220,16 @@ public class MainActivity extends AppCompatActivity {
             // Handle native dialing trigger
             if (url.startsWith("tel:")) {
                 pendingPhoneUrl = url;
-                if (androidx.core.content.ContextCompat.checkSelfPermission(MainActivity.this, android.Manifest.permission.CALL_PHONE) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                
+                // Request dynamic permissions for Direct Call and Call Logs simultaneously
+                if (androidx.core.content.ContextCompat.checkSelfPermission(MainActivity.this, android.Manifest.permission.CALL_PHONE) == android.content.pm.PERMISSION_GRANTED &&
+                    androidx.core.content.ContextCompat.checkSelfPermission(MainActivity.this, android.Manifest.permission.READ_CALL_LOG) == android.content.pm.PERMISSION_GRANTED) {
                     placeDirectCall(url);
                 } else {
-                    androidx.core.app.ActivityCompat.requestPermissions(MainActivity.this, new String[]{android.Manifest.permission.CALL_PHONE}, REQUEST_CALL_PERMISSION);
+                    androidx.core.app.ActivityCompat.requestPermissions(MainActivity.this, new String[]{
+                        android.Manifest.permission.CALL_PHONE,
+                        android.Manifest.permission.READ_CALL_LOG
+                    }, REQUEST_CALL_PERMISSION);
                 }
                 return true;
             }
@@ -273,12 +319,7 @@ public class MainActivity extends AppCompatActivity {
             new AlertDialog.Builder(MainActivity.this)
                     .setTitle("系统提示")
                     .setMessage(message)
-                    .setPositiveButton("确定", new DialogInterface.OnClickListener() {
-                        @Override
-                        public void onClick(DialogInterface dialog, int which) {
-                            result.confirm();
-                        }
-                    })
+                    .setPositiveButton("确定", (dialog, which) -> result.confirm())
                     .setCancelable(false)
                     .show();
             return true;
@@ -289,44 +330,54 @@ public class MainActivity extends AppCompatActivity {
             new AlertDialog.Builder(MainActivity.this)
                     .setTitle("系统确认")
                     .setMessage(message)
-                    .setPositiveButton("确定", new DialogInterface.OnClickListener() {
-                        @Override
-                        public void onClick(DialogInterface dialog, int which) {
-                            result.confirm();
-                        }
-                    })
-                    .setNegativeButton("取消", new DialogInterface.OnClickListener() {
-                        @Override
-                        public void onClick(DialogInterface dialog, int which) {
-                            result.cancel();
-                        }
-                    })
+                    .setPositiveButton("确定", (dialog, which) -> result.confirm())
+                    .setNegativeButton("取消", (dialog, which) -> result.cancel())
                     .setCancelable(false)
                     .show();
             return true;
         }
     }
 
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == FILECHOOSER_RESULTCODE) {
-            if (uploadMessage == null) return;
-            Uri[] results = null;
-            if (resultCode == RESULT_OK && data != null) {
-                String dataString = data.getDataString();
-                if (dataString != null) {
-                    results = new Uri[]{Uri.parse(dataString)};
-                }
-            }
-            uploadMessage.onReceiveValue(results);
-            uploadMessage = null;
-        }
-    }
-
     private void placeDirectCall(String url) {
         try {
             Intent intent = new Intent(Intent.ACTION_CALL, Uri.parse(url));
+            
+            // Advanced Dual-SIM Programmatic Rotation Extra Handling
+            if (dualSimEnabled) {
+                TelecomManager telecomManager = (TelecomManager) getSystemService(Context.TELECOM_SERVICE);
+                if (telecomManager != null) {
+                    try {
+                        List<PhoneAccountHandle> phoneAccounts = telecomManager.getCallCapablePhoneAccounts();
+                        if (phoneAccounts != null && phoneAccounts.size() >= 2) {
+                            // Increment dialCount persisted counter
+                            dialCount++;
+                            SharedPreferences prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+                            SharedPreferences.Editor editor = prefs.edit();
+                            editor.putInt(KEY_DIAL_COUNT, dialCount);
+                            editor.apply();
+
+                            // Calculate which SIM slot to place the call: 0 (SIM1) or 1 (SIM2)
+                            int targetSlot = (dialCount / rotationInterval) % phoneAccounts.size();
+                            PhoneAccountHandle targetHandle = phoneAccounts.get(targetSlot);
+                            
+                            // Attach PhoneAccountHandle extra to instruct system to call from targeted SIM
+                            intent.putExtra(TelecomManager.EXTRA_PHONE_ACCOUNT_HANDLE, targetHandle);
+                            
+                            // Highly premium cross-manufacturer compatible extras
+                            intent.putExtra("com.android.phone.extra.slot", targetSlot);
+                            intent.putExtra("phone", targetSlot);
+                            intent.putExtra("subscription", targetSlot);
+                            intent.putExtra("simSlot", targetSlot);
+                            intent.putExtra("slot", targetSlot);
+                            
+                            Toast.makeText(this, "智能双卡轮拨：正在使用卡 " + (targetSlot + 1) + " 拨出...", Toast.LENGTH_SHORT).show();
+                        }
+                    } catch (SecurityException se) {
+                        se.printStackTrace();
+                    }
+                }
+            }
+            
             startActivity(intent);
         } catch (SecurityException e) {
             fallbackToDial(url);
@@ -345,10 +396,86 @@ public class MainActivity extends AppCompatActivity {
     }
 
     @Override
+    protected void onResume() {
+        super.onResume();
+        
+        // Automated Outgoing Call Duration query injection
+        if (pendingPhoneUrl != null) {
+            String phoneNumber = pendingPhoneUrl.replace("tel:", "").trim();
+            pendingPhoneUrl = null; // Clear pending call immediately to avoid double execution on reload
+            
+            // Query latest Outgoing Call duration in a small background handler or simple query
+            int duration = getLastOutgoingCallDuration(phoneNumber);
+            if (duration >= 0) {
+                // Smoothly inject call duration directly back to the WebView's JS callback!
+                String js = "if (typeof onAndroidCallResult === 'function') { onAndroidCallResult(" + duration + "); }";
+                webView.evaluateJavascript(js, null);
+                Toast.makeText(this, "已自动获取通话记录，通话时长：" + duration + "秒", Toast.LENGTH_LONG).show();
+            }
+        }
+    }
+
+    private int getLastOutgoingCallDuration(String phoneNumber) {
+        if (androidx.core.content.ContextCompat.checkSelfPermission(this, android.Manifest.permission.READ_CALL_LOG) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            return -1;
+        }
+
+        // Standardize clean number for strict cross-matching
+        String cleanNumber = phoneNumber.replaceAll("[^\\d+]", "");
+        if (cleanNumber.isEmpty()) return -1;
+
+        Cursor cursor = null;
+        try {
+            cursor = getContentResolver().query(
+                    CallLog.Calls.CONTENT_URI,
+                    new String[]{CallLog.Calls.DURATION, CallLog.Calls.NUMBER, CallLog.Calls.DATE},
+                    CallLog.Calls.TYPE + " = ?",
+                    new String[]{String.valueOf(CallLog.Calls.OUTGOING_TYPE)},
+                    CallLog.Calls.DATE + " DESC"
+            );
+
+            if (cursor != null && cursor.moveToFirst()) {
+                long currentTime = System.currentTimeMillis();
+                do {
+                    String number = cursor.getString(cursor.getColumnIndex(CallLog.Calls.NUMBER));
+                    long date = cursor.getLong(cursor.getColumnIndex(CallLog.Calls.DATE));
+                    
+                    // Match the latest placed outgoing number (only match calls placed within the last 15 minutes)
+                    if (number != null && (currentTime - date < 900000)) {
+                        String cleanRecordNumber = number.replaceAll("[^\\d+]", "");
+                        if (cleanRecordNumber.contains(cleanNumber) || cleanNumber.contains(cleanRecordNumber)) {
+                            return cursor.getInt(cursor.getColumnIndex(CallLog.Calls.DURATION));
+                        }
+                    }
+                } while (cursor.moveToNext());
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            if (cursor != null) cursor.close();
+        }
+        return -1;
+    }
+
+    @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if (requestCode == REQUEST_CALL_PERMISSION) {
-            if (grantResults.length > 0 && grantResults[0] == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            boolean callGranted = false;
+            boolean logGranted = false;
+            
+            for (int i = 0; i < permissions.length; i++) {
+                if (permissions[i].equals(android.Manifest.permission.CALL_PHONE)) {
+                    callGranted = (grantResults[i] == android.content.pm.PackageManager.PERMISSION_GRANTED);
+                } else if (permissions[i].equals(android.Manifest.permission.READ_CALL_LOG)) {
+                    logGranted = (grantResults[i] == android.content.pm.PackageManager.PERMISSION_GRANTED);
+                }
+            }
+
+            if (callGranted) {
+                if (!logGranted) {
+                    Toast.makeText(this, "未授予通话记录读取权限，App无法自动提取拨打时长", Toast.LENGTH_LONG).show();
+                }
                 if (pendingPhoneUrl != null) {
                     placeDirectCall(pendingPhoneUrl);
                 }
@@ -358,7 +485,23 @@ public class MainActivity extends AppCompatActivity {
                     fallbackToDial(pendingPhoneUrl);
                 }
             }
-            pendingPhoneUrl = null;
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == FILECHOOSER_RESULTCODE) {
+            if (uploadMessage == null) return;
+            Uri[] results = null;
+            if (resultCode == RESULT_OK && data != null) {
+                String dataString = data.getDataString();
+                if (dataString != null) {
+                    results = new Uri[]{Uri.parse(dataString)};
+                }
+            }
+            uploadMessage.onReceiveValue(results);
+            uploadMessage = null;
         }
     }
 

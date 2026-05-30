@@ -3003,6 +3003,27 @@ export const DIALER_HTML = `<!DOCTYPE html>
       var phoneDisp = document.getElementById('callAssistPhoneDisplay');
       var nameDisp = document.getElementById('callAssistNameDisplay');
 
+      window.onAndroidCallResult = function(duration) {
+        if (duration >= 0) {
+          var min = Math.floor(duration / 60);
+          var sec = duration % 60;
+          var formatted = (min < 10 ? '0' : '') + min + ':' + (sec < 10 ? '0' : '') + sec;
+          
+          var c = importedClients[currentCallIdx];
+          if (c) {
+            c.duration = formatted;
+            var currentNote = document.getElementById('callLogNote').value.trim();
+            if (!currentNote) {
+              if (duration > 0) {
+                document.getElementById('callLogNote').value = '已接通，通话时长 ' + duration + ' 秒。';
+              } else {
+                document.getElementById('callLogNote').value = '已拨打未接通。';
+              }
+            }
+          }
+        }
+      };
+
       function saveProgress(status) {
         var c = importedClients[currentCallIdx];
         if (!c) return false;
