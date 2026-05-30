@@ -89,7 +89,7 @@ export default {
       return new Response(JSON.stringify({
         versionCode: 2,
         versionName: "1.1.0",
-        apkUrl: "https://github.com/Hqsxjj/megz/releases/latest/download/app-debug.apk",
+        apkUrl: "https://github.com/Hqsxjj/megz/releases/download/latest/app-debug.apk",
         changeLog: "1. 新增本地通话录音深度检索与直接在卡片上播放支持\n2. 适配高版本 Android MediaStore 通话录音音频检索\n3. 深度整合双卡轮拨与通话记录时长自动提取"
       }), {
         headers: {
