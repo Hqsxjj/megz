@@ -5,6 +5,14 @@
     android:layout_height="match_parent"
     android:background="@color/white">
 
+    <!-- ProgressBar (hidden, used for page load tracking only) -->
+    <ProgressBar
+        android:id="@+id/progressBar"
+        style="@android:style/Widget.ProgressBar.Horizontal"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:visibility="gone" />
+
     <!-- WebView Content -->
     <WebView
         android:id="@+id/webView"
