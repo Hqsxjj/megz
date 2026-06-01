@@ -117,8 +117,10 @@ public class MainActivity extends AppCompatActivity {
 
         // 3. Solid status bar — no overlay, content starts below system bars
         try {
+            getWindow().setNavigationBarColor(android.graphics.Color.WHITE);
             getWindow().getDecorView().setSystemUiVisibility(
                 android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
+                    | android.view.View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
             );
         } catch (Exception e) {
             e.printStackTrace();
@@ -645,8 +647,10 @@ public class MainActivity extends AppCompatActivity {
 
         // Re-apply solid status bar appearance
         try {
+            getWindow().setNavigationBarColor(android.graphics.Color.WHITE);
             getWindow().getDecorView().setSystemUiVisibility(
                 android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
+                    | android.view.View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
             );
         } catch (Exception e) {
             e.printStackTrace();
