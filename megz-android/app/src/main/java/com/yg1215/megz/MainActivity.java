@@ -115,28 +115,15 @@ public class MainActivity extends AppCompatActivity {
             }
         }
 
-        // 3. Enable Premium Immersive Full-Screen (Transparent Status & Bottom Navigation Bars, No black edges)
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
-            int flags = android.view.View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN |
-                        android.view.View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION |
-                        android.view.View.SYSTEM_UI_FLAG_LAYOUT_STABLE;
-            
+        // 3. True Full-Screen Immersive Sticky Mode — hide both status bar and navigation bar
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.KITKAT) {
+            int flags = android.view.View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                    | android.view.View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                    | android.view.View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                    | android.view.View.SYSTEM_UI_FLAG_FULLSCREEN
+                    | android.view.View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                    | android.view.View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY;
             getWindow().getDecorView().setSystemUiVisibility(flags);
-            getWindow().setStatusBarColor(android.graphics.Color.TRANSPARENT);
-            getWindow().setNavigationBarColor(android.graphics.Color.TRANSPARENT);
-            
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
-                flags |= android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
-            }
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                flags |= android.view.View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
-            }
-            getWindow().getDecorView().setSystemUiVisibility(flags);
-            
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
-                getWindow().setNavigationBarContrastEnforced(false);
-                getWindow().setStatusBarContrastEnforced(false);
-            }
         }
 
         setContentView(R.layout.activity_main);
@@ -155,38 +142,6 @@ public class MainActivity extends AppCompatActivity {
         btnSaveUrl = findViewById(R.id.btnSaveUrl);
         btnRetry = findViewById(R.id.btnRetry);
 
-        // Setup dynamic status bar and navigation bar margin spacing programmatically
-        int statusBarHeight = getStatusBarHeight();
-        int navBarHeight = getNavigationBarHeight();
-
-        // Programmatically set topMargin and bottomMargin for webView to prevent overlap
-        if (webView != null) {
-            android.widget.RelativeLayout.LayoutParams webViewParams = (android.widget.RelativeLayout.LayoutParams) webView.getLayoutParams();
-            if (webViewParams != null) {
-                webViewParams.topMargin = statusBarHeight;
-                webViewParams.bottomMargin = navBarHeight;
-                webView.setLayoutParams(webViewParams);
-            }
-        }
-
-        // Programmatically adjust top WeChat-style ProgressBar topMargin
-        if (progressBar != null) {
-            android.widget.RelativeLayout.LayoutParams progressParams = (android.widget.RelativeLayout.LayoutParams) progressBar.getLayoutParams();
-            if (progressParams != null) {
-                progressParams.topMargin = statusBarHeight;
-                progressBar.setLayoutParams(progressParams);
-            }
-        }
-
-        // Programmatically adjust the hidden settings button topMargin
-        View btnHiddenSettings = findViewById(R.id.btnHiddenSettings);
-        if (btnHiddenSettings != null) {
-            android.widget.RelativeLayout.LayoutParams settingsParams = (android.widget.RelativeLayout.LayoutParams) btnHiddenSettings.getLayoutParams();
-            if (settingsParams != null) {
-                settingsParams.topMargin = statusBarHeight;
-                btnHiddenSettings.setLayoutParams(settingsParams);
-            }
-        }
 
         // Load targeted configurations (defaulting to the user's domain immediately!)
         SharedPreferences prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
@@ -686,7 +641,18 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        
+
+        // Re-apply fullscreen immersive sticky flags (system bars may reappear after returning from another app)
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.KITKAT) {
+            int flags = android.view.View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                    | android.view.View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                    | android.view.View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                    | android.view.View.SYSTEM_UI_FLAG_FULLSCREEN
+                    | android.view.View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                    | android.view.View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY;
+            getWindow().getDecorView().setSystemUiVisibility(flags);
+        }
+
         // Automated Outgoing Call Duration query injection
         if (pendingPhoneUrl != null) {
             String phoneNumber = pendingPhoneUrl.replace("tel:", "").trim();
