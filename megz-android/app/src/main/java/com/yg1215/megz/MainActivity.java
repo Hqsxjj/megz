@@ -116,22 +116,21 @@ public class MainActivity extends AppCompatActivity {
         }
 
         // 3. True Edge-to-Edge — transparent system bars, content draws behind them
-        getWindow().setStatusBarColor(android.graphics.Color.TRANSPARENT);
-        getWindow().setNavigationBarColor(android.graphics.Color.TRANSPARENT);
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
-            getWindow().setDecorFitsSystemWindows(false);
-            android.view.WindowInsetsController controller = getWindow().getInsetsController();
-            if (controller != null) {
-                controller.setSystemBarsAppearance(
-                    android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS,
-                    android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS
-                );
-            }
-        } else if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+        try {
+            getWindow().setStatusBarColor(android.graphics.Color.TRANSPARENT);
+            getWindow().setNavigationBarColor(android.graphics.Color.TRANSPARENT);
             int flags = android.view.View.SYSTEM_UI_FLAG_LAYOUT_STABLE
                     | android.view.View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                    | android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
+                    | android.view.View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION;
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+                flags |= android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
+            }
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                flags |= android.view.View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
+            }
             getWindow().getDecorView().setSystemUiVisibility(flags);
+        } catch (Exception e) {
+            e.printStackTrace();
         }
 
         setContentView(R.layout.activity_main);
@@ -654,20 +653,19 @@ public class MainActivity extends AppCompatActivity {
         super.onResume();
 
         // Re-apply edge-to-edge transparent system bars
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
-            getWindow().setDecorFitsSystemWindows(false);
-            android.view.WindowInsetsController controller = getWindow().getInsetsController();
-            if (controller != null) {
-                controller.setSystemBarsAppearance(
-                    android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS,
-                    android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS
-                );
-            }
-        } else if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+        try {
             int flags = android.view.View.SYSTEM_UI_FLAG_LAYOUT_STABLE
                     | android.view.View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                    | android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
+                    | android.view.View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION;
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+                flags |= android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
+            }
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                flags |= android.view.View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
+            }
             getWindow().getDecorView().setSystemUiVisibility(flags);
+        } catch (Exception e) {
+            e.printStackTrace();
         }
 
         // Automated Outgoing Call Duration query injection
@@ -977,12 +975,16 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void injectSafeAreaInsets() {
-        int statusBarH = getStatusBarHeight();
-        int navBarH = getNavigationBarHeight();
-        String safeJs = "(function(){" +
-            "document.documentElement.style.setProperty('--status-bar-height','" + statusBarH + "px');" +
-            "document.documentElement.style.setProperty('--nav-bar-height','" + navBarH + "px');" +
-            "})()";
-        webView.evaluateJavascript(safeJs, null);
+        try {
+            int statusBarH = getStatusBarHeight();
+            int navBarH = getNavigationBarHeight();
+            String safeJs = "(function(){" +
+                "document.documentElement.style.setProperty('--status-bar-height','" + statusBarH + "px');" +
+                "document.documentElement.style.setProperty('--nav-bar-height','" + navBarH + "px');" +
+                "})()";
+            webView.evaluateJavascript(safeJs, null);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 }
