@@ -9,9 +9,8 @@
         <item name="colorSecondary">@color/accent_wechat</item>
         <item name="colorSecondaryVariant">@color/accent_wechat_dark</item>
         <item name="colorOnSecondary">@color/white</item>
-        <!-- Edge-to-edge: transparent system bars -->
-        <item name="android:statusBarColor">@android:color/transparent</item>
-        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <!-- Status bar: solid background matching page color -->
+        <item name="android:statusBarColor">@color/bg_app</item>
         <item name="android:windowLightStatusBar">true</item>
     </style>
 
