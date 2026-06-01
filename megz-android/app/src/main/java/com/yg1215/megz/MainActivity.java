@@ -487,8 +487,10 @@ public class MainActivity extends AppCompatActivity {
 
         @Override
         public void onPageStarted(WebView view, String url, Bitmap favicon) {
-            progressBar.setVisibility(View.VISIBLE);
-            progressBar.setProgress(0);
+            if (progressBar != null) {
+                progressBar.setVisibility(View.VISIBLE);
+                progressBar.setProgress(0);
+            }
             
             // Show premium loading overlay immediately when start loading
             if (loadingLayout != null) {
@@ -499,7 +501,7 @@ public class MainActivity extends AppCompatActivity {
 
         @Override
         public void onPageFinished(WebView view, String url) {
-            progressBar.setVisibility(View.GONE);
+            if (progressBar != null) progressBar.setVisibility(View.GONE);
 
             // Inject safe-area CSS custom properties for edge-to-edge rendering
             injectSafeAreaInsets();
@@ -535,6 +537,7 @@ public class MainActivity extends AppCompatActivity {
     private class CustomWebChromeClient extends WebChromeClient {
         @Override
         public void onProgressChanged(WebView view, int newProgress) {
+            if (progressBar == null) return;
             progressBar.setProgress(newProgress);
             if (newProgress == 100) {
                 progressBar.setVisibility(View.GONE);

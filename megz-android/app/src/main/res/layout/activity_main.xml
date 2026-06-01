@@ -12,14 +12,7 @@
         android:layout_height="match_parent"
         android:visibility="visible" />
 
-    <!-- Horizontal WeChat-style Loader ProgressBar -->
-    <ProgressBar
-        android:id="@+id/progressBar"
-        style="@android:style/Widget.ProgressBar.Horizontal"
-        android:layout_width="match_parent"
-        android:layout_height="3.5dp"
-        android:progressDrawable="@color/accent_wechat"
-        android:visibility="gone" />
+
 
     <!-- Hidden top-right Settings Trigger Area -->
     <View

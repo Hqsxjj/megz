@@ -697,6 +697,9 @@ export const DIALER_HTML = `<!DOCTYPE html>
         font-size: 0.72rem;
       }
     }
+    /* Android edge-to-edge safe area */
+    body.android .container { padding-top: calc(var(--status-bar-height, 0px) + 4px); padding-bottom: var(--nav-bar-height, 0px); }
+    body.android .modal-overlay { padding-top: var(--status-bar-height, 0px); padding-bottom: var(--nav-bar-height, 0px); }
   </style>
 </head>
 <body>
@@ -3357,6 +3360,14 @@ export const DIALER_HTML = `<!DOCTYPE html>
         });
       }
     }
+
+    // Android detection for CSS targeting
+    (function(){
+      var ua = navigator.userAgent || "";
+      if (/Android/.test(ua) && !/iPhone|iPad|iPod/.test(ua)) {
+        document.body.classList.add("android");
+      }
+    })();
 
     // Main Init
     initDark();
