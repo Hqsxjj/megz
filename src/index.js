@@ -1315,6 +1315,13 @@ export default {
     body.android .reset-mini { backdrop-filter: none; }
     /* Android 调整锁屏 PIN 框位置 */
     body.android .pin-box { top: 45%; }
+    /* Android edge-to-edge 安全区域 — 防止内容被状态栏/导航栏遮挡 */
+    body.android .container { padding-top: calc(var(--status-bar-height, 0px) + 10px); padding-bottom: calc(var(--nav-bar-height, 0px) + 4px); }
+    body.android .notify-bar { top: var(--status-bar-height, 0px); }
+    body.android .privacy-mask { padding-top: var(--status-bar-height, 0px); padding-bottom: var(--nav-bar-height, 0px); }
+    body.android .timer-container { top: calc(var(--status-bar-height, 0px) + 10%); }
+    /* Android edge-to-edge modal safe area */
+    body.android .modal-overlay { padding-top: var(--status-bar-height, 0px); padding-bottom: var(--nav-bar-height, 0px); }
   </style>
 </head>
 <body>

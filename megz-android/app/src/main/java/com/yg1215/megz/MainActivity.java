@@ -115,14 +115,22 @@ public class MainActivity extends AppCompatActivity {
             }
         }
 
-        // 3. True Full-Screen Immersive Sticky Mode — hide both status bar and navigation bar
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.KITKAT) {
+        // 3. True Edge-to-Edge — transparent system bars, content draws behind them
+        getWindow().setStatusBarColor(android.graphics.Color.TRANSPARENT);
+        getWindow().setNavigationBarColor(android.graphics.Color.TRANSPARENT);
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+            getWindow().setDecorFitsSystemWindows(false);
+            android.view.WindowInsetsController controller = getWindow().getInsetsController();
+            if (controller != null) {
+                controller.setSystemBarsAppearance(
+                    android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS,
+                    android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS
+                );
+            }
+        } else if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
             int flags = android.view.View.SYSTEM_UI_FLAG_LAYOUT_STABLE
                     | android.view.View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                    | android.view.View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-                    | android.view.View.SYSTEM_UI_FLAG_FULLSCREEN
-                    | android.view.View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                    | android.view.View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY;
+                    | android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
             getWindow().getDecorView().setSystemUiVisibility(flags);
         }
 
@@ -493,7 +501,10 @@ public class MainActivity extends AppCompatActivity {
         @Override
         public void onPageFinished(WebView view, String url) {
             progressBar.setVisibility(View.GONE);
-            
+
+            // Inject safe-area CSS custom properties for edge-to-edge rendering
+            injectSafeAreaInsets();
+
             // Smoothly fade out the loading overlay with professional alpha transition
             if (loadingLayout != null && loadingLayout.getVisibility() == View.VISIBLE) {
                 loadingLayout.animate()
@@ -642,14 +653,20 @@ public class MainActivity extends AppCompatActivity {
     protected void onResume() {
         super.onResume();
 
-        // Re-apply fullscreen immersive sticky flags (system bars may reappear after returning from another app)
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.KITKAT) {
+        // Re-apply edge-to-edge transparent system bars
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+            getWindow().setDecorFitsSystemWindows(false);
+            android.view.WindowInsetsController controller = getWindow().getInsetsController();
+            if (controller != null) {
+                controller.setSystemBarsAppearance(
+                    android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS,
+                    android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS
+                );
+            }
+        } else if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
             int flags = android.view.View.SYSTEM_UI_FLAG_LAYOUT_STABLE
                     | android.view.View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                    | android.view.View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-                    | android.view.View.SYSTEM_UI_FLAG_FULLSCREEN
-                    | android.view.View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                    | android.view.View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY;
+                    | android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
             getWindow().getDecorView().setSystemUiVisibility(flags);
         }
 
@@ -957,5 +974,15 @@ public class MainActivity extends AppCompatActivity {
             result = (int) (48 * getResources().getDisplayMetrics().density);
         }
         return result;
+    }
+
+    private void injectSafeAreaInsets() {
+        int statusBarH = getStatusBarHeight();
+        int navBarH = getNavigationBarHeight();
+        String safeJs = "(function(){" +
+            "document.documentElement.style.setProperty('--status-bar-height','" + statusBarH + "px');" +
+            "document.documentElement.style.setProperty('--nav-bar-height','" + navBarH + "px');" +
+            "})()";
+        webView.evaluateJavascript(safeJs, null);
     }
 }
