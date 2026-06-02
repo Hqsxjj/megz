@@ -5,13 +5,13 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- Base: blue-purple -->
+    <!-- Full background blue -->
     <path
         android:fillColor="#4A6CF7"
         android:pathData="M0,0h108v108h-108z" />
 
-    <!-- Gradient overlay: green from top-right to bottom-left -->
+    <!-- Bottom-right green triangle -->
     <path
         android:fillColor="#07C160"
-        android:pathData="M54,0 L108,0 L108,108 L0,108 L0,54 Z" />
+        android:pathData="M0,108 L108,0 L108,108 Z" />
 </vector>
