@@ -721,8 +721,10 @@ export const DIALER_HTML = `<!DOCTYPE html>
           <span id="percentText" style="font-size: 0.65rem; color: var(--text-light); margin-left: 2px;">(0%)</span>
         </div>
         
+        <!-- Auto Dial Toggle -->
+        <button id="autoDialBtn" title="自动拨打" style="font-size: 0.78rem; padding: 4px 10px; border: 1px solid var(--accent-wechat); background: var(--accent-wechat-bg); color: var(--accent-wechat); cursor: pointer; outline: none; font-weight: 700; border-radius: var(--radius-xs); margin-left: auto; margin-right: 8px; white-space: nowrap;">自动拨打</button>
         <!-- Dropdown Menu Trigger on the Right -->
-        <div style="position: relative; display: inline-block; margin-left: auto;">
+        <div style="position: relative; display: inline-block;">
           <button id="headerMenuBtn" title="更多设置" style="font-size: 0.8rem; padding: 4px 8px; border: none; background: transparent; cursor: pointer; outline: none; font-weight: 800; color: var(--text-soft);">更多</button>
           <div class="header-dropdown" id="headerDropdown" style="display: none;">
             <button class="dropdown-item sync-badge" id="syncStatusBadge">离线模式</button>
@@ -2952,13 +2954,16 @@ export const DIALER_HTML = `<!DOCTYPE html>
         var matchFilter = (currentFilter === 'all') || (c.dialedStatus === currentFilter);
         var matchQuery = true;
         if (query) {
-          matchQuery = c.name.toLowerCase().includes(query) || 
-                       c.phone.toLowerCase().includes(query) || 
+          matchQuery = c.name.toLowerCase().includes(query) ||
+                       c.phone.toLowerCase().includes(query) ||
                        c.company.toLowerCase().includes(query);
         }
         return matchFilter && matchQuery;
       });
 
+      if (currentIdx < 0 && filtered.length > 0) {
+        return importedClients.indexOf(filtered[0]);
+      }
       var currentClient = importedClients[currentIdx];
       var filteredPos = filtered.indexOf(currentClient);
       if (filteredPos !== -1 && filteredPos + 1 < filtered.length) {
@@ -3088,6 +3093,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
         return true;
       }
 
+      var autoDialActive = false;
       function handleOutcome(status) {
         if (!saveProgress(status)) return;
         saveState();
@@ -3096,11 +3102,56 @@ export const DIALER_HTML = `<!DOCTYPE html>
         var nextIdx = getNextClientIndex(currentCallIdx);
         if (nextIdx !== -1) {
           startCallAssistant(nextIdx);
+          if (autoDialActive) {
+            setTimeout(function() {
+              var link = document.getElementById('callAssistDialLink');
+              if (link && link.href) window.location.href = link.href;
+            }, 800);
+          }
         } else {
+          if (autoDialActive) {
+            autoDialActive = false;
+            updateAutoDialBtn();
+          }
           alert('已经是当前筛选列表的最后一位客户了！');
           overlay.classList.remove('active');
         }
       }
+
+      function updateAutoDialBtn() {
+        var btn = document.getElementById('autoDialBtn');
+        if (autoDialActive) {
+          btn.textContent = '暂停拨打';
+          btn.style.background = '#e74c3c';
+          btn.style.color = '#fff';
+          btn.style.borderColor = '#e74c3c';
+        } else {
+          btn.textContent = '自动拨打';
+          btn.style.background = '';
+          btn.style.color = '';
+          btn.style.borderColor = '';
+        }
+      }
+
+      document.getElementById('autoDialBtn').addEventListener('click', function() {
+        autoDialActive = !autoDialActive;
+        updateAutoDialBtn();
+        if (autoDialActive) {
+          if (currentCallIdx === -1) {
+            var firstIdx = getNextClientIndex(-1);
+            if (firstIdx !== -1) {
+              startCallAssistant(firstIdx);
+              setTimeout(function() {
+                var link = document.getElementById('callAssistDialLink');
+                if (link && link.href) window.location.href = link.href;
+              }, 800);
+            }
+          } else {
+            var link = document.getElementById('callAssistDialLink');
+            if (link && link.href) window.location.href = link.href;
+          }
+        }
+      });
 
       successBtn.addEventListener('click', function() {
         handleOutcome('success');
