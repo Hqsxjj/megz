@@ -139,7 +139,35 @@ export default {
       return fetch('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js');
     }
 
-    // 4. 服务拨号器单页 HTML
+    // 4. 服务 PWA manifest
+    if (path === '/manifest.json') {
+      const manifest = {
+        name: '每日工作',
+        short_name: '每日工作',
+        description: '每日工作追踪：微信、意向、上门、回款、待办',
+        start_url: '/',
+        display: 'standalone',
+        background_color: '#ededed',
+        theme_color: '#4a6cf7',
+        orientation: 'portrait',
+        icons: [
+          { src: '/icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any maskable' }
+        ]
+      };
+      return new Response(JSON.stringify(manifest), {
+        headers: { 'Content-Type': 'application/manifest+json', 'Access-Control-Allow-Origin': '*' }
+      });
+    }
+
+    // 5. 服务 App 图标 SVG
+    if (path === '/icon.svg') {
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><defs><linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#4a6cf7"/><stop offset="50%" stop-color="#6b8dff"/><stop offset="100%" stop-color="#07c160"/></linearGradient></defs><rect width="512" height="512" rx="110" fill="url(#bg)"/><rect x="72" y="96" width="368" height="344" rx="50" fill="none" stroke="white" stroke-width="22"/><line x1="72" y1="196" x2="440" y2="196" stroke="white" stroke-width="22"/><rect x="140" y="48" width="44" height="88" rx="22" fill="white"/><rect x="328" y="48" width="44" height="88" rx="22" fill="white"/><circle cx="180" cy="290" r="28" fill="white"/><circle cx="256" cy="290" r="28" fill="white"/><circle cx="332" cy="290" r="28" fill="white"/><circle cx="180" cy="380" r="28" fill="white"/><circle cx="256" cy="380" r="28" fill="white"/></svg>`;
+      return new Response(svg, {
+        headers: { 'Content-Type': 'image/svg+xml', 'Cache-Control': 'public, max-age=86400', 'Access-Control-Allow-Origin': '*' }
+      });
+    }
+
+    // 6. 服务拨号器单页 HTML
     if (path === '/dialer' || path === '/dialer/') {
       return new Response(DIALER_HTML, {
         headers: { 'Content-Type': 'text/html; charset=UTF-8' }
@@ -738,6 +766,13 @@ export default {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes, viewport-fit=cover, shrink-to-fit=no">
   <title>每日工作</title>
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#ededed" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#111111" media="(prefers-color-scheme: dark)">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/icon.svg">
+  <link rel="icon" href="/icon.svg" type="image/svg+xml">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     :root {
@@ -880,7 +915,7 @@ export default {
     .script-list { max-height: 180px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
     .script-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: var(--btn-bg); border-radius: var(--radius-xs); border: 1px solid var(--card-border); font-size: 0.78rem; color: var(--text-main); font-weight: 600; }
     .script-item-text { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-right: 8px; }
-    .app-shell { height: 100%; height: 100dvh; width: 100%; display: flex; flex-direction: column; overflow: hidden; position: relative; z-index: 1; }
+    .app-shell { height: 100%; height: 100dvh; width: 100%; display: flex; flex-direction: column; overflow: hidden; position: relative; z-index: 1; padding-top: env(safe-area-inset-top); }
     .container { flex: 1; display: flex; flex-direction: column; padding: 14px 18px 12px; overflow-y: auto; scrollbar-width: thin; -webkit-overflow-scrolling: touch; }
     .header-bar { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 20px; padding-bottom: 6px; border-bottom: 1px solid var(--border-light); flex-shrink: 0; }
     .title-section { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
