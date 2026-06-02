@@ -163,6 +163,8 @@ export default {
         wechatCount: 0,
         intentCount: 0,
         revisitCount: 0,
+        visitCount: 0,
+        paymentCount: 0,
         clients: [],
         todayTodos: [],
         tomorrowTodos: [],
@@ -171,8 +173,12 @@ export default {
       };
       if (!data.lastLoadDate) data.lastLoadDate = date;
       if (!data.tempClients) data.tempClients = [];
+      if (data.visitCount === undefined) data.visitCount = 0;
+      if (data.paymentCount === undefined) data.paymentCount = 0;
       // Inject global webhook URL so it persists across all dates and new days
       data.webhookUrl = await env.DATA_KV.get('config:webhook_url') || '';
+      // Inject goals
+      data.goals = JSON.parse(await env.DATA_KV.get('config:goals') || '{}');
       return new Response(JSON.stringify(data), {
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
       });
@@ -184,7 +190,7 @@ export default {
       const items = Array.isArray(body) ? body : [body];
       let hasError = false;
       for (const item of items) {
-        const { date, wechatCount, intentCount, revisitCount, clients, todayTodos, tomorrowTodos, tempClients, scripts, learns, todoLog, webhookUrl, _ts } = item;
+        const { date, wechatCount, intentCount, revisitCount, visitCount, paymentCount, clients, todayTodos, tomorrowTodos, tempClients, scripts, learns, todoLog, webhookUrl, _ts } = item;
         if (!date) { hasError = true; continue; }
         
         // If a non-empty Webhook URL is supplied, persist it globally
@@ -209,6 +215,8 @@ export default {
           wechatCount: Math.max(existing.wechatCount || 0, wechatCount || 0),
           intentCount: mergedClients.length,
           revisitCount: Math.max(existing.revisitCount || 0, revisitCount || 0),
+          visitCount: Math.max(existing.visitCount || 0, visitCount || 0),
+          paymentCount: Math.max(existing.paymentCount || 0, paymentCount || 0),
           clients: mergedClients,
           todayTodos: todayTodos || existing.todayTodos || [],
           tomorrowTodos: tomorrowTodos || existing.tomorrowTodos || [],
@@ -246,7 +254,7 @@ export default {
       }
       const raw = await env.DATA_KV.get(`work:${date}`);
       const data = raw ? JSON.parse(raw) : {
-        date, wechatCount: 0, intentCount: 0, revisitCount: 0, clients: [],
+        date, wechatCount: 0, intentCount: 0, revisitCount: 0, visitCount: 0, paymentCount: 0, clients: [],
         todayTodos: [], tomorrowTodos: [], tempClients: [], scripts: [], learns: [], todoLog: []
       };
       if (!data.tempClients) data.tempClients = [];
@@ -260,6 +268,16 @@ export default {
         case 'incRevisit': {
           const delta = body.delta || 0;
           data.revisitCount = Math.max((data.revisitCount || 0) + delta, 0);
+          break;
+        }
+        case 'incVisit': {
+          const delta = body.delta || 0;
+          data.visitCount = Math.max((data.visitCount || 0) + delta, 0);
+          break;
+        }
+        case 'incPayment': {
+          const delta = body.delta || 0;
+          data.paymentCount = Math.max((data.paymentCount || 0) + delta, 0);
           break;
         }
         case 'addClient': {
@@ -340,6 +358,9 @@ export default {
           data.webhookUrl = body.webhookUrl || '';
           await env.DATA_KV.put('config:webhook_url', data.webhookUrl);
           break;
+        case 'setGoals':
+          await env.DATA_KV.put('config:goals', JSON.stringify(body.goals || {}));
+          break;
         default:
           return new Response(JSON.stringify({ error: '未知操作: ' + op }), {
             status: 400,
@@ -374,7 +395,9 @@ export default {
             calendar[dateKey] = {
               w: d.wechatCount || 0,
               i: d.intentCount || 0,
-              r: d.revisitCount || 0
+              r: d.revisitCount || 0,
+              v: d.visitCount || 0,
+              p: d.paymentCount || 0
             };
           } catch(e) {}
         }
@@ -395,7 +418,7 @@ export default {
       }
       const keys = await getAllKVKeys(env, 'work:' + month);
       const keyValues = await getKVValuesConcurrently(env, keys);
-      let weekW = 0, monthW = 0, weekI = 0, monthI = 0, weekR = 0, monthR = 0;
+      let weekW = 0, monthW = 0, weekI = 0, monthI = 0, weekR = 0, monthR = 0, weekV = 0, monthV = 0, weekP = 0, monthP = 0;
       const today = new Date();
       const dow = today.getDay();
       const diff = (dow === 0 ? 6 : dow - 1);
@@ -410,15 +433,20 @@ export default {
             monthW += d.wechatCount || 0;
             monthI += d.intentCount || 0;
             monthR += d.revisitCount || 0;
+            monthV += d.visitCount || 0;
+            monthP += d.paymentCount || 0;
             if (d.date >= monStr && d.date <= todayStr) {
               weekW += d.wechatCount || 0;
               weekI += d.intentCount || 0;
               weekR += d.revisitCount || 0;
+              weekV += d.visitCount || 0;
+              weekP += d.paymentCount || 0;
             }
           } catch(e) {}
         }
       }
-      return new Response(JSON.stringify({ weekW, monthW, weekI, monthI, weekR, monthR }), {
+      const goals = JSON.parse(await env.DATA_KV.get('config:goals') || '{}');
+      return new Response(JSON.stringify({ weekW, monthW, weekI, monthI, weekR, monthR, weekV, monthV, weekP, monthP, goals }), {
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
       });
     }
@@ -739,6 +767,8 @@ export default {
       --wechat-gradient: linear-gradient(135deg, #b7f0ce 0%, #6be89d 50%, #1aad5a 100%);
       --intent-gradient: linear-gradient(135deg, #ffe0b2 0%, #ffb74d 50%, #f57c00 100%);
       --revisit-gradient: linear-gradient(135deg, #d1e0ff 0%, #7b9ff5 50%, #4a6cf7 100%);
+      --visit-gradient: linear-gradient(135deg, #c8e6c9 0%, #66bb6a 50%, #388e3c 100%);
+      --payment-gradient: linear-gradient(135deg, #fff9c4 0%, #ffd54f 50%, #f9a825 100%);
       --today-gradient: linear-gradient(135deg, #ffe0cc 0%, #ffab7a 50%, #ff7744 100%);
       --stats-gradient: linear-gradient(135deg, #d4f0f0 0%, #80cbc4 50%, #26a69a 100%);
       --wallpaper-url: '';
@@ -767,6 +797,8 @@ export default {
       --wechat-gradient: linear-gradient(135deg, #0d3320 0%, #144d2e 50%, #1a6b3a 100%);
       --intent-gradient: linear-gradient(135deg, #332010 0%, #4d2e14 50%, #6b3a1a 100%);
       --revisit-gradient: linear-gradient(135deg, #1a2233 0%, #2a354d 50%, #3a4d6b 100%);
+      --visit-gradient: linear-gradient(135deg, #1b3320 0%, #2d5a30 50%, #3d7a40 100%);
+      --payment-gradient: linear-gradient(135deg, #332b10 0%, #5a4a1a 50%, #7a6a20 100%);
       --today-gradient: linear-gradient(135deg, #2a1a0d 0%, #3d2614 50%, #52331a 100%);
       --stats-gradient: linear-gradient(135deg, #0d2626 0%, #143d3d 50%, #1a5252 100%);
       --wallpaper-opacity: 0.12;
@@ -792,6 +824,8 @@ export default {
     .pin-wechat-value { background: var(--wechat-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
     .pin-intent-value { background: var(--intent-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
     .pin-revisit-value { background: var(--revisit-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .pin-visit-value { background: var(--visit-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .pin-payment-value { background: var(--payment-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
     .pin-input { width: 196px; padding: 11px 20px; border-radius: var(--radius-xs); border: 1.5px solid rgba(0,0,0,0.08); background: #fafafa; text-align: center; font-size: 1.4rem; letter-spacing: 7px; color: var(--text-main); outline: none; font-weight: 700; transition: all 0.3s; }
     body.dark-mode .pin-input { background: rgba(38,38,38,0.6); border-color: rgba(255,255,255,0.08); }
     .pin-input:focus { border-color: var(--accent-wechat); box-shadow: 0 0 0 4px rgba(7,193,96,0.25); background: #ffffff; }
@@ -821,6 +855,9 @@ export default {
     body.dark-mode .timer-btn-reset { background: rgba(255,255,255,0.06); }
     body.dark-mode .icon-simple { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.06); color: var(--text-main); }
     body.dark-mode .icon-simple:hover { background: rgba(255,255,255,0.1); box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+    body.dark-mode .goal-chip.goal-met { background: rgba(7,193,96,0.2); color: #2ecc71; border-color: rgba(7,193,96,0.35); }
+    body.dark-mode .goal-chip.goal-half { background: rgba(255,154,60,0.2); color: #f0a04b; border-color: rgba(255,154,60,0.35); }
+    body.dark-mode .goal-chip.goal-low { background: rgba(231,76,60,0.2); color: #f07070; border-color: rgba(231,76,60,0.35); }
     body.dark-mode .sync-indicator { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.06); color: var(--text-main); }
     body.dark-mode .sync-indicator:hover { background: rgba(255,255,255,0.1); box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
     .timer-btn-reset:hover { background: rgba(0,0,0,0.08); }
@@ -849,6 +886,11 @@ export default {
     .title-section { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
     h3 { font-size: 1.45rem; font-weight: 800; letter-spacing: -0.2px; color: var(--text-main); }
     .date-chip { background: var(--card-bg); padding: 4px 12px; border-radius: var(--radius-xs); font-size: 0.75rem; font-weight: 700; color: var(--text-soft); border: 1px solid var(--card-border); }
+    .goal-chips { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .goal-chip { font-size: 0.65rem; font-weight: 700; padding: 2px 8px; border-radius: 12px; white-space: nowrap; border: 1px solid transparent; cursor: default; }
+    .goal-chip.goal-met { background: rgba(7,193,96,0.15); color: #07c160; border-color: rgba(7,193,96,0.3); }
+    .goal-chip.goal-half { background: rgba(255,154,60,0.15); color: #e67e22; border-color: rgba(255,154,60,0.3); }
+    .goal-chip.goal-low { background: rgba(231,76,60,0.12); color: #e74c3c; border-color: rgba(231,76,60,0.25); }
     .action-group { display: flex; gap: 10px; align-items: center; padding: 2px; position: relative; }
     .icon-simple { background: #f5f5f5; border: 1px solid rgba(0,0,0,0.04); min-width: 38px; height: 38px; padding: 0 6px; border-radius: var(--radius-xs); display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 0.78rem; color: var(--text-soft); transition: all 0.2s cubic-bezier(0.34,1.56,0.64,1); user-select: none; font-weight: 600; position: relative; white-space: nowrap; }
     .icon-simple:hover { background: #e8e8e8; transform: translateY(-2px) scale(1.06); box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
@@ -873,6 +915,10 @@ export default {
     .intent-fill::before { background: var(--intent-gradient); }
     .revisit-fill { background: var(--revisit-gradient); color: white; }
     .revisit-fill::before { background: var(--revisit-gradient); }
+    .visit-fill { background: var(--visit-gradient); color: white; }
+    .visit-fill::before { background: var(--visit-gradient); }
+    .payment-fill { background: var(--payment-gradient); color: white; }
+    .payment-fill::before { background: var(--payment-gradient); }
     .counter-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; position: relative; z-index: 1; }
     .counter-label { font-size: 0.8rem; font-weight: 700; color: rgba(255,255,255,0.95); text-shadow: 0 1px 2px rgba(0,0,0,0.1); }
     .reset-mini { background: rgba(255,255,255,0.3); border: none; font-size: 0.7rem; color: rgba(255,255,255,0.9); cursor: pointer; padding: 4px 8px; border-radius: var(--radius-xs); font-weight: 600; position: relative; z-index: 1; backdrop-filter: blur(4px); }
@@ -1355,6 +1401,8 @@ export default {
       <div class="pin-stat-item"><span class="pin-stat-label">今日微信</span><span class="pin-stat-value pin-wechat-value" id="pinWechatNum">0</span></div>
       <div class="pin-stat-item"><span class="pin-stat-label">今日意向</span><span class="pin-stat-value pin-intent-value" id="pinIntentNum">0</span></div>
       <div class="pin-stat-item"><span class="pin-stat-label">今日回访</span><span class="pin-stat-value pin-revisit-value" id="pinRevisitNum">0</span></div>
+      <div class="pin-stat-item"><span class="pin-stat-label">今日上门</span><span class="pin-stat-value pin-visit-value" id="pinVisitNum">0</span></div>
+      <div class="pin-stat-item"><span class="pin-stat-label">今日回款</span><span class="pin-stat-value pin-payment-value" id="pinPaymentNum">0</span></div>
     </div>
     <input type="password" class="pin-input" id="pinInput" placeholder="" maxlength="6" inputmode="numeric" autofocus>
     <button class="pin-btn" id="pinUnlockBtn">解锁进入</button>
@@ -1364,7 +1412,7 @@ export default {
 <div class="app-shell">
   <div class="container">
     <div class="header-bar">
-      <div class="title-section"><h3>每日工作</h3><div class="date-chip" id="liveDate"></div></div>
+      <div class="title-section"><h3>每日工作</h3><div class="date-chip" id="liveDate"></div><div class="goal-chips" id="goalChips"></div></div>
       <div class="action-group">
         <button class="sync-indicator" id="syncBtn" title="点击手动同步"><span class="sync-icon" id="syncIcon">⇅</span><span id="syncLabel">同步中</span><div class="sync-tooltip" id="syncTooltip">正在连接...</div></button>
         <button class="icon-simple" id="allClientsBtn" title="意向客户全量表">全量</button>
@@ -1376,6 +1424,7 @@ export default {
           <button class="menu-item" id="scriptBtn">话术管理</button>
           <button class="menu-item" id="learnBtn">学习管理</button>
           <button class="menu-item" id="exportBtn">导出数据</button>
+          <button class="menu-item" id="goalBtn">目标设定</button>
           <button class="menu-item" id="darkToggleBtn">深色模式</button>
         </div>
       </div>
@@ -1398,6 +1447,18 @@ export default {
             <div class="button-group"><button class="circle-btn" id="revisitMinus">−</button><button class="circle-btn btn-special" id="revisitPlus">+</button></div>
           </div>
         </div>
+        <div class="counter-row">
+          <div class="counter-card visit-fill">
+            <div class="counter-header"><span class="counter-label">今日上门</span></div>
+            <div class="counter-value" id="visitNum">0</div>
+            <div class="button-group"><button class="circle-btn" id="visitMinus">−</button><button class="circle-btn btn-special" id="visitPlus">+</button></div>
+          </div>
+          <div class="counter-card payment-fill">
+            <div class="counter-header"><span class="counter-label">今日回款</span></div>
+            <div class="counter-value" id="paymentNum">0</div>
+            <div class="button-group"><button class="circle-btn" id="paymentMinus">−</button><button class="circle-btn btn-special" id="paymentPlus">+</button></div>
+          </div>
+        </div>
         <div class="stats-row">
           <div class="stat-block stat-wechat"><span class="label">微·本周</span> <span class="number" id="weekWechat">0</span></div>
           <div class="stat-block stat-wechat"><span class="label">微·本月</span> <span class="number" id="monthWechat">0</span></div>
@@ -1405,6 +1466,10 @@ export default {
           <div class="stat-block stat-intent"><span class="label">意·本月</span> <span class="number" id="monthIntent">0</span></div>
           <div class="stat-block stat-revisit"><span class="label">访·本周</span> <span class="number" id="weekRevisit">0</span></div>
           <div class="stat-block stat-revisit"><span class="label">访·本月</span> <span class="number" id="monthRevisit">0</span></div>
+          <div class="stat-block" style="background:var(--visit-gradient);"><span class="label">上门·本周</span> <span class="number" id="weekVisit">0</span></div>
+          <div class="stat-block" style="background:var(--visit-gradient);"><span class="label">上门·本月</span> <span class="number" id="monthVisit">0</span></div>
+          <div class="stat-block" style="background:var(--payment-gradient);"><span class="label">回款·本周</span> <span class="number" id="weekPayment">0</span></div>
+          <div class="stat-block" style="background:var(--payment-gradient);"><span class="label">回款·本月</span> <span class="number" id="monthPayment">0</span></div>
         </div>
         <div class="card calendar-compact">
           <div class="cal-head" id="calMonthTitle"></div>
@@ -1517,10 +1582,27 @@ export default {
     <div id="modalClientList" class="client-modal-list"></div>
   </div>
 </div>
+<div id="goalModal" class="modal-overlay">
+  <div class="modal-card" style="max-width:420px;">
+    <div class="modal-header"><span>目标设定</span><button id="closeGoalModalBtn">×</button></div>
+    <div style="display:flex;flex-direction:column;gap:12px;">
+      <div style="font-size:0.75rem;font-weight:800;color:var(--text-soft);border-bottom:1px solid var(--border-light);padding-bottom:4px;">每周目标</div>
+      <div style="display:flex;gap:8px;align-items:center;"><label style="font-size:0.8rem;font-weight:600;min-width:60px;">上门</label><input type="number" class="input-simple" id="goalWeeklyVisit" min="0" placeholder="0" style="flex:1;"></div>
+      <div style="display:flex;gap:8px;align-items:center;"><label style="font-size:0.8rem;font-weight:600;min-width:60px;">微信</label><input type="number" class="input-simple" id="goalWeeklyWechat" min="0" placeholder="0" style="flex:1;"></div>
+      <div style="font-size:0.75rem;font-weight:800;color:var(--text-soft);border-bottom:1px solid var(--border-light);padding-bottom:4px;margin-top:4px;">每月目标</div>
+      <div style="display:flex;gap:8px;align-items:center;"><label style="font-size:0.8rem;font-weight:600;min-width:60px;">微信</label><input type="number" class="input-simple" id="goalMonthlyWechat" min="0" placeholder="0" style="flex:1;"></div>
+      <div style="display:flex;gap:8px;align-items:center;"><label style="font-size:0.8rem;font-weight:600;min-width:60px;">上门</label><input type="number" class="input-simple" id="goalMonthlyVisit" min="0" placeholder="0" style="flex:1;"></div>
+      <div style="display:flex;gap:8px;align-items:center;"><label style="font-size:0.8rem;font-weight:600;min-width:60px;">回款</label><input type="number" class="input-simple" id="goalMonthlyPayment" min="0" placeholder="0" style="flex:1;"></div>
+      <button class="btn-add" id="saveGoalBtn" style="width:100%;margin-top:4px;">保存目标</button>
+      <div id="goalStatus" style="font-size:0.75rem;text-align:center;min-height:20px;color:var(--text-soft);"></div>
+    </div>
+  </div>
+</div>
 
 <script>
 (function(){
   const WECHAT_K='wechat_v3', INTENT_K='intent_v3', CLIENTS_K='clients_v3', REVISIT_K='revisit_v1';
+  const VISIT_K='visit_v1', PAYMENT_K='payment_v1', GOALS_K='goals_v1';
   const DARK_K='dark_mode', LOCK_K='locked', TODAY_TODO_K='today_todo_v2', TOMORROW_TODO_K='tomorrow_todo_v2';
   const LAST_LOAD_DATE_K='last_load_date_v1', WALLPAPER_K='wp_cache', SCRIPTS_K='scripts_v1', LEARN_K='learn_v1', LOCAL_TS_K='local_ts_v1';
   const TEMP_CLIENTS_K='temp_clients_v1';
@@ -1536,6 +1618,8 @@ export default {
   const saveMap=(k,o)=>localStorage.setItem(k,JSON.stringify(o));
   const loadTodos=k=>{try{const d=JSON.parse(localStorage.getItem(k))||[];return d.map(t=>typeof t==='string'?{text:t,time:'',date:getTodayStr()}:t);}catch(e){return[];}};
   const saveTodos=(k,a)=>localStorage.setItem(k,JSON.stringify(a));
+  const loadGoals=()=>{try{return JSON.parse(localStorage.getItem(GOALS_K))||{};}catch(e){return{};}};
+  const saveGoals=(g)=>localStorage.setItem(GOALS_K,JSON.stringify(g));
   const pushTodoLog=async (todo,ds)=>{syncOp('pushTodoLog',{todo});};
   const esc=s=>String(s).replace(/[&<>]/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;' })[m]||m);
   const maskPhone=p=>{if(!p||p.length<7)return '****';return '****'.repeat(Math.ceil(p.length/4));};
@@ -1654,13 +1738,15 @@ export default {
     const today=getTodayStr();
     const wm=loadMap(WECHAT_K);
     const rm=loadMap(REVISIT_K);
+    const vm=loadMap(VISIT_K);
+    const pm=loadMap(PAYMENT_K);
     const allClients=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
     const webhookUrl=localStorage.getItem('webhook_url')||'';
-    
+
     if(full){
       const scripts=loadScripts();
       const learns=loadLearns();
-      const dates = new Set([...Object.keys(wm), ...Object.keys(rm), ...allClients.map(c=>c.date).filter(Boolean), today]);
+      const dates = new Set([...Object.keys(wm), ...Object.keys(rm), ...Object.keys(vm), ...Object.keys(pm), ...allClients.map(c=>c.date).filter(Boolean), today]);
       const ts = Date.now();
       const payload = [];
       for(const d of dates){
@@ -1670,6 +1756,8 @@ export default {
           wechatCount:wm[d]||0,
           intentCount:dClients.length,
           revisitCount:rm[d]||0,
+          visitCount:vm[d]||0,
+          paymentCount:pm[d]||0,
           clients:dClients,
           webhookUrl:webhookUrl,
           _ts:ts
@@ -1693,6 +1781,8 @@ export default {
         wechatCount:wm[today]||0,
         intentCount:todayClients.length,
         revisitCount:rm[today]||0,
+        visitCount:vm[today]||0,
+        paymentCount:pm[today]||0,
         clients:todayClients,
         todayTodos:loadTodos(TODAY_TODO_K).filter(t=>(typeof t==='string'?today:(t.date||today))===today),
         tomorrowTodos:loadTodos(TOMORROW_TODO_K).filter(t=>(typeof t==='string'?today:(t.date||today))===today),
@@ -1727,6 +1817,16 @@ export default {
       const rm=loadMap(REVISIT_K);
       rm[today]=Math.max(rm[today]||0, data.revisitCount||0);
       saveMap(REVISIT_K,rm);
+      // 上门计数取最大值
+      const vm=loadMap(VISIT_K);
+      vm[today]=Math.max(vm[today]||0, data.visitCount||0);
+      saveMap(VISIT_K,vm);
+      // 回款计数取最大值
+      const pm=loadMap(PAYMENT_K);
+      pm[today]=Math.max(pm[today]||0, data.paymentCount||0);
+      saveMap(PAYMENT_K,pm);
+      // 目标：云端版本为准
+      if(data.goals!==undefined)saveGoals(data.goals);
       // 客户列表：合并（取并集），云端新增的保留，本地新增的也保留
       if(data.clients!==undefined){
         const allClients=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
@@ -1772,6 +1872,9 @@ export default {
     const wm=loadMap(WECHAT_K);wm[date]=data.wechatCount||0;saveMap(WECHAT_K,wm);
     const im=loadMap(INTENT_K);im[date]=data.intentCount||0;saveMap(INTENT_K,im);
     const rm=loadMap(REVISIT_K);rm[date]=data.revisitCount||0;saveMap(REVISIT_K,rm);
+    const vm=loadMap(VISIT_K);vm[date]=data.visitCount||0;saveMap(VISIT_K,vm);
+    const pm=loadMap(PAYMENT_K);pm[date]=data.paymentCount||0;saveMap(PAYMENT_K,pm);
+    if(data.goals!==undefined)saveGoals(data.goals);
     if(data.clients!==undefined){
       const all=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
       const nonDay=all.filter(c=>c.date!==date);
@@ -2177,8 +2280,27 @@ export default {
     }
   }
 
+  function renderGoalChips(){
+    const container=document.getElementById('goalChips');
+    const wm=loadMap(WECHAT_K),vm=loadMap(VISIT_K),pm=loadMap(PAYMENT_K);
+    const goals=loadGoals();
+    let html='';
+    const makeChip=(label,actual,target)=>{
+      if(!target||target<=0)return'';
+      const pct=Math.round(actual/target*100);
+      const cls=pct>=100?'goal-met':pct>=50?'goal-half':'goal-low';
+      return `<span class="goal-chip ${cls}">${label} ${actual}/${target}</span>`;
+    };
+    html+=makeChip('周上',getWeekTotal(vm),goals.weeklyVisit);
+    html+=makeChip('周微',getWeekTotal(wm),goals.weeklyWechat);
+    html+=makeChip('月微',getMonthTotal(wm),goals.monthlyWechat);
+    html+=makeChip('月访',getMonthTotal(vm),goals.monthlyVisit);
+    html+=makeChip('月款',getMonthTotal(pm),goals.monthlyPayment);
+    container.innerHTML=html;
+  }
+
   function refreshAll(){
-    const wm=loadMap(WECHAT_K),im=loadMap(INTENT_K),rm=loadMap(REVISIT_K),today=getTodayStr();
+    const wm=loadMap(WECHAT_K),im=loadMap(INTENT_K),rm=loadMap(REVISIT_K),vm=loadMap(VISIT_K),pm=loadMap(PAYMENT_K),today=getTodayStr();
     // 意向计数直接从当日客户数派生，确保永远准确
     const allClients=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
     const todayClients=allClients.filter(c=>c.date===today);
@@ -2187,18 +2309,27 @@ export default {
     document.getElementById('wechatNum').innerText=wm[today]||0;
     document.getElementById('intentNum').innerText=todayIntent;
     document.getElementById('revisitNum').innerText=rm[today]||0;
+    document.getElementById('visitNum').innerText=vm[today]||0;
+    document.getElementById('paymentNum').innerText=pm[today]||0;
     document.getElementById('pinWechatNum').innerText=wm[today]||0;
     document.getElementById('pinIntentNum').innerText=todayIntent;
     document.getElementById('pinRevisitNum').innerText=rm[today]||0;
+    document.getElementById('pinVisitNum').innerText=vm[today]||0;
+    document.getElementById('pinPaymentNum').innerText=pm[today]||0;
     document.getElementById('weekWechat').innerText=getWeekTotal(wm);
     document.getElementById('monthWechat').innerText=getMonthTotal(wm);
     document.getElementById('weekIntent').innerText=getWeekTotal(im);
     document.getElementById('monthIntent').innerText=getMonthTotal(im);
     document.getElementById('weekRevisit').innerText=getWeekTotal(rm);
     document.getElementById('monthRevisit').innerText=getMonthTotal(rm);
+    document.getElementById('weekVisit').innerText=getWeekTotal(vm);
+    document.getElementById('monthVisit').innerText=getMonthTotal(vm);
+    document.getElementById('weekPayment').innerText=getWeekTotal(pm);
+    document.getElementById('monthPayment').innerText=getMonthTotal(pm);
     const now=new Date();const wk=['周日','周一','周二','周三','周四','周五','周六'];
     document.getElementById('liveDate').innerHTML=(now.getMonth()+1)+'月'+now.getDate()+'日 '+wk[now.getDay()];
     renderCalendar(wm,im);renderClientList();renderTodos();renderTempClientList();
+    renderGoalChips();
   }
 
   async function modCounter(key,delta,op){
@@ -2554,6 +2685,38 @@ export default {
     updateDarkTitle();
     btn.addEventListener('click',()=>{document.body.classList.toggle('dark-mode');localStorage.setItem(DARK_K,document.body.classList.contains('dark-mode'));updateDarkTitle();});
   }
+  function initGoals(){
+    const modal=document.getElementById('goalModal');
+    const btn=document.getElementById('goalBtn');
+    const closeBtn=document.getElementById('closeGoalModalBtn');
+    const saveBtn=document.getElementById('saveGoalBtn');
+    const status=document.getElementById('goalStatus');
+    btn.addEventListener('click',()=>{
+      const goals=loadGoals();
+      document.getElementById('goalWeeklyVisit').value=goals.weeklyVisit||'';
+      document.getElementById('goalWeeklyWechat').value=goals.weeklyWechat||'';
+      document.getElementById('goalMonthlyWechat').value=goals.monthlyWechat||'';
+      document.getElementById('goalMonthlyVisit').value=goals.monthlyVisit||'';
+      document.getElementById('goalMonthlyPayment').value=goals.monthlyPayment||'';
+      status.textContent='';
+      modal.classList.add('active');
+    });
+    closeBtn.addEventListener('click',()=>modal.classList.remove('active'));
+    modal.addEventListener('click',e=>{if(e.target===modal)modal.classList.remove('active');});
+    saveBtn.addEventListener('click',async()=>{
+      const goals={
+        weeklyVisit:parseInt(document.getElementById('goalWeeklyVisit').value)||0,
+        weeklyWechat:parseInt(document.getElementById('goalWeeklyWechat').value)||0,
+        monthlyWechat:parseInt(document.getElementById('goalMonthlyWechat').value)||0,
+        monthlyVisit:parseInt(document.getElementById('goalMonthlyVisit').value)||0,
+        monthlyPayment:parseInt(document.getElementById('goalMonthlyPayment').value)||0
+      };
+      saveGoals(goals);
+      try{await syncOp('setGoals',{goals});status.textContent='✅ 目标已保存';}catch(e){status.textContent='⚠️ 保存失败，已存本地';}
+      modal.classList.remove('active');
+      renderGoalChips();
+    });
+  }
   function isLocked(){return localStorage.getItem(LOCK_K)==='true';}
 
   // ==================== 日志功能 ====================
@@ -2672,6 +2835,10 @@ export default {
   document.getElementById('wechatMinus').addEventListener('click',()=>modCounter(WECHAT_K,-1,'incWechat'));
   document.getElementById('revisitPlus').addEventListener('click',()=>modCounter(REVISIT_K,1,'incRevisit'));
   document.getElementById('revisitMinus').addEventListener('click',()=>modCounter(REVISIT_K,-1,'incRevisit'));
+  document.getElementById('visitPlus').addEventListener('click',()=>modCounter(VISIT_K,1,'incVisit'));
+  document.getElementById('visitMinus').addEventListener('click',()=>modCounter(VISIT_K,-1,'incVisit'));
+  document.getElementById('paymentPlus').addEventListener('click',()=>modCounter(PAYMENT_K,1,'incPayment'));
+  document.getElementById('paymentMinus').addEventListener('click',()=>modCounter(PAYMENT_K,-1,'incPayment'));
   document.getElementById('syncBtn').addEventListener('click',async()=>{
     _syncStatus='syncing';updateSyncIndicator();
     try{await drainQueue();await saveFullState(true);await pullLatest();await syncCalendarFromCloud();refreshAll();}catch(e){_syncStatus='error';}
@@ -3027,7 +3194,7 @@ export default {
     }
   }
 
-  initAndroid();initLogs();initDark();initWp();initScriptFeature();initLearnFeature();initExport();initAllClientsBtn();
+  initAndroid();initLogs();initDark();initWp();initScriptFeature();initLearnFeature();initExport();initAllClientsBtn();initGoals();
   // 菜单下拉
   (function(){
     const toggle=document.getElementById('menuToggleBtn');
@@ -3089,6 +3256,8 @@ export default {
     const today=getTodayStr();
     const wm=loadMap(WECHAT_K);
     const rm=loadMap(REVISIT_K);
+    const vm=loadMap(VISIT_K);
+    const pm=loadMap(PAYMENT_K);
     const allClients=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
     const todayClients=allClients.filter(c=>c.date===today);
     const payload=JSON.stringify({
@@ -3096,6 +3265,8 @@ export default {
       wechatCount:wm[today]||0,
       intentCount:todayClients.length,
       revisitCount:rm[today]||0,
+      visitCount:vm[today]||0,
+      paymentCount:pm[today]||0,
       clients:todayClients,
       todayTodos:loadTodos(TODAY_TODO_K).filter(t=>(typeof t==='string'?today:(t.date||today))===today),
       tomorrowTodos:loadTodos(TOMORROW_TODO_K).filter(t=>(typeof t==='string'?today:(t.date||today))===today),
