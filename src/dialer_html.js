@@ -3388,7 +3388,11 @@ export const DIALER_HTML = `<!DOCTYPE html>
       var dropdown = document.getElementById('headerDropdown');
       
       if (menuBtn && dropdown) {
+        var lastToggle = 0;
         function toggleDropdown(e) {
+          var now = Date.now();
+          if (now - lastToggle < 300) return;
+          lastToggle = now;
           e.stopPropagation();
           e.preventDefault();
           if (dropdown.style.display === 'none' || dropdown.style.display === '') {
