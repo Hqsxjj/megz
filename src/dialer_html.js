@@ -2712,9 +2712,15 @@ export const DIALER_HTML = `<!DOCTYPE html>
         if (c.dialedStatus === 'success') {
           badgeHtml = '<span class="xls-dial-badge xls-dial-badge-success">已接通 (' + (c.duration || '00:00') + ')</span>';
           cardClass += ' dialed';
+          if (c.phone) {
+            badgeHtml += ' <button class="rec-play-btn" data-phone="' + esc(c.phone) + '" title="播放通话录音" style="font-size:0.6rem;padding:1px 6px;border:1px solid #07c160;background:rgba(7,193,96,0.08);color:#07c160;border-radius:3px;cursor:pointer;font-weight:700;margin-left:4px;" onclick="event.stopPropagation();var p=this.dataset.phone;var a=document.createElement(\'audio\');a.controls=true;a.style.width=\'100%\';a.style.height=\'28px\';a.style.marginTop=\'4px\';var w=this.nextElementSibling;if(w&&w.classList.contains(\'rec-audio-wrap\')){w.remove();return;}var d=document.createElement(\'div\');d.className=\'rec-audio-wrap\';d.style.width=\'100%\';d.appendChild(a);this.parentElement.appendChild(d);a.src=\'/api/local-recording?phone=\'+encodeURIComponent(p);a.play().catch(function(){});">▶ 录音</button>';
+          }
         } else if (c.dialedStatus === 'failed') {
           badgeHtml = '<span class="xls-dial-badge xls-dial-badge-failed">未接通</span>';
           cardClass += ' dialed';
+          if (c.phone) {
+            badgeHtml += ' <button class="rec-play-btn" data-phone="' + esc(c.phone) + '" title="播放通话录音" style="font-size:0.6rem;padding:1px 6px;border:1px solid #e67e22;background:rgba(245,124,0,0.08);color:#e67e22;border-radius:3px;cursor:pointer;font-weight:700;margin-left:4px;" onclick="event.stopPropagation();var p=this.dataset.phone;var a=document.createElement(\'audio\');a.controls=true;a.style.width=\'100%\';a.style.height=\'28px\';a.style.marginTop=\'4px\';var w=this.nextElementSibling;if(w&&w.classList.contains(\'rec-audio-wrap\')){w.remove();return;}var d=document.createElement(\'div\');d.className=\'rec-audio-wrap\';d.style.width=\'100%\';d.appendChild(a);this.parentElement.appendChild(d);a.src=\'/api/local-recording?phone=\'+encodeURIComponent(p);a.play().catch(function(){});">▶ 录音</button>';
+          }
         }
 
         var phoneClass = c.copied ? 'client-phone-btn copied' : 'client-phone-btn';
