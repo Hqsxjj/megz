@@ -2289,7 +2289,7 @@ export default {
       if(!target||target<=0)return'';
       const pct=Math.round(actual/target*100);
       const cls=pct>=100?'goal-met':pct>=50?'goal-half':'goal-low';
-      return `<span class="goal-chip ${cls}">${label} ${actual}/${target}</span>`;
+      return '<span class="goal-chip '+cls+'">'+label+' '+actual+'/'+target+'</span>';
     };
     html+=makeChip('周上',getWeekTotal(vm),goals.weeklyVisit);
     html+=makeChip('周微',getWeekTotal(wm),goals.weeklyWechat);
