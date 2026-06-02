@@ -938,7 +938,9 @@ export default {
     .stat-block .label { font-size: 0.7rem; font-weight: 600; opacity: 0.9; }
     .stat-block .number { font-size: 1.35rem; font-weight: 800; margin-left: 4px; }
     .calendar-compact { padding: 10px 12px; }
-    .cal-head { font-size: 0.8rem; font-weight: 700; color: var(--text-soft); margin-bottom: 8px; }
+    .cal-head { display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 0.8rem; font-weight: 700; color: var(--text-soft); margin-bottom: 8px; }
+    .cal-nav-btn { background: none; border: 1px solid var(--card-border); border-radius: var(--radius-xs); cursor: pointer; padding: 2px 8px; font-size: 0.7rem; color: var(--text-soft); transition: all 0.2s; }
+    .cal-nav-btn:hover { background: var(--card-bg); color: var(--text-main); }
     .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; text-align: center; }
     .cal-weekday { font-size: 0.65rem; font-weight: 800; color: var(--text-soft); padding: 4px 0; }
     .cal-day { aspect-ratio: 1/1; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: var(--radius-xs); font-size: 0.7rem; font-weight: 800; color: var(--text-main); background: transparent; cursor: pointer; transition: 0.2s; position: relative; }
@@ -1457,7 +1459,7 @@ export default {
           <div class="stat-block stat-revisit"><span class="label">访·本月</span> <span class="number" id="monthRevisit">0</span></div>
         </div>
         <div class="card calendar-compact">
-          <div class="cal-head" id="calMonthTitle"></div>
+          <div class="cal-head"><button class="cal-nav-btn" id="calPrevBtn" title="上个月">◀</button><span id="calMonthTitle"></span><button class="cal-nav-btn" id="calNextBtn" title="下个月">▶</button></div>
           <div class="cal-grid" id="calGrid"></div>
           <div style="font-size:0.55rem;text-align:center;margin-top:6px;color:var(--text-light);font-weight:600;">点击日期查看意向客户</div>
         </div>
@@ -1609,8 +1611,9 @@ export default {
   const esc=s=>String(s).replace(/[&<>]/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;' })[m]||m);
   const maskPhone=p=>{if(!p||p.length<7)return '****';return '****'.repeat(Math.ceil(p.length/4));};
 
-  function getWeekTotal(map){const t=new Date();const dow=t.getDay();const diff=dow===0?6:dow-1;const mon=new Date(t);mon.setDate(t.getDate()-diff);const ms=mon.getFullYear()+'-'+String(mon.getMonth()+1).padStart(2,'0')+'-'+String(mon.getDate()).padStart(2,'0');const ts=getTodayStr();let s=0;for(let[d,v]of Object.entries(map))if(d>=ms&&d<=ts)s+=v;return s;}
-  function getMonthTotal(map){const p=getTodayStr().slice(0,7);let s=0;for(let[d,v]of Object.entries(map))if(d.startsWith(p))s+=v;return s;}
+  function getWeekTotal(map,month){const ref=month?new Date(month+'-01'):new Date();const dow=ref.getDay();const diff=dow===0?6:dow-1;const mon=new Date(ref);mon.setDate(ref.getDate()-diff);const ms=mon.getFullYear()+'-'+String(mon.getMonth()+1).padStart(2,'0')+'-'+String(mon.getDate()).padStart(2,'0');const end=month?new Date(ref.getFullYear(),ref.getMonth()+1,0):new Date();const es=end.getFullYear()+'-'+String(end.getMonth()+1).padStart(2,'0')+'-'+String(end.getDate()).padStart(2,'0');const tsNow=getTodayStr();const ts=month&&month!==getCurrentMonth()?es:tsNow;let s=0;for(let[d,v]of Object.entries(map))if(d>=ms&&d<=ts)s+=v;return s;}
+  function getMonthTotal(map,month){const p=month||getTodayStr().slice(0,7);let s=0;for(let[d,v]of Object.entries(map))if(d.startsWith(p))s+=v;return s;}
+  let calendarMonth=getCurrentMonth();
 
   // ==================== 云端 API ====================
   async function cloudGet(date){try{const r=await fetch('/api/data?date='+date);if(r.ok)return await r.json();}catch(e){}return null;}
@@ -2037,9 +2040,9 @@ export default {
   }
 
   function renderCalendar(wm,im){
-    const td=new Date(),y=td.getFullYear(),m=td.getMonth();
-    const fd=new Date(y,m,1);let si=(fd.getDay()+6)%7;
-    const dim=new Date(y,m+1,0).getDate(),ts=getTodayStr();
+    const [y,m]=calendarMonth.split('-').map(Number);const ref=new Date(y,m-1);
+    const fd=new Date(y,m-1,1);let si=(fd.getDay()+6)%7;
+    const dim=new Date(y,m,0).getDate(),ts=getTodayStr();
     const clients=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
     const ccMap={};clients.forEach(c=>{if(c.date)ccMap[c.date]=(ccMap[c.date]||0)+1;});
     const mn=['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
@@ -2247,10 +2250,10 @@ export default {
   }
 
   async function syncCalendarFromCloud(){
-    const month=getCurrentMonth();
+    const month=calendarMonth;
     const cal=await cloudCalendar(month);
     if(cal){
-      const wm=loadMap(WECHAT_K), im=loadMap(INTENT_K), rm=loadMap(REVISIT_K);
+      const wm=loadMap(WECHAT_K), im=loadMap(INTENT_K), rm=loadMap(REVISIT_K), vm=loadMap(VISIT_K), pm=loadMap(PAYMENT_K);
       let changed=false;
       for(const [date, d] of Object.entries(cal)){
         const nw = Math.max(wm[date]||0, d.w||0);
@@ -2259,8 +2262,12 @@ export default {
         if(ni !== (im[date]||0)){ im[date]=ni; changed=true; }
         const nr = Math.max(rm[date]||0, d.r||0);
         if(nr !== (rm[date]||0)){ rm[date]=nr; changed=true; }
+        const nv = Math.max(vm[date]||0, d.v||0);
+        if(nv !== (vm[date]||0)){ vm[date]=nv; changed=true; }
+        const np = Math.max(pm[date]||0, d.p||0);
+        if(np !== (pm[date]||0)){ pm[date]=np; changed=true; }
       }
-      if(changed){saveMap(WECHAT_K,wm);saveMap(INTENT_K,im);saveMap(REVISIT_K,rm);}
+      if(changed){saveMap(WECHAT_K,wm);saveMap(INTENT_K,im);saveMap(REVISIT_K,rm);saveMap(VISIT_K,vm);saveMap(PAYMENT_K,pm);}
       addSyncLog('✅ 拉取云端历史日历完成');
     }
   }
@@ -2284,11 +2291,11 @@ export default {
       const cls=pct>=100?'goal-met':pct>=50?'goal-half':'goal-low';
       return '<span class="goal-chip '+cls+'">'+label+' '+actual+'/'+target+'</span>';
     };
-    html+=makeChip('本周上门',getWeekTotal(vm),goals.weeklyVisit);
-    html+=makeChip('本周微信',getWeekTotal(wm),goals.weeklyWechat);
-    html+=makeChip('本月微信',getMonthTotal(wm),goals.monthlyWechat);
-    html+=makeChip('本月上门',getMonthTotal(vm),goals.monthlyVisit);
-    html+=makeChip('本月回款',getMonthTotal(pm),goals.monthlyPayment);
+    html+=makeChip('本周上门',getWeekTotal(vm,calendarMonth),goals.weeklyVisit);
+    html+=makeChip('本周微信',getWeekTotal(wm,calendarMonth),goals.weeklyWechat);
+    html+=makeChip('本月微信',getMonthTotal(wm,calendarMonth),goals.monthlyWechat);
+    html+=makeChip('本月上门',getMonthTotal(vm,calendarMonth),goals.monthlyVisit);
+    html+=makeChip('本月回款',getMonthTotal(pm,calendarMonth),goals.monthlyPayment);
     container.innerHTML=html;
   }
   function toggleGoalNumbers(){
@@ -3182,6 +3189,14 @@ export default {
 
   initAndroid();initLogs();initDark();initWp();initScriptFeature();initLearnFeature();initExport();initAllClientsBtn();initGoals();
   document.getElementById('goalEyeBtn').addEventListener('click',toggleGoalNumbers);
+  function calGo(delta){
+    const [y,m]=calendarMonth.split('-').map(Number);
+    const d=new Date(y,m-1+delta,1);
+    calendarMonth=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+    syncCalendarFromCloud().then(()=>refreshAll());
+  }
+  document.getElementById('calPrevBtn').addEventListener('click',()=>calGo(-1));
+  document.getElementById('calNextBtn').addEventListener('click',()=>calGo(1));
   // 菜单下拉
   (function(){
     const toggle=document.getElementById('menuToggleBtn');
