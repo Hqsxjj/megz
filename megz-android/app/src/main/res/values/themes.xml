@@ -9,14 +9,14 @@
         <item name="colorSecondary">@color/accent_wechat</item>
         <item name="colorSecondaryVariant">@color/accent_wechat_dark</item>
         <item name="colorOnSecondary">@color/white</item>
-        <!-- Edge-to-edge: transparent status bar, content draws behind -->
-        <item name="android:windowTranslucentStatus">true</item>
-        <item name="android:windowTranslucentNavigation">true</item>
+        <!-- Status bar: handled programmatically in MainActivity -->
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowBackground">@color/bg_app</item>
     </style>
 
     <style name="Theme.Megz.NoActionBar">
         <item name="windowActionBar">false</item>
         <item name="windowNoTitle">true</item>
-        <item name="android:windowFullscreen">true</item>
     </style>
 </resources>
