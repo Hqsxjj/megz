@@ -2,6 +2,7 @@
 // 部署后绑定 DATA_KV 即可使用
 
 import { DIALER_HTML } from './dialer_html.js';
+import { createSupabaseClient } from './supabase.js';
 
 async function getAllKVKeys(env, prefix) {
   let keys = [];
@@ -77,12 +78,15 @@ export default {
       return new Response(null, {
         headers: {
           'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+          'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
           'Access-Control-Allow-Headers': 'Content-Type',
           'Access-Control-Max-Age': '86400'
         }
       });
     }
+
+    // Supabase client (no-op if SUPABASE_URL/KEY not set)
+    const supabase = createSupabaseClient(env);
 
     // 0. 安卓 App 自动更新接口
     if (path === '/api/app-version' && request.method === 'GET') {
@@ -3331,6 +3335,98 @@ export default {
 </script>
 </body>
 </html>`;
+
+    // ========== 白名单 API ==========
+
+    // 上传白名单企业（批量 upsert）
+    if (path === '/api/whitelist/upload' && request.method === 'POST') {
+      try {
+        const body = await request.json();
+        const companies = body.companies;
+        if (!Array.isArray(companies) || companies.length === 0) {
+          return new Response(JSON.stringify({ error: '请提供 companies 数组' }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+        if (companies.length > 5000) {
+          return new Response(JSON.stringify({ error: '单次最多上传 5000 家企业' }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+        const result = await supabase.upsertCompanies(companies);
+        return new Response(JSON.stringify({ success: true, count: result.count }), {
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ error: e.message }), {
+          status: 502,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+    }
+
+    // 获取所有白名单企业
+    if (path === '/api/whitelist/companies' && request.method === 'GET') {
+      try {
+        const companies = await supabase.getAllCompanies();
+        return new Response(JSON.stringify({ companies: companies }), {
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ error: e.message }), {
+          status: 502,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+    }
+
+    // 检查客户单位是否在白名单
+    if (path === '/api/whitelist/check' && request.method === 'POST') {
+      try {
+        const body = await request.json();
+        const companies = body.companies;
+        if (!Array.isArray(companies)) {
+          return new Response(JSON.stringify({ error: '请提供 companies 数组' }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+        const results = await supabase.checkCompanies(companies);
+        return new Response(JSON.stringify({ results: results }), {
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ error: e.message }), {
+          status: 502,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+    }
+
+    // 删除白名单企业
+    if (path === '/api/whitelist/companies' && request.method === 'DELETE') {
+      try {
+        const body = await request.json();
+        const companyName = body.company_name;
+        if (!companyName || !companyName.trim()) {
+          return new Response(JSON.stringify({ error: '请提供 company_name' }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+        const result = await supabase.deleteCompany(companyName);
+        return new Response(JSON.stringify(result), {
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ error: e.message }), {
+          status: 502,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+    }
 
     // 返回 HTML 页面
     return new Response(HTML, {

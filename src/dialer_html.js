@@ -705,6 +705,41 @@ export const DIALER_HTML = `<!DOCTYPE html>
         font-size: 0.72rem;
       }
     }
+
+    /* Whitelist match badges */
+    .xls-dial-badge-whitelist {
+      background: rgba(7,193,96,0.1);
+      color: var(--accent-wechat);
+      border: 0.5px solid rgba(7,193,96,0.2);
+    }
+    .xls-dial-badge-not-whitelist {
+      background: rgba(231,76,60,0.1);
+      color: #e74c3c;
+      border: 0.5px solid rgba(231,76,60,0.2);
+    }
+
+    /* Whitelist management modal */
+    .whitelist-textarea {
+      width: 100%;
+      height: 180px;
+      background: var(--btn-bg);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius-xs);
+      padding: 10px 12px;
+      font-size: 0.76rem;
+      color: var(--text-main);
+      outline: none;
+      font-weight: 600;
+      resize: none;
+      line-height: 1.5;
+    }
+    .whitelist-company-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 5px 0;
+      border-bottom: 1px solid var(--border-light);
+    }
   </style>
 </head>
 <body>
@@ -729,6 +764,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
           <div class="header-dropdown" id="headerDropdown" style="display: none;">
             <button class="dropdown-item sync-badge" id="syncStatusBadge">离线模式</button>
             <button class="dropdown-item" id="toggleImportBtn">导入文件</button>
+            <button class="dropdown-item" id="whitelistMenuBtn">白名单管理</button>
             <button class="dropdown-item" id="toggleDualSimBtn">双卡轮换: 开</button>
             <button class="dropdown-item" id="toggleRotationBtn">轮换频率: 10通</button>
             <button class="dropdown-item" id="exportBtn" style="display:none;">导出记录</button>
@@ -882,6 +918,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
           <option value="dialed">已拨优先</option>
           <option value="shuffle" selected>随机打乱</option>
         </select>
+        <button id="whitelistCheckBtn" title="对照白名单检查客户单位" style="height:28px; padding:0 8px; font-size:0.65rem; border:1px solid var(--accent-wechat); background:var(--accent-wechat-bg); color:var(--accent-wechat); border-radius:var(--radius-xs); cursor:pointer; font-weight:800; outline:none; white-space:nowrap; flex-shrink:0;">☑ 白名单</button>
         <div class="filter-group" style="flex-shrink: 0;">
           <button class="filter-tab active" data-filter="all">全部</button>
           <button class="filter-tab" data-filter="todo">待拨打</button>
@@ -989,6 +1026,34 @@ export const DIALER_HTML = `<!DOCTYPE html>
     </div>
   </div>
 
+  <!-- Whitelist Management Modal -->
+  <div id="whitelistModal" class="modal-overlay">
+    <div class="modal-card" style="max-width: 480px; gap: 12px;">
+      <div style="font-size:0.95rem; font-weight:900; color:var(--text-main); display:flex; justify-content:space-between; align-items:center;">
+        <span>建易贷白名单管理</span>
+        <button id="closeWhitelistBtn" style="background:none; border:none; font-size:1.2rem; cursor:pointer; color:var(--text-soft); padding:0;">✕</button>
+      </div>
+      <div class="whitelist-status" id="whitelistStatus" style="font-size:0.7rem; color:var(--text-soft); font-weight:700;">未加载白名单</div>
+
+      <!-- Upload area -->
+      <div style="border:1px dashed var(--card-border); border-radius:var(--radius-xs); padding:12px;">
+        <div style="font-size:0.72rem; font-weight:800; color:var(--text-soft); margin-bottom:6px;">
+          粘贴企业名称（每行一个，从Word文档全选复制粘贴即可）：
+        </div>
+        <textarea id="whitelistTextarea" class="whitelist-textarea" placeholder="例：&#10;中国石油化工集团公司&#10;国家电网有限公司&#10;中国工商银行股份有限公司"></textarea>
+        <div style="display:flex; gap:8px; margin-top:8px;">
+          <button id="whitelistUploadBtn" class="btn-primary" style="flex:1; padding:8px; font-size:0.78rem;">上传白名单</button>
+          <button id="whitelistRefreshBtn" class="btn-secondary" style="padding:8px 14px; font-size:0.78rem;">刷新列表</button>
+        </div>
+      </div>
+
+      <!-- Existing companies list -->
+      <div style="max-height:200px; overflow-y:auto; border:1px solid var(--card-border); border-radius:var(--radius-xs); padding:8px;">
+        <div id="whitelistCompanyList" style="font-size:0.7rem; color:var(--text-light); text-align:center;">点击"刷新列表"加载白名单企业</div>
+      </div>
+    </div>
+  </div>
+
   <!-- SheetJS CDN -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
@@ -1010,6 +1075,9 @@ export const DIALER_HTML = `<!DOCTYPE html>
     var callSeconds = 0;
     var currentFilter = 'all';
     var currentPage = 1;
+    var whitelistCompanies = [];
+    var whitelistCheckResults = null;
+    var whitelistLoaded = false;
     var pageSize = 100;
     var currentSort = 'shuffle';
 
@@ -2739,6 +2807,11 @@ export const DIALER_HTML = `<!DOCTYPE html>
           '</div>' +
           '<div class="client-card-tags" style="margin-top: 2px;">' +
             (c.company ? '<span class="client-card-tag client-card-tag-company">' + esc(c.company) + '</span>' : '') +
+            (whitelistCheckResults && c.company && whitelistCheckResults[c.company.trim()] ?
+              (whitelistCheckResults[c.company.trim()].isMatch
+                ? '<span class="client-card-tag xls-dial-badge-whitelist">✔ 白名单</span>'
+                : '<span class="client-card-tag xls-dial-badge-not-whitelist">✘ 非白名单</span>')
+              : '') +
           '</div>' +
           (c.note ? 
             '<div class="client-card-body" style="margin-top: 4px;">' +
@@ -3459,6 +3532,225 @@ export const DIALER_HTML = `<!DOCTYPE html>
       }
     }
 
+    // ===== Whitelist Management =====
+
+    function fetchWhitelist() {
+      return fetch('/api/whitelist/companies')
+        .then(function(r) {
+          if (!r.ok) throw new Error('获取白名单失败');
+          return r.json();
+        })
+        .then(function(data) {
+          whitelistCompanies = data.companies || [];
+          whitelistLoaded = true;
+          updateWhitelistStatus();
+          renderWhitelistCompanyList();
+          return whitelistCompanies;
+        })
+        .catch(function(err) {
+          console.error('Whitelist fetch error:', err);
+          whitelistLoaded = false;
+        });
+    }
+
+    function uploadWhitelist(companyNames) {
+      return fetch('/api/whitelist/upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ companies: companyNames })
+      })
+      .then(function(r) {
+        if (!r.ok) throw new Error('上传白名单失败');
+        return r.json();
+      });
+    }
+
+    function checkWhitelist() {
+      resetWhitelistCheck();
+      var companySet = {};
+      importedClients.forEach(function(c) {
+        if (c.company && c.company.trim()) {
+          companySet[c.company.trim()] = true;
+        }
+      });
+      var uniqueCompanies = Object.keys(companySet);
+
+      if (uniqueCompanies.length === 0) {
+        alert('当前没有导入带有单位名称的客户数据');
+        return Promise.resolve();
+      }
+
+      return fetch('/api/whitelist/check', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ companies: uniqueCompanies })
+      })
+      .then(function(r) {
+        if (!r.ok) throw new Error('白名单检查失败');
+        return r.json();
+      })
+      .then(function(data) {
+        var results = data.results || [];
+        whitelistCheckResults = {};
+        results.forEach(function(r) {
+          whitelistCheckResults[r.company] = r;
+        });
+        renderDialCards();
+        return results;
+      })
+      .catch(function(err) {
+        console.error('Whitelist check error:', err);
+        alert('白名单检查失败: ' + err.message);
+      });
+    }
+
+    function updateWhitelistStatus() {
+      var el = document.getElementById('whitelistStatus');
+      if (el) {
+        el.textContent = '已加载 ' + whitelistCompanies.length + ' 家白名单企业';
+      }
+    }
+
+    function renderWhitelistCompanyList() {
+      var container = document.getElementById('whitelistCompanyList');
+      if (!container) return;
+
+      if (whitelistCompanies.length === 0) {
+        container.innerHTML = '<div style="font-size:0.7rem; color:var(--text-light); text-align:center; padding:10px;">暂无白名单企业数据</div>';
+        return;
+      }
+
+      var html = '';
+      whitelistCompanies.forEach(function(c) {
+        html += '<div class="whitelist-company-item">' +
+          '<span style="font-size:0.72rem; font-weight:700; color:var(--text-main);">' + esc(c.company_name) + '</span>' +
+          '<button class="whitelist-del-btn" data-company="' + esc(c.company_name) + '" style="font-size:0.6rem; padding:2px 8px; border:1px solid #e74c3c; background:transparent; color:#e74c3c; border-radius:3px; cursor:pointer; font-weight:700;">删除</button>' +
+          '</div>';
+      });
+      container.innerHTML = html;
+
+      container.querySelectorAll('.whitelist-del-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          var company = this.dataset.company;
+          if (confirm('确认从白名单中删除「' + company + '」吗？')) {
+            deleteWhitelistCompany(company);
+          }
+        });
+      });
+    }
+
+    function deleteWhitelistCompany(companyName) {
+      fetch('/api/whitelist/companies', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ company_name: companyName })
+      })
+      .then(function(r) {
+        if (!r.ok) throw new Error('删除失败');
+        return r.json();
+      })
+      .then(function() {
+        whitelistCompanies = whitelistCompanies.filter(function(c) {
+          return c.company_name !== companyName;
+        });
+        updateWhitelistStatus();
+        renderWhitelistCompanyList();
+        if (whitelistCheckResults) {
+          checkWhitelist();
+        }
+      })
+      .catch(function(err) {
+        alert('删除失败: ' + err.message);
+      });
+    }
+
+    function resetWhitelistCheck() {
+      whitelistCheckResults = null;
+    }
+
+    function initWhitelist() {
+      var whitelistBtn = document.getElementById('whitelistMenuBtn');
+      var whitelistModal = document.getElementById('whitelistModal');
+      var closeBtn = document.getElementById('closeWhitelistBtn');
+      var uploadBtn = document.getElementById('whitelistUploadBtn');
+      var refreshBtn = document.getElementById('whitelistRefreshBtn');
+      var checkBtn = document.getElementById('whitelistCheckBtn');
+      var textarea = document.getElementById('whitelistTextarea');
+
+      // Open modal from dropdown
+      if (whitelistBtn && whitelistModal) {
+        whitelistBtn.addEventListener('click', function() {
+          whitelistModal.classList.add('active');
+          if (!whitelistLoaded) {
+            fetchWhitelist();
+          }
+        });
+      }
+
+      // Close modal
+      if (closeBtn && whitelistModal) {
+        closeBtn.addEventListener('click', function() {
+          whitelistModal.classList.remove('active');
+        });
+        whitelistModal.addEventListener('click', function(e) {
+          if (e.target === whitelistModal) {
+            whitelistModal.classList.remove('active');
+          }
+        });
+      }
+
+      // Upload
+      if (uploadBtn && textarea) {
+        uploadBtn.addEventListener('click', function() {
+          var text = textarea.value.trim();
+          if (!text) { alert('请先粘贴企业名称'); return; }
+          var companies = text.split('\\n')
+            .map(function(s) { return s.trim(); })
+            .filter(function(s) { return s.length > 0; });
+          if (companies.length === 0) { alert('请至少输入一个企业名称'); return; }
+
+          uploadBtn.textContent = '上传中...';
+          uploadBtn.disabled = true;
+          uploadWhitelist(companies)
+            .then(function(result) {
+              alert('成功上传 ' + result.count + ' 家企业到白名单');
+              textarea.value = '';
+              return fetchWhitelist();
+            })
+            .catch(function(err) {
+              alert(err.message);
+            })
+            .then(function() {
+              uploadBtn.textContent = '上传白名单';
+              uploadBtn.disabled = false;
+            });
+        });
+      }
+
+      // Refresh
+      if (refreshBtn) {
+        refreshBtn.addEventListener('click', function() {
+          fetchWhitelist();
+        });
+      }
+
+      // Check button in control bar
+      if (checkBtn) {
+        checkBtn.addEventListener('click', function() {
+          checkBtn.textContent = '检查中...';
+          checkBtn.disabled = true;
+          var promise = whitelistLoaded ? Promise.resolve() : fetchWhitelist();
+          promise
+            .then(function() { return checkWhitelist(); })
+            .catch(function() {})
+            .then(function() {
+              checkBtn.textContent = '☑ 白名单';
+              checkBtn.disabled = false;
+            });
+        });
+      }
+    }
+
     // Main Init (每个 init 独立 try-catch，防止某个报错导致后续按钮初始化被跳过)
     function safeInit(name, fn) {
       try { fn(); } catch (e) { console.error('Init error: ' + name, e); }
@@ -3471,6 +3763,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
     safeInit('initSyncHandlers', initSyncHandlers);
     safeInit('initHeaderMenu', initHeaderMenu);
     safeInit('initNoteModal', initNoteModal);
+    safeInit('initWhitelist', initWhitelist);
     safeInit('initAIImporter', initAIImporter);
     safeInit('loadPersistedState', loadPersistedState);
 
