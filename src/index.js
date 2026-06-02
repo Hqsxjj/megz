@@ -2096,7 +2096,7 @@ export default {
     wd.forEach(d=>{g+='<div class="cal-weekday">'+d+'</div>';});
     for(let i=0;i<si;i++)g+='<div class="cal-day"></div>';
     for(let d=1;d<=dim;d++){
-      const ds=y+'-'+String(m+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+      const ds=y+'-'+String(m).padStart(2,'0')+'-'+String(d).padStart(2,'0');
       const wv=wm[ds]||0,iv=im[ds]||0,cv=ccMap[ds]||0;
       let bh='';if(wv>0||iv>0||cv>0)bh='<div class="day-badge">'+(wv>0?'<span>微'+wv+'</span>':'')+(iv>0?'<span>意'+iv+'</span>':'')+(cv>0?'<span>客'+cv+'</span>':'')+'</div>';
       const it=ds===ts, pt=ds<ts;
