@@ -63,6 +63,8 @@ export const DIALER_HTML = `<!DOCTYPE html>
       width: 100%;
       display: flex;
       flex-direction: column;
+      padding-top: env(safe-area-inset-top);
+      padding-bottom: env(safe-area-inset-bottom);
     }
     .container {
       flex: 1;
@@ -618,6 +620,9 @@ export const DIALER_HTML = `<!DOCTYPE html>
       border: 0.5px solid var(--card-border) !important;
     }
     
+    /* Android APK full-screen spacing */
+    body.android .app-shell { padding-top: 39px; }
+
     /* Mobile Adaptive Styles for iOS & Android */
     @media (max-width: 480px) {
       .container {
@@ -982,6 +987,11 @@ export const DIALER_HTML = `<!DOCTYPE html>
 
   <script>
   (function(){
+    // Android WebView detection for full-screen spacing
+    if(/Android/.test(navigator.userAgent)&&!/iPhone|iPad|iPod/.test(navigator.userAgent)){
+      document.body.classList.add('android');
+    }
+
     // LocalStorage Keys
     var CLIENTS_K = 'standalone_dialer_clients';
     var DARK_K = 'standalone_dialer_dark';
