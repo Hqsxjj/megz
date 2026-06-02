@@ -1401,8 +1401,6 @@ export default {
       <div class="pin-stat-item"><span class="pin-stat-label">今日微信</span><span class="pin-stat-value pin-wechat-value" id="pinWechatNum">0</span></div>
       <div class="pin-stat-item"><span class="pin-stat-label">今日意向</span><span class="pin-stat-value pin-intent-value" id="pinIntentNum">0</span></div>
       <div class="pin-stat-item"><span class="pin-stat-label">今日回访</span><span class="pin-stat-value pin-revisit-value" id="pinRevisitNum">0</span></div>
-      <div class="pin-stat-item"><span class="pin-stat-label">今日上门</span><span class="pin-stat-value pin-visit-value" id="pinVisitNum">0</span></div>
-      <div class="pin-stat-item"><span class="pin-stat-label">今日回款</span><span class="pin-stat-value pin-payment-value" id="pinPaymentNum">0</span></div>
     </div>
     <input type="password" class="pin-input" id="pinInput" placeholder="" maxlength="6" inputmode="numeric" autofocus>
     <button class="pin-btn" id="pinUnlockBtn">解锁进入</button>
@@ -1447,18 +1445,6 @@ export default {
             <div class="button-group"><button class="circle-btn" id="revisitMinus">−</button><button class="circle-btn btn-special" id="revisitPlus">+</button></div>
           </div>
         </div>
-        <div class="counter-row">
-          <div class="counter-card visit-fill">
-            <div class="counter-header"><span class="counter-label">今日上门</span></div>
-            <div class="counter-value" id="visitNum">0</div>
-            <div class="button-group"><button class="circle-btn" id="visitMinus">−</button><button class="circle-btn btn-special" id="visitPlus">+</button></div>
-          </div>
-          <div class="counter-card payment-fill">
-            <div class="counter-header"><span class="counter-label">今日回款</span></div>
-            <div class="counter-value" id="paymentNum">0</div>
-            <div class="button-group"><button class="circle-btn" id="paymentMinus">−</button><button class="circle-btn btn-special" id="paymentPlus">+</button></div>
-          </div>
-        </div>
         <div class="stats-row">
           <div class="stat-block stat-wechat"><span class="label">微·本周</span> <span class="number" id="weekWechat">0</span></div>
           <div class="stat-block stat-wechat"><span class="label">微·本月</span> <span class="number" id="monthWechat">0</span></div>
@@ -1466,10 +1452,6 @@ export default {
           <div class="stat-block stat-intent"><span class="label">意·本月</span> <span class="number" id="monthIntent">0</span></div>
           <div class="stat-block stat-revisit"><span class="label">访·本周</span> <span class="number" id="weekRevisit">0</span></div>
           <div class="stat-block stat-revisit"><span class="label">访·本月</span> <span class="number" id="monthRevisit">0</span></div>
-          <div class="stat-block" style="background:var(--visit-gradient);"><span class="label">上门·本周</span> <span class="number" id="weekVisit">0</span></div>
-          <div class="stat-block" style="background:var(--visit-gradient);"><span class="label">上门·本月</span> <span class="number" id="monthVisit">0</span></div>
-          <div class="stat-block" style="background:var(--payment-gradient);"><span class="label">回款·本周</span> <span class="number" id="weekPayment">0</span></div>
-          <div class="stat-block" style="background:var(--payment-gradient);"><span class="label">回款·本月</span> <span class="number" id="monthPayment">0</span></div>
         </div>
         <div class="card calendar-compact">
           <div class="cal-head" id="calMonthTitle"></div>
@@ -2309,23 +2291,15 @@ export default {
     document.getElementById('wechatNum').innerText=wm[today]||0;
     document.getElementById('intentNum').innerText=todayIntent;
     document.getElementById('revisitNum').innerText=rm[today]||0;
-    document.getElementById('visitNum').innerText=vm[today]||0;
-    document.getElementById('paymentNum').innerText=pm[today]||0;
     document.getElementById('pinWechatNum').innerText=wm[today]||0;
     document.getElementById('pinIntentNum').innerText=todayIntent;
     document.getElementById('pinRevisitNum').innerText=rm[today]||0;
-    document.getElementById('pinVisitNum').innerText=vm[today]||0;
-    document.getElementById('pinPaymentNum').innerText=pm[today]||0;
     document.getElementById('weekWechat').innerText=getWeekTotal(wm);
     document.getElementById('monthWechat').innerText=getMonthTotal(wm);
     document.getElementById('weekIntent').innerText=getWeekTotal(im);
     document.getElementById('monthIntent').innerText=getMonthTotal(im);
     document.getElementById('weekRevisit').innerText=getWeekTotal(rm);
     document.getElementById('monthRevisit').innerText=getMonthTotal(rm);
-    document.getElementById('weekVisit').innerText=getWeekTotal(vm);
-    document.getElementById('monthVisit').innerText=getMonthTotal(vm);
-    document.getElementById('weekPayment').innerText=getWeekTotal(pm);
-    document.getElementById('monthPayment').innerText=getMonthTotal(pm);
     const now=new Date();const wk=['周日','周一','周二','周三','周四','周五','周六'];
     document.getElementById('liveDate').innerHTML=(now.getMonth()+1)+'月'+now.getDate()+'日 '+wk[now.getDay()];
     renderCalendar(wm,im);renderClientList();renderTodos();renderTempClientList();
@@ -2835,10 +2809,6 @@ export default {
   document.getElementById('wechatMinus').addEventListener('click',()=>modCounter(WECHAT_K,-1,'incWechat'));
   document.getElementById('revisitPlus').addEventListener('click',()=>modCounter(REVISIT_K,1,'incRevisit'));
   document.getElementById('revisitMinus').addEventListener('click',()=>modCounter(REVISIT_K,-1,'incRevisit'));
-  document.getElementById('visitPlus').addEventListener('click',()=>modCounter(VISIT_K,1,'incVisit'));
-  document.getElementById('visitMinus').addEventListener('click',()=>modCounter(VISIT_K,-1,'incVisit'));
-  document.getElementById('paymentPlus').addEventListener('click',()=>modCounter(PAYMENT_K,1,'incPayment'));
-  document.getElementById('paymentMinus').addEventListener('click',()=>modCounter(PAYMENT_K,-1,'incPayment'));
   document.getElementById('syncBtn').addEventListener('click',async()=>{
     _syncStatus='syncing';updateSyncIndicator();
     try{await drainQueue();await saveFullState(true);await pullLatest();await syncCalendarFromCloud();refreshAll();}catch(e){_syncStatus='error';}
