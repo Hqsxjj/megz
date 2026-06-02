@@ -767,9 +767,8 @@ export default {
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes, viewport-fit=cover, shrink-to-fit=no">
   <title>每日工作</title>
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="theme-color" content="#ededed" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#111111" media="(prefers-color-scheme: dark)">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="theme-color" content="#ededed">
   <link rel="manifest" href="/manifest.json">
   <link rel="apple-touch-icon" href="/icon.svg">
   <link rel="icon" href="/icon.svg" type="image/svg+xml">
@@ -2720,7 +2719,8 @@ export default {
   }
   function initDark(){
     const btn=document.getElementById('darkToggleBtn');
-    const updateDarkTitle=()=>{const isDark=document.body.classList.contains('dark-mode');btn.textContent=(isDark?'浅色':'深色')+'模式';btn.title=isDark?'切换浅色模式':'切换深色模式';};
+    const themeMeta=document.querySelector('meta[name="theme-color"]');
+    const updateDarkTitle=()=>{const isDark=document.body.classList.contains('dark-mode');btn.textContent=(isDark?'浅色':'深色')+'模式';btn.title=isDark?'切换浅色模式':'切换深色模式';if(themeMeta)themeMeta.content=isDark?'#111111':'#ededed';};
     if(localStorage.getItem(DARK_K)==='true')document.body.classList.add('dark-mode');
     updateDarkTitle();
     btn.addEventListener('click',()=>{document.body.classList.toggle('dark-mode');localStorage.setItem(DARK_K,document.body.classList.contains('dark-mode'));updateDarkTitle();});
