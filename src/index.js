@@ -2091,7 +2091,7 @@ export default {
     const clients=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
     const ccMap={};clients.forEach(c=>{if(c.date)ccMap[c.date]=(ccMap[c.date]||0)+1;});
     const mn=['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
-    document.getElementById('calMonthTitle').innerHTML=y+'年 '+mn[m];
+    document.getElementById('calMonthTitle').innerHTML=y+'年 '+mn[m-1];
     let g='';const wd=['一','二','三','四','五','六','日'];
     wd.forEach(d=>{g+='<div class="cal-weekday">'+d+'</div>';});
     for(let i=0;i<si;i++)g+='<div class="cal-day"></div>';
