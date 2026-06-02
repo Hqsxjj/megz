@@ -5,33 +5,28 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- Rounded rect background for calendar body -->
+    <!-- Calendar body 72dp safe zone: 18-90 -->
     <path
         android:fillColor="#FFFFFF"
-        android:fillAlpha="0.15"
-        android:pathData="M20,28h68c5.5,0 10,4.5 10,10v46c0,5.5 -4.5,10 -10,10h-68c-5.5,0 -10,-4.5 -10,-10v-46c0,-5.5 4.5,-10 10,-10z" />
+        android:pathData="M24,26h60c3,0 5,2 5,5v50c0,3 -2,5 -5,5h-60c-3,0 -5,-2 -5,-5v-50c0,-3 2,-5 5,-5z" />
 
-    <!-- Calendar header bar -->
+    <!-- Top bar (darker) -->
     <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M20,28h68v16h-68z" />
+        android:fillColor="#4A6CF7"
+        android:pathData="M24,26h60v14h-60z" />
 
-    <!-- Left binding ring -->
+    <!-- Left ring -->
     <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M31,15a5,5 0,0 1,5 5v8h-10v-8a5,5 0,0 1,5 -5z" />
+        android:fillColor="#4A6CF7"
+        android:pathData="M32,16a5,5 0,0 1,5 5v5h-10v-5a5,5 0,0 1,5 -5z" />
 
-    <!-- Right binding ring -->
+    <!-- Right ring -->
     <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M77,15a5,5 0,0 1,5 5v8h-10v-8a5,5 0,0 1,5 -5z" />
+        android:fillColor="#4A6CF7"
+        android:pathData="M76,16a5,5 0,0 1,5 5v5h-10v-5a5,5 0,0 1,5 -5z" />
 
-    <!-- Row 1 dots -->
-    <path android:fillColor="#4A6CF7" android:pathData="M32,56m4,0a4,4 0,1 1,8 0a4,4 0,1 1,-8 0" />
-    <path android:fillColor="#4A6CF7" android:pathData="M54,56m4,0a4,4 0,1 1,8 0a4,4 0,1 1,-8 0" />
-    <path android:fillColor="#4A6CF7" android:pathData="M76,56m4,0a4,4 0,1 1,8 0a4,4 0,1 1,-8 0" />
-
-    <!-- Row 2 dots -->
-    <path android:fillColor="#4A6CF7" android:pathData="M32,72m4,0a4,4 0,1 1,8 0a4,4 0,1 1,-8 0" />
-    <path android:fillColor="#4A6CF7" android:pathData="M54,72m4,0a4,4 0,1 1,8 0a4,4 0,1 1,-8 0" />
+    <!-- Checkmark (large, centered) -->
+    <path
+        android:fillColor="#07C160"
+        android:pathData="M42,56 L52,68 L68,48 L62,42 L52,56 L48,54 Z" />
 </vector>

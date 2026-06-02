@@ -5,13 +5,9 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- Full background blue -->
-    <path
-        android:fillColor="#4A6CF7"
-        android:pathData="M0,0h108v108h-108z" />
+    <!-- Base -->
+    <path android:fillColor="#4A6CF7" android:pathData="M0,0h108v108h-108z" />
 
-    <!-- Bottom-right green triangle -->
-    <path
-        android:fillColor="#07C160"
-        android:pathData="M0,108 L108,0 L108,108 Z" />
+    <!-- Accent -->
+    <path android:fillColor="#07C160" android:pathData="M0,54 L108,0 L108,108 Z" />
 </vector>

@@ -102,7 +102,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
     .header-dropdown {
       position: absolute;
       top: 30px;
-      left: 0;
+      right: 0;
       background: var(--card-bg);
       border: 1px solid var(--card-border);
       border-radius: var(--radius-sm);
@@ -719,7 +719,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
         </div>
         
         <!-- Dropdown Menu Trigger on the Right -->
-        <div style="position: relative; display: inline-block;">
+        <div style="position: relative; display: inline-block; margin-left: auto;">
           <button id="headerMenuBtn" title="更多设置" style="font-size: 0.8rem; padding: 4px 8px; border: none; background: transparent; cursor: pointer; outline: none; font-weight: 800; color: var(--text-soft);">更多</button>
           <div class="header-dropdown" id="headerDropdown" style="display: none;">
             <button class="dropdown-item sync-badge" id="syncStatusBadge">离线模式</button>
