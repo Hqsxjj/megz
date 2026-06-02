@@ -914,7 +914,7 @@ export default {
     .script-list { max-height: 180px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
     .script-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: var(--btn-bg); border-radius: var(--radius-xs); border: 1px solid var(--card-border); font-size: 0.78rem; color: var(--text-main); font-weight: 600; }
     .script-item-text { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-right: 8px; }
-    .app-shell { height: 100%; height: 100dvh; width: 100%; display: flex; flex-direction: column; overflow: hidden; position: relative; z-index: 1; padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
+    .app-shell { height: 100%; height: 100dvh; width: 100%; display: flex; flex-direction: column; overflow: hidden; position: relative; z-index: 1; }
     .container { flex: 1; display: flex; flex-direction: column; padding: 14px 18px 12px; overflow-y: auto; scrollbar-width: thin; -webkit-overflow-scrolling: touch; }
     .header-bar { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 20px; padding-bottom: 6px; border-bottom: 1px solid var(--border-light); flex-shrink: 0; }
     .title-section { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
@@ -926,6 +926,9 @@ export default {
     body.dark-mode .app-icon { box-shadow: 0 0 20px rgba(74,108,247,0.4), 0 4px 16px rgba(7,193,96,0.25); }
     body.dark-mode .app-icon { animation: iconPulseDark 4s ease-in-out infinite; }
     @keyframes iconPulseDark { 0%, 100% { box-shadow: 0 0 20px rgba(74,108,247,0.4), 0 4px 16px rgba(7,193,96,0.25); } 50% { box-shadow: 0 0 32px rgba(74,108,247,0.55), 0 6px 24px rgba(7,193,96,0.35); } }
+    /* PWA safe area for iOS notch & home indicator */
+    .app-shell { padding-top: constant(safe-area-inset-top); padding-top: env(safe-area-inset-top); padding-bottom: constant(safe-area-inset-bottom); padding-bottom: env(safe-area-inset-bottom); }
+    .container { padding-bottom: max(env(safe-area-inset-bottom),12px); }
     @media (max-width: 760px) { .app-icon { width: 34px; height: 34px; border-radius: 8px; } .app-logo { gap: 8px; } }
     .date-chip { background: var(--card-bg); padding: 4px 12px; border-radius: var(--radius-xs); font-size: 0.75rem; font-weight: 700; color: var(--text-soft); border: 1px solid var(--card-border); }
     .goal-chips { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
