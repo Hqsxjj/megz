@@ -4,19 +4,27 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    
-    <!-- Rich Premium Dark Emerald Gradient Background -->
+
+    <!-- Base: Blue-purple background -->
     <path
-        android:fillColor="#1A2B23"
+        android:fillColor="#4A6CF7"
         android:pathData="M0,0h108v108h-108z" />
-        
-    <!-- Luxury Glowing Jade Flow Curves -->
-    <path
-        android:fillColor="#09BB07"
-        android:pathData="M0,0 C30,10 60,40 108,60 L108,108 L0,108 Z"
-        android:alpha="0.15" />
+
+    <!-- Gradient overlay: green sweep from bottom-right -->
     <path
         android:fillColor="#07C160"
-        android:pathData="M0,50 C40,70 70,80 108,108 L0,108 Z"
-        android:alpha="0.25" />
+        android:pathData="M0,108 C40,80 80,80 108,108 L108,108 L0,108 Z"
+        android:alpha="0.5" />
+
+    <!-- Subtle top-left highlight -->
+    <path
+        android:fillColor="#6B8DFF"
+        android:pathData="M0,0 C50,10 80,40 108,0 L108,0 L0,0 Z"
+        android:alpha="0.4" />
+
+    <!-- Accent glow circle -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,54m-32,0a32,32 0,1 1,64 0a32,32 0,1 1,-64 0"
+        android:alpha="0.06" />
 </vector>
