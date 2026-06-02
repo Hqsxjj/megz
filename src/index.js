@@ -857,7 +857,7 @@ export default {
     body.dark-mode .icon-simple:hover { background: rgba(255,255,255,0.1); box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
     body.dark-mode .goal-chip.goal-met { background: rgba(7,193,96,0.12); border-color: rgba(7,193,96,0.3); color: #2ecc71; }
     body.dark-mode .goal-chip.goal-half { background: rgba(245,124,0,0.12); border-color: rgba(245,124,0,0.3); color: #f0a04b; }
-    body.dark-mode .goal-chip.goal-low { background: rgba(231,76,60,0.1); border-color: rgba(231,76,60,0.2); color: #f07070; }
+    body.dark-mode .goal-chip.goal-low { background: rgba(74,108,247,0.1); border-color: rgba(74,108,247,0.25); color: #7b9ff5; }
     body.dark-mode .sync-indicator { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.06); color: var(--text-main); }
     body.dark-mode .sync-indicator:hover { background: rgba(255,255,255,0.1); box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
     .timer-btn-reset:hover { background: rgba(0,0,0,0.08); }
@@ -890,7 +890,7 @@ export default {
     .goal-chip { background: var(--card-bg); padding: 4px 12px; border-radius: var(--radius-xs); font-size: 0.75rem; font-weight: 700; border: 1px solid var(--card-border); color: var(--text-soft); white-space: nowrap; cursor: default; }
     .goal-chip.goal-met { background: rgba(7,193,96,0.08); border-color: rgba(7,193,96,0.35); color: #07c160; }
     .goal-chip.goal-half { background: rgba(245,124,0,0.08); border-color: rgba(245,124,0,0.35); color: #e67e22; }
-    .goal-chip.goal-low { background: rgba(231,76,60,0.06); border-color: rgba(231,76,60,0.25); color: #c0392b; }
+    .goal-chip.goal-low { background: rgba(74,108,247,0.06); border-color: rgba(74,108,247,0.3); color: #4a6cf7; }
     .action-group { display: flex; gap: 10px; align-items: center; padding: 2px; position: relative; }
     .icon-simple { background: #f5f5f5; border: 1px solid rgba(0,0,0,0.04); min-width: 38px; height: 38px; padding: 0 6px; border-radius: var(--radius-xs); display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 0.78rem; color: var(--text-soft); transition: all 0.2s cubic-bezier(0.34,1.56,0.64,1); user-select: none; font-weight: 600; position: relative; white-space: nowrap; }
     .icon-simple:hover { background: #e8e8e8; transform: translateY(-2px) scale(1.06); box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
