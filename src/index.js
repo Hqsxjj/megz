@@ -914,7 +914,7 @@ export default {
     .script-list { max-height: 180px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
     .script-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: var(--btn-bg); border-radius: var(--radius-xs); border: 1px solid var(--card-border); font-size: 0.78rem; color: var(--text-main); font-weight: 600; }
     .script-item-text { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-right: 8px; }
-    .app-shell { height: 100%; height: 100dvh; width: 100%; display: flex; flex-direction: column; overflow: hidden; position: relative; z-index: 1; padding: max(env(safe-area-inset-top), 39px) max(env(safe-area-inset-right), 0px) max(env(safe-area-inset-bottom), 0px) max(env(safe-area-inset-left), 0px); }
+    .app-shell { height: 100%; height: 100dvh; width: 100%; display: flex; flex-direction: column; overflow: hidden; position: relative; z-index: 1; padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
     .container { flex: 1; display: flex; flex-direction: column; padding: 14px 18px 12px; overflow-y: auto; scrollbar-width: thin; -webkit-overflow-scrolling: touch; }
     .header-bar { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 20px; padding-bottom: 6px; border-bottom: 1px solid var(--border-light); flex-shrink: 0; }
     .title-section { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
@@ -1404,7 +1404,7 @@ export default {
     /* ==================== Android 专属适配 ==================== */
     body.android { font-family: Roboto, "Noto Sans SC", "Noto Sans", "Droid Sans Fallback", sans-serif; }
     /* Android 使用 static vh 避免 toolbar 收展导致 dvh 布局抖动 */
-    body.android .app-shell { height: 100vh; height: -webkit-fill-available; }
+    body.android .app-shell { height: 100vh; height: -webkit-fill-available; padding-top: 39px; }
     /* Android backdrop-filter 性能差，降低或关闭 */
     body.android .card { backdrop-filter: none; -webkit-backdrop-filter: none; }
     body.android .menu-dropdown { backdrop-filter: none; -webkit-backdrop-filter: none; }
