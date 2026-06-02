@@ -32,6 +32,10 @@ import android.widget.Toast;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.SwitchCompat;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsCompat;
+import androidx.core.view.WindowInsetsControllerCompat;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -115,8 +119,15 @@ public class MainActivity extends AppCompatActivity {
             }
         }
 
-        // 3. Immersive full-screen: hide status bar and navigation bar
-        hideSystemUI();
+        // 3. Edge-to-edge full-screen: content fills entire screen behind system bars
+        WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
+        getWindow().setStatusBarColor(android.graphics.Color.TRANSPARENT);
+        getWindow().setNavigationBarColor(android.graphics.Color.TRANSPARENT);
+        WindowInsetsControllerCompat controller = WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
+        if (controller != null) {
+            controller.hide(WindowInsetsCompat.Type.systemBars());
+            controller.setSystemBarsBehavior(WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
+        }
 
         setContentView(R.layout.activity_main);
 
@@ -929,16 +940,11 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void hideSystemUI() {
-        View decorView = getWindow().getDecorView();
-        int flags = android.view.View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                  | android.view.View.SYSTEM_UI_FLAG_FULLSCREEN
-                  | android.view.View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-                  | android.view.View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-                  | android.view.View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-                  | android.view.View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN;
-        decorView.setSystemUiVisibility(flags);
-        getWindow().setStatusBarColor(android.graphics.Color.TRANSPARENT);
-        getWindow().setNavigationBarColor(android.graphics.Color.TRANSPARENT);
+        WindowInsetsControllerCompat controller = WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
+        if (controller != null) {
+            controller.hide(WindowInsetsCompat.Type.systemBars());
+            controller.setSystemBarsBehavior(WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
+        }
     }
 
     private int getStatusBarHeight() {
