@@ -729,6 +729,8 @@ export const DIALER_HTML = `<!DOCTYPE html>
           <div class="header-dropdown" id="headerDropdown" style="display: none;">
             <button class="dropdown-item sync-badge" id="syncStatusBadge">离线模式</button>
             <button class="dropdown-item" id="toggleImportBtn">导入文件</button>
+            <button class="dropdown-item" id="toggleDualSimBtn">双卡轮换: 开</button>
+            <button class="dropdown-item" id="toggleRotationBtn">轮换频率: 10通</button>
             <button class="dropdown-item" id="exportBtn" style="display:none;">导出记录</button>
             <button class="dropdown-item" id="clearBtn" style="display:none; color: #e74c3c;">清空数据</button>
             <button class="dropdown-item" id="darkToggleBtn">切换主题</button>
@@ -3285,6 +3287,26 @@ export const DIALER_HTML = `<!DOCTYPE html>
               panel.style.display = 'none';
             }
           }
+        });
+      }
+
+      // Dual-SIM rotation toggle
+      var dualSimBtn = document.getElementById('toggleDualSimBtn');
+      var dualSimOn = true;
+      var rotationCount = 10;
+      if (dualSimBtn) {
+        dualSimBtn.addEventListener('click', function() {
+          dualSimOn = !dualSimOn;
+          dualSimBtn.textContent = '双卡轮换: ' + (dualSimOn ? '开' : '关');
+          localStorage.setItem('dialer_dual_sim', dualSimOn ? '1' : '0');
+        });
+      }
+      var rotationBtn = document.getElementById('toggleRotationBtn');
+      if (rotationBtn) {
+        rotationBtn.addEventListener('click', function() {
+          rotationCount = rotationCount === 10 ? 5 : 10;
+          rotationBtn.textContent = '轮换频率: ' + rotationCount + '通';
+          localStorage.setItem('dialer_rotation', String(rotationCount));
         });
       }
 
