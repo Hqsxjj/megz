@@ -725,7 +725,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
         <button id="autoDialBtn" title="自动拨打" style="font-size: 0.78rem; padding: 4px 10px; border: 1px solid var(--accent-wechat); background: var(--accent-wechat-bg); color: var(--accent-wechat); cursor: pointer; outline: none; font-weight: 700; border-radius: var(--radius-xs); margin-left: auto; margin-right: 8px; white-space: nowrap;">自动拨打</button>
         <!-- Dropdown Menu Trigger on the Right -->
         <div style="position: relative; display: inline-block;">
-          <button id="headerMenuBtn" title="更多设置" style="font-size: 0.8rem; padding: 4px 8px; border: none; background: transparent; cursor: pointer; outline: none; font-weight: 800; color: var(--text-soft);">更多</button>
+          <button id="headerMenuBtn" title="更多设置" style="font-size: 0.8rem; padding: 6px 10px; border: none; background: transparent; cursor: pointer; outline: none; font-weight: 800; color: var(--text-soft); min-width: 44px; min-height: 34px; -webkit-tap-highlight-color: transparent; touch-action: manipulation;">更多</button>
           <div class="header-dropdown" id="headerDropdown" style="display: none;">
             <button class="dropdown-item sync-badge" id="syncStatusBadge">离线模式</button>
             <button class="dropdown-item" id="toggleImportBtn">导入文件</button>
@@ -3410,21 +3410,26 @@ export const DIALER_HTML = `<!DOCTYPE html>
       var dropdown = document.getElementById('headerDropdown');
       
       if (menuBtn && dropdown) {
-        menuBtn.addEventListener('click', function(e) {
+        function toggleDropdown(e) {
           e.stopPropagation();
-          if (dropdown.style.display === 'none') {
+          e.preventDefault();
+          if (dropdown.style.display === 'none' || dropdown.style.display === '') {
             dropdown.style.display = 'flex';
           } else {
             dropdown.style.display = 'none';
           }
-        });
+        }
+        menuBtn.addEventListener('click', toggleDropdown);
+        menuBtn.addEventListener('touchend', toggleDropdown);
 
         // Close dropdown when clicking outside
-        document.addEventListener('click', function(e) {
+        function closeDropdown(e) {
           if (!menuBtn.contains(e.target) && !dropdown.contains(e.target)) {
             dropdown.style.display = 'none';
           }
-        });
+        }
+        document.addEventListener('click', closeDropdown);
+        document.addEventListener('touchend', closeDropdown);
 
         // Also close dropdown when selecting any option inside it
         dropdown.querySelectorAll('.dropdown-item').forEach(function(item) {
