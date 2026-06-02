@@ -2336,8 +2336,8 @@ export default {
       const cls=pct>=100?'goal-met':pct>=50?'goal-half':'goal-low';
       return '<span class="goal-chip '+cls+'">'+label+' '+actual+'/'+target+'</span>';
     };
-    html+=makeChip('本周上门',getWeekTotal(vm,calendarMonth),goals.weeklyVisit);
-    html+=makeChip('本周微信',getWeekTotal(wm,calendarMonth),goals.weeklyWechat);
+    html+=makeChip('本周上门',getWeekTotal(vm),goals.weeklyVisit);
+    html+=makeChip('本周微信',getWeekTotal(wm),goals.weeklyWechat);
     html+=makeChip('本月微信',getMonthTotal(wm,calendarMonth),goals.monthlyWechat);
     html+=makeChip('本月上门',getMonthTotal(vm,calendarMonth),goals.monthlyVisit);
     html+=makeChip('本月回款',getMonthTotal(pm,calendarMonth),goals.monthlyPayment);
