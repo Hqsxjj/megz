@@ -5,38 +5,32 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- Calendar body: rounded rect outline -->
+    <!-- Calendar card outline -->
     <path
         android:strokeColor="#FFFFFF"
-        android:strokeWidth="2.8"
+        android:strokeWidth="3"
         android:strokeLineCap="round"
         android:strokeLineJoin="round"
         android:fillColor="#00000000"
-        android:pathData="M22,28h64c5.5,0 10,4.5 10,10v46c0,5.5 -4.5,10 -10,10h-64c-5.5,0 -10,-4.5 -10,-10v-46c0,-5.5 4.5,-10 10,-10z" />
+        android:pathData="M24,30h60c5.5,0 10,4.5 10,10v44c0,5.5 -4.5,10 -10,10h-60c-5.5,0 -10,-4.5 -10,-10v-44c0,-5.5 4.5,-10 10,-10z" />
 
-    <!-- Calendar header divider line -->
-    <path
-        android:strokeColor="#FFFFFF"
-        android:strokeWidth="2.8"
-        android:fillColor="#00000000"
-        android:pathData="M22,44h64" />
-
-    <!-- Top binding rings -->
-    <path
-        android:strokeColor="#FFFFFF"
-        android:strokeWidth="2.8"
-        android:strokeLineCap="round"
-        android:fillColor="#00000000"
-        android:pathData="M35,20v12 M73,20v12" />
-
-    <!-- Row 1 dots -->
+    <!-- Header bar -->
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M34,58m2.5,0a2.5,2.5 0,1 1,5 0a2.5,2.5 0,1 1,-5 0 M52,58m2.5,0a2.5,2.5 0,1 1,5 0a2.5,2.5 0,1 1,-5 0 M70,58m2.5,0a2.5,2.5 0,1 1,5 0a2.5,2.5 0,1 1,-5 0" />
+        android:pathData="M24,30h60v16h-60z" />
 
-    <!-- Row 2 dots -->
+    <!-- Binding dots -->
     <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M34,72m2.5,0a2.5,2.5 0,1 1,5 0a2.5,2.5 0,1 1,-5 0 M52,72m2.5,0a2.5,2.5 0,1 1,5 0a2.5,2.5 0,1 1,-5 0" />
+        android:fillColor="#4A6CF7"
+        android:pathData="M36,24m3,0a3,3 0,1 1,6 0a3,3 0,1 1,-6 0 M72,24m3,0a3,3 0,1 1,6 0a3,3 0,1 1,-6 0" />
 
+    <!-- Day dots row 1 -->
+    <circle cx="34" cy="58" r="3" fill="#4A6CF7" />
+    <circle cx="54" cy="58" r="3" fill="#4A6CF7" />
+    <circle cx="74" cy="58" r="3" fill="#4A6CF7" />
+
+    <!-- Day dots row 2 -->
+    <circle cx="34" cy="73" r="3" fill="#4A6CF7" />
+    <circle cx="54" cy="73" r="3" fill="#4A6CF7" />
+    <circle cx="74" cy="73" r="3" fill="#4A6CF7" />
 </vector>

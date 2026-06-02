@@ -115,23 +115,8 @@ public class MainActivity extends AppCompatActivity {
             }
         }
 
-        // 3. Edge-to-edge: content draws behind translucent status bar
-        // The WebView CSS safe-area-inset-top will handle padding
-        try {
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
-                getWindow().setDecorFitsSystemWindows(false);
-                getWindow().getInsetsController().show(android.view.WindowInsets.Type.statusBars());
-            } else {
-                getWindow().getDecorView().setSystemUiVisibility(
-                    android.view.View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-                        | android.view.View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                );
-            }
-            getWindow().setStatusBarColor(android.graphics.Color.TRANSPARENT);
-            getWindow().setNavigationBarColor(android.graphics.Color.TRANSPARENT);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        // 3. Immersive full-screen: hide status bar and navigation bar
+        hideSystemUI();
 
         setContentView(R.layout.activity_main);
 
@@ -649,16 +634,17 @@ public class MainActivity extends AppCompatActivity {
     }
 
     @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (hasFocus) hideSystemUI();
+    }
+
+    @Override
     protected void onResume() {
         super.onResume();
 
-        // Re-apply edge-to-edge status bar
-        try {
-            getWindow().setStatusBarColor(android.graphics.Color.TRANSPARENT);
-            getWindow().setNavigationBarColor(android.graphics.Color.TRANSPARENT);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        // Re-apply immersive full-screen
+        hideSystemUI();
 
         // Automated Outgoing Call Duration query injection
         if (pendingPhoneUrl != null) {
@@ -940,6 +926,19 @@ public class MainActivity extends AppCompatActivity {
             e.printStackTrace();
             Toast.makeText(this, "无法启动安装程序，请手动安装！", Toast.LENGTH_LONG).show();
         }
+    }
+
+    private void hideSystemUI() {
+        View decorView = getWindow().getDecorView();
+        int flags = android.view.View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                  | android.view.View.SYSTEM_UI_FLAG_FULLSCREEN
+                  | android.view.View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                  | android.view.View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                  | android.view.View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                  | android.view.View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN;
+        decorView.setSystemUiVisibility(flags);
+        getWindow().setStatusBarColor(android.graphics.Color.TRANSPARENT);
+        getWindow().setNavigationBarColor(android.graphics.Color.TRANSPARENT);
     }
 
     private int getStatusBarHeight() {
