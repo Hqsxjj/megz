@@ -5,44 +5,28 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- Calendar outer rounded rect: 72dp safe zone centered at (54,54) -->
+    <!-- Calendar body 72dp safe zone: 18-90 -->
     <path
-        android:strokeColor="#FFFFFF"
-        android:strokeWidth="2.5"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round"
-        android:fillColor="#00000000"
-        android:pathData="M22,28h64c5,0 10,4.5 10,10v44c0,5.5 -5,10 -10,10h-64c-5.5,0 -10,-4.5 -10,-10v-44c0,-5.5 4.5,-10 10,-10z" />
+        android:fillColor="#FFFFFF"
+        android:pathData="M24,26h60c3,0 5,2 5,5v50c0,3 -2,5 -5,5h-60c-3,0 -5,-2 -5,-5v-50c0,-3 2,-5 5,-5z" />
 
-    <!-- Header bar -->
+    <!-- Top bar (darker) -->
     <path
-        android:strokeColor="#FFFFFF"
-        android:strokeWidth="2.5"
-        android:fillColor="#00000000"
-        android:pathData="M22,44h64" />
+        android:fillColor="#4A6CF7"
+        android:pathData="M24,26h60v14h-60z" />
 
-    <!-- Left binding ring -->
+    <!-- Left ring -->
     <path
-        android:strokeColor="#FFFFFF"
-        android:strokeWidth="2.5"
-        android:strokeLineCap="round"
-        android:fillColor="#00000000"
-        android:pathData="M32,20v10" />
+        android:fillColor="#4A6CF7"
+        android:pathData="M32,16a5,5 0,0 1,5 5v5h-10v-5a5,5 0,0 1,5 -5z" />
 
-    <!-- Right binding ring -->
+    <!-- Right ring -->
     <path
-        android:strokeColor="#FFFFFF"
-        android:strokeWidth="2.5"
-        android:strokeLineCap="round"
-        android:fillColor="#00000000"
-        android:pathData="M76,20v10" />
+        android:fillColor="#4A6CF7"
+        android:pathData="M76,16a5,5 0,0 1,5 5v5h-10v-5a5,5 0,0 1,5 -5z" />
 
-    <!-- Row 1 dots -->
-    <path android:fillColor="#FFFFFF" android:pathData="M34,58m2.5,0a2.5,2.5 0,1 1,5 0a2.5,2.5 0,1 1,-5 0" />
-    <path android:fillColor="#FFFFFF" android:pathData="M54,58m2.5,0a2.5,2.5 0,1 1,5 0a2.5,2.5 0,1 1,-5 0" />
-    <path android:fillColor="#FFFFFF" android:pathData="M74,58m2.5,0a2.5,2.5 0,1 1,5 0a2.5,2.5 0,1 1,-5 0" />
-
-    <!-- Row 2 dots -->
-    <path android:fillColor="#FFFFFF" android:pathData="M34,72m2.5,0a2.5,2.5 0,1 1,5 0a2.5,2.5 0,1 1,-5 0" />
-    <path android:fillColor="#FFFFFF" android:pathData="M54,72m2.5,0a2.5,2.5 0,1 1,5 0a2.5,2.5 0,1 1,-5 0" />
+    <!-- Checkmark (large, centered) -->
+    <path
+        android:fillColor="#07C160"
+        android:pathData="M42,56 L52,68 L68,48 L62,42 L52,56 L48,54 Z" />
 </vector>
