@@ -119,15 +119,10 @@ public class MainActivity extends AppCompatActivity {
             }
         }
 
-        // 3. Edge-to-edge full-screen: content fills entire screen behind system bars
+        // 3. Edge-to-edge: content fills behind system bars, bars remain visible
         WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
         getWindow().setStatusBarColor(android.graphics.Color.TRANSPARENT);
         getWindow().setNavigationBarColor(android.graphics.Color.TRANSPARENT);
-        WindowInsetsControllerCompat controller = WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
-        if (controller != null) {
-            controller.hide(WindowInsetsCompat.Type.systemBars());
-            controller.setSystemBarsBehavior(WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
-        }
 
         setContentView(R.layout.activity_main);
 
@@ -645,17 +640,12 @@ public class MainActivity extends AppCompatActivity {
     }
 
     @Override
-    public void onWindowFocusChanged(boolean hasFocus) {
-        super.onWindowFocusChanged(hasFocus);
-        if (hasFocus) hideSystemUI();
-    }
-
-    @Override
     protected void onResume() {
         super.onResume();
 
-        // Re-apply immersive full-screen
-        hideSystemUI();
+        // Ensure transparent system bars
+        getWindow().setStatusBarColor(android.graphics.Color.TRANSPARENT);
+        getWindow().setNavigationBarColor(android.graphics.Color.TRANSPARENT);
 
         // Automated Outgoing Call Duration query injection
         if (pendingPhoneUrl != null) {
@@ -936,14 +926,6 @@ public class MainActivity extends AppCompatActivity {
         } catch (Exception e) {
             e.printStackTrace();
             Toast.makeText(this, "无法启动安装程序，请手动安装！", Toast.LENGTH_LONG).show();
-        }
-    }
-
-    private void hideSystemUI() {
-        WindowInsetsControllerCompat controller = WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
-        if (controller != null) {
-            controller.hide(WindowInsetsCompat.Type.systemBars());
-            controller.setSystemBarsBehavior(WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
         }
     }
 
