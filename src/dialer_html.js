@@ -111,6 +111,9 @@ export const DIALER_HTML = `<!DOCTYPE html>
       display: flex;
       flex-direction: column;
       padding: 4px 0;
+      max-height: 60vh;
+      overflow-y: auto;
+      min-width: 120px;
       min-width: 130px;
     }
     .dropdown-item {
