@@ -964,10 +964,14 @@ export default {
     .visit-fill::before { background: var(--visit-gradient); }
     .payment-fill { background: var(--payment-gradient); color: white; }
     .payment-fill::before { background: var(--payment-gradient); }
-    .counter-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; position: relative; z-index: 1; }
+    .counter-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; position: relative; z-index: 1; }
+    .counter-header .button-group { display: flex; gap: 6px; margin-top: 0; }
+    .counter-header .circle-btn { width: 28px; height: 28px; font-size: 1.1rem; border-radius: 4px; }
     .counter-label { font-size: 0.8rem; font-weight: 700; color: rgba(255,255,255,0.95); text-shadow: 0 1px 2px rgba(0,0,0,0.1); }
     .reset-mini { background: rgba(255,255,255,0.3); border: none; font-size: 0.7rem; color: rgba(255,255,255,0.9); cursor: pointer; padding: 4px 8px; border-radius: var(--radius-xs); font-weight: 600; position: relative; z-index: 1; backdrop-filter: blur(4px); }
-    .counter-value { font-size: 2.8rem; font-weight: 800; line-height: 1; color: white; text-shadow: 0 2px 4px rgba(0,0,0,0.15); position: relative; z-index: 1; }
+    .counter-value { font-size: 2.4rem; font-weight: 800; line-height: 1; color: white; text-shadow: 0 2px 4px rgba(0,0,0,0.15); position: relative; z-index: 1; }
+    .counter-stats { display: flex; gap: 12px; margin-top: 6px; position: relative; z-index: 1; font-size: 0.7rem; color: rgba(255,255,255,0.8); font-weight: 600; }
+    .counter-stats b { font-weight: 800; }
     .button-group { display: flex; gap: 12px; margin-top: 12px; position: relative; z-index: 1; }
     .circle-btn { width: 40px; height: 40px; border-radius: var(--radius-xs); background: rgba(255,255,255,0.35); border: 1px solid rgba(255,255,255,0.5); font-size: 1.5rem; display: flex; align-items: center; justify-content: center; cursor: pointer; color: white; font-weight: 700; backdrop-filter: blur(4px); transition: 0.2s; }
     .circle-btn:hover { background: rgba(255,255,255,0.5); }
@@ -1159,7 +1163,10 @@ export default {
       .card-title { font-size: 0.82rem; margin-bottom: 8px; }
       .counter-row { gap: 8px; }
       .counter-card { padding: 8px; }
-      .counter-value { font-size: 2rem; }
+      .counter-value { font-size: 1.6rem; }
+      .counter-header .circle-btn { width: 24px; height: 24px; font-size: 0.9rem; border-radius: 3px; }
+      .counter-header .button-group { gap: 4px; }
+      .counter-stats { font-size: 0.6rem; gap: 8px; }
       .button-group { gap: 6px; margin-top: 6px; justify-content: center; }
       .circle-btn { width: 30px; height: 30px; font-size: 1.1rem; border-radius: 6px; }
       .reset-mini { padding: 2px 4px; font-size: 0.6rem; }
@@ -1478,27 +1485,20 @@ export default {
       <div class="left-area">
         <div class="counter-row">
           <div class="counter-card wechat-fill">
-            <div class="counter-header"><span class="counter-label">今日微信</span></div>
+            <div class="counter-header"><span class="counter-label">微信</span><div class="button-group"><button class="circle-btn" id="wechatMinus">−</button><button class="circle-btn btn-special" id="wechatPlus">+</button></div></div>
             <div class="counter-value" id="wechatNum">0</div>
-            <div class="button-group"><button class="circle-btn" id="wechatMinus">−</button><button class="circle-btn btn-special" id="wechatPlus">+</button></div>
+            <div class="counter-stats"><span>本周 <b id="weekWechat">0</b></span><span>本月 <b id="monthWechat">0</b></span></div>
           </div>
           <div class="counter-card intent-fill">
-            <div class="counter-header"><span class="counter-label">今日意向</span></div>
+            <div class="counter-header"><span class="counter-label">意向</span></div>
             <div class="counter-value" id="intentNum">0</div>
+            <div class="counter-stats"><span>本周 <b id="weekIntent">0</b></span><span>本月 <b id="monthIntent">0</b></span></div>
           </div>
           <div class="counter-card revisit-fill">
-            <div class="counter-header"><span class="counter-label">今日回访</span></div>
+            <div class="counter-header"><span class="counter-label">回访</span><div class="button-group"><button class="circle-btn" id="revisitMinus">−</button><button class="circle-btn btn-special" id="revisitPlus">+</button></div></div>
             <div class="counter-value" id="revisitNum">0</div>
-            <div class="button-group"><button class="circle-btn" id="revisitMinus">−</button><button class="circle-btn btn-special" id="revisitPlus">+</button></div>
+            <div class="counter-stats"><span>本周 <b id="weekRevisit">0</b></span><span>本月 <b id="monthRevisit">0</b></span></div>
           </div>
-        </div>
-        <div class="stats-row">
-          <div class="stat-block stat-wechat"><span class="label">微·本周</span> <span class="number" id="weekWechat">0</span></div>
-          <div class="stat-block stat-wechat"><span class="label">微·本月</span> <span class="number" id="monthWechat">0</span></div>
-          <div class="stat-block stat-intent"><span class="label">意·本周</span> <span class="number" id="weekIntent">0</span></div>
-          <div class="stat-block stat-intent"><span class="label">意·本月</span> <span class="number" id="monthIntent">0</span></div>
-          <div class="stat-block stat-revisit"><span class="label">访·本周</span> <span class="number" id="weekRevisit">0</span></div>
-          <div class="stat-block stat-revisit"><span class="label">访·本月</span> <span class="number" id="monthRevisit">0</span></div>
         </div>
         <div class="card calendar-compact">
           <div class="cal-head"><button class="cal-nav-btn" id="calPrevBtn" title="上个月">◀</button><span id="calMonthTitle"></span><button class="cal-nav-btn" id="calNextBtn" title="下个月">▶</button></div>
