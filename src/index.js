@@ -2880,6 +2880,7 @@ export default {
   document.getElementById('revisitMinus').addEventListener('click',()=>modCounter(REVISIT_K,-1,'incRevisit'));
   document.getElementById('syncBtn').addEventListener('click',async()=>{
     _syncStatus='syncing';updateSyncIndicator();
+    calendarMonth=getCurrentMonth();
     try{await drainQueue();await saveFullState(true);await pullLatest();await syncCalendarFromCloud();refreshAll();}catch(e){_syncStatus='error';}
     updateSyncIndicator();
   });
@@ -3289,6 +3290,7 @@ export default {
       }
     }
     localStorage.setItem(LAST_LOAD_DATE_K,todayStr);
+    calendarMonth=getCurrentMonth();
     await syncCalendarFromCloud();
     renderLockScripts();renderLockLearns();
     refreshAll();
