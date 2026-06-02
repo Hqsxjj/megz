@@ -3437,17 +3437,20 @@ export const DIALER_HTML = `<!DOCTYPE html>
       }
     }
 
-    // Main Init
-    initDark();
-    initFileInputs();
-    initCallControls();
-    initFilters();
-    initDataActions();
-    initSyncHandlers();
-    initHeaderMenu();
-    initNoteModal();
-    initAIImporter();
-    loadPersistedState();
+    // Main Init (每个 init 独立 try-catch，防止某个报错导致后续按钮初始化被跳过)
+    function safeInit(name, fn) {
+      try { fn(); } catch (e) { console.error('Init error: ' + name, e); }
+    }
+    safeInit('initDark', initDark);
+    safeInit('initFileInputs', initFileInputs);
+    safeInit('initCallControls', initCallControls);
+    safeInit('initFilters', initFilters);
+    safeInit('initDataActions', initDataActions);
+    safeInit('initSyncHandlers', initSyncHandlers);
+    safeInit('initHeaderMenu', initHeaderMenu);
+    safeInit('initNoteModal', initNoteModal);
+    safeInit('initAIImporter', initAIImporter);
+    safeInit('loadPersistedState', loadPersistedState);
 
   })();
   </script>
