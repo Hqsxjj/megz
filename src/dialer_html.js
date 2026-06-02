@@ -102,7 +102,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
     .header-dropdown {
       position: absolute;
       top: 30px;
-      right: 0;
+      left: 0;
       background: var(--card-bg);
       border: 1px solid var(--card-border);
       border-radius: var(--radius-sm);
