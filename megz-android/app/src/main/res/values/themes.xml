@@ -1,6 +1,6 @@
 <resources>
     <!-- Base application theme. -->
-    <style name="Theme.Megz" parent="Theme.MaterialComponents.DayNight">
+    <style name="Theme.Megz" parent="Theme.MaterialComponents.DayNight.NoActionBar">
         <!-- Primary brand color. -->
         <item name="colorPrimary">@color/accent_wechat</item>
         <item name="colorPrimaryVariant">@color/accent_wechat_dark</item>
@@ -9,14 +9,13 @@
         <item name="colorSecondary">@color/accent_wechat</item>
         <item name="colorSecondaryVariant">@color/accent_wechat_dark</item>
         <item name="colorOnSecondary">@color/white</item>
-        <!-- Status bar: solid background matching page color -->
-        <item name="android:statusBarColor">@color/bg_app</item>
-        <item name="android:windowLightStatusBar">true</item>
+        <!-- Edge-to-edge: transparent status bar, content draws behind -->
+        <item name="android:windowTranslucentStatus">true</item>
+        <item name="android:windowTranslucentNavigation">true</item>
     </style>
 
     <style name="Theme.Megz.NoActionBar">
         <item name="windowActionBar">false</item>
         <item name="windowNoTitle">true</item>
-        <!-- Remove windowFullscreen to keep status bar visible; edge-to-edge is handled programmatically -->
     </style>
 </resources>

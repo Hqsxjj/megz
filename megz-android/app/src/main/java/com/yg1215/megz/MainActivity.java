@@ -115,13 +115,20 @@ public class MainActivity extends AppCompatActivity {
             }
         }
 
-        // 3. Solid status bar — no overlay, content starts below system bars
+        // 3. Edge-to-edge: content draws behind translucent status bar
+        // The WebView CSS safe-area-inset-top will handle padding
         try {
-            getWindow().setNavigationBarColor(android.graphics.Color.WHITE);
-            getWindow().getDecorView().setSystemUiVisibility(
-                android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
-                    | android.view.View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
-            );
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+                getWindow().setDecorFitsSystemWindows(false);
+                getWindow().getInsetsController().show(android.view.WindowInsets.Type.statusBars());
+            } else {
+                getWindow().getDecorView().setSystemUiVisibility(
+                    android.view.View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                        | android.view.View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                );
+            }
+            getWindow().setStatusBarColor(android.graphics.Color.TRANSPARENT);
+            getWindow().setNavigationBarColor(android.graphics.Color.TRANSPARENT);
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -645,13 +652,10 @@ public class MainActivity extends AppCompatActivity {
     protected void onResume() {
         super.onResume();
 
-        // Re-apply solid status bar appearance
+        // Re-apply edge-to-edge status bar
         try {
-            getWindow().setNavigationBarColor(android.graphics.Color.WHITE);
-            getWindow().getDecorView().setSystemUiVisibility(
-                android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
-                    | android.view.View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
-            );
+            getWindow().setStatusBarColor(android.graphics.Color.TRANSPARENT);
+            getWindow().setNavigationBarColor(android.graphics.Color.TRANSPARENT);
         } catch (Exception e) {
             e.printStackTrace();
         }
