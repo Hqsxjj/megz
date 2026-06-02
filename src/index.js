@@ -891,6 +891,9 @@ export default {
     .goal-chip.goal-met { background: rgba(7,193,96,0.08); color: #07c160; }
     .goal-chip.goal-half { background: rgba(245,124,0,0.08); color: #e67e22; }
     .goal-chip.goal-low { background: rgba(74,108,247,0.06); color: #4a6cf7; }
+    .goal-eye { background: none; border: none; cursor: pointer; font-size: 0.85rem; padding: 2px 4px; opacity: 0.5; transition: opacity 0.2s; line-height: 1; }
+    .goal-eye:hover { opacity: 1; }
+    .goal-eye.eye-off { opacity: 0.25; }
     .action-group { display: flex; gap: 10px; align-items: center; padding: 2px; position: relative; }
     .icon-simple { background: #f5f5f5; border: 1px solid rgba(0,0,0,0.04); min-width: 38px; height: 38px; padding: 0 6px; border-radius: var(--radius-xs); display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 0.78rem; color: var(--text-soft); transition: all 0.2s cubic-bezier(0.34,1.56,0.64,1); user-select: none; font-weight: 600; position: relative; white-space: nowrap; }
     .icon-simple:hover { background: #e8e8e8; transform: translateY(-2px) scale(1.06); box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
@@ -1410,7 +1413,7 @@ export default {
 <div class="app-shell">
   <div class="container">
     <div class="header-bar">
-      <div class="title-section"><h3>每日工作</h3><div class="date-chip" id="liveDate"></div><div class="goal-chips" id="goalChips"></div></div>
+      <div class="title-section"><h3>每日工作</h3><div class="date-chip" id="liveDate"></div><button class="goal-eye eye-off" id="goalEyeBtn" title="显示目标数字">👁</button><div class="goal-chips" id="goalChips"></div></div>
       <div class="action-group">
         <button class="sync-indicator" id="syncBtn" title="点击手动同步"><span class="sync-icon" id="syncIcon">⇅</span><span id="syncLabel">同步中</span><div class="sync-tooltip" id="syncTooltip">正在连接...</div></button>
         <button class="icon-simple" id="allClientsBtn" title="意向客户全量表">全量</button>
@@ -2262,13 +2265,21 @@ export default {
     }
   }
 
+  const SHOW_GOAL_NUM_K='show_goal_num_v1';
   function renderGoalChips(){
     const container=document.getElementById('goalChips');
+    const showNum=localStorage.getItem(SHOW_GOAL_NUM_K)==='true';
+    const eyeBtn=document.getElementById('goalEyeBtn');
+    if(eyeBtn){
+      eyeBtn.className='goal-eye'+(showNum?'':' eye-off');
+      eyeBtn.title=showNum?'隐藏目标数字':'显示目标数字';
+    }
     const wm=loadMap(WECHAT_K),vm=loadMap(VISIT_K),pm=loadMap(PAYMENT_K);
     const goals=loadGoals();
     let html='';
     const makeChip=(label,actual,target)=>{
       if(!target||target<=0)return'';
+      if(!showNum) return '<span class="goal-chip">'+label+'</span>';
       const pct=Math.round(actual/target*100);
       const cls=pct>=100?'goal-met':pct>=50?'goal-half':'goal-low';
       return '<span class="goal-chip '+cls+'">'+label+' '+actual+'/'+target+'</span>';
@@ -2279,6 +2290,11 @@ export default {
     html+=makeChip('本月上门',getMonthTotal(vm),goals.monthlyVisit);
     html+=makeChip('本月回款',getMonthTotal(pm),goals.monthlyPayment);
     container.innerHTML=html;
+  }
+  function toggleGoalNumbers(){
+    const cur=localStorage.getItem(SHOW_GOAL_NUM_K)==='true';
+    localStorage.setItem(SHOW_GOAL_NUM_K,!cur);
+    renderGoalChips();
   }
 
   function refreshAll(){
@@ -3165,6 +3181,7 @@ export default {
   }
 
   initAndroid();initLogs();initDark();initWp();initScriptFeature();initLearnFeature();initExport();initAllClientsBtn();initGoals();
+  document.getElementById('goalEyeBtn').addEventListener('click',toggleGoalNumbers);
   // 菜单下拉
   (function(){
     const toggle=document.getElementById('menuToggleBtn');
