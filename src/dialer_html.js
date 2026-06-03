@@ -918,6 +918,11 @@ export const DIALER_HTML = `<!DOCTYPE html>
           <option value="dialed">已拨优先</option>
           <option value="shuffle" selected>随机打乱</option>
         </select>
+        <select id="whitelistFilterSelect" style="height: 28px; font-size: 0.68rem; border: 1px solid var(--card-border); border-radius: var(--radius-xs); background: var(--btn-bg); color: var(--text-soft); font-weight: 800; outline: none; padding: 0 4px; cursor: pointer; flex-shrink: 0; width: 85px;">
+          <option value="all">白名单筛选</option>
+          <option value="yes">✔ 白名单</option>
+          <option value="no">✘ 非白名单</option>
+        </select>
         <button id="whitelistCheckBtn" title="对照白名单检查客户单位" style="height:28px; padding:0 8px; font-size:0.65rem; border:1px solid var(--accent-wechat); background:var(--accent-wechat-bg); color:var(--accent-wechat); border-radius:var(--radius-xs); cursor:pointer; font-weight:800; outline:none; white-space:nowrap; flex-shrink:0;">☑ 白名单</button>
         <div class="filter-group" style="flex-shrink: 0;">
           <button class="filter-tab active" data-filter="all">全部</button>
@@ -1047,8 +1052,24 @@ export const DIALER_HTML = `<!DOCTYPE html>
         </div>
       </div>
 
+      <!-- Failed Uploads retry area -->
+      <div id="whitelistFailedArea" style="display:none; border:1px solid #e74c3c; background:rgba(231,76,60,0.05); border-radius:var(--radius-xs); padding:10px;">
+        <div style="font-size:0.72rem; font-weight:800; color:#e74c3c; margin-bottom:6px; display:flex; justify-content:space-between; align-items:center;">
+          <span>⚠️ 上次上传失败的企业 (<span id="whitelistFailedCount">0</span>)</span>
+          <a href="#" id="whitelistFailedClearBtn" style="color:#e74c3c; text-decoration:underline; font-size:0.65rem;">清除</a>
+        </div>
+        <div id="whitelistFailedList" style="max-height:80px; overflow-y:auto; font-size:0.68rem; color:var(--text-soft); border:1px solid rgba(231,76,60,0.2); border-radius:4px; padding:4px; background:#fff; margin-bottom:8px; text-align:left; white-space:pre-wrap;"></div>
+        <button id="whitelistFailedRetryBtn" class="btn-primary" style="background:#e74c3c; border-color:#e74c3c; color:#fff; width:100%; padding:6px; font-size:0.75rem;">尝试重新上传</button>
+      </div>
+
+      <!-- Search in Whitelist -->
+      <div style="display:flex; flex-direction:column; gap:4px; margin-top:2px;">
+        <div style="font-size:0.7rem; font-weight:800; color:var(--text-soft);">在白名单中搜索已存企业：</div>
+        <input type="text" id="whitelistModalSearchInput" class="search-input" placeholder="输入企业名称进行搜索..." style="height:28px; font-size:0.72rem; border-radius:var(--radius-xs); padding:0 8px; border:1px solid var(--card-border); background:var(--btn-bg); color:var(--text-main); font-weight:700; width:100%;">
+      </div>
+
       <!-- Existing companies list -->
-      <div style="max-height:200px; overflow-y:auto; border:1px solid var(--card-border); border-radius:var(--radius-xs); padding:8px;">
+      <div style="max-height:180px; overflow-y:auto; border:1px solid var(--card-border); border-radius:var(--radius-xs); padding:8px;">
         <div id="whitelistCompanyList" style="font-size:0.7rem; color:var(--text-light); text-align:center;">点击"刷新列表"加载白名单企业</div>
       </div>
     </div>
@@ -2755,16 +2776,41 @@ export const DIALER_HTML = `<!DOCTYPE html>
       }
 
       var query = document.getElementById('searchInput').value.toLowerCase().trim();
+      var wlFilter = document.getElementById('whitelistFilterSelect') ? document.getElementById('whitelistFilterSelect').value : 'all';
 
       var filtered = importedClients.filter(function(c) {
         var matchFilter = (currentFilter === 'all') || (c.dialedStatus === currentFilter);
+        
+        var companyTrimmed = c.company ? c.company.trim() : '';
+        var isCompanyInWhitelist = false;
+        if (whitelistCheckResults && whitelistCheckResults[companyTrimmed]) {
+          isCompanyInWhitelist = whitelistCheckResults[companyTrimmed].isMatch;
+        }
+
+        // Whitelist dropdown filter
+        var matchWlFilter = true;
+        if (wlFilter === 'yes') {
+          matchWlFilter = isCompanyInWhitelist;
+        } else if (wlFilter === 'no') {
+          matchWlFilter = !isCompanyInWhitelist;
+        }
+
         var matchQuery = true;
         if (query) {
-          matchQuery = c.name.toLowerCase().includes(query) || 
-                       c.phone.toLowerCase().includes(query) || 
-                       c.company.toLowerCase().includes(query);
+          var isWlSearch = (query === '白名单' || query === '是白名单' || query === 'is:whitelist');
+          var isNotWlSearch = (query === '非白名单' || query === '否白名单' || query === 'is:not-whitelist');
+          
+          if (isWlSearch) {
+            matchQuery = isCompanyInWhitelist;
+          } else if (isNotWlSearch) {
+            matchQuery = !isCompanyInWhitelist;
+          } else {
+            matchQuery = c.name.toLowerCase().includes(query) || 
+                         c.phone.toLowerCase().includes(query) || 
+                         c.company.toLowerCase().includes(query);
+          }
         }
-        return matchFilter && matchQuery;
+        return matchFilter && matchWlFilter && matchQuery;
       });
 
       if (filtered.length === 0) {
@@ -3382,6 +3428,21 @@ export const DIALER_HTML = `<!DOCTYPE html>
           renderDialCards();
         });
       }
+
+      var wlFilterSel = document.getElementById('whitelistFilterSelect');
+      if (wlFilterSel) {
+        wlFilterSel.addEventListener('change', function() {
+          var val = this.value;
+          currentPage = 1; // Reset to page 1
+          if (val !== 'all' && !whitelistCheckResults) {
+            checkWhitelist().then(function() {
+              renderDialCards();
+            });
+          } else {
+            renderDialCards();
+          }
+        });
+      }
     }
 
     function initFileInputs() {
@@ -3653,17 +3714,61 @@ export const DIALER_HTML = `<!DOCTYPE html>
       }
     }
 
+    function handleFailedUploads(companies) {
+      try {
+        var failed = JSON.parse(localStorage.getItem('whitelist_failed_uploads') || '[]');
+        var failedSet = new Set(failed);
+        companies.forEach(function(c) { failedSet.add(c); });
+        localStorage.setItem('whitelist_failed_uploads', JSON.stringify(Array.from(failedSet)));
+        renderFailedUploadsArea();
+      } catch (e) {
+        console.error('Failed to save failed whitelist uploads:', e);
+      }
+    }
+
+    function renderFailedUploadsArea() {
+      var container = document.getElementById('whitelistFailedArea');
+      var listEl = document.getElementById('whitelistFailedList');
+      var countEl = document.getElementById('whitelistFailedCount');
+      if (!container || !listEl || !countEl) return;
+
+      var failed = [];
+      try {
+        failed = JSON.parse(localStorage.getItem('whitelist_failed_uploads') || '[]');
+      } catch (e) {}
+
+      if (failed.length === 0) {
+        container.style.display = 'none';
+        return;
+      }
+
+      container.style.display = 'block';
+      countEl.textContent = failed.length;
+      listEl.textContent = failed.join('\n');
+    }
+
     function renderWhitelistCompanyList() {
       var container = document.getElementById('whitelistCompanyList');
       if (!container) return;
 
-      if (whitelistCompanies.length === 0) {
-        container.innerHTML = '<div style="font-size:0.7rem; color:var(--text-light); text-align:center; padding:10px;">暂无白名单企业数据</div>';
+      var searchInput = document.getElementById('whitelistModalSearchInput');
+      var query = searchInput ? searchInput.value.toLowerCase().trim() : '';
+
+      var filtered = whitelistCompanies;
+      if (query) {
+        filtered = whitelistCompanies.filter(function(c) {
+          return (c.company_name || '').toLowerCase().includes(query) ||
+                 (c.alias || '').toLowerCase().includes(query);
+        });
+      }
+
+      if (filtered.length === 0) {
+        container.innerHTML = '<div style="font-size:0.7rem; color:var(--text-light); text-align:center; padding:10px;">' + (query ? '无匹配搜索的企业' : '暂无白名单企业数据') + '</div>';
         return;
       }
 
       var html = '';
-      whitelistCompanies.forEach(function(c) {
+      filtered.forEach(function(c) {
         html += '<div class="whitelist-company-item">' +
           '<span style="font-size:0.72rem; font-weight:700; color:var(--text-main);">' + esc(c.company_name) + '</span>' +
           '<button class="whitelist-del-btn" data-company="' + esc(c.company_name) + '" style="font-size:0.6rem; padding:2px 8px; border:1px solid #e74c3c; background:transparent; color:#e74c3c; border-radius:3px; cursor:pointer; font-weight:700;">删除</button>' +
@@ -3718,11 +3823,15 @@ export const DIALER_HTML = `<!DOCTYPE html>
       var refreshBtn = document.getElementById('whitelistRefreshBtn');
       var checkBtn = document.getElementById('whitelistCheckBtn');
       var textarea = document.getElementById('whitelistTextarea');
+      var failedClearBtn = document.getElementById('whitelistFailedClearBtn');
+      var failedRetryBtn = document.getElementById('whitelistFailedRetryBtn');
+      var modalSearch = document.getElementById('whitelistModalSearchInput');
 
       // Open modal from dropdown
       if (whitelistBtn && whitelistModal) {
         whitelistBtn.addEventListener('click', function() {
           whitelistModal.classList.add('active');
+          renderFailedUploadsArea();
           if (!whitelistLoaded) {
             fetchWhitelist();
           }
@@ -3760,7 +3869,8 @@ export const DIALER_HTML = `<!DOCTYPE html>
               return fetchWhitelist();
             })
             .catch(function(err) {
-              alert(err.message);
+              alert('上传失败：' + err.message + '。已存入本地失败重试列表。');
+              handleFailedUploads(companies);
             })
             .then(function() {
               uploadBtn.textContent = '上传白名单';
@@ -3773,6 +3883,50 @@ export const DIALER_HTML = `<!DOCTYPE html>
       if (refreshBtn) {
         refreshBtn.addEventListener('click', function() {
           fetchWhitelist();
+        });
+      }
+
+      // Whitelist search
+      if (modalSearch) {
+        modalSearch.addEventListener('input', function() {
+          renderWhitelistCompanyList();
+        });
+      }
+
+      // Failed Area Clear
+      if (failedClearBtn) {
+        failedClearBtn.addEventListener('click', function(e) {
+          e.preventDefault();
+          localStorage.removeItem('whitelist_failed_uploads');
+          renderFailedUploadsArea();
+        });
+      }
+
+      // Failed Area Retry
+      if (failedRetryBtn) {
+        failedRetryBtn.addEventListener('click', function() {
+          var failed = [];
+          try {
+            failed = JSON.parse(localStorage.getItem('whitelist_failed_uploads') || '[]');
+          } catch (e) {}
+          if (failed.length === 0) return;
+
+          failedRetryBtn.textContent = '重试中...';
+          failedRetryBtn.disabled = true;
+          uploadWhitelist(failed)
+            .then(function(result) {
+              alert('重新上传成功，共导入 ' + result.count + ' 家企业');
+              localStorage.removeItem('whitelist_failed_uploads');
+              renderFailedUploadsArea();
+              return fetchWhitelist();
+            })
+            .catch(function(err) {
+              alert('重试上传依然失败: ' + err.message);
+            })
+            .then(function() {
+              failedRetryBtn.textContent = '尝试重新上传';
+              failedRetryBtn.disabled = false;
+            });
         });
       }
 
@@ -3791,6 +3945,9 @@ export const DIALER_HTML = `<!DOCTYPE html>
             });
         });
       }
+
+      // Initial check for failed uploads
+      renderFailedUploadsArea();
     }
 
     // Main Init (每个 init 独立 try-catch，防止某个报错导致后续按钮初始化被跳过)
