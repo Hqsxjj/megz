@@ -2381,7 +2381,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
             document.getElementById('aiLog3').style.opacity = '1';
           }
           
-          Tesseract.createWorker('chi_sim+eng', 1, {
+          var worker = Tesseract.createWorker({
             langPath: window.location.origin + '/tessdata',
             logger: function(m) {
               if (m.status === 'recognizing text') {
@@ -2399,28 +2399,38 @@ export const DIALER_HTML = `<!DOCTYPE html>
                 document.getElementById('aiScanStatus').innerHTML = '🧠 正在载入语言模型包' + loadPct + '...';
               }
             }
-          }).then(function(worker) {
-            return worker.recognize(file).then(function(result) {
+          });
+
+          worker.load()
+            .then(function() {
+              return worker.loadLanguage('chi_sim+eng');
+            })
+            .then(function() {
+              return worker.initialize('chi_sim+eng');
+            })
+            .then(function() {
+              return worker.recognize(file);
+            })
+            .then(function(result) {
               return worker.terminate().then(function() {
                 return result;
               });
-            }).catch(function(err) {
+            })
+            .then(function(result) {
+              if (document.getElementById('aiLog4')) {
+                document.getElementById('aiLog4').innerHTML = '✅ 图像文字识别与神经特征映射完毕';
+              }
+              var text = result.data.text;
+              setTimeout(function() {
+                var contacts = parsePhoneContactsFromRawText(text);
+                renderAIUnstructuredReport(file.name, contacts);
+              }, 800);
+            })
+            .catch(function(err) {
               worker.terminate();
-              throw err;
+              alert('视觉 OCR 识别失败：' + (err.message || err));
+              resetAIImporterUI();
             });
-          }).then(function(result) {
-            if (document.getElementById('aiLog4')) {
-              document.getElementById('aiLog4').innerHTML = '✅ 图像文字识别与神经特征映射完毕';
-            }
-            var text = result.data.text;
-            setTimeout(function() {
-              var contacts = parsePhoneContactsFromRawText(text);
-              renderAIUnstructuredReport(file.name, contacts);
-            }, 800);
-          }).catch(function(err) {
-            alert('视觉 OCR 识别失败：' + err.message);
-            resetAIImporterUI();
-          });
         })
         .catch(function(err) {
           alert('视觉识别引擎加载失败：' + err.message);
