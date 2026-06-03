@@ -2209,6 +2209,35 @@ export default {
       localStorage.setItem(LOCAL_TS_K,data._ts);
       await cloudSave(data);
     }
+  }  // 拉取全量意向客户并同步到本地 CLIENTS_K 缓存中
+  async function syncAllClientsFromCloud(){
+    try {
+      const r = await fetch('/api/all-clients');
+      if (r.ok) {
+        const cloudClients = await r.json();
+        if (Array.isArray(cloudClients)) {
+          const allClients = JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
+          const mergeMap = new Map();
+          // Keep local copies first to prevent overriding unsaved local modifications
+          allClients.forEach(c => {
+            const key = c.date + '|' + c.name + '|' + c.phone + '|' + (c.time||'');
+            mergeMap.set(key, c);
+          });
+          // Merge incoming cloud data
+          cloudClients.forEach(c => {
+            const key = c.date + '|' + c.name + '|' + c.phone + '|' + (c.time||'');
+            if (!mergeMap.has(key)) {
+              mergeMap.set(key, c);
+            }
+          });
+          localStorage.setItem(CLIENTS_K, JSON.stringify([...mergeMap.values()]));
+          addSyncLog('✅ 拉取并合并云端所有客户列表完成');
+        }
+      }
+    } catch(e) {
+      console.error('Failed to fetch all clients:', e);
+      addSyncLog('⚠️ 拉取全量客户失败: ' + e.message);
+    }
   }
 
   // 从 KV 拉取最新数据，如果云端更新则覆盖本地
@@ -3110,14 +3139,21 @@ export default {
     const ua=navigator.userAgent||"";
     const isAndroid=/Android/.test(ua)&&!/iPhone|iPad|iPod/.test(ua);
     if(isAndroid)document.body.classList.add("android");
-  }
-  function initDark(){
+  }  function initDark(){
     const btn=document.getElementById('darkToggleBtn');
     const themeMeta=document.querySelector('meta[name="theme-color"]');
-    const updateDarkTitle=()=>{const isDark=document.body.classList.contains('dark-mode');btn.textContent=(isDark?'浅色':'深色')+'模式';btn.title=isDark?'切换浅色模式':'切换深色模式';if(themeMeta)themeMeta.content=isDark?'#111111':'#ededed';};
+    const updateDarkTitle=()=>{
+      if(!btn)return;
+      const isDark=document.body.classList.contains('dark-mode');
+      btn.textContent=(isDark?'浅色':'深色')+'模式';
+      btn.title=isDark?'切换浅色模式':'切换深色模式';
+      if(themeMeta)themeMeta.content=isDark?'#111111':'#ededed';
+    };
     if(localStorage.getItem(DARK_K)==='true')document.body.classList.add('dark-mode');
     updateDarkTitle();
-    btn.addEventListener('click',()=>{document.body.classList.toggle('dark-mode');localStorage.setItem(DARK_K,document.body.classList.contains('dark-mode'));updateDarkTitle();});
+    if(btn){
+      btn.addEventListener('click',()=>{document.body.classList.toggle('dark-mode');localStorage.setItem(DARK_K,document.body.classList.contains('dark-mode'));updateDarkTitle();});
+    }
   }
   function initGoals(){
     const modal=document.getElementById('goalModal');
@@ -3268,13 +3304,24 @@ export default {
   document.getElementById('wechatPlus').addEventListener('click',()=>modCounter(WECHAT_K,1,'incWechat'));
   document.getElementById('wechatMinus').addEventListener('click',()=>modCounter(WECHAT_K,-1,'incWechat'));
   document.getElementById('revisitPlus').addEventListener('click',()=>modCounter(REVISIT_K,1,'incRevisit'));
-  document.getElementById('revisitMinus').addEventListener('click',()=>modCounter(REVISIT_K,-1,'incRevisit'));
-  document.getElementById('syncBtn').addEventListener('click',async()=>{
-    _syncStatus='syncing';updateSyncIndicator();
-    calendarMonth=getCurrentMonth();
-    try{await drainQueue();await saveFullState(true);await pullLatest();await syncCalendarFromCloud();refreshAll();}catch(e){_syncStatus='error';}
-    updateSyncIndicator();
-  });
+  document.getElementById('revisitMinus').addEventListener('click',()=>modCounter(REVISIT_K,-1,'incRevisit'));  const syncBtn = document.getElementById('syncBtn');
+  if(syncBtn){
+    syncBtn.addEventListener('click',async()=>{
+      _syncStatus='syncing';updateSyncIndicator();
+      calendarMonth=getCurrentMonth();
+      try{
+        await drainQueue();
+        await saveFullState(true);
+        await pullLatest();
+        await syncAllClientsFromCloud();
+        await syncCalendarFromCloud();
+        refreshAll();
+      }catch(e){
+        _syncStatus='error';
+      }
+      updateSyncIndicator();
+    });
+  }
   document.getElementById('addClientBtn').addEventListener('click',addClient);
   document.getElementById('addTodayTodoBtn').addEventListener('click',addTodayTodo);
   document.getElementById('addTodoBtn').addEventListener('click',addTodo);
@@ -3514,26 +3561,35 @@ export default {
         loadAllClients();
       };
     }));
-  }
-
-  function initAllClientsBtn() {
-    document.getElementById('allClientsBtn').addEventListener('click', () => {
-      loadAllClients();
-      document.getElementById('allClientsModal').classList.add('active');
-    });
-    document.getElementById('closeAllClientsModalBtn').addEventListener('click', () => {
-      document.getElementById('allClientsModal').classList.remove('active');
-    });
-    document.getElementById('allClientsModal').addEventListener('click', e => {
-      if (e.target === document.getElementById('allClientsModal')) {
-        document.getElementById('allClientsModal').classList.remove('active');
-        return;
-      }
-      const card = document.querySelector('#allClientsModal .modal-card');
-      if (card && card.contains(e.target) && !e.target.closest('button, input, textarea, a, select, label, tr')) {
-        document.getElementById('allClientsModal').classList.remove('active');
-      }
-    });
+  }  function initAllClientsBtn() {
+    const allClientsBtn = document.getElementById('allClientsBtn');
+    if (allClientsBtn) {
+      allClientsBtn.addEventListener('click', () => {
+        loadAllClients();
+        const modal = document.getElementById('allClientsModal');
+        if (modal) modal.classList.add('active');
+      });
+    }
+    const closeBtn = document.getElementById('closeAllClientsModalBtn');
+    if (closeBtn) {
+      closeBtn.addEventListener('click', () => {
+        const modal = document.getElementById('allClientsModal');
+        if (modal) modal.classList.remove('active');
+      });
+    }
+    const modal = document.getElementById('allClientsModal');
+    if (modal) {
+      modal.addEventListener('click', e => {
+        if (e.target === modal) {
+          modal.classList.remove('active');
+          return;
+        }
+        const card = document.querySelector('#allClientsModal .modal-card');
+        if (card && card.contains(e.target) && !e.target.closest('button, input, textarea, a, select, label, tr')) {
+          modal.classList.remove('active');
+        }
+      });
+    }
 
     const addBtn = document.getElementById('allClientsAddBtn');
     if (addBtn) {
@@ -3648,17 +3704,26 @@ export default {
     dropdown.querySelectorAll('.menu-item').forEach(item=>item.addEventListener('click',()=>dropdown.classList.remove('show')));
   })();
   const UNLOCK_TS_K='unlock_ts';
-  if((Date.now()-parseInt(localStorage.getItem(UNLOCK_TS_K)||'0'))<3600000){setLocked(false);}else{setLocked(true);}
-
-  // 首次加载：先补发上次未完成的操作，再从云端拉取最新状态
+  if((Date.now()-parseInt(localStorage.getItem(UNLOCK_TS_K)||'0'))<3600000){setLocked(false);}else{setLocked(true);}  // 首次加载：先补发上次未完成的操作，再从云端拉取最新状态
   (async()=>{
-    // 1. 先补发上次关页前没有发成功的操作（Office 式離线队列）
-    await drainQueue();
-    // 2. 再拉取云端最新状态
-    const prevLastLoadDate=localStorage.getItem(LAST_LOAD_DATE_K);
-    await loadFromCloud(getTodayStr());
+    try {
+      // 1. 先补发上次关页前没有发成功的操作（Office 式离线队列）
+      await drainQueue();
+    } catch(e) { console.error('drainQueue error:', e); }
+
+    try {
+      // 2. 再拉取云端最新状态
+      await loadFromCloud(getTodayStr());
+    } catch(e) { console.error('loadFromCloud error:', e); }
+
+    try {
+      // 3. 拉取并同步全量云端客户数据
+      await syncAllClientsFromCloud();
+    } catch(e) { console.error('syncAllClients error:', e); }
+
     // 跨天自动转移昨日「明日待办」到今日
     const todayStr=getTodayStr();
+    const prevLastLoadDate=localStorage.getItem(LAST_LOAD_DATE_K);
     if(prevLastLoadDate && prevLastLoadDate!==todayStr){
       let transferred=false;
       try{
@@ -3674,20 +3739,29 @@ export default {
         }
       }catch(e){}
       if(!transferred){
-        const tomorrow=loadTodos(TOMORROW_TODO_K);
-        if(tomorrow.length>0){
-          const cur=loadTodos(TODAY_TODO_K);
-          const transferred3=tomorrow.map(t=>({...(typeof t==='string'?{text:t}:t),date:todayStr}));
-          saveTodos(TODAY_TODO_K,[...transferred3,...cur]);
-          saveTodos(TOMORROW_TODO_K,[]);
-          console.log('📅 已转移本地昨日待办到今日');
-        }
+        try {
+          const tomorrow=loadTodos(TOMORROW_TODO_K);
+          if(tomorrow.length>0){
+            const cur=loadTodos(TODAY_TODO_K);
+            const transferred3=tomorrow.map(t=>({...(typeof t==='string'?{text:t}:t),date:todayStr}));
+            saveTodos(TODAY_TODO_K,[...transferred3,...cur]);
+            saveTodos(TOMORROW_TODO_K,[]);
+            console.log('📅 已转移本地昨日待办到今日');
+          }
+        } catch(e) {}
       }
     }
     localStorage.setItem(LAST_LOAD_DATE_K,todayStr);
     calendarMonth=getCurrentMonth();
-    await syncCalendarFromCloud();
-    renderLockScripts();renderLockLearns();
+    
+    try {
+      await syncCalendarFromCloud();
+    } catch(e) { console.error('syncCalendar error:', e); }
+
+    try {
+      renderLockScripts();renderLockLearns();
+    } catch(e) { console.error('renderLock error:', e); }
+
     refreshAll();
     startSyncTimer();
   })();
