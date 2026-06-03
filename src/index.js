@@ -85,8 +85,19 @@ export default {
       });
     }
 
-    // Supabase client（SUPABASE_URL/KEY 未配置时降级为 no-op）
-    const supabase = createSupabaseClient(env);
+    // Supabase client（初始化失败不影响主功能）
+    let supabase;
+    try {
+      supabase = createSupabaseClient(env);
+    } catch (e) {
+      console.error('[megz] Supabase init error:', e.message);
+      supabase = {
+        upsertCompanies: async () => { throw new Error('Supabase 未初始化'); },
+        getAllCompanies: async () => [],
+        checkCompanies: async (names) => names.map(n => ({ company: n, isMatch: false, matchedName: null })),
+        deleteCompany: async () => { throw new Error('Supabase 未初始化'); }
+      };
+    }
 
     // 0. 安卓 App 自动更新接口
     if (path === '/api/app-version' && request.method === 'GET') {
