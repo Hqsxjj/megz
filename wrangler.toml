@@ -5,7 +5,3 @@ compatibility_date = "2025-01-01"
 [[kv_namespaces]]
 binding = "DATA_KV"
 id = "ff69992ea0034094913d4a6fa1e78075"
-
-[vars]
-SUPABASE_URL = "https://yzugznqnvxocmistxzpc.supabase.co"
-SUPABASE_KEY = "sb_publishable_tI1RjE5eWWFJ71POc_CjUQ_8RpeD7xx"
