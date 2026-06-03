@@ -1440,6 +1440,11 @@ export default {
       .whitelist-search-row { flex-direction: column; }
       .whitelist-result { white-space: normal; text-align: center; width: 100%; }
     }
+    .whitelist-textarea { width: 100%; height: 180px; background: var(--btn-bg); border: 1px solid var(--card-border); border-radius: var(--radius-xs); padding: 10px 12px; font-size: 0.78rem; color: var(--text-main); outline: none; font-weight: 600; resize: vertical; line-height: 1.6; }
+    .whitelist-textarea:focus { border-color: var(--accent-wechat); box-shadow: 0 0 0 2px rgba(7,193,96,0.2); }
+    .whitelist-company-row { display: flex; justify-content: space-between; align-items: center; padding: 5px 8px; border-bottom: 0.5px solid var(--border-light); font-size: 0.72rem; font-weight: 600; color: var(--text-main); }
+    .whitelist-company-row:last-child { border-bottom: none; }
+    .whitelist-del-btn { background: none; border: none; color: #c97a7a; cursor: pointer; font-size: 0.75rem; padding: 2px 6px; }
   </style>
 </head>
 <body>
@@ -1533,7 +1538,7 @@ export default {
       </div>
       <div class="right-area">
         <div class="card whitelist-search-card">
-          <div class="card-title" style="display:flex;align-items:center;gap:6px;">🔍 白名单查询</div>
+          <div class="card-title" style="display:flex;align-items:center;gap:6px;">🔍 白名单查询<button class="icon-simple" id="whitelistManageBtn" style="font-size:0.65rem;height:24px;min-width:auto;padding:0 8px;margin-left:auto;">管理</button></div>
           <div class="whitelist-search-row">
             <input type="text" class="whitelist-search-input" id="whitelistSearchInput" placeholder="输入单位名称，查是否在白名单..." autocomplete="off">
             <span class="whitelist-result" id="whitelistResult"></span>
@@ -1656,6 +1661,21 @@ export default {
       <div style="display:flex;gap:8px;align-items:center;"><label style="font-size:0.8rem;font-weight:600;min-width:60px;">回款</label><input type="number" class="input-simple" id="goalMonthlyPayment" min="0" placeholder="0" style="flex:1;"></div>
       <button class="btn-add" id="saveGoalBtn" style="width:100%;margin-top:4px;">保存目标</button>
       <div id="goalStatus" style="font-size:0.75rem;text-align:center;min-height:20px;color:var(--text-soft);"></div>
+    </div>
+  </div>
+</div>
+<div id="whitelistManageModal" class="modal-overlay">
+  <div class="modal-card" style="max-width:500px;">
+    <div class="modal-header"><span>白名单管理</span><button id="closeWhitelistManageModalBtn">×</button></div>
+    <div style="font-size:0.72rem;font-weight:700;color:var(--text-soft);">粘贴企业名称（每行一个），去重上传到白名单：</div>
+    <textarea id="whitelistManageTextarea" class="whitelist-textarea" placeholder="例：&#10;中国石油化工集团公司&#10;国家电网有限公司&#10;中国工商银行股份有限公司"></textarea>
+    <div style="display:flex;gap:8px;">
+      <button class="btn-add" id="whitelistUploadManageBtn" style="flex:1;">上传白名单</button>
+      <button class="btn-add" id="whitelistRefreshManageBtn" style="flex:1;background:var(--revisit-gradient);">刷新列表</button>
+    </div>
+    <div id="whitelistManageStatus" style="font-size:0.72rem;text-align:center;min-height:20px;color:var(--text-soft);"></div>
+    <div style="max-height:250px;overflow-y:auto;border:1px solid var(--card-border);border-radius:var(--radius-xs);padding:8px;">
+      <div id="whitelistManageList" style="font-size:0.7rem;color:var(--text-light);text-align:center;">点击"刷新列表"查看白名单企业</div>
     </div>
   </div>
 </div>
@@ -2960,6 +2980,111 @@ export default {
     if (e.key === 'Enter') {
       if (_wlDebounceTimer) { clearTimeout(_wlDebounceTimer); _wlDebounceTimer = null; }
       searchWhitelist(e.target.value);
+    }
+  });
+
+  // 白名单管理弹窗
+  document.getElementById('whitelistManageBtn').addEventListener('click', function() {
+    document.getElementById('whitelistManageModal').classList.add('active');
+  });
+  document.getElementById('closeWhitelistManageModalBtn').addEventListener('click', function() {
+    document.getElementById('whitelistManageModal').classList.remove('active');
+  });
+  document.getElementById('whitelistManageModal').addEventListener('click', function(e) {
+    if (e.target === document.getElementById('whitelistManageModal')) {
+      document.getElementById('whitelistManageModal').classList.remove('active');
+    }
+  });
+
+  async function refreshWhitelistList() {
+    const listEl = document.getElementById('whitelistManageList');
+    const statusEl = document.getElementById('whitelistManageStatus');
+    listEl.innerHTML = '加载中...';
+    statusEl.innerHTML = '';
+    try {
+      const r = await fetch('/api/whitelist/companies');
+      const data = await r.json();
+      if (data.error) {
+        listEl.innerHTML = '<span style="color:#e74c3c;">加载失败: ' + esc(data.error) + '</span>';
+        return;
+      }
+      const companies = data.companies || [];
+      if (companies.length === 0) {
+        listEl.innerHTML = '暂无白名单企业';
+        return;
+      }
+      listEl.innerHTML = companies.map(function(c) {
+        return '<div class="whitelist-company-row">' +
+          '<span>' + esc(c.company_name) + '</span>' +
+          '<button class="whitelist-del-btn" data-name="' + esc(c.company_name) + '">×</button>' +
+        '</div>';
+      }).join('');
+      // 绑定删除按钮
+      listEl.querySelectorAll('.whitelist-del-btn').forEach(function(btn) {
+        btn.addEventListener('click', async function() {
+          const name = btn.dataset.name;
+          try {
+            const r = await fetch('/api/whitelist/companies', {
+              method: 'DELETE',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ company_name: name })
+            });
+            const d = await r.json();
+            if (d.success) {
+              statusEl.innerHTML = '已删除: ' + esc(name);
+              refreshWhitelistList();
+            } else {
+              statusEl.innerHTML = '<span style="color:#e74c3c;">删除失败: ' + esc(d.error || '未知错误') + '</span>';
+            }
+          } catch(e) {
+            statusEl.innerHTML = '<span style="color:#e74c3c;">删除失败</span>';
+          }
+        });
+      });
+      statusEl.innerHTML = '共 ' + companies.length + ' 家企业';
+    } catch(e) {
+      listEl.innerHTML = '<span style="color:#e74c3c;">加载失败，请检查网络</span>';
+    }
+  }
+
+  document.getElementById('whitelistRefreshManageBtn').addEventListener('click', refreshWhitelistList);
+
+  document.getElementById('whitelistUploadManageBtn').addEventListener('click', async function() {
+    const textarea = document.getElementById('whitelistManageTextarea');
+    const statusEl = document.getElementById('whitelistManageStatus');
+    const raw = textarea.value.trim();
+    if (!raw) {
+      statusEl.innerHTML = '<span style="color:#e74c3c;">请粘贴企业名称后再上传</span>';
+      return;
+    }
+    const companies = raw.split(/[\n\r]+/).map(function(s) { return s.trim(); }).filter(Boolean);
+    // 去重
+    const unique = [];
+    const seen = new Set();
+    companies.forEach(function(c) {
+      if (!seen.has(c)) { seen.add(c); unique.push(c); }
+    });
+    if (unique.length === 0) {
+      statusEl.innerHTML = '<span style="color:#e74c3c;">没有有效的企业名称</span>';
+      return;
+    }
+    statusEl.innerHTML = '正在上传 ' + unique.length + ' 家企业...';
+    try {
+      const r = await fetch('/api/whitelist/upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ companies: unique })
+      });
+      const data = await r.json();
+      if (data.success) {
+        statusEl.innerHTML = '✅ 成功上传 ' + data.count + ' 家企业';
+        textarea.value = '';
+        refreshWhitelistList();
+      } else {
+        statusEl.innerHTML = '<span style="color:#e74c3c;">上传失败: ' + esc(data.error || '未知错误') + '</span>';
+      }
+    } catch(e) {
+      statusEl.innerHTML = '<span style="color:#e74c3c;">上传失败，请检查网络</span>';
     }
   });
 
