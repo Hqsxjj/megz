@@ -2400,23 +2400,26 @@ export const DIALER_HTML = `<!DOCTYPE html>
               }
             }
           }).then(function(worker) {
-            return worker.load()
+            return Promise.resolve(worker.load())
               .then(function() {
-                return worker.loadLanguage('chi_sim+eng');
+                return Promise.resolve(worker.loadLanguage('chi_sim+eng'));
               })
               .then(function() {
-                return worker.initialize('chi_sim+eng');
+                return Promise.resolve(worker.initialize('chi_sim+eng'));
               })
               .then(function() {
-                return worker.recognize(file);
+                return Promise.resolve(worker.recognize(file));
               })
               .then(function(result) {
-                return worker.terminate().then(function() {
-                  return result;
-                });
+                try {
+                  worker.terminate();
+                } catch(e) {}
+                return result;
               })
               .catch(function(err) {
-                worker.terminate();
+                try {
+                  worker.terminate();
+                } catch(e) {}
                 throw err;
               });
           }).then(function(result) {
