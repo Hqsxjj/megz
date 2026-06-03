@@ -1929,16 +1929,16 @@ export const DIALER_HTML = `<!DOCTYPE html>
       function isValidNameHeuristic(str) {
         if (!str) return false;
         var cleanStr = str.replace(/[\\s.,，。:：;；%&|()（）\\[\\]{}<>]/g, '');
-        if (cleanStr.length < 2 || cleanStr.length > 6) {
+        // Must contain ONLY Chinese characters
+        if (!/^[\\u4e00-\\u9fa5]+$/.test(cleanStr)) {
           return false;
         }
-        if (/\\d/.test(cleanStr)) {
+        // Length check
+        if (cleanStr.length < 1 || cleanStr.length > 6) {
           return false;
         }
-        if (/^[a-zA-Z\\s]+$/.test(cleanStr) && cleanStr.length < 3) {
-          return false;
-        }
-        if (/^[^a-zA-Z0-9\\u4e00-\\u9fa5]+$/.test(cleanStr)) {
+        // If single character, must be a surname
+        if (cleanStr.length === 1 && !SURNAMES.test(cleanStr)) {
           return false;
         }
         if (/姓名|电话|手机|号码|公司|备注|联系人|客户|微信|意向|跟进|记录|挂断|接通|无效|加微信|想买|说明|介绍|详情|tel|phone|mobile|name/i.test(cleanStr)) {
