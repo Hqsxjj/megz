@@ -1928,20 +1928,26 @@ export const DIALER_HTML = `<!DOCTYPE html>
       // Strict metadata, label and corporate suffix validation to filter out noise
       function isValidNameHeuristic(str) {
         if (!str) return false;
-        // Filter out common UI labels and keywords
-        if (/姓名|电话|手机|号码|公司|备注|联系人|客户|微信|意向|跟进|记录|挂断|接通|无效|加微信|想买|说明|介绍|详情|tel|phone|mobile|name/i.test(str)) {
+        var cleanStr = str.replace(/[\\s.,，。:：;；%&|()（）\\[\\]{}<>]/g, '');
+        if (cleanStr.length < 2 || cleanStr.length > 6) {
           return false;
         }
-        // Filter out corporate suffixes
-        if (/有限公司|有限责任|集团|公司|企业|厂|店|中心|商行|工作室|股份/.test(str)) {
+        if (/\\d/.test(cleanStr)) {
           return false;
         }
-        // Filter out common Chinese provinces, cities, countries
-        if (/北京|上海|广州|深圳|成都|杭州|武汉|西安|重庆|南京|天津|中国|四川|湖南|湖北|广东|江苏|浙江|山东|福建|江西|河南|河北|安徽|辽宁|吉林|黑龙江|山西|陕西|甘肃|青海|云南|贵州|广西|西藏|内蒙|新疆|宁夏|海南|港澳|台湾|深圳|东莞|佛山|温州|宁波|苏州|无锡|常州|扬州|徐州|南通/i.test(str)) {
+        if (/^[a-zA-Z\\s]+$/.test(cleanStr) && cleanStr.length < 3) {
           return false;
         }
-        // Length check
-        if (str.length < 2 || str.length > 6) {
+        if (/^[^a-zA-Z0-9\\u4e00-\\u9fa5]+$/.test(cleanStr)) {
+          return false;
+        }
+        if (/姓名|电话|手机|号码|公司|备注|联系人|客户|微信|意向|跟进|记录|挂断|接通|无效|加微信|想买|说明|介绍|详情|tel|phone|mobile|name/i.test(cleanStr)) {
+          return false;
+        }
+        if (/有限公司|有限责任|集团|公司|企业|厂|店|中心|商行|工作室|股份/.test(cleanStr)) {
+          return false;
+        }
+        if (/北京|上海|广州|深圳|成都|杭州|武汉|西安|重庆|南京|天津|中国|四川|湖南|湖北|广东|江苏|浙江|山东|福建|江西|河南|河北|安徽|辽宁|吉林|黑龙江|山西|陕西|甘肃|青海|云南|贵州|广西|西藏|内模|内蒙|新疆|宁夏|海南|港澳|台湾|东莞|佛山|温州|宁波|苏州|无锡|常州|扬州|徐州|南通/i.test(cleanStr)) {
           return false;
         }
         return true;
@@ -2099,6 +2105,13 @@ export const DIALER_HTML = `<!DOCTYPE html>
             if (part !== name && part !== company) {
               // Skip UI labels/metadata in notes to keep them clean
               if (/姓名|电话|手机|号码|公司|备注|联系人|客户|微信|负责人|说明|介绍|详情/i.test(part) && part.length <= 5) {
+                continue;
+              }
+              var cleanPart = part.replace(/[-\\s.,，。:：;；%&|()（）\\[\\]{}<>]/g, '');
+              if (cleanPart.length <= 1 && !/^\\d$/.test(cleanPart)) {
+                continue;
+              }
+              if (/^[a-zA-Z]+$/.test(cleanPart) && cleanPart.length < 3) {
                 continue;
               }
               noteParts.push(part);
