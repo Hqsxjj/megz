@@ -1458,6 +1458,38 @@ export default {
     body.android .reset-mini { backdrop-filter: none; }
     /* Android 调整锁屏 PIN 框位置 */
     body.android .pin-box { top: 45%; }
+
+    /* Whitelist management modal */
+    .whitelist-textarea {
+      width: 100%;
+      height: 100px;
+      background: var(--btn-bg);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius-xs);
+      padding: 8px 10px;
+      font-size: 0.72rem;
+      color: var(--text-main);
+      outline: none;
+      font-weight: 600;
+      resize: none;
+      line-height: 1.5;
+    }
+    .whitelist-textarea:focus {
+      border-color: var(--accent-wechat);
+    }
+    .whitelist-company-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 10px;
+      background: var(--btn-bg);
+      border-radius: var(--radius-xs);
+      border: 1px solid var(--card-border);
+      margin-bottom: 6px;
+    }
+    .whitelist-company-item:last-child {
+      margin-bottom: 0;
+    }
   </style>
 </head>
 <body>
@@ -1520,6 +1552,7 @@ export default {
           <button class="menu-item" id="learnBtn">学习管理</button>
           <button class="menu-item" id="exportBtn">导出数据</button>
           <button class="menu-item" id="goalBtn">目标设定</button>
+          <button class="menu-item" id="whitelistMenuBtn">白名单管理</button>
           <button class="menu-item" id="darkToggleBtn">深色模式</button>
         </div>
       </div>
@@ -1618,6 +1651,45 @@ export default {
     </div>
   </div>
 </div>
+<!-- Whitelist Management Modal -->
+<div id="whitelistModal" class="modal-overlay">
+  <div class="modal-card" style="max-width: 440px;">
+    <div class="modal-header">
+      <span style="font-weight:900;">白名单管理</span>
+      <button id="closeWhitelistBtn" style="background:none; border:none; font-size:1.2rem; cursor:pointer; color:var(--text-soft); padding:0;">✕</button>
+    </div>
+    <div class="whitelist-status" id="whitelistStatus" style="font-size:0.7rem; color:var(--text-soft); font-weight:700;">未加载白名单</div>
+    
+    <div style="display:flex; flex-direction:column; gap:6px;">
+      <label style="font-size:0.65rem; color:var(--text-light); font-weight:800;">粘贴公司名称 (每行一家企业)</label>
+      <textarea id="whitelistTextarea" class="whitelist-textarea" placeholder="例：&#10;中国石油化工集团公司&#10;国家电网有限公司&#10;中国工商银行股份有限公司"></textarea>
+      <div style="display:flex; gap:8px;">
+        <button id="whitelistUploadBtn" class="btn-primary" style="flex:1; padding:8px; font-size:0.78rem;">上传白名单</button>
+        <button id="whitelistRefreshBtn" class="btn-secondary" style="padding:8px 14px; font-size:0.78rem;">刷新列表</button>
+      </div>
+    </div>
+    
+    <!-- Upload Failed Area -->
+    <div id="whitelistFailedArea" style="display:none; border:1px solid #e74c3c; background:rgba(231,76,60,0.05); border-radius:var(--radius-xs); padding:10px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; font-size:0.7rem; font-weight:800; color:#e74c3c;">
+        <span>⚠️ 上次上传失败的企业 (<span id="whitelistFailedCount">0</span>)</span>
+        <a href="#" id="whitelistFailedClearBtn" style="color:#e74c3c; text-decoration:underline; font-size:0.65rem;">清除</a>
+      </div>
+      <div id="whitelistFailedList" style="max-height:80px; overflow-y:auto; font-size:0.68rem; color:var(--text-soft); border:1px solid rgba(231,76,60,0.2); border-radius:4px; padding:4px; background:#fff; margin-bottom:8px; text-align:left; white-space:pre-wrap;"></div>
+      <button id="whitelistFailedRetryBtn" class="btn-primary" style="background:#e74c3c; border-color:#e74c3c; color:#fff; width:100%; padding:6px; font-size:0.75rem;">尝试重新上传</button>
+    </div>
+
+    <!-- Search in Whitelist -->
+    <div style="display:flex; flex-direction:column; gap:6px; border-top: 1px dashed var(--border-light); padding-top:12px; margin-top:4px;">
+      <label style="font-size:0.65rem; color:var(--text-light); font-weight:800;">搜索白名单列表</label>
+      <input type="text" id="whitelistModalSearchInput" class="search-input" placeholder="输入企业名称进行搜索..." style="height:28px; font-size:0.72rem; border-radius:var(--radius-xs); padding:0 8px; border:1px solid var(--card-border); background:var(--btn-bg); color:var(--text-main); font-weight:700; width:100%;">
+    </div>
+
+    <div class="modal-section-title" style="margin-top:4px;">企业白名单列表</div>
+    <div id="whitelistCompanyList" style="font-size:0.7rem; color:var(--text-light); text-align:center;">点击"刷新列表"加载白名单企业</div>
+  </div>
+</div>
+
 <div id="logModal" class="modal-overlay">
   <div class="modal-card" style="max-width:420px;">
     <div class="modal-header"><span>同步日志</span><button id="closeLogModalBtn">×</button></div>
@@ -1703,6 +1775,277 @@ export default {
   // ==================== 云端 API ====================
   async function cloudGet(date){try{const r=await fetch('/api/data?date='+date);if(r.ok)return await r.json();}catch(e){}return null;}
   async function cloudSave(data){try{await fetch('/api/data',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});}catch(e){}}
+
+  // ==================== 白名单 ====================
+  let whitelistCompanies = [];
+  let whitelistLoaded = false;
+  const whitelistSet = new Set();
+
+  function updateWhitelistSet() {
+    whitelistSet.clear();
+    whitelistCompanies.forEach(c => {
+      const name = (c.company_name || '').trim().toLowerCase();
+      if (name) whitelistSet.add(name);
+      const alias = (c.alias || '').trim().toLowerCase();
+      if (alias) whitelistSet.add(alias);
+    });
+  }
+
+  function fetchWhitelist() {
+    return fetch('/api/whitelist/companies')
+      .then(r => {
+        if (!r.ok) throw new Error('获取白名单失败');
+        return r.json();
+      })
+      .then(data => {
+        whitelistCompanies = data.companies || [];
+        whitelistLoaded = true;
+        updateWhitelistSet();
+        updateWhitelistStatus();
+        renderWhitelistCompanyList();
+        
+        // Re-render client lists to show whitelist checkmarks
+        renderClientList();
+        const modal = document.getElementById('allClientsModal');
+        if (modal && modal.classList.contains('active')) {
+          loadAllClients();
+        }
+        return whitelistCompanies;
+      })
+      .catch(err => {
+        console.error('Whitelist fetch error:', err);
+        whitelistLoaded = false;
+      });
+  }
+
+  function uploadWhitelist(companyNames) {
+    return fetch('/api/whitelist/upload', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ companies: companyNames })
+    })
+    .then(r => {
+      if (!r.ok) throw new Error('上传白名单失败');
+      return r.json();
+    });
+  }
+
+  function deleteWhitelistCompany(companyName) {
+    return fetch('/api/whitelist/companies', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ company_name: companyName })
+    })
+    .then(r => {
+      if (!r.ok) throw new Error('删除失败');
+      return r.json();
+    })
+    .then(() => {
+      whitelistCompanies = whitelistCompanies.filter(c => c.company_name !== companyName);
+      updateWhitelistSet();
+      updateWhitelistStatus();
+      renderWhitelistCompanyList();
+      renderClientList();
+      const modal = document.getElementById('allClientsModal');
+      if (modal && modal.classList.contains('active')) {
+        loadAllClients();
+      }
+    })
+    .catch(err => {
+      alert('删除失败: ' + err.message);
+    });
+  }
+
+  function updateWhitelistStatus() {
+    const el = document.getElementById('whitelistStatus');
+    if (el) {
+      el.textContent = '已加载 ' + whitelistCompanies.length + ' 家白名单企业';
+    }
+  }
+
+  function handleFailedUploads(companies) {
+    try {
+      const failed = JSON.parse(localStorage.getItem('whitelist_failed_uploads') || '[]');
+      const failedSet = new Set(failed);
+      companies.forEach(c => failedSet.add(c));
+      localStorage.setItem('whitelist_failed_uploads', JSON.stringify(Array.from(failedSet)));
+      renderFailedUploadsArea();
+    } catch (e) {
+      console.error('Failed to save failed whitelist uploads:', e);
+    }
+  }
+
+  function renderFailedUploadsArea() {
+    const container = document.getElementById('whitelistFailedArea');
+    const listEl = document.getElementById('whitelistFailedList');
+    const countEl = document.getElementById('whitelistFailedCount');
+    if (!container || !listEl || !countEl) return;
+
+    let failed = [];
+    try {
+      failed = JSON.parse(localStorage.getItem('whitelist_failed_uploads') || '[]');
+    } catch (e) {}
+
+    if (failed.length === 0) {
+      container.style.display = 'none';
+      return;
+    }
+
+    container.style.display = 'block';
+    countEl.textContent = failed.length;
+    listEl.textContent = failed.join('\n');
+  }
+
+  function renderWhitelistCompanyList() {
+    const container = document.getElementById('whitelistCompanyList');
+    if (!container) return;
+
+    const searchInput = document.getElementById('whitelistModalSearchInput');
+    const query = searchInput ? searchInput.value.toLowerCase().trim() : '';
+
+    let filtered = whitelistCompanies;
+    if (query) {
+      filtered = whitelistCompanies.filter(c => {
+        return (c.company_name || '').toLowerCase().includes(query) ||
+               (c.alias || '').toLowerCase().includes(query);
+      });
+    }
+
+    if (filtered.length === 0) {
+      container.innerHTML = '<div style="font-size:0.7rem; color:var(--text-light); text-align:center; padding:10px;">' + (query ? '无匹配搜索的企业' : '暂无白名单企业数据') + '</div>';
+      return;
+    }
+
+    let html = '';
+    filtered.forEach(c => {
+      html += '<div class="whitelist-company-item">' +
+        '<span style="font-size:0.72rem; font-weight:700; color:var(--text-main);">' + esc(c.company_name) + '</span>' +
+        '<button class="whitelist-del-btn" data-company="' + esc(c.company_name) + '" style="font-size:0.6rem; padding:2px 8px; border:1px solid #e74c3c; background:transparent; color:#e74c3c; border-radius:3px; cursor:pointer; font-weight:700;">删除</button>' +
+        '</div>';
+    });
+    container.innerHTML = html;
+
+    container.querySelectorAll('.whitelist-del-btn').forEach(btn => {
+      btn.addEventListener('click', function() {
+        const company = this.dataset.company;
+        if (confirm('确认从白名单中删除「' + company + '」吗？')) {
+          deleteWhitelistCompany(company);
+        }
+      });
+    });
+  }
+
+  function initWhitelistFeature() {
+    const whitelistBtn = document.getElementById('whitelistMenuBtn');
+    const whitelistModal = document.getElementById('whitelistModal');
+    const closeBtn = document.getElementById('closeWhitelistBtn');
+    const uploadBtn = document.getElementById('whitelistUploadBtn');
+    const refreshBtn = document.getElementById('whitelistRefreshBtn');
+    const textarea = document.getElementById('whitelistTextarea');
+    const failedClearBtn = document.getElementById('whitelistFailedClearBtn');
+    const failedRetryBtn = document.getElementById('whitelistFailedRetryBtn');
+    const modalSearch = document.getElementById('whitelistModalSearchInput');
+
+    if (whitelistBtn && whitelistModal) {
+      whitelistBtn.addEventListener('click', () => {
+        whitelistModal.classList.add('active');
+        renderFailedUploadsArea();
+        if (!whitelistLoaded) {
+          fetchWhitelist();
+        }
+      });
+    }
+
+    if (closeBtn && whitelistModal) {
+      closeBtn.addEventListener('click', () => {
+        whitelistModal.classList.remove('active');
+      });
+      whitelistModal.addEventListener('click', e => {
+        if (e.target === whitelistModal) {
+          whitelistModal.classList.remove('active');
+        }
+      });
+    }
+
+    if (uploadBtn && textarea) {
+      uploadBtn.addEventListener('click', () => {
+        const text = textarea.value.trim();
+        if (!text) { alert('请先粘贴企业名称'); return; }
+        const companies = text.split('\n')
+          .map(s => s.trim())
+          .filter(s => s.length > 0);
+        if (companies.length === 0) { alert('请至少输入一个企业名称'); return; }
+
+        uploadBtn.textContent = '上传中...';
+        uploadBtn.disabled = true;
+        uploadWhitelist(companies)
+          .then(result => {
+            alert('成功上传 ' + result.count + ' 家企业到白名单');
+            textarea.value = '';
+            return fetchWhitelist();
+          })
+          .catch(err => {
+            alert('上传失败：' + err.message + '。已存入本地失败重试列表。');
+            handleFailedUploads(companies);
+          })
+          .then(() => {
+            uploadBtn.textContent = '上传白名单';
+            uploadBtn.disabled = false;
+          });
+      });
+    }
+
+    if (refreshBtn) {
+      refreshBtn.addEventListener('click', () => {
+        fetchWhitelist();
+      });
+    }
+
+    if (modalSearch) {
+      modalSearch.addEventListener('input', () => {
+        renderWhitelistCompanyList();
+      });
+    }
+
+    if (failedClearBtn) {
+      failedClearBtn.addEventListener('click', e => {
+        e.preventDefault();
+        localStorage.removeItem('whitelist_failed_uploads');
+        renderFailedUploadsArea();
+      });
+    }
+
+    if (failedRetryBtn) {
+      failedRetryBtn.addEventListener('click', () => {
+        let failed = [];
+        try {
+          failed = JSON.parse(localStorage.getItem('whitelist_failed_uploads') || '[]');
+        } catch (e) {}
+        if (failed.length === 0) return;
+
+        failedRetryBtn.textContent = '重试中...';
+        failedRetryBtn.disabled = true;
+        uploadWhitelist(failed)
+          .then(result => {
+            alert('重新上传成功，共导入 ' + result.count + ' 家企业');
+            localStorage.removeItem('whitelist_failed_uploads');
+            renderFailedUploadsArea();
+            return fetchWhitelist();
+          })
+          .catch(err => {
+            alert('重试上传依然失败: ' + err.message);
+          })
+          .then(() => {
+            failedRetryBtn.textContent = '尝试重新上传';
+            failedRetryBtn.disabled = false;
+          });
+      });
+    }
+
+    renderFailedUploadsArea();
+    fetchWhitelist(); // Load on page load
+  }
+
 
   // ==================== Outbox 队列（Office式同步）====================
   // 每次操作先写入队列（localStorage），再发网。关页也不丢，下次打开继续补发。
@@ -2004,7 +2347,11 @@ export default {
           (c.time ? '<span class="client-card-time">'+esc(c.time)+'</span>' : '')+
         '</div>'+
         '<div class="client-card-tags">'+
-          (c.company ? '<span class="client-card-tag client-card-tag-company">'+esc(c.company)+'</span>' : '')+
+                    (c.company ? 
+            (whitelistSet.has(c.company.trim().toLowerCase()) 
+              ? '<span class="client-card-tag client-card-tag-company" style="background:var(--accent-wechat-bg); color:var(--accent-wechat); border-color:var(--accent-wechat);">✓ '+esc(c.company)+'</span>'
+              : '<span class="client-card-tag client-card-tag-company">'+esc(c.company)+'</span>'
+            ) : '')+
           (c.fund ? '<span class="client-card-tag client-card-tag-fund">公积金: '+esc(c.fund)+'</span>' : '')+
         '</div>'+
         '<div class="client-card-body">'+
@@ -2210,7 +2557,11 @@ export default {
               (e.time ? '<span class="client-card-time">'+esc(e.time)+'</span>' : '')+
             '</div>'+
             '<div class="client-card-tags">'+
-              (e.company ? '<span class="client-card-tag client-card-tag-company">'+esc(e.company)+'</span>' : '')+
+                            (e.company ? 
+                (whitelistSet.has(e.company.trim().toLowerCase()) 
+                  ? '<span class="client-card-tag client-card-tag-company" style="background:var(--accent-wechat-bg); color:var(--accent-wechat); border-color:var(--accent-wechat);">✓ '+esc(e.company)+'</span>'
+                  : '<span class="client-card-tag client-card-tag-company">'+esc(e.company)+'</span>'
+                ) : '')+
               (e.fund ? '<span class="client-card-tag client-card-tag-fund">公积金: '+esc(e.fund)+'</span>' : '')+
             '</div>'+
             '<div class="client-card-body">'+
@@ -3031,7 +3382,11 @@ export default {
         '<td data-label="日期" style="padding: 10px 8px; white-space: nowrap;">'+esc(c.date)+'</td>'+
         '<td data-label="姓名" style="padding: 10px 8px; font-weight: 700;">'+esc(c.name)+'</td>'+
         '<td data-label="电话" style="padding: 10px 8px; white-space: nowrap;"><a class="client-phone" href="tel:'+esc(c.phone)+'" data-full="'+esc(c.phone)+'">'+esc(maskPhone(c.phone))+'</a><button class="phone-toggle" style="background:none;border:none;margin-left:4px;cursor:pointer;opacity:0.5;" title="显示号码">看</button></td>'+
-        '<td data-label="单位" style="padding: 10px 8px;">'+esc(company)+'</td>'+
+                '<td data-label="单位" style="padding: 10px 8px;">' + (
+          company !== '-' && whitelistSet.has(company.trim().toLowerCase())
+            ? '<span class="tbl-tag tbl-tag-company" style="background:var(--accent-wechat-bg); color:var(--accent-wechat); border-color:var(--accent-wechat);">✓ ' + esc(company) + '</span>'
+            : esc(company)
+        ) + '</td>'+
         '<td data-label="公积金" style="padding: 10px 8px;">'+esc(fund)+'</td>'+
         '<td data-label="沟通情况" style="padding: 10px 8px; min-width: 240px; max-width: 400px; word-break: break-word;"><span style="flex: 1; word-break: break-word; white-space: pre-wrap;">'+esc(note)+'</span></td>'+
         '<td data-label="跟进情况" style="padding: 10px 8px; min-width: 180px; max-width: 300px; word-break: break-word;"><span style="flex: 1; word-break: break-word; white-space: pre-wrap;">'+esc(followUp)+'</span></td>'+
@@ -3274,7 +3629,7 @@ export default {
     }
   }
 
-  initAndroid();initLogs();initDark();initWp();initScriptFeature();initLearnFeature();initExport();initAllClientsBtn();initGoals();
+  initAndroid();initLogs();initDark();initWp();initScriptFeature();initLearnFeature();initExport();initAllClientsBtn();initGoals();initWhitelistFeature();
   document.getElementById('goalEyeBtn').addEventListener('click',toggleGoalNumbers);
   function calGo(delta){
     const [y,m]=calendarMonth.split('-').map(Number);
