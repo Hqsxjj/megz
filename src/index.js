@@ -3502,7 +3502,15 @@ export default {
     renderLockScripts();renderLockLearns();
     refreshAll();
     startSyncTimer();
-  })();
+  })().catch(function(e){
+    console.error('[megz] 初始化失败:', e.message || e);
+    var nb = document.getElementById('notifyBar');
+    var nt = document.getElementById('notifyText');
+    if (nb && nt) {
+      nt.textContent = '⚠️ 初始化错误: ' + (e.message || '未知') + ' — 请刷新重试';
+      nb.classList.add('show');
+    }
+  });
 
   setInterval(()=>{if(!document.body.classList.contains('page-hidden')&&!document.hidden)refreshAll();},60000);
 
@@ -3652,9 +3660,14 @@ export default {
       }
     }
 
-    // 返回 HTML 页面
+    // 返回 HTML 页面（禁止缓存，确保用户拿到最新版本）
     return new Response(HTML, {
-      headers: { 'Content-Type': 'text/html; charset=UTF-8' }
+      headers: {
+        'Content-Type': 'text/html; charset=UTF-8',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      }
     });
   }
 };
