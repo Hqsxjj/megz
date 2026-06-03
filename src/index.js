@@ -1422,6 +1422,24 @@ export default {
     body.android .reset-mini { backdrop-filter: none; }
     /* Android 调整锁屏 PIN 框位置 */
     body.android .pin-box { top: 45%; }
+    /* ===== 白名单搜索 ===== */
+    .whitelist-search-card { padding: 12px 16px; }
+    .whitelist-search-row { display: flex; gap: 8px; align-items: center; }
+    .whitelist-search-input { flex: 1; height: 34px; padding: 0 12px; font-size: 0.82rem; background: var(--btn-bg); border: 1.5px solid var(--card-border); border-radius: var(--radius-xs); color: var(--text-main); outline: none; font-weight: 600; transition: all 0.2s; }
+    .whitelist-search-input:focus { border-color: var(--accent-wechat); box-shadow: 0 0 0 3px rgba(7,193,96,0.2); }
+    .whitelist-search-input::placeholder { color: var(--text-light); font-weight: 500; }
+    .whitelist-result { font-size: 0.78rem; font-weight: 700; padding: 6px 12px; border-radius: var(--radius-xs); white-space: nowrap; transition: all 0.2s; }
+    .whitelist-result.match { background: rgba(7,193,96,0.1); color: #07c160; border: 1px solid rgba(7,193,96,0.2); }
+    .whitelist-result.no-match { background: rgba(231,76,60,0.06); color: #c97a7a; border: 1px solid rgba(231,76,60,0.15); }
+    .whitelist-result.loading { background: rgba(74,108,247,0.06); color: #4a6cf7; border: 1px solid rgba(74,108,247,0.15); }
+    .whitelist-result.error { background: rgba(231,76,60,0.08); color: #e74c3c; border: 1px solid rgba(231,76,60,0.2); }
+    body.dark-mode .whitelist-result.match { background: rgba(7,193,96,0.12); color: #2ecc71; }
+    body.dark-mode .whitelist-result.no-match { background: rgba(231,76,60,0.08); color: #e07070; }
+    body.dark-mode .whitelist-result.loading { background: rgba(74,108,247,0.1); color: #7b9ff5; }
+    @media (max-width: 760px) {
+      .whitelist-search-row { flex-direction: column; }
+      .whitelist-result { white-space: normal; text-align: center; width: 100%; }
+    }
   </style>
 </head>
 <body>
@@ -1514,6 +1532,13 @@ export default {
         </div>
       </div>
       <div class="right-area">
+        <div class="card whitelist-search-card">
+          <div class="card-title" style="display:flex;align-items:center;gap:6px;">🔍 白名单查询</div>
+          <div class="whitelist-search-row">
+            <input type="text" class="whitelist-search-input" id="whitelistSearchInput" placeholder="输入单位名称，查是否在白名单..." autocomplete="off">
+            <span class="whitelist-result" id="whitelistResult"></span>
+          </div>
+        </div>
         <div class="card">
           <div class="card-title">意向登记</div>
           <div class="register-block">
@@ -2896,6 +2921,48 @@ export default {
   ['custName','custPhone','custCompany','custFund'].forEach(id=>document.getElementById(id).addEventListener('keypress',e=>{if(e.key==='Enter')addClient();}));
   document.getElementById('addTempCustBtn').addEventListener('click',addTempClient);
   ['tempCustName','tempCustPhone'].forEach(id=>document.getElementById(id).addEventListener('keypress',e=>{if(e.key==='Enter')addTempClient();}));
+
+  // 白名单搜索（含防抖）
+  let _wlDebounceTimer = null;
+  async function searchWhitelist(query) {
+    const resultEl = document.getElementById('whitelistResult');
+    if (!query || !query.trim()) {
+      resultEl.className = 'whitelist-result';
+      resultEl.innerHTML = '';
+      return;
+    }
+    resultEl.className = 'whitelist-result loading';
+    resultEl.innerHTML = '查询中...';
+    try {
+      const r = await fetch('/api/whitelist/search?q=' + encodeURIComponent(query.trim()));
+      const data = await r.json();
+      if (data.error) {
+        resultEl.className = 'whitelist-result error';
+        resultEl.innerHTML = '⚠ ' + esc(data.error);
+      } else if (data.result && data.result.isMatch) {
+        resultEl.className = 'whitelist-result match';
+        resultEl.innerHTML = '✅ 已匹配: ' + esc(data.result.matchedName || query);
+      } else {
+        resultEl.className = 'whitelist-result no-match';
+        resultEl.innerHTML = '❌ 未在白名单中';
+      }
+    } catch (e) {
+      resultEl.className = 'whitelist-result error';
+      resultEl.innerHTML = '⚠ 查询失败';
+    }
+  }
+  document.getElementById('whitelistSearchInput').addEventListener('input', function(e) {
+    if (_wlDebounceTimer) clearTimeout(_wlDebounceTimer);
+    const val = e.target.value;
+    _wlDebounceTimer = setTimeout(function() { searchWhitelist(val); }, 300);
+  });
+  document.getElementById('whitelistSearchInput').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+      if (_wlDebounceTimer) { clearTimeout(_wlDebounceTimer); _wlDebounceTimer = null; }
+      searchWhitelist(e.target.value);
+    }
+  });
+
   document.getElementById('closeModalBtn').addEventListener('click',()=>document.getElementById('dateModal').classList.remove('active'));
   document.getElementById('dateModal').addEventListener('click',e=>{if(e.target===document.getElementById('dateModal'))document.getElementById('dateModal').classList.remove('active');});
 
@@ -3395,6 +3462,27 @@ export default {
         }
         const results = await supabase.checkCompanies(companies);
         return new Response(JSON.stringify({ results: results }), {
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ error: e.message }), {
+          status: 502,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+    }
+
+    // 搜索白名单企业（GET 快速查询，供主界面搜索框使用）
+    if (path === '/api/whitelist/search' && request.method === 'GET') {
+      const q = url.searchParams.get('q');
+      if (!q || !q.trim()) {
+        return new Response(JSON.stringify({ result: { company: '', isMatch: false, matchedName: null } }), {
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+      try {
+        const results = await supabase.checkCompanies([q.trim()]);
+        return new Response(JSON.stringify({ result: results[0] }), {
           headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
         });
       } catch (e) {
