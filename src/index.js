@@ -2348,7 +2348,7 @@ export default {
         '</div>'+
         '<div class="client-card-tags">'+
                     (c.company ? 
-            (whitelistSet.has(c.company.trim().toLowerCase()) 
+            (whitelistSet.has(String(c.company).trim().toLowerCase()) 
               ? '<span class="client-card-tag client-card-tag-company" style="background:var(--accent-wechat-bg); color:var(--accent-wechat); border-color:var(--accent-wechat);">✓ '+esc(c.company)+'</span>'
               : '<span class="client-card-tag client-card-tag-company">'+esc(c.company)+'</span>'
             ) : '')+
@@ -2558,7 +2558,7 @@ export default {
             '</div>'+
             '<div class="client-card-tags">'+
                             (e.company ? 
-                (whitelistSet.has(e.company.trim().toLowerCase()) 
+                (whitelistSet.has(String(e.company).trim().toLowerCase()) 
                   ? '<span class="client-card-tag client-card-tag-company" style="background:var(--accent-wechat-bg); color:var(--accent-wechat); border-color:var(--accent-wechat);">✓ '+esc(e.company)+'</span>'
                   : '<span class="client-card-tag client-card-tag-company">'+esc(e.company)+'</span>'
                 ) : '')+
@@ -3383,7 +3383,7 @@ export default {
         '<td data-label="姓名" style="padding: 10px 8px; font-weight: 700;">'+esc(c.name)+'</td>'+
         '<td data-label="电话" style="padding: 10px 8px; white-space: nowrap;"><a class="client-phone" href="tel:'+esc(c.phone)+'" data-full="'+esc(c.phone)+'">'+esc(maskPhone(c.phone))+'</a><button class="phone-toggle" style="background:none;border:none;margin-left:4px;cursor:pointer;opacity:0.5;" title="显示号码">看</button></td>'+
                 '<td data-label="单位" style="padding: 10px 8px;">' + (
-          company !== '-' && whitelistSet.has(company.trim().toLowerCase())
+          company !== '-' && whitelistSet.has(String(company).trim().toLowerCase())
             ? '<span class="tbl-tag tbl-tag-company" style="background:var(--accent-wechat-bg); color:var(--accent-wechat); border-color:var(--accent-wechat);">✓ ' + esc(company) + '</span>'
             : esc(company)
         ) + '</td>'+

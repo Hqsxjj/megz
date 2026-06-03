@@ -2781,7 +2781,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
       var filtered = importedClients.filter(function(c) {
         var matchFilter = (currentFilter === 'all') || (c.dialedStatus === currentFilter);
         
-        var companyTrimmed = c.company ? c.company.trim() : '';
+        var companyTrimmed = c.company ? String(c.company).trim() : '';
         var isCompanyInWhitelist = false;
         if (whitelistCheckResults && whitelistCheckResults[companyTrimmed]) {
           isCompanyInWhitelist = whitelistCheckResults[companyTrimmed].isMatch;
@@ -2895,8 +2895,8 @@ export const DIALER_HTML = `<!DOCTYPE html>
           '</div>' +
           '<div class="client-card-tags" style="margin-top: 2px;">' +
             (c.company ? '<span class="client-card-tag client-card-tag-company">' + esc(c.company) + '</span>' : '') +
-            (whitelistCheckResults && c.company && whitelistCheckResults[c.company.trim()] ?
-              (whitelistCheckResults[c.company.trim()].isMatch
+            (whitelistCheckResults && c.company && whitelistCheckResults[String(c.company).trim()] ?
+              (whitelistCheckResults[String(c.company).trim()].isMatch
                 ? '<span class="client-card-tag xls-dial-badge-whitelist">✔ 白名单</span>'
                 : '<span class="client-card-tag xls-dial-badge-not-whitelist">✘ 非白名单</span>')
               : '') +
@@ -3156,7 +3156,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
       // Show company info if available
       var companyRow = document.getElementById('callAssistCompanyRow');
       var companyEl = document.getElementById('callAssistCompany');
-      if (c.company && c.company.trim()) {
+      if (c.company && String(c.company).trim()) {
         companyEl.textContent = c.company;
         companyRow.style.display = 'flex';
         companyRow.style.alignItems = 'center';
@@ -3672,8 +3672,8 @@ export const DIALER_HTML = `<!DOCTYPE html>
       resetWhitelistCheck();
       var companySet = {};
       importedClients.forEach(function(c) {
-        if (c.company && c.company.trim()) {
-          companySet[c.company.trim()] = true;
+        if (c.company && String(c.company).trim()) {
+          companySet[String(c.company).trim()] = true;
         }
       });
       var uniqueCompanies = Object.keys(companySet);
