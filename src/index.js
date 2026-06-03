@@ -143,6 +143,42 @@ export default {
       return fetch('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js');
     }
 
+    if (path.startsWith('/tessdata/')) {
+      const fileName = path.replace('/tessdata/', '');
+      if (fileName.endsWith('.traineddata.gz')) {
+        const cacheKey = `tessdata:${fileName}`;
+        let fileData = null;
+        if (env.DATA_KV) {
+          fileData = await env.DATA_KV.get(cacheKey, { type: 'arrayBuffer' });
+        }
+        
+        if (!fileData) {
+          const cdnUrl = `https://tessdata.projectnaptha.com/4.0.0_fast/${fileName}`;
+          const response = await fetch(cdnUrl);
+          if (response.ok) {
+            const buffer = await response.arrayBuffer();
+            if (env.DATA_KV) {
+              await env.DATA_KV.put(cacheKey, buffer);
+            }
+            fileData = buffer;
+          } else {
+            return new Response('Failed to fetch from CDN: ' + response.status, {
+              status: 502,
+              headers: { 'Access-Control-Allow-Origin': '*' }
+            });
+          }
+        }
+        
+        return new Response(fileData, {
+          headers: {
+            'Content-Type': 'application/octet-stream',
+            'Access-Control-Allow-Origin': '*',
+            'Cache-Control': 'public, max-age=31536000'
+          }
+        });
+      }
+    }
+
     // 4. 服务 PWA manifest
     if (path === '/manifest.json') {
       const manifest = {

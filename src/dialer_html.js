@@ -1951,7 +1951,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
         var line = lines[i].trim();
         if (!line) continue;
         
-        var phoneRegex = /(?:1[3-9]\\d{9}|1[3-9]\\d{1,2}[-\\s]\\d{3,4}[-\\s]\\d{4})/g;
+        var phoneRegex = /(?:1[3-9]\\d{9}|1[3-9]\\d{1,2}[-\\s]\\d{3,4}[-\\s]\\d{4}|0\\d{2,3}[-\\s]\\d{7,8}|0\\d{9,11})/g;
         var match;
         var foundPhonesInLine = [];
         
@@ -1979,15 +1979,21 @@ export const DIALER_HTML = `<!DOCTYPE html>
           var company = '';
           var noteParts = [];
           
+          // Replace current phone in line with space to separate name and company when连写
+          var lineWithoutPhone = line.replace(rawPhoneStr, ' ');
+          
           // Delimit segments on the line to parse columns/words
           var delimiters = /[\\s,，:：|｜;；\\t\\-\\[\\]\\(\\)]+/;
-          var lineParts = line.split(delimiters).map(function(p) { return p.trim(); }).filter(Boolean);
+          var lineParts = lineWithoutPhone.split(delimiters).map(function(p) { return p.trim(); }).filter(Boolean);
           
-          // Filter out phone tokens and any tokens containing phone strings
+          // Filter out other phone tokens if any
           var remainingParts = lineParts.filter(function(part) {
             var cleanPart = part.replace(/[-\\s]/g, '');
-            if (cleanPart.indexOf(phoneStr) !== -1 || part.indexOf(rawPhoneStr) !== -1) {
-              return false;
+            for (var k = 0; k < foundPhonesInLine.length; k++) {
+              var otherPhone = foundPhonesInLine[k];
+              if (cleanPart.indexOf(otherPhone.phone) !== -1 || part.indexOf(otherPhone.raw) !== -1) {
+                return false;
+              }
             }
             return true;
           });
@@ -1996,7 +2002,10 @@ export const DIALER_HTML = `<!DOCTYPE html>
           var bestCompany = '';
           for (var j = 0; j < remainingParts.length; j++) {
             var part = remainingParts[j];
-            if (/有限公司|有限责任|集团|公司|企业|厂|店|中心|商行|工作室|股份/.test(part)) {
+            if (/联系人|负责人|姓名|电话|手机|号码|备注|意向|跟进|记录|挂断|接通|无效|加微信/i.test(part)) {
+              continue;
+            }
+            if (/有限公司|有限责任|集团|公司|企业|厂|店|中心|商行|工作室|股份|科技|技术|网络|制造|金融|地产|开发/.test(part)) {
               bestCompany = part;
               break;
             }
@@ -2089,7 +2098,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
             var part = remainingParts[j];
             if (part !== name && part !== company) {
               // Skip UI labels/metadata in notes to keep them clean
-              if (/姓名|电话|手机|号码|公司|备注|联系人|客户|微信|说明|介绍|详情/i.test(part) && part.length <= 4) {
+              if (/姓名|电话|手机|号码|公司|备注|联系人|客户|微信|负责人|说明|介绍|详情/i.test(part) && part.length <= 5) {
                 continue;
               }
               noteParts.push(part);
@@ -2372,28 +2381,34 @@ export const DIALER_HTML = `<!DOCTYPE html>
             document.getElementById('aiLog3').style.opacity = '1';
           }
           
-          Tesseract.recognize(
-            file,
-            'chi_sim+eng',
-            {
-              logger: function(m) {
-                if (m.status === 'recognizing text') {
-                  var pct = Math.round(m.progress * 100);
-                  document.getElementById('aiScanStatus').innerHTML = '📸 图像文字 AI 深度识别中：' + pct + '%';
-                  if (document.getElementById('aiLog3')) {
-                    document.getElementById('aiLog3').innerHTML = '✅ 模型载入成功，识别进行中...';
-                  }
-                  if (document.getElementById('aiLog4')) {
-                    document.getElementById('aiLog4').innerHTML = '⚡ OCR 进度: ' + pct + '%';
-                    document.getElementById('aiLog4').style.opacity = '1';
-                  }
-                } else if (m.status === 'loading chi_sim.traineddata' || m.status === 'loading eng.traineddata') {
-                  var loadPct = m.progress ? ' (' + Math.round(m.progress * 100) + '%)' : '';
-                  document.getElementById('aiScanStatus').innerHTML = '🧠 正在载入语言模型包' + loadPct + '...';
+          Tesseract.createWorker('chi_sim+eng', 1, {
+            langPath: window.location.origin + '/tessdata',
+            logger: function(m) {
+              if (m.status === 'recognizing text') {
+                var pct = Math.round(m.progress * 100);
+                document.getElementById('aiScanStatus').innerHTML = '📸 图像文字 AI 深度识别中：' + pct + '%';
+                if (document.getElementById('aiLog3')) {
+                  document.getElementById('aiLog3').innerHTML = '✅ 模型载入成功，识别进行中...';
                 }
+                if (document.getElementById('aiLog4')) {
+                  document.getElementById('aiLog4').innerHTML = '⚡ OCR 进度: ' + pct + '%';
+                  document.getElementById('aiLog4').style.opacity = '1';
+                }
+              } else if (m.status === 'loading chi_sim.traineddata' || m.status === 'loading eng.traineddata') {
+                var loadPct = m.progress ? ' (' + Math.round(m.progress * 100) + '%)' : '';
+                document.getElementById('aiScanStatus').innerHTML = '🧠 正在载入语言模型包' + loadPct + '...';
               }
             }
-          ).then(function(result) {
+          }).then(function(worker) {
+            return worker.recognize(file).then(function(result) {
+              return worker.terminate().then(function() {
+                return result;
+              });
+            }).catch(function(err) {
+              worker.terminate();
+              throw err;
+            });
+          }).then(function(result) {
             if (document.getElementById('aiLog4')) {
               document.getElementById('aiLog4').innerHTML = '✅ 图像文字识别与神经特征映射完毕';
             }
