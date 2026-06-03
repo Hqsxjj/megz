@@ -2,6 +2,7 @@
 // 部署后绑定 DATA_KV 即可使用
 
 import { DIALER_HTML } from './dialer_html.js';
+import { createSupabaseClient } from './supabase.js';
 
 async function getAllKVKeys(env, prefix) {
   let keys = [];
@@ -83,6 +84,9 @@ export default {
         }
       });
     }
+
+    // Supabase client（SUPABASE_URL/KEY 未配置时降级为 no-op）
+    const supabase = createSupabaseClient(env);
 
     // 0. 安卓 App 自动更新接口
     if (path === '/api/app-version' && request.method === 'GET') {
@@ -3524,21 +3528,9 @@ export default {
 </body>
 </html>`;
 
-    // ========== 白名单 API（基于 KV 存储） ==========
-    // KV key: config:whitelist_companies
-    // 值格式: JSON 字符串数组 ["公司A", "公司B", ...]
+    // ========== 白名单 API（基于 Supabase） ==========
 
-    async function getWhitelist(env) {
-      const raw = await env.DATA_KV.get('config:whitelist_companies');
-      if (!raw) return [];
-      try { return JSON.parse(raw); } catch(e) { return []; }
-    }
-
-    async function setWhitelist(env, companies) {
-      await env.DATA_KV.put('config:whitelist_companies', JSON.stringify(companies));
-    }
-
-    // 上传白名单企业（批量 upsert，去重合并）
+    // 上传白名单企业（批量 upsert）
     if (path === '/api/whitelist/upload' && request.method === 'POST') {
       try {
         const body = await request.json();
@@ -3555,23 +3547,13 @@ export default {
             headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
           });
         }
-        const existing = await getWhitelist(env);
-        const lookup = new Set(existing.map(c => c.toLowerCase()));
-        let added = 0;
-        for (const c of companies) {
-          const name = (typeof c === 'string' ? c : c.company_name || '').trim();
-          if (!name || lookup.has(name.toLowerCase())) continue;
-          lookup.add(name.toLowerCase());
-          existing.push(name);
-          added++;
-        }
-        await setWhitelist(env, existing);
-        return new Response(JSON.stringify({ success: true, count: added }), {
+        const result = await supabase.upsertCompanies(companies);
+        return new Response(JSON.stringify({ success: true, count: result.count }), {
           headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
         });
       } catch (e) {
         return new Response(JSON.stringify({ error: e.message }), {
-          status: 500,
+          status: 502,
           headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
         });
       }
@@ -3580,15 +3562,13 @@ export default {
     // 获取所有白名单企业
     if (path === '/api/whitelist/companies' && request.method === 'GET') {
       try {
-        const companies = await getWhitelist(env);
-        const result = companies.map(c => ({ company_name: c }));
-        result.sort((a, b) => a.company_name.localeCompare(b.company_name, 'zh'));
-        return new Response(JSON.stringify({ companies: result }), {
+        const companies = await supabase.getAllCompanies();
+        return new Response(JSON.stringify({ companies: companies }), {
           headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
         });
       } catch (e) {
         return new Response(JSON.stringify({ error: e.message }), {
-          status: 500,
+          status: 502,
           headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
         });
       }
@@ -3598,26 +3578,20 @@ export default {
     if (path === '/api/whitelist/check' && request.method === 'POST') {
       try {
         const body = await request.json();
-        const names = body.companies;
-        if (!Array.isArray(names)) {
+        const companies = body.companies;
+        if (!Array.isArray(companies)) {
           return new Response(JSON.stringify({ error: '请提供 companies 数组' }), {
             status: 400,
             headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
           });
         }
-        const whitelist = await getWhitelist(env);
-        const lookup = new Set(whitelist.map(c => c.toLowerCase()));
-        const results = names.map(n => {
-          const key = (n || '').toLowerCase().trim();
-          const isMatch = lookup.has(key);
-          return { company: n, isMatch, matchedName: isMatch ? n : null };
-        });
-        return new Response(JSON.stringify({ results }), {
+        const results = await supabase.checkCompanies(companies);
+        return new Response(JSON.stringify({ results: results }), {
           headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
         });
       } catch (e) {
         return new Response(JSON.stringify({ error: e.message }), {
-          status: 500,
+          status: 502,
           headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
         });
       }
@@ -3632,28 +3606,13 @@ export default {
         });
       }
       try {
-        const whitelist = await getWhitelist(env);
-        const key = q.trim().toLowerCase();
-        const lookup = new Set(whitelist.map(c => c.toLowerCase()));
-        // 精确匹配优先，否则模糊（包含）
-        const exactMatch = whitelist.find(c => c.toLowerCase() === key);
-        if (exactMatch) {
-          return new Response(JSON.stringify({ result: { company: exactMatch, isMatch: true, matchedName: exactMatch } }), {
-            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-          });
-        }
-        const fuzzy = whitelist.find(c => c.toLowerCase().includes(key) || key.includes(c.toLowerCase()));
-        if (fuzzy) {
-          return new Response(JSON.stringify({ result: { company: fuzzy, isMatch: true, matchedName: fuzzy } }), {
-            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-          });
-        }
-        return new Response(JSON.stringify({ result: { company: q.trim(), isMatch: false, matchedName: null } }), {
+        const results = await supabase.checkCompanies([q.trim()]);
+        return new Response(JSON.stringify({ result: results[0] }), {
           headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
         });
       } catch (e) {
         return new Response(JSON.stringify({ error: e.message }), {
-          status: 500,
+          status: 502,
           headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
         });
       }
@@ -3663,29 +3622,20 @@ export default {
     if (path === '/api/whitelist/companies' && request.method === 'DELETE') {
       try {
         const body = await request.json();
-        const companyName = (body.company_name || '').trim();
-        if (!companyName) {
+        const companyName = body.company_name;
+        if (!companyName || !companyName.trim()) {
           return new Response(JSON.stringify({ error: '请提供 company_name' }), {
             status: 400,
             headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
           });
         }
-        let whitelist = await getWhitelist(env);
-        const key = companyName.toLowerCase();
-        const idx = whitelist.findIndex(c => c.toLowerCase() === key);
-        if (idx >= 0) {
-          whitelist.splice(idx, 1);
-          await setWhitelist(env, whitelist);
-          return new Response(JSON.stringify({ success: true }), {
-            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-          });
-        }
-        return new Response(JSON.stringify({ success: false, error: '未找到该企业' }), {
+        const result = await supabase.deleteCompany(companyName);
+        return new Response(JSON.stringify(result), {
           headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
         });
       } catch (e) {
         return new Response(JSON.stringify({ error: e.message }), {
-          status: 500,
+          status: 502,
           headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
         });
       }
