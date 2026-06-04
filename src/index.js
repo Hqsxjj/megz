@@ -836,6 +836,7 @@ export default {
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes, viewport-fit=cover, shrink-to-fit=no">
   <title>每日工作</title>
   <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="theme-color" content="#ededed">
   <link rel="manifest" href="/manifest.json">
@@ -2295,7 +2296,7 @@ export default {
               label = bank + '(已删除)';
               badgeStyle = 'background:rgba(231,76,60,0.1); color:#e74c3c;';
             }
-            return '<div style="display:flex; justify-content:space-between; align-items:center; padding:6px 8px; border-bottom:1px dashed var(--card-border); background:var(--btn-bg); border-radius:3px; cursor:pointer;" data-company="' + esc(c.company_name) + '" onclick="document.getElementById(\'custCompany\').value=this.dataset.company; document.getElementById(\'mainWlSearchResults\').style.display=\'none\';">' +
+            return '<div style="display:flex; justify-content:space-between; align-items:center; padding:6px 8px; border-bottom:1px dashed var(--card-border); background:var(--btn-bg); border-radius:3px; cursor:pointer;" data-company="' + esc(c.company_name) + '" onclick="document.getElementById(\\\'custCompany\\\').value=this.dataset.company; document.getElementById(\\\'mainWlSearchResults\\\').style.display=\\\'none\\\';">' +
               '<span style="font-weight:700; color:var(--text-main); font-size:0.7rem;">' + esc(c.company_name) + '</span>' +
               '<span style="font-size:0.6rem; ' + badgeStyle + ' padding:1px 5px; border-radius:3px; font-weight:700; white-space:nowrap; margin-left:8px;">' + esc(label) + '</span>' +
               '</div>';
