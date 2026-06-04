@@ -1570,11 +1570,7 @@ export default {
   <div class="container">
     <div class="header-bar">
       <div class="title-section"><div class="app-logo"><div class="app-icon"><svg viewBox="0 0 48 48" fill="none"><rect x="6" y="8" width="36" height="34" rx="5" fill="none" stroke="white" stroke-width="2.5"/><line x1="6" y1="18" x2="42" y2="18" stroke="white" stroke-width="2.5"/><rect x="12" y="4" width="4" height="8" rx="2" fill="white"/><rect x="32" y="4" width="4" height="8" rx="2" fill="white"/><circle cx="16" cy="27" r="2.5" fill="white"/><circle cx="24" cy="27" r="2.5" fill="white"/><circle cx="32" cy="27" r="2.5" fill="white"/><circle cx="16" cy="35" r="2.5" fill="white"/><circle cx="24" cy="35" r="2.5" fill="white"/></svg></div><h3>每日工作</h3></div><div class="date-chip" id="liveDate"></div><button class="goal-eye eye-off" id="goalEyeBtn" title="显示目标数字">👁</button><div class="goal-chips" id="goalChips"></div></div>
-      <div class="action-group" style="display:flex; align-items:center; gap:8px;">
-        <div style="position:relative; display:inline-block; margin-right:4px;">
-          <input type="text" id="mainWlSearchInput" placeholder="🔍 搜索公司白名单..." autocomplete="off" style="font-size:0.68rem; height:24px; width:135px; border-radius:var(--radius-xs); border:1px solid var(--card-border); background:var(--btn-bg); color:var(--text-main); padding:0 8px; font-weight:700; outline:none; box-sizing:border-box;">
-          <div id="mainWlSearchResults" style="display:none; position:absolute; top:28px; right:0; width:220px; background:var(--card-bg); border:1px solid var(--card-border); border-radius:var(--radius-xs); box-shadow:var(--shadow-md); z-index:999; max-height:220px; overflow-y:auto; padding:4px; flex-direction:column; gap:4px; text-align:left; box-sizing:border-box;"></div>
-        </div>
+      <div class="action-group">
         <button class="sync-indicator" id="syncBtn" title="点击手动同步"><span class="sync-icon" id="syncIcon">⇅</span><span id="syncLabel">同步中</span><div class="sync-tooltip" id="syncTooltip">正在连接...</div></button>
         <button class="icon-simple" id="allClientsBtn" title="意向客户全量表">全量</button>
         <button class="icon-simple" id="dialerBtn" title="快捷拨号助手" onclick="window.open('/dialer', '_blank')">拨号</button>
@@ -1615,6 +1611,15 @@ export default {
           <div class="cal-grid" id="calGrid"></div>
           <div style="font-size:0.55rem;text-align:center;margin-top:6px;color:var(--text-light);font-weight:600;">点击日期查看意向客户</div>
         </div>
+        <div class="card" style="margin-top: 8px;">
+          <div class="card-title" style="display:flex; justify-content:space-between; align-items:center;">
+            <span>白名单快捷查询</span>
+            <span style="font-size:0.6rem; color:var(--text-soft); font-weight:normal;" id="mainWlStatus">建行建易贷</span>
+          </div>
+          <div class="register-block">
+            <input type="text" class="input-simple" id="mainWlSearchInput" placeholder="输入企业名称进行模糊搜索..." autocomplete="off" style="width:100%; box-sizing:border-box;">
+            <div id="mainWlSearchResults" style="max-height:160px; overflow-y:auto; margin-top:8px; font-size:0.72rem; display:none; flex-direction:column; gap:4px;"></div>
+          </div>
         </div>
       </div>
       <div class="right-area">
@@ -2256,11 +2261,6 @@ export default {
     const mainSearchInput = document.getElementById('mainWlSearchInput');
     const mainSearchResults = document.getElementById('mainWlSearchResults');
     if (mainSearchInput && mainSearchResults) {
-      document.addEventListener('click', e => {
-        if (!mainSearchInput.contains(e.target) && !mainSearchResults.contains(e.target)) {
-          mainSearchResults.style.display = 'none';
-        }
-      });
       mainSearchInput.addEventListener('input', () => {
         const query = mainSearchInput.value.toLowerCase().trim();
         if (!query) {
