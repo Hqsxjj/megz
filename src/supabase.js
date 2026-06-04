@@ -32,12 +32,13 @@ export function createSupabaseClient(env) {
     // Normalize: accept both string[] and object[]
     const rows = companies.map(function(c) {
       if (typeof c === 'string') {
-        return { company_name: c.trim(), bank_name: '建行建易贷' };
+        return { company_name: c.trim(), bank_name: '建行建易贷', status: '正常' };
       }
       return {
         company_name: (c.company_name || '').trim(),
         alias: c.alias || null,
-        bank_name: c.bank_name || '建行建易贷'
+        bank_name: c.bank_name || '建行建易贷',
+        status: c.status || '正常'
       };
     }).filter(function(r) {
       return r.company_name.length > 0;
@@ -74,7 +75,7 @@ export function createSupabaseClient(env) {
     if (!baseUrl || !key) return [];
 
     const resp = await fetch(
-      baseUrl + '/rest/v1/whitelist_companies?select=id,company_name,alias,bank_name,created_at&order=company_name.asc',
+      baseUrl + '/rest/v1/whitelist_companies?select=id,company_name,alias,bank_name,status,created_at&order=company_name.asc',
       { headers: headers() }
     );
 
@@ -108,14 +109,16 @@ export function createSupabaseClient(env) {
 
     return (companyNames || []).map(function(name) {
       if (!name || !name.trim()) {
-        return { company: name, isMatch: false, matchedName: null };
+        return { company: name, isMatch: false, matchedName: null, bank_name: null, status: null };
       }
       var key = name.toLowerCase().trim();
       var match = lookup[key] || null;
       return {
         company: name,
         isMatch: !!match,
-        matchedName: match ? match.company_name : null
+        matchedName: match ? match.company_name : null,
+        bank_name: match ? match.bank_name : null,
+        status: match ? match.status : null
       };
     });
   }

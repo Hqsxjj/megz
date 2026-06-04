@@ -1832,17 +1832,41 @@ export default {
     whitelistMap.clear();
     whitelistCompanies.forEach(c => {
       const bank = c.bank_name || '建行建易贷';
+      const status = c.status || '正常';
+      const val = { bank, status };
       const name = (c.company_name || '').trim().toLowerCase();
       if (name) {
         whitelistSet.add(name);
-        whitelistMap.set(name, bank);
+        whitelistMap.set(name, val);
       }
       const alias = (c.alias || '').trim().toLowerCase();
       if (alias) {
         whitelistSet.add(alias);
-        whitelistMap.set(alias, bank);
+        whitelistMap.set(alias, val);
       }
     });
+  }
+
+  function getWhitelistTagHtml(company, isTbl) {
+    if (!company || company === '-') return isTbl ? '-' : '';
+    const key = String(company).trim().toLowerCase();
+    if (!whitelistSet.has(key)) {
+      return isTbl ? esc(company) : '<span class="client-card-tag client-card-tag-company">' + esc(company) + '</span>';
+    }
+    const info = whitelistMap.get(key) || { bank: '建行建易贷', status: '正常' };
+    const bank = info.bank || '建行建易贷';
+    const status = info.status || '正常';
+    let label = bank + ': ' + company;
+    let badgeStyle = 'background:var(--accent-wechat-bg); color:var(--accent-wechat); border-color:var(--accent-wechat);';
+    if (status === '已失效') {
+      label = bank + '(已失效): ' + company;
+      badgeStyle = 'background:rgba(120,120,120,0.15); color:#7f8c8d; border-color:rgba(120,120,120,0.25);';
+    } else if (status === '已删除') {
+      label = bank + '(已删除): ' + company;
+      badgeStyle = 'background:rgba(231,76,60,0.15); color:#e74c3c; border-color:rgba(231,76,60,0.25);';
+    }
+    const className = isTbl ? 'tbl-tag tbl-tag-company' : 'client-card-tag client-card-tag-company';
+    return '<span class="' + className + '" style="' + badgeStyle + '">' + esc(label) + '</span>';
   }
 
   function fetchWhitelist() {
@@ -1961,7 +1985,10 @@ export default {
 
     container.style.display = 'block';
     countEl.textContent = failed.length;
-    listEl.textContent = failed.join('\\n');
+    listEl.textContent = failed.map(c => {
+      if (typeof c === 'string') return c;
+      return c.company_name + (c.status && c.status !== '正常' ? ',' + c.status : '');
+    }).join('\\n');
   }
 
   function renderWhitelistCompanyList() {
@@ -2042,7 +2069,20 @@ export default {
         if (!text) { alert('请先粘贴企业名称'); return; }
         const companies = text.split('\\n')
           .map(s => s.trim())
-          .filter(s => s.length > 0);
+          .filter(s => s.length > 0)
+          .map(s => {
+            const parts = s.split(',');
+            if (parts.length > 1) {
+              return {
+                company_name: parts[0].trim(),
+                status: parts[1].trim()
+              };
+            }
+            return {
+              company_name: s,
+              status: '正常'
+            };
+          });
         if (companies.length === 0) { alert('请至少输入一个企业名称'); return; }
 
         uploadBtn.textContent = '上传中...';
@@ -2121,56 +2161,70 @@ export default {
           try {
             const data = new Uint8Array(evt.target.result);
             const workbook = XLSX.read(data, { type: 'array' });
-            let allCompanies = [];
+            let allLines = [];
 
             workbook.SheetNames.forEach(sheetName => {
               const worksheet = workbook.Sheets[sheetName];
               const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
               if (rows.length === 0) return;
 
+              let defaultStatus = '正常';
+              if (sheetName.includes('失效')) {
+                defaultStatus = '已失效';
+              } else if (sheetName.includes('删除')) {
+                defaultStatus = '已删除';
+              }
+
               const headerRow = rows[0] || [];
               let targetColIndex = -1;
+              let opColIndex = -1;
               const keywords = ["公司", "单位", "企业", "名称", "白名单", "公司名称", "企业名称", "简称"];
 
               for (let i = 0; i < headerRow.length; i++) {
                 const val = String(headerRow[i] || '').trim();
                 if (keywords.some(kw => val.includes(kw))) {
                   targetColIndex = i;
-                  break;
+                }
+                if (val.includes("操作") || val.includes("状态")) {
+                  opColIndex = i;
                 }
               }
 
               const finalColIndex = targetColIndex !== -1 ? targetColIndex : 0;
               const startRow = targetColIndex !== -1 ? 1 : 0;
               for (let r = startRow; r < rows.length; r++) {
-                const cellVal = String(rows[r][finalColIndex] || '').trim();
+                const row = rows[r] || [];
+                const cellVal = String(row[finalColIndex] || '').trim();
                 if (cellVal && cellVal.length > 1) {
-                  allCompanies.push(cellVal);
-                }
-              }
-
-              if (targetColIndex === -1 && allCompanies.length === 0) {
-                const suffixes = ["公司", "集团", "厂", "店", "中心", "局", "行", "院", "所"];
-                for (let r = 0; r < rows.length; r++) {
-                  const row = rows[r] || [];
-                  for (let c = 0; c < row.length; c++) {
-                    const cellVal = String(row[c] || '').trim();
-                    if (cellVal && cellVal.length > 1 && suffixes.some(sf => cellVal.endsWith(sf))) {
-                      allCompanies.push(cellVal);
+                  let status = defaultStatus;
+                  if (opColIndex !== -1 && row[opColIndex]) {
+                    const opVal = String(row[opColIndex]).trim();
+                    if (opVal.includes("失效")) {
+                      status = '已失效';
+                    } else if (opVal.includes("删除")) {
+                      status = '已删除';
+                    } else if (opVal.includes("新增") || opVal.includes("修改") || opVal.includes("通过")) {
+                      status = '正常';
                     }
+                  }
+                  
+                  if (status === '正常') {
+                    allLines.push(cellVal);
+                  } else {
+                    allLines.push(cellVal + ',' + status);
                   }
                 }
               }
             });
 
-            const uniqueCompanies = Array.from(new Set(allCompanies));
-            if (uniqueCompanies.length > 0) {
+            const uniqueLines = Array.from(new Set(allLines));
+            if (uniqueLines.length > 0) {
               const currentVal = textarea.value.trim();
               const suffix = currentVal ? '\\n' : '';
-              textarea.value = currentVal + suffix + uniqueCompanies.join('\\n');
-              alert('成功导入 ' + uniqueCompanies.length + ' 家公司，已追加到下方输入框中。请检查确认后点击"上传白名单"。');
+              textarea.value = currentVal + suffix + uniqueLines.join('\\n');
+              alert('成功从表格中读取 ' + uniqueLines.length + ' 家公司，已自动标记已失效或已删除的记录（格式如：“公司名,已失效”）。请确认后点击下方的“上传白名单”进行保存。');
             } else {
-              alert('未能在表格中识别到公司名称，请确保包含"公司/单位/企业/名称"字样的表头或首列为公司名称。');
+              alert('未能在表格中识别到公司名称，请确保表格中包含“单位全称”、“公司名称”或“企业名称”字样的表头。');
             }
           } catch (err) {
             console.error(err);
@@ -2209,9 +2263,19 @@ export default {
         } else {
           mainSearchResults.innerHTML = limitMatches.map(c => {
             const bank = c.bank_name || '建行建易贷';
+            const status = c.status || '正常';
+            let label = bank;
+            let badgeStyle = 'background:var(--accent-wechat-bg); color:var(--accent-wechat);';
+            if (status === '已失效') {
+              label = bank + '(已失效)';
+              badgeStyle = 'background:rgba(120,120,120,0.1); color:#7f8c8d;';
+            } else if (status === '已删除') {
+              label = bank + '(已删除)';
+              badgeStyle = 'background:rgba(231,76,60,0.1); color:#e74c3c;';
+            }
             return '<div style="display:flex; justify-content:space-between; align-items:center; padding:4px 6px; border-bottom:1px dashed var(--card-border); background:var(--btn-bg); border-radius:3px;">' +
               '<span style="font-weight:700; color:var(--text-main);">' + esc(c.company_name) + '</span>' +
-              '<span style="font-size:0.6rem; background:var(--accent-wechat-bg); color:var(--accent-wechat); padding:1px 5px; border-radius:3px; font-weight:700; white-space:nowrap; margin-left:8px;">' + esc(bank) + '</span>' +
+              '<span style="font-size:0.6rem; ' + badgeStyle + ' padding:1px 5px; border-radius:3px; font-weight:700; white-space:nowrap; margin-left:8px;">' + esc(label) + '</span>' +
               '</div>';
           }).join('');
         }
@@ -2553,11 +2617,7 @@ export default {
           (c.time ? '<span class="client-card-time">'+esc(c.time)+'</span>' : '')+
         '</div>'+
         '<div class="client-card-tags">'+
-                    (c.company ? 
-            (whitelistSet.has(String(c.company).trim().toLowerCase()) 
-              ? '<span class="client-card-tag client-card-tag-company" style="background:var(--accent-wechat-bg); color:var(--accent-wechat); border-color:var(--accent-wechat);">' + esc(whitelistMap.get(String(c.company).trim().toLowerCase())) + ': ' + esc(c.company) + '</span>'
-              : '<span class="client-card-tag client-card-tag-company">'+esc(c.company)+'</span>'
-            ) : '')+
+          (c.company ? getWhitelistTagHtml(c.company, false) : '')+
           (c.fund ? '<span class="client-card-tag client-card-tag-fund">公积金: '+esc(c.fund)+'</span>' : '')+
         '</div>'+
         '<div class="client-card-body">'+
@@ -2763,11 +2823,7 @@ export default {
               (e.time ? '<span class="client-card-time">'+esc(e.time)+'</span>' : '')+
             '</div>'+
             '<div class="client-card-tags">'+
-                            (e.company ? 
-                (whitelistSet.has(String(e.company).trim().toLowerCase()) 
-                  ? '<span class="client-card-tag client-card-tag-company" style="background:var(--accent-wechat-bg); color:var(--accent-wechat); border-color:var(--accent-wechat);">' + esc(whitelistMap.get(String(e.company).trim().toLowerCase())) + ': ' + esc(e.company) + '</span>'
-                  : '<span class="client-card-tag client-card-tag-company">'+esc(e.company)+'</span>'
-                ) : '')+
+              (e.company ? getWhitelistTagHtml(e.company, false) : '')+
               (e.fund ? '<span class="client-card-tag client-card-tag-fund">公积金: '+esc(e.fund)+'</span>' : '')+
             '</div>'+
             '<div class="client-card-body">'+
@@ -3606,11 +3662,7 @@ export default {
         '<td data-label="日期" style="padding: 10px 8px; white-space: nowrap;">'+esc(c.date)+'</td>'+
         '<td data-label="姓名" style="padding: 10px 8px; font-weight: 700;">'+esc(c.name)+'</td>'+
         '<td data-label="电话" style="padding: 10px 8px; white-space: nowrap;"><a class="client-phone" href="tel:'+esc(c.phone)+'" data-full="'+esc(c.phone)+'">'+esc(maskPhone(c.phone))+'</a><button class="phone-toggle" style="background:none;border:none;margin-left:4px;cursor:pointer;opacity:0.5;" title="显示号码">看</button></td>'+
-                '<td data-label="单位" style="padding: 10px 8px;">' + (
-          company !== '-' && whitelistSet.has(String(company).trim().toLowerCase())
-            ? '<span class="tbl-tag tbl-tag-company" style="background:var(--accent-wechat-bg); color:var(--accent-wechat); border-color:var(--accent-wechat);">' + esc(whitelistMap.get(String(company).trim().toLowerCase())) + ': ' + esc(company) + '</span>'
-            : esc(company)
-        ) + '</td>'+
+                '<td data-label="单位" style="padding: 10px 8px;">' + getWhitelistTagHtml(company, true) + '</td>'+
         '<td data-label="公积金" style="padding: 10px 8px;">'+esc(fund)+'</td>'+
         '<td data-label="沟通情况" style="padding: 10px 8px; min-width: 240px; max-width: 400px; word-break: break-word;"><span style="flex: 1; word-break: break-word; white-space: pre-wrap;">'+esc(note)+'</span></td>'+
         '<td data-label="跟进情况" style="padding: 10px 8px; min-width: 180px; max-width: 300px; word-break: break-word;"><span style="flex: 1; word-break: break-word; white-space: pre-wrap;">'+esc(followUp)+'</span></td>'+

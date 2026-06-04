@@ -2897,7 +2897,17 @@ export const DIALER_HTML = `<!DOCTYPE html>
             (c.company ? '<span class="client-card-tag client-card-tag-company">' + esc(c.company) + '</span>' : '') +
             (whitelistCheckResults && c.company && whitelistCheckResults[String(c.company).trim()] ?
               (whitelistCheckResults[String(c.company).trim()].isMatch
-                ? '<span class="client-card-tag xls-dial-badge-whitelist">✔ 白名单</span>'
+                ? (function() {
+                    var matchInfo = whitelistCheckResults[String(c.company).trim()];
+                    var bank = matchInfo.bank_name || '建行建易贷';
+                    var status = matchInfo.status || '正常';
+                    if (status === '已失效') {
+                      return '<span class="client-card-tag xls-dial-badge-not-whitelist" style="background:rgba(120,120,120,0.15) !important; color:#7f8c8d !important; border-color:rgba(120,120,120,0.25) !important;">✔ ' + esc(bank) + '(已失效)</span>';
+                    } else if (status === '已删除') {
+                      return '<span class="client-card-tag xls-dial-badge-not-whitelist" style="background:rgba(231,76,60,0.15) !important; color:#e74c3c !important; border-color:rgba(231,76,60,0.25) !important;">✔ ' + esc(bank) + '(已删除)</span>';
+                    }
+                    return '<span class="client-card-tag xls-dial-badge-whitelist">✔ ' + esc(bank) + '</span>';
+                  })()
                 : '<span class="client-card-tag xls-dial-badge-not-whitelist">✘ 非白名单</span>')
               : '') +
           '</div>' +
