@@ -3754,7 +3754,31 @@ export const DIALER_HTML = `<!DOCTYPE html>
 
       container.style.display = 'block';
       countEl.textContent = failed.length;
-      listEl.textContent = failed.join('\n');
+      listEl.textContent = failed.map(function(c) {
+        if (typeof c === 'string') return c;
+        return c.company_name + (c.status && c.status !== '正常' ? ',' + c.status : '');
+      }).join('\n');
+    }
+
+    function fuzzyMatch(text, query) {
+      if (!text) return false;
+      text = text.toLowerCase().trim();
+      query = query.toLowerCase().trim();
+      if (!query) return true;
+      if (text.includes(query)) return true;
+      var keywords = query.split(/\s+/).filter(Boolean);
+      if (keywords.length > 1) {
+        return keywords.every(function(kw) { return text.includes(kw); });
+      }
+      var escapedQuery = query.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+      var chars = escapedQuery.split('');
+      var regexStr = chars.join('.*');
+      try {
+        var regex = new RegExp(regexStr, 'i');
+        return regex.test(text);
+      } catch (e) {
+        return false;
+      }
     }
 
     function renderWhitelistCompanyList() {
@@ -3767,8 +3791,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
       var filtered = whitelistCompanies;
       if (query) {
         filtered = whitelistCompanies.filter(function(c) {
-          return (c.company_name || '').toLowerCase().includes(query) ||
-                 (c.alias || '').toLowerCase().includes(query);
+          return fuzzyMatch(c.company_name, query) || fuzzyMatch(c.alias, query);
         });
       }
 

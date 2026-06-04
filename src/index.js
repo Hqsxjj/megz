@@ -1847,6 +1847,27 @@ export default {
     });
   }
 
+  function fuzzyMatch(text, query) {
+    if (!text) return false;
+    text = text.toLowerCase().trim();
+    query = query.toLowerCase().trim();
+    if (!query) return true;
+    if (text.includes(query)) return true;
+    const keywords = query.split(/\s+/).filter(Boolean);
+    if (keywords.length > 1) {
+      return keywords.every(kw => text.includes(kw));
+    }
+    const escapedQuery = query.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\\\$&');
+    const chars = escapedQuery.split('');
+    const regexStr = chars.join('.*');
+    try {
+      const regex = new RegExp(regexStr, 'i');
+      return regex.test(text);
+    } catch (e) {
+      return false;
+    }
+  }
+
   function getWhitelistTagHtml(company, isTbl) {
     if (!company || company === '-') return isTbl ? '-' : '';
     const key = String(company).trim().toLowerCase();
@@ -2001,8 +2022,7 @@ export default {
     let filtered = whitelistCompanies;
     if (query) {
       filtered = whitelistCompanies.filter(c => {
-        return (c.company_name || '').toLowerCase().includes(query) ||
-               (c.alias || '').toLowerCase().includes(query);
+        return fuzzyMatch(c.company_name, query) || fuzzyMatch(c.alias, query);
       });
     }
 
@@ -2249,11 +2269,8 @@ export default {
           return;
         }
 
-        // Fuzzy matching (substring match)
         const matched = whitelistCompanies.filter(c => {
-          const nameMatch = (c.company_name || '').toLowerCase().includes(query);
-          const aliasMatch = (c.alias || '').toLowerCase().includes(query);
-          return nameMatch || aliasMatch;
+          return fuzzyMatch(c.company_name, query) || fuzzyMatch(c.alias, query);
         });
 
         // Limit results to 15
