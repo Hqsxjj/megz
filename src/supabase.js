@@ -74,18 +74,43 @@ export function createSupabaseClient(env) {
   async function getAllCompanies() {
     if (!baseUrl || !key) return [];
 
-    const resp = await fetch(
-      baseUrl + '/rest/v1/whitelist_companies?select=id,company_name,alias,bank_name,status,created_at&order=company_name.asc',
-      { headers: headers() }
-    );
+    var all = [];
+    var page = 0;
+    var pageSize = 1000;
 
-    if (!resp.ok) {
-      const text = await resp.text();
-      throw new Error('Supabase query failed [' + resp.status + ']: ' + text);
+    while (true) {
+      var from = page * pageSize;
+      var to = from + pageSize - 1;
+
+      var resp = await fetch(
+        baseUrl + '/rest/v1/whitelist_companies?select=id,company_name,alias,bank_name,status,created_at&order=company_name.asc',
+        {
+          headers: Object.assign({}, headers(), {
+            'Range': from + '-' + to
+          })
+        }
+      );
+
+      if (!resp.ok) {
+        var text = await resp.text();
+        throw new Error('Supabase query failed [' + resp.status + ']: ' + text);
+      }
+
+      var data = await resp.json();
+      if (!Array.isArray(data) || data.length === 0) {
+        break;
+      }
+
+      all.push.apply(all, data);
+
+      if (data.length < pageSize) {
+        break;
+      }
+
+      page++;
     }
 
-    const data = await resp.json();
-    return data || [];
+    return all;
   }
 
   /**
