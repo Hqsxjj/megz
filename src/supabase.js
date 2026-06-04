@@ -49,7 +49,7 @@ export function createSupabaseClient(env) {
     const batchSize = 1000;
     for (let i = 0; i < rows.length; i += batchSize) {
       const chunk = rows.slice(i, i + batchSize);
-      const resp = await fetch(baseUrl + '/rest/v1/whitelist_companies', {
+      const resp = await fetch(baseUrl + '/rest/v1/whitelist_companies?on_conflict=company_name', {
         method: 'POST',
         headers: Object.assign({}, headers(), {
           'Prefer': 'resolution=merge-duplicates'
