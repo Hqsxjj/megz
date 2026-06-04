@@ -205,12 +205,57 @@ export function createSupabaseClient(env) {
     return data && data[0] ? data[0] : null;
   }
 
+  async function searchCustomers(queryStr) {
+    if (!baseUrl || !key) return [];
+    const resp = await fetch(
+      baseUrl + '/rest/v1/customers?select=*&or=(name.ilike.%' + encodeURIComponent(queryStr) + '%,mobile.ilike.%' + encodeURIComponent(queryStr) + '%,company_name.ilike.%' + encodeURIComponent(queryStr) + '%)&order=created_at.desc',
+      { headers: headers() }
+    );
+    if (!resp.ok) return [];
+    return await resp.json();
+  }
+
+  async function searchSpeech(queryStr) {
+    if (!baseUrl || !key) return [];
+    const resp = await fetch(
+      baseUrl + '/rest/v1/speech_library?select=*&or=(category.ilike.%' + encodeURIComponent(queryStr) + '%,scenario.ilike.%' + encodeURIComponent(queryStr) + '%,content.ilike.%' + encodeURIComponent(queryStr) + '%)&order=score.desc',
+      { headers: headers() }
+    );
+    if (!resp.ok) return [];
+    return await resp.json();
+  }
+
+  async function searchLoanCases(queryStr) {
+    if (!baseUrl || !key) return [];
+    const resp = await fetch(
+      baseUrl + '/rest/v1/loan_cases?select=*&or=(company_name.ilike.%' + encodeURIComponent(queryStr) + '%,loan_product.ilike.%' + encodeURIComponent(queryStr) + '%)&order=company_name.asc',
+      { headers: headers() }
+    );
+    if (!resp.ok) return [];
+    return await resp.json();
+  }
+
+  async function searchKnowledge(queryStr) {
+    if (!baseUrl || !key) return [];
+    const resp = await fetch(
+      baseUrl + '/rest/v1/knowledge_base?select=*&or=(title.ilike.%' + encodeURIComponent(queryStr) + '%,summary.ilike.%' + encodeURIComponent(queryStr) + '%,content.ilike.%' + encodeURIComponent(queryStr) + '%)&limit=5',
+      { headers: headers() }
+    );
+    if (!resp.ok) return [];
+    return await resp.json();
+  }
+
   return {
     upsertCompanies: upsertCompanies,
     getAllCompanies: getAllCompanies,
     checkCompanies: checkCompanies,
     deleteCompany: deleteCompany,
-    saveKnowledge: saveKnowledge
+    saveKnowledge: saveKnowledge,
+    searchCustomers: searchCustomers,
+    searchSpeech: searchSpeech,
+    searchLoanCases: searchLoanCases,
+    searchKnowledge: searchKnowledge
   };
 }
+
 

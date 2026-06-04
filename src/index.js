@@ -3,6 +3,7 @@
 
 import { DIALER_HTML } from './dialer_html.js';
 import { createSupabaseClient } from './supabase.js';
+import { WeComCrypt } from './wecom_crypt.js';
 
 async function getAllKVKeys(env, prefix) {
   let keys = [];
@@ -275,6 +276,9 @@ export default {
       // Inject global webhook URL so it persists across all dates and new days
       data.webhookUrl = await env.DATA_KV.get('config:webhook_url') || '';
       data.deepseekApiKey = await env.DATA_KV.get('config:deepseek_api_key') || '';
+      data.wecomCorpId = await env.DATA_KV.get('config:wecom_corp_id') || '';
+      data.wecomToken = await env.DATA_KV.get('config:wecom_token') || '';
+      data.wecomAesKey = await env.DATA_KV.get('config:wecom_aes_key') || '';
       // Inject goals
       data.goals = JSON.parse(await env.DATA_KV.get('config:goals') || '{}');
       return new Response(JSON.stringify(data), {
@@ -288,7 +292,7 @@ export default {
       const items = Array.isArray(body) ? body : [body];
       let hasError = false;
       for (const item of items) {
-        const { date, wechatCount, intentCount, revisitCount, visitCount, paymentCount, clients, todayTodos, tomorrowTodos, tempClients, scripts, learns, todoLog, webhookUrl, deepseekApiKey, _ts } = item;
+        const { date, wechatCount, intentCount, revisitCount, visitCount, paymentCount, clients, todayTodos, tomorrowTodos, tempClients, scripts, learns, todoLog, webhookUrl, deepseekApiKey, wecomCorpId, wecomToken, wecomAesKey, _ts } = item;
         if (!date) { hasError = true; continue; }
         
         // If a non-empty Webhook URL is supplied, persist it globally
@@ -297,6 +301,15 @@ export default {
         }
         if (deepseekApiKey !== undefined) {
           await env.DATA_KV.put('config:deepseek_api_key', deepseekApiKey);
+        }
+        if (wecomCorpId !== undefined) {
+          await env.DATA_KV.put('config:wecom_corp_id', wecomCorpId);
+        }
+        if (wecomToken !== undefined) {
+          await env.DATA_KV.put('config:wecom_token', wecomToken);
+        }
+        if (wecomAesKey !== undefined) {
+          await env.DATA_KV.put('config:wecom_aes_key', wecomAesKey);
         }
 
         // 读取云端现有数据
@@ -327,6 +340,9 @@ export default {
           todoLog: todoLog || existing.todoLog || [],
           webhookUrl: webhookUrl || existing.webhookUrl || '',
           deepseekApiKey: deepseekApiKey !== undefined ? deepseekApiKey : (existing.deepseekApiKey || ''),
+          wecomCorpId: wecomCorpId !== undefined ? wecomCorpId : (existing.wecomCorpId || ''),
+          wecomToken: wecomToken !== undefined ? wecomToken : (existing.wecomToken || ''),
+          wecomAesKey: wecomAesKey !== undefined ? wecomAesKey : (existing.wecomAesKey || ''),
           lastLoadDate: date,
           lastModified: new Date().toISOString(),
           _ts: _ts || Date.now()
@@ -462,6 +478,15 @@ export default {
           break;
         case 'setDeepseekApiKey':
           await env.DATA_KV.put('config:deepseek_api_key', body.deepseekApiKey || '');
+          break;
+        case 'setWecomCorpId':
+          await env.DATA_KV.put('config:wecom_corp_id', body.wecomCorpId || '');
+          break;
+        case 'setWecomToken':
+          await env.DATA_KV.put('config:wecom_token', body.wecomToken || '');
+          break;
+        case 'setWecomAesKey':
+          await env.DATA_KV.put('config:wecom_aes_key', body.wecomAesKey || '');
           break;
         case 'setGoals':
           await env.DATA_KV.put('config:goals', JSON.stringify(body.goals || {}));
@@ -1729,13 +1754,32 @@ export default {
   </div>
 </div>
 <div id="exportModal" class="modal-overlay">
-  <div class="modal-card" style="max-width:400px;">
-    <div class="modal-header"><span>导出数据</span><button id="closeExportModalBtn">×</button></div>
+  <div class="modal-card" style="max-width:420px; width: 90%;">
+    <div class="modal-header"><span>数据导出与配置</span><button id="closeExportModalBtn">×</button></div>
     <div style="display:flex;flex-direction:column;gap:10px;">
       <div style="display:flex;gap:8px;"><button class="btn-add" id="exportWeekBtn" style="flex:1;">导出本周</button><button class="btn-add" id="exportMonthBtn" style="flex:1;">导出本月</button><button class="btn-add" id="exportAllClientsBtn" style="flex:1;background:var(--intent-gradient);">导出全量</button></div>
       <div style="display:flex;gap:8px;"><button class="btn-add" id="exportSoloBtn" style="flex:1;background:var(--revisit-gradient);">逐条导出全量</button></div>
-      <input type="text" class="input-simple" id="webhookUrlInput" placeholder="企业微信 Webhook URL">
-      <div style="font-size:0.65rem;color:var(--text-light);">粘贴企业微信群机器人的 Webhook 地址</div>
+      
+      <div style="border-top: 1px solid var(--card-border); padding-top: 10px; margin-top: 5px;">
+        <input type="text" class="input-simple" id="webhookUrlInput" placeholder="企业微信群 Webhook URL" style="margin-bottom: 4px;">
+        <div style="font-size:0.65rem;color:var(--text-light);">用于数据主动导出推送的群机器人 Webhook 地址</div>
+      </div>
+
+      <details style="margin-top:10px; border:1px dashed var(--card-border); border-radius:var(--radius-xs); padding:8px; background:rgba(120,120,120,0.02);">
+        <summary style="font-size:0.75rem; color:var(--text-soft); cursor:pointer; font-weight:700; outline:none; user-select:none;">🤖 企业微信应用机器人回调配置</summary>
+        <div style="display:flex; flex-direction:column; gap:8px; margin-top:8px;">
+          <input type="text" class="input-simple" id="wecomCorpIdInput" placeholder="企业 Corp ID" style="font-size:0.7rem; height:28px; padding:0 8px;">
+          <input type="text" class="input-simple" id="wecomTokenInput" placeholder="应用 Token" style="font-size:0.7rem; height:28px; padding:0 8px;">
+          <input type="password" class="input-simple" id="wecomAesKeyInput" placeholder="应用 EncodingAESKey" style="font-size:0.7rem; height:28px; padding:0 8px;">
+          <button id="saveWecomBotBtn" class="btn-add" style="font-size:0.7rem; height:28px; margin:0; background:var(--accent-wechat); color:white; border:none; width:100%;">保存机器人配置</button>
+          
+          <div style="font-size:0.6rem; color:var(--text-light); line-height:1.4; margin-top:4px;">
+            在企业微信后台配置 API 接收消息：<br>
+            <strong>URL:</strong> <span id="wecomCallbackUrlDisplay" style="user-select:all; background:var(--btn-bg); padding:1px 3px; border-radius:3px; word-break:break-all;"></span>
+          </div>
+        </div>
+      </details>
+
       <div id="exportStatus" style="font-size:0.75rem;text-align:center;min-height:20px;"></div>
     </div>
   </div>
@@ -2607,6 +2651,9 @@ export default {
       // 同步 Webhook URL 并保存到本地，解耦 DOM 访问
       if(data.webhookUrl!==undefined)localStorage.setItem('webhook_url',data.webhookUrl);
       if(data.deepseekApiKey!==undefined)localStorage.setItem('deepseek_api_key',data.deepseekApiKey);
+      if(data.wecomCorpId!==undefined)localStorage.setItem('wecom_corp_id',data.wecomCorpId);
+      if(data.wecomToken!==undefined)localStorage.setItem('wecom_token',data.wecomToken);
+      if(data.wecomAesKey!==undefined)localStorage.setItem('wecom_aes_key',data.wecomAesKey);
       localStorage.setItem(LOCAL_TS_K,data._ts);
       refreshAll();
       addSyncLog('✅ 拉取并合并云端最新数据完成');
@@ -2645,6 +2692,9 @@ export default {
     if(data.learns!==undefined)saveLearns(data.learns);
     if(data.webhookUrl!==undefined)localStorage.setItem('webhook_url',data.webhookUrl);
     if(data.deepseekApiKey!==undefined)localStorage.setItem('deepseek_api_key',data.deepseekApiKey);
+    if(data.wecomCorpId!==undefined)localStorage.setItem('wecom_corp_id',data.wecomCorpId);
+    if(data.wecomToken!==undefined)localStorage.setItem('wecom_token',data.wecomToken);
+    if(data.wecomAesKey!==undefined)localStorage.setItem('wecom_aes_key',data.wecomAesKey);
     if(data.lastLoadDate)localStorage.setItem(LAST_LOAD_DATE_K,data.lastLoadDate);
     localStorage.setItem(LOCAL_TS_K,data._ts||Date.now());
     return true;
@@ -3572,6 +3622,13 @@ const rid=Math.floor(Math.random()*1000);
     document.getElementById('exportBtn').addEventListener('click',()=>{
       document.getElementById('exportStatus').innerText='';
       document.getElementById('webhookUrlInput').value=localStorage.getItem('webhook_url')||'';
+      
+      // Load WeCom Bot Config
+      document.getElementById('wecomCorpIdInput').value=localStorage.getItem('wecom_corp_id')||'';
+      document.getElementById('wecomTokenInput').value=localStorage.getItem('wecom_token')||'';
+      document.getElementById('wecomAesKeyInput').value=localStorage.getItem('wecom_aes_key')||'';
+      document.getElementById('wecomCallbackUrlDisplay').innerText = window.location.origin + '/api/wecom/callback';
+
       document.getElementById('exportModal').classList.add('active');
     });
     document.getElementById('closeExportModalBtn').addEventListener('click',()=>document.getElementById('exportModal').classList.remove('active'));
@@ -3579,6 +3636,29 @@ const rid=Math.floor(Math.random()*1000);
     
     // Bind blur to immediately sync the webhookUrl to KV
     document.getElementById('webhookUrlInput').addEventListener('blur',()=>{
+      const val=document.getElementById('webhookUrlInput').value.trim();
+      localStorage.setItem('webhook_url',val);
+      syncOp('setWebhookUrl',{webhookUrl:val});
+    });
+
+    // Save WeCom Bot configs
+    document.getElementById('saveWecomBotBtn').addEventListener('click',async ()=>{
+      const corpId = document.getElementById('wecomCorpIdInput').value.trim();
+      const token = document.getElementById('wecomTokenInput').value.trim();
+      const aesKey = document.getElementById('wecomAesKeyInput').value.trim();
+      
+      localStorage.setItem('wecom_corp_id', corpId);
+      localStorage.setItem('wecom_token', token);
+      localStorage.setItem('wecom_aes_key', aesKey);
+
+      await Promise.all([
+        syncOp('setWecomCorpId', { wecomCorpId: corpId }),
+        syncOp('setWecomToken', { wecomToken: token }),
+        syncOp('setWecomAesKey', { wecomAesKey: aesKey })
+      ]);
+
+      alert('企业微信机器人配置已成功保存并同步！');
+    });
       const val=document.getElementById('webhookUrlInput').value.trim();
       localStorage.setItem('webhook_url',val);
       syncOp('setWebhookUrl',{webhookUrl:val});
@@ -4383,6 +4463,244 @@ const rid=Math.floor(Math.random()*1000);
           headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
         });
       }
+    }
+
+    // ========== 企业微信应用机器人回调 API ==========
+    if (path === '/api/wecom/callback') {
+      const corpId = await env.DATA_KV.get('config:wecom_corp_id') || env.WECOM_CORP_ID;
+      const token = await env.DATA_KV.get('config:wecom_token') || env.WECOM_TOKEN;
+      const aesKey = await env.DATA_KV.get('config:wecom_aes_key') || env.WECOM_AES_KEY;
+
+      if (!corpId || !token || !aesKey) {
+        return new Response('WeCom callback keys not configured', { status: 500 });
+      }
+
+      const crypt = new WeComCrypt(token, aesKey, corpId);
+
+      // GET: Callback verification
+      if (request.method === 'GET') {
+        const msg_signature = url.searchParams.get('msg_signature');
+        const timestamp = url.searchParams.get('timestamp');
+        const nonce = url.searchParams.get('nonce');
+        let echostr = url.searchParams.get('echostr');
+
+        if (!msg_signature || !timestamp || !nonce || !echostr) {
+          return new Response('Missing parameters', { status: 400 });
+        }
+
+        echostr = decodeURIComponent(echostr);
+
+        const isValid = crypt.verifySignature(msg_signature, timestamp, nonce, echostr);
+        if (!isValid) {
+          return new Response('Invalid signature', { status: 401 });
+        }
+
+        try {
+          const { msg } = crypt.decrypt(echostr);
+          return new Response(msg, { headers: { 'Content-Type': 'text/plain; charset=UTF-8' } });
+        } catch (e) {
+          return new Response('Decryption failed: ' + e.message, { status: 500 });
+        }
+      }
+
+      // POST: Handle user messages
+      if (request.method === 'POST') {
+        const msg_signature = url.searchParams.get('msg_signature');
+        const timestamp = url.searchParams.get('timestamp');
+        const nonce = url.searchParams.get('nonce');
+
+        if (!msg_signature || !timestamp || !nonce) {
+          return new Response('Missing signature parameters', { status: 400 });
+        }
+
+        const bodyXml = await request.text();
+        
+        const encryptMatch = bodyXml.match(/<Encrypt><!\[CDATA\[([\s\S]*?)\]\]><\/Encrypt>/) || bodyXml.match(/<Encrypt>([\s\S]*?)<\/Encrypt>/);
+        if (!encryptMatch) {
+          return new Response('Missing Encrypt block', { status: 400 });
+        }
+        const encryptB64 = encryptMatch[1].trim();
+
+        const isValid = crypt.verifySignature(msg_signature, timestamp, nonce, encryptB64);
+        if (!isValid) {
+          return new Response('Invalid signature', { status: 401 });
+        }
+
+        try {
+          const { msg } = crypt.decrypt(encryptB64);
+          
+          const fromUserMatch = msg.match(/<FromUserName><!\[CDATA\[([\s\S]*?)\]\]><\/FromUserName>/) || msg.match(/<FromUserName>([\s\S]*?)<\/FromUserName>/);
+          const toUserMatch = msg.match(/<ToUserName><!\[CDATA\[([\s\S]*?)\]\]><\/ToUserName>/) || msg.match(/<ToUserName>([\s\S]*?)<\/ToUserName>/);
+          const msgTypeMatch = msg.match(/<MsgType><!\[CDATA\[([\s\S]*?)\]\]><\/MsgType>/) || msg.match(/<MsgType>([\s\S]*?)<\/MsgType>/);
+          const contentMatch = msg.match(/<Content><!\[CDATA\[([\s\S]*?)\]\]><\/Content>/) || msg.match(/<Content>([\s\S]*?)<\/Content>/);
+
+          const fromUser = fromUserMatch ? fromUserMatch[1].trim() : '';
+          const toUser = toUserMatch ? toUserMatch[1].trim() : '';
+          const msgType = msgTypeMatch ? msgTypeMatch[1].trim() : '';
+          const content = contentMatch ? contentMatch[1].trim() : '';
+
+          if (msgType !== 'text') {
+            return new Response('', { status: 200 });
+          }
+
+          let replyContent = '';
+          const trimmedContent = content.trim();
+
+          if (trimmedContent.startsWith('/company')) {
+            const queryName = trimmedContent.replace('/company', '').trim();
+            if (!queryName) {
+              replyContent = '格式错误。用法举例：/company 腾讯科技';
+            } else {
+              try {
+                const results = await supabase.checkCompanies([queryName]);
+                const match = results[0];
+                if (match && match.isMatch) {
+                  replyContent = `🔍 查询结果：\n单位名称：${match.matchedName}\n准入银行：${match.bank_name || '建行建易贷'}\n名单状态：${match.status || '正常'}`;
+                } else {
+                  replyContent = `🔍 查询结果：\n未在白名单库中查到公司【${queryName}】。`;
+                }
+              } catch (se) {
+                replyContent = `数据库查询失败: ${se.message}`;
+              }
+            }
+          } else if (trimmedContent.startsWith('/customer')) {
+            const queryName = trimmedContent.replace('/customer', '').trim();
+            if (!queryName) {
+              replyContent = '格式错误。用法举例：/customer 张三';
+            } else {
+              try {
+                const results = await supabase.searchCustomers(queryName);
+                if (results.length === 0) {
+                  replyContent = `🔍 未在客户库中查到包含【${queryName}】的客户。`;
+                } else {
+                  replyContent = `🔍 共查到 ${results.length} 位客户：\n` + 
+                    results.map(c => `👤 姓名：${c.name}\n📞 电话：${c.mobile || '—'}\n🏢 单位：${c.company_name || '—'}\n💵 社保/公积金：${c.social_security_base || '—'}/${c.fund_base || '—'}\n🏷️ 标签：${c.tags ? c.tags.join(',') : '无'}`).join('\n\n');
+                }
+              } catch (se) {
+                replyContent = `客户数据库查询失败: ${se.message}`;
+              }
+            }
+          } else if (trimmedContent.startsWith('/product') || trimmedContent.startsWith('/case')) {
+            const queryVal = trimmedContent.replace(/^\/(product|case)/, '').trim();
+            if (!queryVal) {
+              replyContent = '格式错误。用法举例：/case 建易贷';
+            } else {
+              try {
+                const results = await supabase.searchLoanCases(queryVal);
+                if (results.length === 0) {
+                  replyContent = `🔍 未在案例库中查到包含【${queryVal}】的记录。`;
+                } else {
+                  replyContent = `🔍 查到以下案例记录：\n` +
+                    results.map(r => `🏢 公司：${r.company_name}\n🏦 贷款产品：${r.loan_product}\n💰 贷款金额：${r.loan_amount || '—'}\n📊 结果：${r.result || '—'}\n📝 总结：${r.summary || '—'}`).join('\n\n');
+                }
+              } catch (se) {
+                replyContent = `案例库查询失败: ${se.message}`;
+              }
+            }
+          } else if (trimmedContent.startsWith('/speech')) {
+            const queryVal = trimmedContent.replace('/speech', '').trim();
+            if (!queryVal) {
+              replyContent = '格式错误。用法举例：/speech 开场白';
+            } else {
+              try {
+                const results = await supabase.searchSpeech(queryVal);
+                if (results.length === 0) {
+                  replyContent = `🔍 未在话术库中查到包含【${queryVal}】的记录。`;
+                } else {
+                  replyContent = `🔍 查到以下话术：\n` +
+                    results.map(r => `📌 分类/场景：${r.category} -> ${r.scenario}\n💬 内容：${r.content}`).join('\n\n');
+                }
+              } catch (se) {
+                replyContent = `话术库查询失败: ${se.message}`;
+              }
+            }
+          } else {
+            const dsKey = await env.DATA_KV.get('config:deepseek_api_key') || env.DEEPSEEK_API_KEY;
+            if (!dsKey) {
+              replyContent = `🤖 每日智能助手：\n\n您说：“${trimmedContent}”。\n\n提示：系统管理员尚未配置 DeepSeek API Key，因此无法调用大模型为您服务。`;
+            } else {
+              let contextText = '';
+              try {
+                const [knowledges, speechs, cases] = await Promise.all([
+                  supabase.searchKnowledge(trimmedContent),
+                  supabase.searchSpeech(trimmedContent),
+                  supabase.searchLoanCases(trimmedContent)
+                ]);
+
+                if (knowledges.length > 0) {
+                  contextText += '\n相关知识库资料：\n' + knowledges.map(k => `【${k.title}】: ${k.content}`).join('\n');
+                }
+                if (speechs.length > 0) {
+                  contextText += '\n销售参考话术：\n' + speechs.map(s => `[${s.category}-${s.scenario}]: ${s.content}`).join('\n');
+                }
+                if (cases.length > 0) {
+                  contextText += '\n客户贷款批贷案例：\n' + cases.map(c => `公司：${c.company_name} | 产品：${c.loan_product} | 结果：${c.result} | 案例总结：${c.summary}`).join('\n');
+                }
+              } catch (se) {
+                console.error('RAG retrieval failed:', se.message);
+              }
+
+              try {
+                const apiResponse = await fetch('https://api.deepseek.com/v1/chat/completions', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + dsKey
+                  },
+                  body: JSON.stringify({
+                    model: 'deepseek-chat',
+                    messages: [
+                      {
+                        role: 'system',
+                        content: '你是一个专业的银行贷款顾问和智能销售助手。根据用户的提问以及提供的系统知识库、话术库、案例库相关参考资料，给用户提供详尽而专业的解答。请让回答内容利于在企业微信中直接阅读，多使用清晰的换行和emoji增强可读性。\n\n参考资料：\n' + (contextText || '暂无可用资料。请根据你的自身知识库解答。')
+                      },
+                      {
+                        role: 'user',
+                        content: trimmedContent
+                      }
+                    ],
+                    temperature: 0.5
+                  })
+                });
+
+                if (apiResponse.ok) {
+                  const apiData = await apiResponse.json();
+                  replyContent = apiData.choices[0].message.content.trim();
+                } else {
+                  replyContent = `AI 助手调用出错 [${apiResponse.status}]`;
+                }
+              } catch (aiErr) {
+                replyContent = `AI 助手网络调用出错: ${aiErr.message}`;
+              }
+            }
+          }
+
+          const replyTime = Math.floor(Date.now() / 1000);
+          const replyXml = `<xml>` +
+            `<ToUserName><![CDATA[${fromUser}]]></ToUserName>` +
+            `<FromUserName><![CDATA[${toUser}]]></FromUserName>` +
+            `<CreateTime>${replyTime}</CreateTime>` +
+            `<MsgType><![CDATA[text]]></MsgType>` +
+            `<Content><![CDATA[${replyContent}]]></Content>` +
+            `</xml>`;
+
+          const encryptedReply = crypt.encrypt(replyXml);
+          const replySignature = crypt.getSignature(replyTime, nonce, encryptedReply);
+
+          const responseXml = `<xml>` +
+            `<Encrypt><![CDATA[${encryptedReply}]]></Encrypt>` +
+            `<MsgSignature><![CDATA[${replySignature}]]></MsgSignature>` +
+            `<TimeStamp>${replyTime}</TimeStamp>` +
+            `<Nonce>${nonce}</Nonce>` +
+            `</xml>`;
+
+          return new Response(responseXml, { headers: { 'Content-Type': 'application/xml; charset=UTF-8' } });
+        } catch (e) {
+          return new Response('Processing failed: ' + e.message, { status: 500 });
+        }
+      }
+
+      return new Response('Method not allowed', { status: 405 });
     }
 
     // ========== 白名单 API ==========
