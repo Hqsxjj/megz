@@ -3757,7 +3757,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
       listEl.textContent = failed.map(function(c) {
         if (typeof c === 'string') return c;
         return c.company_name + (c.status && c.status !== '正常' ? ',' + c.status : '');
-      }).join('\n');
+      }).join('\\n');
     }
 
     function fuzzyMatch(text, query) {
@@ -3770,7 +3770,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
       if (keywords.length > 1) {
         return keywords.every(function(kw) { return text.includes(kw); });
       }
-      var escapedQuery = query.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+      var escapedQuery = query.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\\\$&');
       var chars = escapedQuery.split('');
       var regexStr = chars.join('.*');
       try {
