@@ -122,6 +122,16 @@ export default {
       });
     }
 
+    // Debug helper to check env keys (returns only keys, no values for safety)
+    if (path === '/api/debug-env' && request.method === 'GET') {
+      return new Response(JSON.stringify({ keys: Object.keys(env || {}) }), {
+        headers: {
+          'Content-Type': 'application/json; charset=UTF-8',
+          'Access-Control-Allow-Origin': '*'
+        }
+      });
+    }
+
     // ==================== BHP 拨号器接口与页面并入 ====================
     
     // 1. 获取拨号器数据
