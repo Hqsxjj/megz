@@ -4467,34 +4467,41 @@ const rid=Math.floor(Math.random()*1000);
       const token = await env.DATA_KV.get('config:wecom_token') || env.WECOM_TOKEN;
       const aesKey = await env.DATA_KV.get('config:wecom_aes_key') || env.WECOM_AES_KEY;
 
+      console.log('[WeComCallback] method=' + request.method + ' corpId=' + (corpId ? corpId.substring(0,6) + '...' : 'MISSING') + ' token=' + (token ? 'SET' : 'MISSING') + ' aesKey=' + (aesKey ? 'SET(' + aesKey.length + ')' : 'MISSING'));
+
       if (!corpId || !token || !aesKey) {
+        console.error('[WeComCallback] Missing config! corpId=' + !!corpId + ' token=' + !!token + ' aesKey=' + !!aesKey);
         return new Response('WeCom callback keys not configured', { status: 500 });
       }
 
       const crypt = new WeComCrypt(token, aesKey, corpId);
 
-      // GET: Callback verification
+      // GET: Callback verification (企业微信URL验证)
       if (request.method === 'GET') {
         const msg_signature = url.searchParams.get('msg_signature');
         const timestamp = url.searchParams.get('timestamp');
         const nonce = url.searchParams.get('nonce');
-        let echostr = url.searchParams.get('echostr');
+        const echostr = url.searchParams.get('echostr');
+
+        console.log('[WeComCallback GET] msg_signature=' + msg_signature + ' timestamp=' + timestamp + ' nonce=' + nonce + ' echostr=' + (echostr ? echostr.substring(0, 20) + '...' : 'MISSING'));
 
         if (!msg_signature || !timestamp || !nonce || !echostr) {
           return new Response('Missing parameters', { status: 400 });
         }
 
-        echostr = decodeURIComponent(echostr);
-
+        // NOTE: url.searchParams.get() already does URL decoding, do NOT double-decode
         const isValid = crypt.verifySignature(msg_signature, timestamp, nonce, echostr);
+        console.log('[WeComCallback GET] signature valid=' + isValid);
         if (!isValid) {
           return new Response('Invalid signature', { status: 401 });
         }
 
         try {
           const { msg } = crypt.decrypt(echostr);
+          console.log('[WeComCallback GET] decrypt OK, echostr reply length=' + msg.length);
           return new Response(msg, { headers: { 'Content-Type': 'text/plain; charset=UTF-8' } });
         } catch (e) {
+          console.error('[WeComCallback GET] Decryption failed:', e.message, e.stack);
           return new Response('Decryption failed: ' + e.message, { status: 500 });
         }
       }
