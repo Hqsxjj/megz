@@ -1510,6 +1510,7 @@ export default {
       margin-bottom: 0;
     }
   </style>
+  <script src="/xlsx.full.min.js"></script>
 </head>
 <body>
 <div class="notify-bar" id="notifyBar" onclick="this.classList.remove('show')"><span id="notifyText"></span><span class="notify-close">✕</span></div>
@@ -1680,7 +1681,11 @@ export default {
     <div class="whitelist-status" id="whitelistStatus" style="font-size:0.7rem; color:var(--text-soft); font-weight:700;">未加载白名单</div>
     
     <div style="display:flex; flex-direction:column; gap:6px;">
-      <label style="font-size:0.65rem; color:var(--text-light); font-weight:800;">粘贴公司名称 (每行一家企业)</label>
+      <div style="display:flex; gap:8px; align-items:center;">
+        <label style="font-size:0.65rem; color:var(--text-light); font-weight:800; flex:1;">粘贴公司名称 (每行一家企业)</label>
+        <label for="whitelistFileInput" class="btn-secondary" style="padding:4px 8px; font-size:0.65rem; cursor:pointer; display:inline-block; border-radius:var(--radius-xs); border:1px solid var(--card-border); background:var(--btn-bg); font-weight:700; margin-bottom:2px;">导入表格 (Excel/CSV)</label>
+        <input type="file" id="whitelistFileInput" accept=".xlsx,.xls,.csv" style="display:none;">
+      </div>
       <textarea id="whitelistTextarea" class="whitelist-textarea" placeholder="例：&#10;中国石油化工集团公司&#10;国家电网有限公司&#10;中国工商银行股份有限公司"></textarea>
       <div style="display:flex; gap:8px;">
         <button id="whitelistUploadBtn" class="btn-primary" style="flex:1; padding:8px; font-size:0.78rem;">上传白名单</button>
@@ -1965,6 +1970,7 @@ export default {
     const failedClearBtn = document.getElementById('whitelistFailedClearBtn');
     const failedRetryBtn = document.getElementById('whitelistFailedRetryBtn');
     const modalSearch = document.getElementById('whitelistModalSearchInput');
+    const fileInput = document.getElementById('whitelistFileInput');
 
     if (whitelistBtn && whitelistModal) {
       whitelistBtn.addEventListener('click', () => {
@@ -2059,6 +2065,78 @@ export default {
             failedRetryBtn.textContent = '尝试重新上传';
             failedRetryBtn.disabled = false;
           });
+      });
+    }
+
+    if (fileInput && textarea) {
+      fileInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+          try {
+            const data = new Uint8Array(evt.target.result);
+            const workbook = XLSX.read(data, { type: 'array' });
+            let allCompanies = [];
+
+            workbook.SheetNames.forEach(sheetName => {
+              const worksheet = workbook.Sheets[sheetName];
+              const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+              if (rows.length === 0) return;
+
+              const headerRow = rows[0] || [];
+              let targetColIndex = -1;
+              const keywords = ["公司", "单位", "企业", "名称", "白名单", "公司名称", "企业名称", "简称"];
+
+              for (let i = 0; i < headerRow.length; i++) {
+                const val = String(headerRow[i] || '').trim();
+                if (keywords.some(kw => val.includes(kw))) {
+                  targetColIndex = i;
+                  break;
+                }
+              }
+
+              const finalColIndex = targetColIndex !== -1 ? targetColIndex : 0;
+              const startRow = targetColIndex !== -1 ? 1 : 0;
+              for (let r = startRow; r < rows.length; r++) {
+                const cellVal = String(rows[r][finalColIndex] || '').trim();
+                if (cellVal && cellVal.length > 1) {
+                  allCompanies.push(cellVal);
+                }
+              }
+
+              if (targetColIndex === -1 && allCompanies.length === 0) {
+                const suffixes = ["公司", "集团", "厂", "店", "中心", "局", "行", "院", "所"];
+                for (let r = 0; r < rows.length; r++) {
+                  const row = rows[r] || [];
+                  for (let c = 0; c < row.length; c++) {
+                    const cellVal = String(row[c] || '').trim();
+                    if (cellVal && cellVal.length > 1 && suffixes.some(sf => cellVal.endsWith(sf))) {
+                      allCompanies.push(cellVal);
+                    }
+                  }
+                }
+              }
+            });
+
+            const uniqueCompanies = Array.from(new Set(allCompanies));
+            if (uniqueCompanies.length > 0) {
+              const currentVal = textarea.value.trim();
+              const suffix = currentVal ? '\\n' : '';
+              textarea.value = currentVal + suffix + uniqueCompanies.join('\\n');
+              alert('成功导入 ' + uniqueCompanies.length + ' 家公司，已追加到下方输入框中。请检查确认后点击"上传白名单"。');
+            } else {
+              alert('未能在表格中识别到公司名称，请确保包含"公司/单位/企业/名称"字样的表头或首列为公司名称。');
+            }
+          } catch (err) {
+            console.error(err);
+            alert('解析表格失败: ' + err.message);
+          } finally {
+            fileInput.value = '';
+          }
+        };
+        reader.readAsArrayBuffer(file);
       });
     }
 
