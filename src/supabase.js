@@ -44,20 +44,26 @@ export function createSupabaseClient(env) {
 
     if (rows.length === 0) return { count: 0 };
 
-    const resp = await fetch(baseUrl + '/rest/v1/whitelist_companies', {
-      method: 'POST',
-      headers: Object.assign({}, headers(), {
-        'Prefer': 'resolution=merge-duplicates'
-      }),
-      body: JSON.stringify(rows)
-    });
+    let count = 0;
+    const batchSize = 1000;
+    for (let i = 0; i < rows.length; i += batchSize) {
+      const chunk = rows.slice(i, i + batchSize);
+      const resp = await fetch(baseUrl + '/rest/v1/whitelist_companies', {
+        method: 'POST',
+        headers: Object.assign({}, headers(), {
+          'Prefer': 'resolution=merge-duplicates'
+        }),
+        body: JSON.stringify(chunk)
+      });
 
-    if (!resp.ok) {
-      const text = await resp.text();
-      throw new Error('Supabase upsert failed [' + resp.status + ']: ' + text);
+      if (!resp.ok) {
+        const text = await resp.text();
+        throw new Error('Supabase upsert failed [' + resp.status + ']: ' + text);
+      }
+      count += chunk.length;
     }
 
-    return { count: rows.length };
+    return { count: count };
   }
 
   /**

@@ -3912,8 +3912,8 @@ export default {
             headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
           });
         }
-        if (companies.length > 5000) {
-          return new Response(JSON.stringify({ error: '单次最多上传 5000 家企业' }), {
+        if (companies.length > 50000) {
+          return new Response(JSON.stringify({ error: '单次最多上传 50000 家企业' }), {
             status: 400,
             headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
           });
