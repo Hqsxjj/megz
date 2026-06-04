@@ -3659,10 +3659,6 @@ const rid=Math.floor(Math.random()*1000);
 
       alert('企业微信机器人配置已成功保存并同步！');
     });
-      const val=document.getElementById('webhookUrlInput').value.trim();
-      localStorage.setItem('webhook_url',val);
-      syncOp('setWebhookUrl',{webhookUrl:val});
-    });
 
     async function doExport(type){
       const webhookUrl=document.getElementById('webhookUrlInput').value.trim();
