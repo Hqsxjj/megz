@@ -3565,47 +3565,7 @@ const rid=Math.floor(Math.random()*1000);
     });
   }
 
-  // ==================== 学习 ====================
-  const loadLearns=()=>{try{return JSON.parse(localStorage.getItem(LEARN_K))||[];}catch(e){return[];}};
-  const saveLearns=(a)=>localStorage.setItem(LEARN_K,JSON.stringify(a));
-  function renderLearnList(){
-    const ls=loadLearns();
-    document.getElementById('learnList').innerHTML=ls.length===0?'<div style="font-size:0.75rem;color:var(--text-light);padding:8px;text-align:center;">暂无学习</div>':ls.map((l,i)=>'<div class="script-item"><span class="script-item-text">'+esc(l.text)+'</span><div style="display:flex;gap:6px;align-items:center;"><input type="checkbox" '+(l.show?'checked':'')+' data-li="'+i+'" title="锁屏显示"><button class="del-icon" data-li="'+i+'">×</button></div></div>').join('');
-    document.querySelectorAll('#learnList .del-icon').forEach(b=>b.addEventListener('click',async e=>{
-      const i=parseInt(b.dataset.li);const a=loadLearns();a.splice(i,1);saveLearns(a);renderLearnList();renderLockLearns();
-      await syncOp('setLearns',{learns:a});
-    }));
-    document.querySelectorAll('#learnList input[type=checkbox]').forEach(cb=>cb.addEventListener('change',async e=>{
-      const i=parseInt(cb.dataset.li);const a=loadLearns();a[i].show=cb.checked;saveLearns(a);renderLearnList();renderLockLearns();
-      await syncOp('setLearns',{learns:a});
-    }));
-  }
-  function renderLockLearns(){
-    const ls=loadLearns();
-    const container=document.getElementById('learnContainer');
-    const visible=ls.filter(l=>l.show);
-    if(visible.length===0){container.innerHTML='';return;}
-    container.innerHTML=visible.map((l,i)=>'<div class="learn-module" data-li="'+i+'">'+esc(l.text)+'</div>').join('');
-    container.querySelectorAll('.learn-module').forEach(el=>makeDraggable(el));
-  }
-  function initLearnFeature(){
-    renderLockLearns();
-    document.getElementById('learnBtn').addEventListener('click',()=>{
-      renderLearnList();document.getElementById('newLearnInput').value='';document.getElementById('learnShowCheck').checked=true;document.getElementById('learnModal').classList.add('active');
-    });
-    document.getElementById('closeLearnModalBtn').addEventListener('click',()=>document.getElementById('learnModal').classList.remove('active'));
-    document.getElementById('learnModal').addEventListener('click',e=>{if(e.target===document.getElementById('learnModal'))document.getElementById('learnModal').classList.remove('active');});
-    document.getElementById('addLearnBtn').addEventListener('click',async ()=>{
-      const t=document.getElementById('newLearnInput').value.trim();
-      if(t){
-        const show=document.getElementById('learnShowCheck').checked;
-        const a=loadLearns();a.push({text:t,show});saveLearns(a);
-        document.getElementById('newLearnInput').value='';
-        await syncOp('setLearns',{learns:a});
-      }
-      renderLearnList();renderLockLearns();
-    });
-  }
+
 
   // ==================== 导出 ====================
   function initExport(){
