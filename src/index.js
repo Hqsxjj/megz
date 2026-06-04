@@ -1913,7 +1913,7 @@ export default {
 
     container.style.display = 'block';
     countEl.textContent = failed.length;
-    listEl.textContent = failed.join('\n');
+    listEl.textContent = failed.join('\\n');
   }
 
   function renderWhitelistCompanyList() {
@@ -1991,7 +1991,7 @@ export default {
       uploadBtn.addEventListener('click', () => {
         const text = textarea.value.trim();
         if (!text) { alert('请先粘贴企业名称'); return; }
-        const companies = text.split('\n')
+        const companies = text.split('\\n')
           .map(s => s.trim())
           .filter(s => s.length > 0);
         if (companies.length === 0) { alert('请至少输入一个企业名称'); return; }
