@@ -173,10 +173,44 @@ export function createSupabaseClient(env) {
     return { success: true };
   }
 
+  /**
+   * Save learning knowledge item to Supabase knowledge_base table.
+   */
+  async function saveKnowledge(item) {
+    if (!baseUrl || !key) return null;
+
+    const row = {
+      title: item.title || '未命名知识',
+      summary: item.summary || '',
+      content: item.content || '',
+      tags: Array.isArray(item.tags) ? item.tags : [],
+      source_type: item.source_type || '自定义'
+    };
+
+    const resp = await fetch(baseUrl + '/rest/v1/knowledge_base', {
+      method: 'POST',
+      headers: Object.assign({}, headers(), {
+        'Prefer': 'return=representation'
+      }),
+      body: JSON.stringify(row)
+    });
+
+    if (!resp.ok) {
+      const text = await resp.text();
+      console.error('[supabase] saveKnowledge failed:', text);
+      throw new Error('Supabase saveKnowledge failed: ' + text);
+    }
+
+    const data = await resp.json();
+    return data && data[0] ? data[0] : null;
+  }
+
   return {
     upsertCompanies: upsertCompanies,
     getAllCompanies: getAllCompanies,
     checkCompanies: checkCompanies,
-    deleteCompany: deleteCompany
+    deleteCompany: deleteCompany,
+    saveKnowledge: saveKnowledge
   };
 }
+

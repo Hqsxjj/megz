@@ -274,6 +274,7 @@ export default {
       if (data.paymentCount === undefined) data.paymentCount = 0;
       // Inject global webhook URL so it persists across all dates and new days
       data.webhookUrl = await env.DATA_KV.get('config:webhook_url') || '';
+      data.deepseekApiKey = await env.DATA_KV.get('config:deepseek_api_key') || '';
       // Inject goals
       data.goals = JSON.parse(await env.DATA_KV.get('config:goals') || '{}');
       return new Response(JSON.stringify(data), {
@@ -287,12 +288,15 @@ export default {
       const items = Array.isArray(body) ? body : [body];
       let hasError = false;
       for (const item of items) {
-        const { date, wechatCount, intentCount, revisitCount, visitCount, paymentCount, clients, todayTodos, tomorrowTodos, tempClients, scripts, learns, todoLog, webhookUrl, _ts } = item;
+        const { date, wechatCount, intentCount, revisitCount, visitCount, paymentCount, clients, todayTodos, tomorrowTodos, tempClients, scripts, learns, todoLog, webhookUrl, deepseekApiKey, _ts } = item;
         if (!date) { hasError = true; continue; }
         
         // If a non-empty Webhook URL is supplied, persist it globally
         if (webhookUrl) {
           await env.DATA_KV.put('config:webhook_url', webhookUrl);
+        }
+        if (deepseekApiKey !== undefined) {
+          await env.DATA_KV.put('config:deepseek_api_key', deepseekApiKey);
         }
 
         // 读取云端现有数据
@@ -322,6 +326,7 @@ export default {
           learns: learns || existing.learns || [],
           todoLog: todoLog || existing.todoLog || [],
           webhookUrl: webhookUrl || existing.webhookUrl || '',
+          deepseekApiKey: deepseekApiKey !== undefined ? deepseekApiKey : (existing.deepseekApiKey || ''),
           lastLoadDate: date,
           lastModified: new Date().toISOString(),
           _ts: _ts || Date.now()
@@ -454,6 +459,9 @@ export default {
         case 'setWebhookUrl':
           data.webhookUrl = body.webhookUrl || '';
           await env.DATA_KV.put('config:webhook_url', data.webhookUrl);
+          break;
+        case 'setDeepseekApiKey':
+          await env.DATA_KV.put('config:deepseek_api_key', body.deepseekApiKey || '');
           break;
         case 'setGoals':
           await env.DATA_KV.put('config:goals', JSON.stringify(body.goals || {}));
@@ -1672,12 +1680,52 @@ export default {
   </div>
 </div>
 <div id="learnModal" class="modal-overlay">
-  <div class="modal-card script-input-modal">
-    <div class="modal-header"><span>学习管理</span><button id="closeLearnModalBtn">×</button></div>
-    <textarea id="newLearnInput" placeholder="输入学习内容..."></textarea>
-    <div class="learn-check-row"><input type="checkbox" id="learnShowCheck" checked><label for="learnShowCheck">锁屏显示</label></div>
-    <button class="btn-add" id="addLearnBtn" style="width:100%;">保存</button>
-    <div class="script-list" id="learnList"></div>
+  <div class="modal-card script-input-modal" style="max-width: 500px; width: 90%;">
+    <div class="modal-header">
+      <span style="font-weight:900;">AI学习管理</span>
+      <button id="closeLearnModalBtn">×</button>
+    </div>
+    
+    <div style="display:flex; gap:6px; margin-bottom:10px;">
+      <span style="font-size:0.75rem; color:var(--text-soft); align-self:center; font-weight:700;">来源类型:</span>
+      <select id="learnSourceSelect" class="input-simple" style="flex:1; font-size:0.75rem; height:32px; padding:0 8px; border-radius:var(--radius-xs); font-weight:700;">
+        <option value="微信聊天" selected>微信聊天 (WeChat Chat)</option>
+        <option value="电话录音">电话录音 (Phone Recording)</option>
+        <option value="客户案例">客户案例 (Client Case)</option>
+        <option value="企业资料">企业资料 (Company Info)</option>
+      </select>
+    </div>
+
+    <textarea id="newLearnInput" placeholder="在此输入或粘贴原始材料（如：微信聊天记录、录音文字转写、批贷案例描述、白名单政策等）..." style="min-height: 120px; font-size: 0.75rem; line-height: 1.5; margin-bottom: 10px;"></textarea>
+    
+    <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:10px;">
+      <label class="learn-check-row" style="margin-bottom:0; font-weight:700; cursor:pointer;">
+        <input type="checkbox" id="learnShowCheck" checked style="margin-right:4px;">锁屏显示
+      </label>
+      <div style="display:flex; gap:8px; flex:1; justify-content:flex-end;">
+        <button class="btn-add" id="aiLearnBtn" style="background: linear-gradient(135deg, #4a6cf7 0%, #07c160 100%); color:white; border:none; padding:8px 16px; font-size:0.75rem; border-radius:var(--radius-xs); cursor:pointer; font-weight:800; display:flex; align-items:center; gap:4px; box-shadow: 0 2px 6px rgba(74,108,247,0.25);">
+          ✨ AI 智能总结
+        </button>
+        <button class="btn-add" id="addLearnBtn" style="background: var(--btn-bg); color:var(--text-main); border:1px solid var(--card-border); padding:8px 16px; font-size:0.75rem; border-radius:var(--radius-xs); cursor:pointer; font-weight:800;">
+          手动保存
+        </button>
+      </div>
+    </div>
+
+    <details style="margin-bottom:12px; border:1px dashed var(--card-border); border-radius:var(--radius-xs); padding:6px 10px; background:rgba(120,120,120,0.02);">
+      <summary style="font-size:0.7rem; color:var(--text-soft); cursor:pointer; font-weight:700; outline:none; user-select:none;">🤖 DeepSeek API 配置 (选填)</summary>
+      <div style="display:flex; flex-direction:column; gap:6px; margin-top:6px;">
+        <div style="display:flex; gap:6px;">
+          <input type="password" class="input-simple" id="deepseekApiKeyInput" placeholder="输入 DeepSeek API Key" style="flex:1; font-size:0.7rem; height:28px; padding:0 8px;">
+          <button id="saveDsKeyBtn" class="btn-add" style="padding:0 12px; font-size:0.7rem; height:28px; margin:0; background:var(--accent-wechat); color:white; border:none;">保存</button>
+        </div>
+        <div style="font-size:0.6rem; color:var(--text-light); line-height:1.3;">
+          配置 Key 后将使用真实 DeepSeek-V3 接口进行知识提炼与标签提取。留空则自动使用系统内置模拟 AI 提炼进行测试。
+        </div>
+      </div>
+    </details>
+
+    <div class="script-list" id="learnList" style="max-height: 220px; overflow-y: auto;"></div>
   </div>
 </div>
 <div id="exportModal" class="modal-overlay">
@@ -2558,6 +2606,7 @@ export default {
       if(data.learns!==undefined){saveLearns(data.learns);renderLockLearns();}
       // 同步 Webhook URL 并保存到本地，解耦 DOM 访问
       if(data.webhookUrl!==undefined)localStorage.setItem('webhook_url',data.webhookUrl);
+      if(data.deepseekApiKey!==undefined)localStorage.setItem('deepseek_api_key',data.deepseekApiKey);
       localStorage.setItem(LOCAL_TS_K,data._ts);
       refreshAll();
       addSyncLog('✅ 拉取并合并云端最新数据完成');
@@ -2595,6 +2644,7 @@ export default {
     if(data.scripts!==undefined)saveScripts(data.scripts);
     if(data.learns!==undefined)saveLearns(data.learns);
     if(data.webhookUrl!==undefined)localStorage.setItem('webhook_url',data.webhookUrl);
+    if(data.deepseekApiKey!==undefined)localStorage.setItem('deepseek_api_key',data.deepseekApiKey);
     if(data.lastLoadDate)localStorage.setItem(LAST_LOAD_DATE_K,data.lastLoadDate);
     localStorage.setItem(LOCAL_TS_K,data._ts||Date.now());
     return true;
@@ -3223,7 +3273,7 @@ export default {
   function rndWp(){return FW[Math.floor(Math.random()*FW.length)];}
   async function fetchWp(){
     const w=Math.floor(screen.width*devicePixelRatio),h=Math.floor(screen.height*devicePixelRatio);
-    const rid=Math.floor(Math.random()*1000);
+const rid=Math.floor(Math.random()*1000);
     try{const r=await fetch('https://picsum.photos/id/'+rid+'/info');if(r.ok){const d=await r.json();return 'https://picsum.photos/id/'+d.id+'/'+w+'/'+h;}}catch(e){}
     return 'https://picsum.photos/'+w+'/'+h+'?random='+Date.now();
   }
@@ -3243,6 +3293,222 @@ export default {
     setTimeout(()=>loadWp(false),1000);
     setInterval(()=>{loadWp(true);},3600000);
     function smr(){const n=new Date(),mn=new Date(n);mn.setHours(24,0,0,0);setTimeout(()=>{if(!document.body.classList.contains('page-hidden'))loadWp(true);smr();},mn-n+60000);}smr();
+  }
+
+  // ==================== 学习 ====================
+  const loadLearns=()=>{try{return JSON.parse(localStorage.getItem(LEARN_K))||[];}catch(e){return[];}};
+  const saveLearns=(a)=>localStorage.setItem(LEARN_K,JSON.stringify(a));
+  
+  function getSourceTypeColor(type) {
+    switch(type) {
+      case '微信聊天':
+        return 'background:rgba(7,193,96,0.1); color:#07c160;';
+      case '电话录音':
+        return 'background:rgba(74,108,247,0.1); color:#4a6cf7;';
+      case '客户案例':
+        return 'background:rgba(245,124,0,0.1); color:#f57c00;';
+      case '企业资料':
+        return 'background:rgba(231,76,60,0.1); color:#e74c3c;';
+      default:
+        return 'background:rgba(120,120,120,0.1); color:#7f8c8d;';
+    }
+  }
+
+  function normalizeLearnItem(l) {
+    if (!l) return null;
+    if (typeof l === 'string') {
+      return {
+        title: '自主学习',
+        summary: l.length > 20 ? l.slice(0, 17) + '...' : l,
+        content: l,
+        tags: ['学习'],
+        source_type: '自定义',
+        show: true
+      };
+    }
+    if (l.text && !l.content) {
+      return {
+        title: l.title || '自主学习',
+        summary: l.summary || (l.text.length > 20 ? l.text.slice(0, 17) + '...' : l.text),
+        content: l.text,
+        tags: l.tags || ['学习'],
+        source_type: l.source_type || '自定义',
+        show: l.show !== undefined ? l.show : true
+      };
+    }
+    return {
+      title: l.title || '自主学习',
+      summary: l.summary || '',
+      content: l.content || l.text || '',
+      tags: Array.isArray(l.tags) ? l.tags : ['学习'],
+      source_type: l.source_type || '自定义',
+      show: l.show !== undefined ? l.show : true
+    };
+  }
+
+  function renderLearnList(){
+    const ls=loadLearns().map(normalizeLearnItem).filter(Boolean);
+    document.getElementById('learnList').innerHTML=ls.length===0?'<div style="font-size:0.75rem;color:var(--text-light);padding:8px;text-align:center;">暂无学习</div>':ls.map((l,i)=>{
+      return '<div class="script-item" style="display:flex; flex-direction:column; gap:6px; padding:10px; align-items:stretch; border:1px solid var(--card-border); background:var(--btn-bg); border-radius:6px; margin-bottom:8px;">' +
+        '<div style="display:flex; justify-content:space-between; align-items:center;">' +
+          '<span style="font-size:0.65rem; padding:2px 6px; border-radius:4px; font-weight:700; ' + getSourceTypeColor(l.source_type) + '">' + esc(l.source_type) + '</span>' +
+          '<div style="display:flex; gap:8px; align-items:center;">' +
+            '<label style="font-size:0.65rem; color:var(--text-soft); display:flex; align-items:center; gap:3px; cursor:pointer;">' +
+              '<input type="checkbox" ' + (l.show ? 'checked' : '') + ' data-li="' + i + '"> 锁屏' +
+            '</label>' +
+            '<button class="del-icon" data-li="' + i + '" style="border:none; background:none; color:var(--text-light); font-size:1.1rem; cursor:pointer; padding:0 4px; line-height:1;">×</button>' +
+          '</div>' +
+        '</div>' +
+        '<div style="font-weight:800; font-size:0.8rem; color:var(--text-main);">' + esc(l.title) + '</div>' +
+        '<div style="font-size:0.7rem; color:var(--text-soft); font-weight:400; line-height:1.4; word-break:break-all; white-space:pre-wrap;">' + esc(l.content) + '</div>' +
+        (l.tags && l.tags.length > 0 ? 
+          '<div style="display:flex; gap:4px; flex-wrap:wrap; margin-top:2px;">' +
+            l.tags.map(t => '<span style="font-size:0.55rem; color:var(--accent-wechat); background:var(--accent-wechat-bg); padding:1px 5px; border-radius:3px;">#' + esc(t) + '</span>').join('') +
+          '</div>' : '') +
+      '</div>';
+    }).join('');
+
+    document.querySelectorAll('#learnList .del-icon').forEach(b=>b.addEventListener('click',async e=>{
+      const i=parseInt(b.dataset.li);const a=loadLearns();a.splice(i,1);saveLearns(a);renderLearnList();renderLockLearns();
+      await syncOp('setLearns',{learns:a});
+    }));
+
+    document.querySelectorAll('#learnList input[type=checkbox]').forEach(cb=>cb.addEventListener('change',async e=>{
+      const i=parseInt(cb.dataset.li);const a=loadLearns();a[i].show=cb.checked;saveLearns(a);renderLearnList();renderLockLearns();
+      await syncOp('setLearns',{learns:a});
+    }));
+  }
+
+  function renderLockLearns(){
+    const ls=loadLearns().map(normalizeLearnItem).filter(Boolean);
+    const container=document.getElementById('learnContainer');
+    const visible=ls.filter(l=>l.show);
+    if(visible.length===0){container.innerHTML='';return;}
+    container.innerHTML=visible.map((l,i)=>{
+      return '<div class="learn-module" data-li="' + i + '">' +
+        '<div style="font-weight:900; font-size:0.85rem; border-bottom:1px solid var(--border-light); padding-bottom:6px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;">' +
+          '<span>' + esc(l.title) + '</span>' +
+          '<span style="font-size:0.6rem; ' + getSourceTypeColor(l.source_type) + ' padding:2px 6px; border-radius:3px; font-weight:700;">' + esc(l.source_type) + '</span>' +
+        '</div>' +
+        '<div style="font-size:0.75rem; line-height:1.5; margin-bottom:6px; opacity:0.95;">' + esc(l.content) + '</div>' +
+        (l.tags && l.tags.length > 0 ? 
+          '<div style="display:flex; gap:4px; flex-wrap:wrap; margin-top:4px;">' +
+            l.tags.map(t => '<span style="font-size:0.6rem; color:#7b9ff5; background:rgba(74,108,247,0.1); padding:1px 4px; border-radius:3px;">#' + esc(t) + '</span>').join('') +
+          '</div>' : '') +
+      '</div>';
+    }).join('');
+    container.querySelectorAll('.learn-module').forEach(el=>makeDraggable(el));
+  }
+
+  function initLearnFeature(){
+    renderLockLearns();
+    document.getElementById('learnBtn').addEventListener('click',()=>{
+      renderLearnList();
+      document.getElementById('newLearnInput').value='';
+      document.getElementById('learnShowCheck').checked=true;
+      document.getElementById('deepseekApiKeyInput').value=localStorage.getItem('deepseek_api_key')||'';
+      document.getElementById('learnModal').classList.add('active');
+    });
+
+    document.getElementById('closeLearnModalBtn').addEventListener('click',()=>document.getElementById('learnModal').classList.remove('active'));
+    document.getElementById('learnModal').addEventListener('click',e=>{if(e.target===document.getElementById('learnModal'))document.getElementById('learnModal').classList.remove('active');});
+
+    document.getElementById('saveDsKeyBtn').addEventListener('click',async ()=>{
+      const val=document.getElementById('deepseekApiKeyInput').value.trim();
+      localStorage.setItem('deepseek_api_key',val);
+      await syncOp('setDeepseekApiKey',{deepseekApiKey:val});
+      alert('DeepSeek API Key 已保存到本地及云端！');
+    });
+
+    document.getElementById('addLearnBtn').addEventListener('click',async ()=>{
+      const content=document.getElementById('newLearnInput').value.trim();
+      const source_type=document.getElementById('learnSourceSelect').value;
+      if(!content)return;
+      const show=document.getElementById('learnShowCheck').checked;
+      
+      const newItem={
+        title: '手动登记',
+        summary: content.length > 25 ? content.slice(0, 22) + '...' : content,
+        content: content,
+        tags: ['学习'],
+        source_type: source_type,
+        show: show
+      };
+
+      const a=loadLearns();
+      a.unshift(newItem);
+      saveLearns(a);
+      document.getElementById('newLearnInput').value='';
+      await syncOp('setLearns',{learns:a});
+      renderLearnList();renderLockLearns();
+    });
+
+    document.getElementById('aiLearnBtn').addEventListener('click',async ()=>{
+      const content=document.getElementById('newLearnInput').value.trim();
+      const source_type=document.getElementById('learnSourceSelect').value;
+      if(!content){
+        alert('请先在输入框中粘贴/输入需要提炼的原始内容！');
+        return;
+      }
+
+      const btn=document.getElementById('aiLearnBtn');
+      const originalText=btn.innerHTML;
+      btn.innerHTML='⚡ AI 提炼中...';
+      btn.disabled=true;
+
+      try{
+        const apiKey=localStorage.getItem('deepseek_api_key')||'';
+        const r=await fetch('/api/learning/save',{
+          method:'POST',
+          headers:{
+            'Content-Type':'application/json'
+          },
+          body:JSON.stringify({
+            source_type:source_type,
+            content:content,
+            apiKey:apiKey
+          })
+        });
+
+        if(!r.ok){
+          const errData=await r.json();
+          throw new Error(errData.error || ('HTTP '+r.status));
+        }
+
+        const res=await r.json();
+        if(res.success && res.data){
+          const l=res.data;
+          const show=document.getElementById('learnShowCheck').checked;
+          const newItem={
+            title:l.title,
+            summary:l.summary,
+            content:l.content,
+            tags:l.tags,
+            source_type:l.source_type,
+            show:show
+          };
+
+          const a=loadLearns();
+          a.unshift(newItem);
+          saveLearns(a);
+          document.getElementById('newLearnInput').value='';
+          await syncOp('setLearns',{learns:a});
+          renderLearnList();renderLockLearns();
+          
+          if(res.isMock){
+            alert('🎉 （模拟AI）提炼并保存成功！由于未设置真实 DeepSeek API Key，已使用本地模板完成归纳。在 API 配置中填入密钥可享受真实 AI 提炼。');
+          }else{
+            alert('🎉 AI 提炼并保存成功！');
+          }
+        }
+      }catch(err){
+        console.error(err);
+        alert('AI 提炼失败: '+err.message);
+      }finally{
+        btn.innerHTML=originalText;
+        btn.disabled=false;
+      }
+    });
   }
 
   // ==================== 话术 ====================
@@ -4052,6 +4318,112 @@ export default {
 </script>
 </body>
 </html>`;
+
+    // ========== AI学习 API ==========
+
+    if (path === '/api/learning/save' && request.method === 'POST') {
+      try {
+        const body = await request.json();
+        const { source_type, content, apiKey } = body;
+        if (!source_type || !content) {
+          return new Response(JSON.stringify({ error: '缺少 source_type 或 content 参数' }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+
+        // Get key from body, or KV config, or env
+        let dsKey = apiKey || await env.DATA_KV.get('config:deepseek_api_key') || env.DEEPSEEK_API_KEY;
+
+        if (!dsKey) {
+          const mockTitles = {
+            '微信聊天': '微信客情维护与意向跟进',
+            '电话录音': '电话触客异议处理技巧',
+            '客户案例': '建易贷成功批贷案例分析',
+            '企业资料': '企业准入白名单核心要点'
+          };
+          const mockTags = {
+            '微信聊天': ['微信话术', '客情跟进'],
+            '电话录音': ['电话开场', '异议处理'],
+            '客户案例': ['批贷案例', '建易贷'],
+            '企业资料': ['企业准入', '白名单']
+          };
+          const title = mockTitles[source_type] || '自主学习提炼';
+          const tags = mockTags[source_type] || ['学习', '业务知识'];
+          const summary = content.length > 30 ? content.slice(0, 27) + '...' : content;
+          
+          const mockResult = {
+            title: title,
+            summary: summary,
+            content: '（模拟AI提炼）\n' + content,
+            tags: tags,
+            source_type: source_type
+          };
+          
+          try {
+            await supabase.saveKnowledge(mockResult);
+          } catch(se) {
+            console.error('[supabase] saveKnowledge error:', se.message);
+          }
+
+          return new Response(JSON.stringify({ success: true, data: mockResult, isMock: true }), {
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+
+        const apiResponse = await fetch('https://api.deepseek.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + dsKey
+          },
+          body: JSON.stringify({
+            model: 'deepseek-chat',
+            messages: [
+              {
+                role: 'system',
+                content: '你是一个智能贷款销售学习助手。根据用户提供的销售原始材料（微信聊天记录、电话录音文本、客户案例、或企业资料），进行深度提炼，总结出可以直接用于锁屏学习、话术背诵、业务记忆的核心知识。\n\n请必须只输出以下 JSON 格式的字符串（不要包裹 markdown 代码块，如 ```json，只需输出 JSON 本身）：\n{\n  "title": "提炼的知识标题 (15字以内)",\n  "summary": "一句话摘要 (30字以内)",\n  "content": "提炼的核心话术/知识要点 (150字以内)",\n  "tags": ["标签1", "标签2"]\n}'
+              },
+              {
+                role: 'user',
+                content: `来源类型: ${source_type}\n\n内容:\n${content}`
+              }
+            ],
+            temperature: 0.3
+          })
+        });
+
+        if (!apiResponse.ok) {
+          const errText = await apiResponse.text();
+          throw new Error('DeepSeek API returned error [' + apiResponse.status + ']: ' + errText);
+        }
+
+        const apiData = await apiResponse.json();
+        let aiContent = apiData.choices[0].message.content.trim();
+        
+        if (aiContent.startsWith('```')) {
+          aiContent = aiContent.replace(/^```json\s*/i, '').replace(/```$/, '').trim();
+        }
+
+        const parsedResult = JSON.parse(aiContent);
+        parsedResult.source_type = source_type;
+
+        try {
+          await supabase.saveKnowledge(parsedResult);
+        } catch(se) {
+          console.error('[supabase] saveKnowledge error:', se.message);
+        }
+
+        return new Response(JSON.stringify({ success: true, data: parsedResult }), {
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ error: e.message }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+    }
 
     // ========== 白名单 API ==========
 
