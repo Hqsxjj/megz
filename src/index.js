@@ -69,6 +69,57 @@ async function sendWebhookMarkdown(url, baseHeader, items, itemFormatter) {
   }
 }
 
+async function callAIChat(env, messages, temperature = 0.5, apiKeyOverride = '') {
+  const provider = await env.DATA_KV.get('config:ai_provider') || 'deepseek';
+  const apiKey = apiKeyOverride || await env.DATA_KV.get('config:ai_api_key') || await env.DATA_KV.get('config:deepseek_api_key') || env.AI_API_KEY || env.DEEPSEEK_API_KEY;
+  let apiBase = await env.DATA_KV.get('config:ai_api_base') || env.AI_API_BASE;
+  let model = await env.DATA_KV.get('config:ai_model') || env.AI_API_MODEL;
+
+  // Defaults based on provider if not explicitly configured
+  if (provider === 'gemini') {
+    if (!apiBase) apiBase = 'https://generativelanguage.googleapis.com/v1beta/openai/';
+    if (!model) model = 'gemini-2.5-flash';
+  } else if (provider === 'deepseek') {
+    if (!apiBase) apiBase = 'https://api.deepseek.com/v1/';
+    if (!model) model = 'deepseek-chat';
+  } else {
+    // Custom OpenAI or default
+    if (!apiBase) apiBase = 'https://api.deepseek.com/v1/';
+    if (!model) model = 'deepseek-chat';
+  }
+
+  // Ensure trailing slash on apiBase, then append chat/completions
+  let url = apiBase;
+  if (!url.endsWith('/')) {
+    url += '/';
+  }
+  url += 'chat/completions';
+
+  if (!apiKey) {
+    throw new Error('AI API Key is missing or not configured.');
+  }
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + apiKey
+    },
+    body: JSON.stringify({
+      model: model,
+      messages: messages,
+      temperature: temperature
+    })
+  });
+
+  if (!response.ok) {
+    const errText = await response.text();
+    throw new Error(`AI API returned error [${response.status}]: ${errText}`);
+  }
+
+  return await response.json();
+}
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
@@ -279,6 +330,10 @@ export default {
       data.wecomCorpId = await env.DATA_KV.get('config:wecom_corp_id') || '';
       data.wecomToken = await env.DATA_KV.get('config:wecom_token') || '';
       data.wecomAesKey = await env.DATA_KV.get('config:wecom_aes_key') || '';
+      data.aiProvider = await env.DATA_KV.get('config:ai_provider') || '';
+      data.aiApiKey = await env.DATA_KV.get('config:ai_api_key') || '';
+      data.aiApiBase = await env.DATA_KV.get('config:ai_api_base') || '';
+      data.aiModel = await env.DATA_KV.get('config:ai_model') || '';
       // Inject goals
       data.goals = JSON.parse(await env.DATA_KV.get('config:goals') || '{}');
       return new Response(JSON.stringify(data), {
@@ -292,7 +347,7 @@ export default {
       const items = Array.isArray(body) ? body : [body];
       let hasError = false;
       for (const item of items) {
-        const { date, wechatCount, intentCount, revisitCount, visitCount, paymentCount, clients, todayTodos, tomorrowTodos, tempClients, scripts, learns, todoLog, webhookUrl, deepseekApiKey, wecomCorpId, wecomToken, wecomAesKey, _ts } = item;
+        const { date, wechatCount, intentCount, revisitCount, visitCount, paymentCount, clients, todayTodos, tomorrowTodos, tempClients, scripts, learns, todoLog, webhookUrl, deepseekApiKey, wecomCorpId, wecomToken, wecomAesKey, aiProvider, aiApiKey, aiApiBase, aiModel, _ts } = item;
         if (!date) { hasError = true; continue; }
         
         // If a non-empty Webhook URL is supplied, persist it globally
@@ -311,12 +366,24 @@ export default {
         if (wecomAesKey !== undefined) {
           await env.DATA_KV.put('config:wecom_aes_key', wecomAesKey);
         }
+        if (aiProvider !== undefined) {
+          await env.DATA_KV.put('config:ai_provider', aiProvider);
+        }
+        if (aiApiKey !== undefined) {
+          await env.DATA_KV.put('config:ai_api_key', aiApiKey);
+        }
+        if (aiApiBase !== undefined) {
+          await env.DATA_KV.put('config:ai_api_base', aiApiBase);
+        }
+        if (aiModel !== undefined) {
+          await env.DATA_KV.put('config:ai_model', aiModel);
+        }
 
         // 读取云端现有数据
         const rawExisting = await env.DATA_KV.get(`work:${date}`);
         const existing = rawExisting ? JSON.parse(rawExisting) : {};
         // 客户列表按 phone 号码唯一性合并（同一电话号码只保留最新记录）
-        // incoming 中的客户记录会覆盖 base 中相同电话号码的旧记录
+        // incoming 中的客户记录会覆盖 base 中相同电话号码 of 旧记录
         const mergeClients = (base, incoming) => {
           const map = new Map();
           (base || []).forEach(c => map.set(c.phone, c));
@@ -343,6 +410,10 @@ export default {
           wecomCorpId: wecomCorpId !== undefined ? wecomCorpId : (existing.wecomCorpId || ''),
           wecomToken: wecomToken !== undefined ? wecomToken : (existing.wecomToken || ''),
           wecomAesKey: wecomAesKey !== undefined ? wecomAesKey : (existing.wecomAesKey || ''),
+          aiProvider: aiProvider !== undefined ? aiProvider : (existing.aiProvider || ''),
+          aiApiKey: aiApiKey !== undefined ? aiApiKey : (existing.aiApiKey || ''),
+          aiApiBase: aiApiBase !== undefined ? aiApiBase : (existing.aiApiBase || ''),
+          aiModel: aiModel !== undefined ? aiModel : (existing.aiModel || ''),
           lastLoadDate: date,
           lastModified: new Date().toISOString(),
           _ts: _ts || Date.now()
@@ -487,6 +558,12 @@ export default {
           break;
         case 'setWecomAesKey':
           await env.DATA_KV.put('config:wecom_aes_key', body.wecomAesKey || '');
+          break;
+        case 'setAiConfig':
+          if (body.aiProvider !== undefined) await env.DATA_KV.put('config:ai_provider', body.aiProvider || '');
+          if (body.aiApiKey !== undefined) await env.DATA_KV.put('config:ai_api_key', body.aiApiKey || '');
+          if (body.aiApiBase !== undefined) await env.DATA_KV.put('config:ai_api_base', body.aiApiBase || '');
+          if (body.aiModel !== undefined) await env.DATA_KV.put('config:ai_model', body.aiModel || '');
           break;
         case 'setGoals':
           await env.DATA_KV.put('config:goals', JSON.stringify(body.goals || {}));
@@ -1737,15 +1814,34 @@ export default {
       </div>
     </div>
 
-    <details style="margin-bottom:12px; border:1px dashed var(--card-border); border-radius:var(--radius-xs); padding:6px 10px; background:rgba(120,120,120,0.02);">
-      <summary style="font-size:0.7rem; color:var(--text-soft); cursor:pointer; font-weight:700; outline:none; user-select:none;">🤖 DeepSeek API 配置 (选填)</summary>
+    <details id="aiConfigDetails" style="margin-bottom:12px; border:1px dashed var(--card-border); border-radius:var(--radius-xs); padding:6px 10px; background:rgba(120,120,120,0.02);">
+      <summary style="font-size:0.7rem; color:var(--text-soft); cursor:pointer; font-weight:700; outline:none; user-select:none;">🤖 AI 大模型配置 (选填)</summary>
       <div style="display:flex; flex-direction:column; gap:6px; margin-top:6px;">
-        <div style="display:flex; gap:6px;">
-          <input type="password" class="input-simple" id="deepseekApiKeyInput" placeholder="输入 DeepSeek API Key" style="flex:1; font-size:0.7rem; height:28px; padding:0 8px;">
-          <button id="saveDsKeyBtn" class="btn-add" style="padding:0 12px; font-size:0.7rem; height:28px; margin:0; background:var(--accent-wechat); color:white; border:none;">保存</button>
+        <div style="display:flex; align-items:center; gap:6px;">
+          <span style="font-size:0.65rem; color:var(--text-soft); width:50px; font-weight:700;">服务商:</span>
+          <select id="aiProviderSelect" class="input-simple" style="flex:1; font-size:0.7rem; height:28px; padding:0 4px; font-weight:700; background:var(--btn-bg); border-color:var(--card-border); color:var(--text-main);">
+            <option value="deepseek">DeepSeek</option>
+            <option value="gemini">Google Gemini</option>
+            <option value="custom">OpenAI / 其它兼容接口</option>
+          </select>
         </div>
-        <div style="font-size:0.6rem; color:var(--text-light); line-height:1.3;">
-          配置 Key 后将使用真实 DeepSeek-V3 接口进行知识提炼与标签提取。留空则自动使用系统内置模拟 AI 提炼进行测试。
+        <div style="display:flex; align-items:center; gap:6px;">
+          <span style="font-size:0.65rem; color:var(--text-soft); width:50px; font-weight:700;">API Key:</span>
+          <input type="password" class="input-simple" id="aiApiKeyInput" placeholder="输入 API Key / 密钥" style="flex:1; font-size:0.7rem; height:28px; padding:0 8px;">
+        </div>
+        <div style="display:flex; align-items:center; gap:6px;">
+          <span style="font-size:0.65rem; color:var(--text-soft); width:50px; font-weight:700;">接口地址:</span>
+          <input type="text" class="input-simple" id="aiApiBaseInput" placeholder="默认地址" style="flex:1; font-size:0.7rem; height:28px; padding:0 8px;">
+        </div>
+        <div style="display:flex; align-items:center; gap:6px;">
+          <span style="font-size:0.65rem; color:var(--text-soft); width:50px; font-weight:700;">模型名称:</span>
+          <input type="text" class="input-simple" id="aiModelInput" placeholder="默认模型" style="flex:1; font-size:0.7rem; height:28px; padding:0 8px;">
+        </div>
+        <div style="display:flex; justify-content:flex-end; margin-top:2px;">
+          <button id="saveAiConfigBtn" class="btn-add" style="padding:0 16px; font-size:0.7rem; height:28px; margin:0; background:var(--accent-wechat); color:white; border:none; border-radius:var(--radius-xs); font-weight:700;">保存配置</button>
+        </div>
+        <div style="font-size:0.6rem; color:var(--text-light); line-height:1.4; border-top:1px dashed var(--card-border); padding-top:4px; margin-top:2px;">
+          配置 API Key 后将使用真实 AI 接口进行知识提取与回复（Gemini 使用其 OpenAI 兼容接口，留空使用内置模拟 AI）。
         </div>
       </div>
     </details>
@@ -1768,14 +1864,21 @@ export default {
       <details style="margin-top:10px; border:1px dashed var(--card-border); border-radius:var(--radius-xs); padding:8px; background:rgba(120,120,120,0.02);">
         <summary style="font-size:0.75rem; color:var(--text-soft); cursor:pointer; font-weight:700; outline:none; user-select:none;">🤖 企业微信应用机器人回调配置</summary>
         <div style="display:flex; flex-direction:column; gap:8px; margin-top:8px;">
-          <input type="text" class="input-simple" id="wecomCorpIdInput" placeholder="企业 Corp ID" style="font-size:0.7rem; height:28px; padding:0 8px;">
+          <input type="text" class="input-simple" id="wecomCorpIdInput" placeholder="企业 Corp ID（如 ww1234567890abcdef）" style="font-size:0.7rem; height:28px; padding:0 8px;">
           <input type="text" class="input-simple" id="wecomTokenInput" placeholder="应用 Token" style="font-size:0.7rem; height:28px; padding:0 8px;">
-          <input type="password" class="input-simple" id="wecomAesKeyInput" placeholder="应用 EncodingAESKey" style="font-size:0.7rem; height:28px; padding:0 8px;">
-          <button id="saveWecomBotBtn" class="btn-add" style="font-size:0.7rem; height:28px; margin:0; background:var(--accent-wechat); color:white; border:none; width:100%;">保存机器人配置</button>
+          <input type="password" class="input-simple" id="wecomAesKeyInput" placeholder="应用 EncodingAESKey（43 位字符）" style="font-size:0.7rem; height:28px; padding:0 8px;">
+          <div style="display:flex; gap:6px;">
+            <button id="saveWecomBotBtn" class="btn-add" style="font-size:0.7rem; height:28px; margin:0; background:var(--accent-wechat); color:white; border:none; flex:1;">💾 保存配置</button>
+            <button id="testWecomBtn" class="btn-add" style="font-size:0.7rem; height:28px; margin:0; background:linear-gradient(135deg,#36d1dc,#5b86e5); color:white; border:none; flex:1;">🔍 测试连接</button>
+          </div>
+          <div id="wecomConfigStatus" style="font-size:0.62rem; padding:6px; border-radius:4px; background:var(--btn-bg); display:none; line-height:1.5;"></div>
           
           <div style="font-size:0.6rem; color:var(--text-light); line-height:1.4; margin-top:4px;">
-            在企业微信后台配置 API 接收消息：<br>
-            <strong>URL:</strong> <span id="wecomCallbackUrlDisplay" style="user-select:all; background:var(--btn-bg); padding:1px 3px; border-radius:3px; word-break:break-all;"></span>
+            <strong>⚠️ 正确配置步骤：</strong><br>
+            ① 先在此页面填入 Corp ID、Token、AESKey 并点击"保存配置"<br>
+            ② 点击"测试连接"确认配置已生效（全部显示 ✅）<br>
+            ③ 再到企业微信后台填入下面的 URL 并保存<br><br>
+            <strong>回调 URL:</strong> <span id="wecomCallbackUrlDisplay" style="user-select:all; background:var(--btn-bg); padding:1px 3px; border-radius:3px; word-break:break-all;"></span>
           </div>
         </div>
       </details>
@@ -2654,6 +2757,10 @@ export default {
       if(data.wecomCorpId!==undefined)localStorage.setItem('wecom_corp_id',data.wecomCorpId);
       if(data.wecomToken!==undefined)localStorage.setItem('wecom_token',data.wecomToken);
       if(data.wecomAesKey!==undefined)localStorage.setItem('wecom_aes_key',data.wecomAesKey);
+      if(data.aiProvider!==undefined)localStorage.setItem('ai_provider',data.aiProvider);
+      if(data.aiApiKey!==undefined)localStorage.setItem('ai_api_key',data.aiApiKey);
+      if(data.aiApiBase!==undefined)localStorage.setItem('ai_api_base',data.aiApiBase);
+      if(data.aiModel!==undefined)localStorage.setItem('ai_model',data.aiModel);
       localStorage.setItem(LOCAL_TS_K,data._ts);
       refreshAll();
       addSyncLog('✅ 拉取并合并云端最新数据完成');
@@ -2695,6 +2802,10 @@ export default {
     if(data.wecomCorpId!==undefined)localStorage.setItem('wecom_corp_id',data.wecomCorpId);
     if(data.wecomToken!==undefined)localStorage.setItem('wecom_token',data.wecomToken);
     if(data.wecomAesKey!==undefined)localStorage.setItem('wecom_aes_key',data.wecomAesKey);
+    if(data.aiProvider!==undefined)localStorage.setItem('ai_provider',data.aiProvider);
+    if(data.aiApiKey!==undefined)localStorage.setItem('ai_api_key',data.aiApiKey);
+    if(data.aiApiBase!==undefined)localStorage.setItem('ai_api_base',data.aiApiBase);
+    if(data.aiModel!==undefined)localStorage.setItem('ai_model',data.aiModel);
     if(data.lastLoadDate)localStorage.setItem(LAST_LOAD_DATE_K,data.lastLoadDate);
     localStorage.setItem(LOCAL_TS_K,data._ts||Date.now());
     return true;
@@ -3452,22 +3563,64 @@ const rid=Math.floor(Math.random()*1000);
 
   function initLearnFeature(){
     renderLockLearns();
+    
+    const providerSel = document.getElementById('aiProviderSelect');
+    const apiBaseInp = document.getElementById('aiApiBaseInput');
+    const modelInp = document.getElementById('aiModelInput');
+    const apiKeyInp = document.getElementById('aiApiKeyInput');
+
+    function updateAiPlaceholders() {
+      const p = providerSel.value;
+      if (p === 'deepseek') {
+        apiBaseInp.placeholder = 'https://api.deepseek.com/v1 (默认)';
+        modelInp.placeholder = 'deepseek-chat (默认)';
+      } else if (p === 'gemini') {
+        apiBaseInp.placeholder = 'https://generativelanguage.googleapis.com/v1beta/openai (默认)';
+        modelInp.placeholder = 'gemini-2.5-flash (默认)';
+      } else {
+        apiBaseInp.placeholder = 'https://api.openai.com/v1 (默认)';
+        modelInp.placeholder = 'gpt-4o (默认)';
+      }
+    }
+
+    providerSel.addEventListener('change', updateAiPlaceholders);
+
     document.getElementById('learnBtn').addEventListener('click',()=>{
       renderLearnList();
       document.getElementById('newLearnInput').value='';
       document.getElementById('learnShowCheck').checked=true;
-      document.getElementById('deepseekApiKeyInput').value=localStorage.getItem('deepseek_api_key')||'';
+      
+      providerSel.value = localStorage.getItem('ai_provider') || 'deepseek';
+      apiKeyInp.value = localStorage.getItem('ai_api_key') || localStorage.getItem('deepseek_api_key') || '';
+      apiBaseInp.value = localStorage.getItem('ai_api_base') || '';
+      modelInp.value = localStorage.getItem('ai_model') || '';
+      updateAiPlaceholders();
+
       document.getElementById('learnModal').classList.add('active');
     });
 
     document.getElementById('closeLearnModalBtn').addEventListener('click',()=>document.getElementById('learnModal').classList.remove('active'));
     document.getElementById('learnModal').addEventListener('click',e=>{if(e.target===document.getElementById('learnModal'))document.getElementById('learnModal').classList.remove('active');});
 
-    document.getElementById('saveDsKeyBtn').addEventListener('click',async ()=>{
-      const val=document.getElementById('deepseekApiKeyInput').value.trim();
-      localStorage.setItem('deepseek_api_key',val);
-      await syncOp('setDeepseekApiKey',{deepseekApiKey:val});
-      alert('DeepSeek API Key 已保存到本地及云端！');
+    document.getElementById('saveAiConfigBtn').addEventListener('click',async ()=>{
+      const provider = providerSel.value;
+      const apiKey = apiKeyInp.value.trim();
+      const apiBase = apiBaseInp.value.trim();
+      const model = modelInp.value.trim();
+
+      localStorage.setItem('ai_provider', provider);
+      localStorage.setItem('ai_api_key', apiKey);
+      localStorage.setItem('ai_api_base', apiBase);
+      localStorage.setItem('ai_model', model);
+      localStorage.setItem('deepseek_api_key', apiKey); // Backwards compatibility fallback
+
+      await syncOp('setAiConfig', {
+        aiProvider: provider,
+        aiApiKey: apiKey,
+        aiApiBase: apiBase,
+        aiModel: model
+      });
+      alert('AI 大模型配置已保存到本地及云端！');
     });
 
     document.getElementById('addLearnBtn').addEventListener('click',async ()=>{
@@ -3507,7 +3660,7 @@ const rid=Math.floor(Math.random()*1000);
       btn.disabled=true;
 
       try{
-        const apiKey=localStorage.getItem('deepseek_api_key')||'';
+        const apiKey = localStorage.getItem('ai_api_key') || localStorage.getItem('deepseek_api_key') || '';
         const r=await fetch('/api/learning/save',{
           method:'POST',
           headers:{
@@ -3646,18 +3799,71 @@ const rid=Math.floor(Math.random()*1000);
       const corpId = document.getElementById('wecomCorpIdInput').value.trim();
       const token = document.getElementById('wecomTokenInput').value.trim();
       const aesKey = document.getElementById('wecomAesKeyInput').value.trim();
+      const statusEl = document.getElementById('wecomConfigStatus');
+      
+      if (!corpId || !token || !aesKey) {
+        statusEl.style.display = 'block';
+        statusEl.innerHTML = '❌ 请填写全部三个字段（Corp ID、Token、EncodingAESKey）';
+        statusEl.style.color = '#e53935';
+        return;
+      }
+      if (aesKey.length !== 43) {
+        statusEl.style.display = 'block';
+        statusEl.innerHTML = '❌ EncodingAESKey 长度应为 43 个字符，当前长度: ' + aesKey.length + '<br>请从企业微信后台完整复制';
+        statusEl.style.color = '#e53935';
+        return;
+      }
+
+      statusEl.style.display = 'block';
+      statusEl.innerHTML = '⏳ 正在保存配置到云端...';
+      statusEl.style.color = 'var(--text-soft)';
       
       localStorage.setItem('wecom_corp_id', corpId);
       localStorage.setItem('wecom_token', token);
       localStorage.setItem('wecom_aes_key', aesKey);
 
-      await Promise.all([
-        syncOp('setWecomCorpId', { wecomCorpId: corpId }),
-        syncOp('setWecomToken', { wecomToken: token }),
-        syncOp('setWecomAesKey', { wecomAesKey: aesKey })
-      ]);
+      try {
+        await Promise.all([
+          syncOp('setWecomCorpId', { wecomCorpId: corpId }),
+          syncOp('setWecomToken', { wecomToken: token }),
+          syncOp('setWecomAesKey', { wecomAesKey: aesKey })
+        ]);
+        statusEl.innerHTML = '✅ 配置已保存并同步到云端！请点击"测试连接"确认配置生效';
+        statusEl.style.color = '#43a047';
+      } catch (e) {
+        statusEl.innerHTML = '❌ 保存失败: ' + e.message;
+        statusEl.style.color = '#e53935';
+      }
+    });
 
-      alert('企业微信机器人配置已成功保存并同步！');
+    // Test WeCom config by calling debug endpoint
+    document.getElementById('testWecomBtn').addEventListener('click', async ()=>{
+      const statusEl = document.getElementById('wecomConfigStatus');
+      statusEl.style.display = 'block';
+      statusEl.innerHTML = '⏳ 正在检测云端配置...';
+      statusEl.style.color = 'var(--text-soft)';
+      try {
+        const resp = await fetch(API_BASE + '/api/wecom/debug');
+        const data = await resp.json();
+        let html = '<strong>🔍 云端配置检测结果：</strong><br>';
+        html += 'Corp ID: ' + data.effective.corpId + '<br>';
+        html += 'Token: ' + data.effective.token + '<br>';
+        html += 'AES Key: ' + data.effective.aesKey + '<br>';
+        html += '<br><strong>回调 URL:</strong> ' + data.callback_url + '<br>';
+        
+        const allGood = data.effective.corpId.includes('✅') && data.effective.token.includes('✅') && data.effective.aesKey.includes('✅');
+        if (allGood) {
+          html += '<br>🎉 <strong style="color:#43a047;">全部配置已就绪！现在可以去企业微信后台设置回调 URL 了</strong>';
+          statusEl.style.color = '#43a047';
+        } else {
+          html += '<br>⚠️ <strong style="color:#e53935;">有配置缺失！请先填写并保存所有配置</strong>';
+          statusEl.style.color = '#e53935';
+        }
+        statusEl.innerHTML = html;
+      } catch (e) {
+        statusEl.innerHTML = '❌ 检测请求失败: ' + e.message;
+        statusEl.style.color = '#e53935';
+      }
     });
 
     async function doExport(type){
@@ -4369,9 +4575,9 @@ const rid=Math.floor(Math.random()*1000);
         }
 
         // Get key from body, or KV config, or env
-        let dsKey = apiKey || await env.DATA_KV.get('config:deepseek_api_key') || env.DEEPSEEK_API_KEY;
+        let hasKey = apiKey || await env.DATA_KV.get('config:ai_api_key') || await env.DATA_KV.get('config:deepseek_api_key') || env.AI_API_KEY || env.DEEPSEEK_API_KEY;
 
-        if (!dsKey) {
+        if (!hasKey) {
           const mockTitles = {
             '微信聊天': '微信客情维护与意向跟进',
             '电话录音': '电话触客异议处理技巧',
@@ -4407,34 +4613,17 @@ const rid=Math.floor(Math.random()*1000);
           });
         }
 
-        const apiResponse = await fetch('https://api.deepseek.com/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer ' + dsKey
+        const apiData = await callAIChat(env, [
+          {
+            role: 'system',
+            content: '你是一个智能贷款销售学习助手。根据用户提供的销售原始材料（微信聊天记录、电话录音文本、客户案例、或企业资料），进行深度提炼，总结出可以直接用于锁屏学习、话术背诵、业务记忆的核心知识。\n\n请必须只输出以下 JSON 格式的字符串（不要包裹 markdown 代码块，如 ```json，只需输出 JSON 本身）：\n{\n  "title": "提炼的知识标题 (15字以内)",\n  "summary": "一句话摘要 (30字以内)",\n  "content": "提炼的核心话术/知识要点 (150字以内)",\n  "tags": ["标签1", "标签2"]\n}'
           },
-          body: JSON.stringify({
-            model: 'deepseek-chat',
-            messages: [
-              {
-                role: 'system',
-                content: '你是一个智能贷款销售学习助手。根据用户提供的销售原始材料（微信聊天记录、电话录音文本、客户案例、或企业资料），进行深度提炼，总结出可以直接用于锁屏学习、话术背诵、业务记忆的核心知识。\n\n请必须只输出以下 JSON 格式的字符串（不要包裹 markdown 代码块，如 ```json，只需输出 JSON 本身）：\n{\n  "title": "提炼的知识标题 (15字以内)",\n  "summary": "一句话摘要 (30字以内)",\n  "content": "提炼的核心话术/知识要点 (150字以内)",\n  "tags": ["标签1", "标签2"]\n}'
-              },
-              {
-                role: 'user',
-                content: `来源类型: ${source_type}\n\n内容:\n${content}`
-              }
-            ],
-            temperature: 0.3
-          })
-        });
+          {
+            role: 'user',
+            content: `来源类型: ${source_type}\n\n内容:\n${content}`
+          }
+        ], 0.3, apiKey);
 
-        if (!apiResponse.ok) {
-          const errText = await apiResponse.text();
-          throw new Error('DeepSeek API returned error [' + apiResponse.status + ']: ' + errText);
-        }
-
-        const apiData = await apiResponse.json();
         let aiContent = apiData.choices[0].message.content.trim();
         
         if (aiContent.startsWith('```')) {
@@ -4462,6 +4651,90 @@ const rid=Math.floor(Math.random()*1000);
     }
 
     // ========== 企业微信应用机器人回调 API ==========
+
+    // 调试接口：检查 WeCom 配置是否已存入 KV
+    if (path === '/api/wecom/debug' && request.method === 'GET') {
+      const corpId = await env.DATA_KV.get('config:wecom_corp_id');
+      const token = await env.DATA_KV.get('config:wecom_token');
+      const aesKey = await env.DATA_KV.get('config:wecom_aes_key');
+      const agentId = await env.DATA_KV.get('config:wecom_agent_id');
+      const secret = await env.DATA_KV.get('config:wecom_secret');
+      const envCorpId = env.WECOM_CORP_ID;
+      const envToken = env.WECOM_TOKEN;
+      const envAesKey = env.WECOM_AES_KEY;
+      return new Response(JSON.stringify({
+        kv: {
+          wecom_corp_id: corpId ? '已配置 (' + corpId.substring(0, 6) + '...)' : '❌ 未配置',
+          wecom_token: token ? '已配置 (长度:' + token.length + ')' : '❌ 未配置',
+          wecom_aes_key: aesKey ? '已配置 (长度:' + aesKey.length + ')' : '❌ 未配置',
+          wecom_agent_id: agentId ? '已配置 (' + agentId + ')' : '❌ 未配置',
+          wecom_secret: secret ? '已配置 (' + secret.substring(0, 6) + '...)' : '❌ 未配置',
+        },
+        env_fallback: {
+          WECOM_CORP_ID: envCorpId ? '已配置' : '❌ 未配置',
+          WECOM_TOKEN: envToken ? '已配置' : '❌ 未配置',
+          WECOM_AES_KEY: envAesKey ? '已配置' : '❌ 未配置',
+        },
+        effective: {
+          corpId: (corpId || envCorpId) ? '✅ 可用' : '❌ 缺失 — 回调将返回 500',
+          token: (token || envToken) ? '✅ 可用' : '❌ 缺失 — 回调将返回 500',
+          aesKey: (aesKey || envAesKey) ? '✅ 可用' : '❌ 缺失 — 回调将返回 500',
+        },
+        callback_url: url.origin + '/api/wecom/callback',
+        tip: '如果 effective 中有❌，请先在 megz 前端保存配置或调用 /api/wecom/set-config 写入配置后，再到企业微信后台验证回调URL。'
+      }, null, 2), {
+        headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
+      });
+    }
+
+    // 直接写入 WeCom 配置到 KV（用于解决鸡生蛋问题：先写配置再验证URL）
+    if (path === '/api/wecom/set-config' && request.method === 'POST') {
+      try {
+        const body = await request.json();
+        const { corpId, token, aesKey, agentId, secret } = body;
+        if (!corpId || !token || !aesKey) {
+          return new Response(JSON.stringify({ error: '请提供 corpId, token, aesKey 三个参数' }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+        // 校验 EncodingAESKey 长度（企业微信标准是 43 字符）
+        if (aesKey.length !== 43) {
+          return new Response(JSON.stringify({
+            error: 'EncodingAESKey 长度应为 43 个字符，当前长度: ' + aesKey.length,
+            tip: '请从企业微信后台 API 接收消息页面复制完整的 EncodingAESKey'
+          }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+        const promises = [
+          env.DATA_KV.put('config:wecom_corp_id', corpId),
+          env.DATA_KV.put('config:wecom_token', token),
+          env.DATA_KV.put('config:wecom_aes_key', aesKey),
+        ];
+        if (agentId !== undefined && agentId !== null) {
+          promises.push(env.DATA_KV.put('config:wecom_agent_id', String(agentId)));
+        }
+        if (secret !== undefined && secret !== null) {
+          promises.push(env.DATA_KV.put('config:wecom_secret', String(secret)));
+        }
+        await Promise.all(promises);
+        return new Response(JSON.stringify({
+          success: true,
+          message: '配置已成功写入 KV！现在可以去企业微信后台设置回调 URL 了。',
+          callback_url: url.origin + '/api/wecom/callback'
+        }), {
+          headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ error: e.message }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+    }
+
     if (path === '/api/wecom/callback') {
       const corpId = await env.DATA_KV.get('config:wecom_corp_id') || env.WECOM_CORP_ID;
       const token = await env.DATA_KV.get('config:wecom_token') || env.WECOM_TOKEN;
@@ -4618,9 +4891,9 @@ const rid=Math.floor(Math.random()*1000);
               }
             }
           } else {
-            const dsKey = await env.DATA_KV.get('config:deepseek_api_key') || env.DEEPSEEK_API_KEY;
-            if (!dsKey) {
-              replyContent = `🤖 每日智能助手：\n\n您说：“${trimmedContent}”。\n\n提示：系统管理员尚未配置 DeepSeek API Key，因此无法调用大模型为您服务。`;
+            const hasKey = await env.DATA_KV.get('config:ai_api_key') || await env.DATA_KV.get('config:deepseek_api_key') || env.AI_API_KEY || env.DEEPSEEK_API_KEY;
+            if (!hasKey) {
+              replyContent = `🤖 每日智能助手：\n\n您说：“${trimmedContent}”。\n\n提示：系统管理员尚未配置 AI 大模型 API Key，因此无法为您服务。`;
             } else {
               let contextText = '';
               try {
@@ -4644,34 +4917,18 @@ const rid=Math.floor(Math.random()*1000);
               }
 
               try {
-                const apiResponse = await fetch('https://api.deepseek.com/v1/chat/completions', {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': 'Bearer ' + dsKey
+                const apiData = await callAIChat(env, [
+                  {
+                    role: 'system',
+                    content: '你是一个专业的银行贷款顾问和智能销售助手。根据用户的提问以及提供的系统知识库、话术库、案例库相关参考资料，给用户提供详尽而专业的解答。请让回答内容利于在企业微信中直接阅读，多使用清晰的换行和emoji增强可读性。\n\n参考资料：\n' + (contextText || '暂无可用资料。请根据你的自身知识库解答。')
                   },
-                  body: JSON.stringify({
-                    model: 'deepseek-chat',
-                    messages: [
-                      {
-                        role: 'system',
-                        content: '你是一个专业的银行贷款顾问和智能销售助手。根据用户的提问以及提供的系统知识库、话术库、案例库相关参考资料，给用户提供详尽而专业的解答。请让回答内容利于在企业微信中直接阅读，多使用清晰的换行和emoji增强可读性。\n\n参考资料：\n' + (contextText || '暂无可用资料。请根据你的自身知识库解答。')
-                      },
-                      {
-                        role: 'user',
-                        content: trimmedContent
-                      }
-                    ],
-                    temperature: 0.5
-                  })
-                });
+                  {
+                    role: 'user',
+                    content: trimmedContent
+                  }
+                ], 0.5);
 
-                if (apiResponse.ok) {
-                  const apiData = await apiResponse.json();
-                  replyContent = apiData.choices[0].message.content.trim();
-                } else {
-                  replyContent = `AI 助手调用出错 [${apiResponse.status}]`;
-                }
+                replyContent = apiData.choices[0].message.content.trim();
               } catch (aiErr) {
                 replyContent = `AI 助手网络调用出错: ${aiErr.message}`;
               }
