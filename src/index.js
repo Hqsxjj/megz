@@ -1849,8 +1849,15 @@ export default {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ companies: companyNames })
     })
-    .then(r => {
-      if (!r.ok) throw new Error('上传白名单失败');
+    .then(async r => {
+      if (!r.ok) {
+        let msg = '上传白名单失败';
+        try {
+          const data = await r.json();
+          if (data && data.error) msg += ': ' + data.error;
+        } catch(e) {}
+        throw new Error(msg);
+      }
       return r.json();
     });
   }
@@ -1861,8 +1868,15 @@ export default {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ company_name: companyName })
     })
-    .then(r => {
-      if (!r.ok) throw new Error('删除失败');
+    .then(async r => {
+      if (!r.ok) {
+        let msg = '删除失败';
+        try {
+          const data = await r.json();
+          if (data && data.error) msg += ': ' + data.error;
+        } catch(e) {}
+        throw new Error(msg);
+      }
       return r.json();
     })
     .then(() => {
