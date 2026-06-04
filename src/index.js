@@ -73,6 +73,25 @@ export default {
     const url = new URL(request.url);
     const path = url.pathname;
 
+    const needsKV = (
+      path === '/api/dialer/data' ||
+      path === '/api/data' ||
+      path === '/api/sync' ||
+      path === '/api/calendar' ||
+      path === '/api/stats' ||
+      path === '/api/all-clients' ||
+      path === '/api/export'
+    );
+    if (needsKV && !env.DATA_KV) {
+      return new Response(JSON.stringify({ error: 'DATA_KV binding is missing or not configured.' }), {
+        status: 503,
+        headers: {
+          'Content-Type': 'application/json; charset=UTF-8',
+          'Access-Control-Allow-Origin': '*'
+        }
+      });
+    }
+
     // CORS preflight handler
     if (request.method === 'OPTIONS') {
       return new Response(null, {
@@ -1762,6 +1781,7 @@ export default {
   const saveMap=(k,o)=>localStorage.setItem(k,JSON.stringify(o));
   const loadTodos=k=>{try{const d=JSON.parse(localStorage.getItem(k))||[];return d.map(t=>typeof t==='string'?{text:t,time:'',date:getTodayStr()}:t);}catch(e){return[];}};
   const saveTodos=(k,a)=>localStorage.setItem(k,JSON.stringify(a));
+  const loadClients=()=>{try{return JSON.parse(localStorage.getItem(CLIENTS_K))||[];}catch(e){return[];}};
   const loadGoals=()=>{try{return JSON.parse(localStorage.getItem(GOALS_K))||{};}catch(e){return{};}};
   const saveGoals=(g)=>localStorage.setItem(GOALS_K,JSON.stringify(g));
   const pushTodoLog=async (todo,ds)=>{syncOp('pushTodoLog',{todo});};
@@ -2216,7 +2236,7 @@ export default {
       if (r.ok) {
         const cloudClients = await r.json();
         if (Array.isArray(cloudClients)) {
-          const allClients = JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
+          const allClients = loadClients();
           const mergeMap = new Map();
           // Keep local copies first to prevent overriding unsaved local modifications
           allClients.forEach(c => {
