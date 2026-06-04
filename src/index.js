@@ -120,6 +120,185 @@ async function callAIChat(env, messages, temperature = 0.5, apiKeyOverride = '')
   return await response.json();
 }
 
+async function callAIChatWithTools(env, messages, temperature = 0.5) {
+  const provider = await env.DATA_KV.get('config:ai_provider') || 'deepseek';
+  const apiKey = await env.DATA_KV.get('config:ai_api_key') || await env.DATA_KV.get('config:deepseek_api_key') || env.AI_API_KEY || env.DEEPSEEK_API_KEY;
+  let apiBase = await env.DATA_KV.get('config:ai_api_base') || env.AI_API_BASE;
+  let model = await env.DATA_KV.get('config:ai_model') || env.AI_API_MODEL;
+
+  if (provider === 'gemini') {
+    if (!apiBase) apiBase = 'https://generativelanguage.googleapis.com/v1beta/openai/';
+    if (!model) model = 'gemini-2.5-flash';
+  } else if (provider === 'deepseek') {
+    if (!apiBase) apiBase = 'https://api.deepseek.com/v1/';
+    if (!model) model = 'deepseek-chat';
+  } else {
+    if (!apiBase) apiBase = 'https://api.deepseek.com/v1/';
+    if (!model) model = 'deepseek-chat';
+  }
+
+  let url = apiBase;
+  if (!url.endsWith('/')) {
+    url += '/';
+  }
+  url += 'chat/completions';
+
+  if (!apiKey) {
+    throw new Error('AI API Key is missing or not configured.');
+  }
+
+  const tools = [
+    {
+      type: "function",
+      function: {
+        name: "search_customers",
+        description: "从 Supabase 数据库中检索已归档的客户信息档案（支持按姓名、电话、公司等关键词模糊搜索）。",
+        parameters: {
+          type: "object",
+          properties: {
+            query: {
+              type: "string",
+              description: "搜索关键词（如客户姓名、电话或单位名称）"
+            }
+          },
+          required: ["query"]
+        }
+      }
+    },
+    {
+      type: "function",
+      function: {
+        name: "get_intent_clients",
+        description: "从 Cloudflare KV 中读取指定日期的每日工作汇报与今日意向客户登记列表（包含电话、时间、跟进情况/备注等）。",
+        parameters: {
+          type: "object",
+          properties: {
+            date: {
+              type: "string",
+              description: "日期字符串，格式为 YYYY-MM-DD（例如 2026-06-04），不传则默认为今天"
+            }
+          }
+        }
+      }
+    },
+    {
+      type: "function",
+      function: {
+        name: "check_company_whitelist",
+        description: "在数据库白名单中核对某家公司是否属于银行白名单准入公司，以及具体的签约状态和准入银行。",
+        parameters: {
+          type: "object",
+          properties: {
+            companyName: {
+              type: "string",
+              description: "公司名称（如 腾讯科技、阿里巴巴 等）"
+            }
+          },
+          required: ["companyName"]
+        }
+      }
+    },
+    {
+      type: "function",
+      function: {
+        name: "search_knowledge_and_speech",
+        description: "检索业务知识库、销售话术库以及贷款批贷案例记录。",
+        parameters: {
+          type: "object",
+          properties: {
+            query: {
+              type: "string",
+              description: "业务知识或话术关键词（如 贷款准入、开场白 等）"
+            }
+          },
+          required: ["query"]
+        }
+      }
+    }
+  ];
+
+  let chatMessages = [...messages];
+  let supabase = null;
+  const getSupabase = () => {
+    if (!supabase) supabase = createSupabaseClient(env);
+    return supabase;
+  };
+
+  for (let loop = 0; loop < 5; loop++) {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + apiKey
+      },
+      body: JSON.stringify({
+        model: model,
+        messages: chatMessages,
+        temperature: temperature,
+        tools: tools
+      })
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(`AI API returned error [${response.status}]: ${errText}`);
+    }
+
+    const resJson = await response.json();
+    const message = resJson.choices[0].message;
+    chatMessages.push(message);
+
+    if (!message.tool_calls || message.tool_calls.length === 0) {
+      return resJson;
+    }
+
+    for (const toolCall of message.tool_calls) {
+      const functionName = toolCall.function.name;
+      const functionArgs = JSON.parse(toolCall.function.arguments);
+      let resultData = null;
+
+      console.log(`[AIChatToolCall] calling ${functionName} with args:`, functionArgs);
+
+      try {
+        if (functionName === 'search_customers') {
+          resultData = await getSupabase().searchCustomers(functionArgs.query);
+        } else if (functionName === 'get_intent_clients') {
+          let targetDate = functionArgs.date;
+          if (!targetDate) {
+            const d = new Date(Date.now() + 8 * 3600000);
+            targetDate = d.toISOString().split('T')[0];
+          }
+          const raw = await env.DATA_KV.get(`work:${targetDate}`);
+          resultData = raw ? JSON.parse(raw) : { message: `该日期 (${targetDate}) 暂无意向客户或工作汇报记录。` };
+        } else if (functionName === 'check_company_whitelist') {
+          resultData = await getSupabase().checkCompanies([functionArgs.companyName]);
+        } else if (functionName === 'search_knowledge_and_speech') {
+          const [knowledges, speechs, cases] = await Promise.all([
+            getSupabase().searchKnowledge(functionArgs.query),
+            getSupabase().searchSpeech(functionArgs.query),
+            getSupabase().searchLoanCases(functionArgs.query)
+          ]);
+          resultData = { knowledges, speechs, cases };
+        } else {
+          resultData = { error: `Unknown tool: ${functionName}` };
+        }
+      } catch (err) {
+        console.error(`[AIChatToolCall] Error running ${functionName}:`, err);
+        resultData = { error: `Failed to execute: ${err.message}` };
+      }
+
+      chatMessages.push({
+        role: 'tool',
+        tool_call_id: toolCall.id,
+        name: functionName,
+        content: JSON.stringify(resultData)
+      });
+    }
+  }
+
+  return { choices: [{ message: chatMessages[chatMessages.length - 1] }] };
+}
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
@@ -1820,7 +1999,7 @@ export default {
         <div style="display:flex; align-items:center; gap:6px;">
           <span style="font-size:0.65rem; color:var(--text-soft); width:50px; font-weight:700;">服务商:</span>
           <select id="aiProviderSelect" class="input-simple" style="flex:1; font-size:0.7rem; height:28px; padding:0 4px; font-weight:700; background:var(--btn-bg); border-color:var(--card-border); color:var(--text-main);">
-            <option value="deepseek">DeepSeek</option>
+            <option value="deepseek">DeepSeek V4 Pro</option>
             <option value="gemini">Google Gemini</option>
             <option value="custom">OpenAI / 其它兼容接口</option>
           </select>
@@ -3573,7 +3752,7 @@ const rid=Math.floor(Math.random()*1000);
       const p = providerSel.value;
       if (p === 'deepseek') {
         apiBaseInp.placeholder = 'https://api.deepseek.com/v1 (默认)';
-        modelInp.placeholder = 'deepseek-chat (默认)';
+        modelInp.placeholder = 'deepseek-chat (V4 Pro 默认)';
       } else if (p === 'gemini') {
         apiBaseInp.placeholder = 'https://generativelanguage.googleapis.com/v1beta/openai (默认)';
         modelInp.placeholder = 'gemini-2.5-flash (默认)';
@@ -4895,32 +5074,16 @@ const rid=Math.floor(Math.random()*1000);
             if (!hasKey) {
               replyContent = `🤖 每日智能助手：\n\n您说：“${trimmedContent}”。\n\n提示：系统管理员尚未配置 AI 大模型 API Key，因此无法为您服务。`;
             } else {
-              let contextText = '';
               try {
-                const [knowledges, speechs, cases] = await Promise.all([
-                  supabase.searchKnowledge(trimmedContent),
-                  supabase.searchSpeech(trimmedContent),
-                  supabase.searchLoanCases(trimmedContent)
-                ]);
+                // Get current Beijing time (GMT+8)
+                const bjTime = new Date(Date.now() + 8 * 3600000).toISOString().replace('T', ' ').substring(0, 19);
+                const systemPrompt = `你是一个专业的银行贷款智能助手。你拥有调用 Supabase 数据库和 Cloudflare KV 数据工作的权限。当前北京时间是 ${bjTime}。\n` +
+                  `如果你需要了解今日或历史的意向客户、搜索特定客户档案、检查白名单、检索知识库与参考话术，请直接通过 tool_calls 调用相关函数。对于需要数据的提问，必须先调用函数获取真实数据再进行回答。请使用清晰的换行和丰富的 emoji 符号（增强可读性）对结果进行整理回答。`;
 
-                if (knowledges.length > 0) {
-                  contextText += '\n相关知识库资料：\n' + knowledges.map(k => `【${k.title}】: ${k.content}`).join('\n');
-                }
-                if (speechs.length > 0) {
-                  contextText += '\n销售参考话术：\n' + speechs.map(s => `[${s.category}-${s.scenario}]: ${s.content}`).join('\n');
-                }
-                if (cases.length > 0) {
-                  contextText += '\n客户贷款批贷案例：\n' + cases.map(c => `公司：${c.company_name} | 产品：${c.loan_product} | 结果：${c.result} | 案例总结：${c.summary}`).join('\n');
-                }
-              } catch (se) {
-                console.error('RAG retrieval failed:', se.message);
-              }
-
-              try {
-                const apiData = await callAIChat(env, [
+                const apiData = await callAIChatWithTools(env, [
                   {
                     role: 'system',
-                    content: '你是一个专业的银行贷款顾问和智能销售助手。根据用户的提问以及提供的系统知识库、话术库、案例库相关参考资料，给用户提供详尽而专业的解答。请让回答内容利于在企业微信中直接阅读，多使用清晰的换行和emoji增强可读性。\n\n参考资料：\n' + (contextText || '暂无可用资料。请根据你的自身知识库解答。')
+                    content: systemPrompt
                   },
                   {
                     role: 'user',
@@ -4930,7 +5093,7 @@ const rid=Math.floor(Math.random()*1000);
 
                 replyContent = apiData.choices[0].message.content.trim();
               } catch (aiErr) {
-                replyContent = `AI 助手网络调用出错: ${aiErr.message}`;
+                replyContent = `AI 助手调用出错: ${aiErr.message}`;
               }
             }
           }
