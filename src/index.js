@@ -5074,11 +5074,64 @@ const rid=Math.floor(Math.random()*1000);
             if (!hasKey) {
               replyContent = `🤖 每日智能助手：\n\n您说：“${trimmedContent}”。\n\n提示：系统管理员尚未配置 AI 大模型 API Key，因此无法为您服务。`;
             } else {
+              let contextText = '';
+              try {
+                const lowerContent = trimmedContent.toLowerCase();
+
+                // 1. 检索今日工作登记与意向客户
+                if (lowerContent.includes('客户') || lowerContent.includes('意向') || lowerContent.includes('登记') || lowerContent.includes('今天') || lowerContent.includes('工作') || lowerContent.includes('汇报')) {
+                  const d = new Date(Date.now() + 8 * 3600000);
+                  const todayDate = d.toISOString().split('T')[0];
+                  const raw = await env.DATA_KV.get(`work:${todayDate}`);
+                  if (raw) {
+                    const parsed = JSON.parse(raw);
+                    contextText += `\n[今日工作登记与意向客户数据] (日期: ${todayDate}):\n` +
+                      `- 今日微信数: ${parsed.wechatCount || 0}\n` +
+                      `- 今日回访数: ${parsed.revisitCount || 0}\n` +
+                      `- 今日上门数: ${parsed.visitCount || 0}\n` +
+                      `- 今日回款数: ${parsed.paymentCount || 0}\n` +
+                      `- 登记的意向客户列表:\n` +
+                      (parsed.clients && parsed.clients.length > 0 ?
+                        parsed.clients.map((c, idx) => `  ${idx + 1}. 姓名: ${c.name} | 电话: ${c.phone} | 登记时间: ${c.time || ''} | 跟进/备注: ${c.note || '无'}`).join('\n') :
+                        '  (暂无意向客户)') + '\n';
+                  }
+                }
+
+                // 2. 检查公司白名单准入
+                if (lowerContent.includes('白名单') || lowerContent.includes('公司') || lowerContent.includes('单位') || lowerContent.includes('白') || (trimmedContent.length >= 4 && !trimmedContent.includes('/'))) {
+                  const cleanQuery = trimmedContent.replace(/(查一下|查询|白名单|公司|是不是|在不在|白名单里有|有)/g, '').trim();
+                  if (cleanQuery.length >= 2) {
+                    const whitelistRes = await supabase.checkCompanies([cleanQuery]);
+                    if (whitelistRes && whitelistRes.length > 0) {
+                      contextText += `\n[企业白名单准入核对结果]:\n` +
+                        whitelistRes.map(r => `- 公司名: ${r.matchedName} | 状态: ${r.isMatch ? '✅ 已准入白名单' : '❌ 未准入'} | 准入银行: ${r.bank_name || '建行建易贷'} | 名单状态: ${r.status || '正常'}`).join('\n') + '\n';
+                    }
+                  }
+                }
+
+                // 3. 搜索客户档案
+                if (lowerContent.includes('查客户') || lowerContent.includes('搜索客户') || lowerContent.includes('客户档案') || (trimmedContent.length >= 2 && trimmedContent.length <= 4 && !lowerContent.includes('今天') && !lowerContent.includes('昨天') && !lowerContent.includes('白名单'))) {
+                  const cleanQuery = trimmedContent.replace(/(查客户|搜索客户|查询客户|客户|档案|是)/g, '').trim();
+                  if (cleanQuery.length >= 1) {
+                    const customerRes = await supabase.searchCustomers(cleanQuery);
+                    if (customerRes && customerRes.length > 0) {
+                      contextText += `\n[客户档案检索结果]:\n` +
+                        customerRes.map(c => `- 姓名: ${c.name} | 电话: ${c.mobile || '—'} | 公司: ${c.company_name || '—'} | 标签: ${c.tags ? c.tags.join(',') : '无'} | 备注/跟进记录: ${c.note || '无'}`).join('\n') + '\n';
+                    }
+                  }
+                }
+              } catch (prefErr) {
+                console.error('[PreFetchError] Failed to pre-fetch context:', prefErr);
+              }
+
               try {
                 // Get current Beijing time (GMT+8)
                 const bjTime = new Date(Date.now() + 8 * 3600000).toISOString().replace('T', ' ').substring(0, 19);
-                const systemPrompt = `你是一个专业的银行贷款智能助手。你拥有调用 Supabase 数据库和 Cloudflare KV 数据工作的权限。当前北京时间是 ${bjTime}。\n` +
-                  `如果你需要了解今日或历史的意向客户、搜索特定客户档案、检查白名单、检索知识库与参考话术，请直接通过 tool_calls 调用相关函数。对于需要数据的提问，必须先调用函数获取真实数据再进行回答。请使用清晰的换行和丰富的 emoji 符号（增强可读性）对结果进行整理回答。`;
+                let systemPrompt = `你是一个专业的银行贷款智能助手。你拥有调用 Supabase 数据库和 Cloudflare KV 数据工作的权限。当前北京时间是 ${bjTime}。\n`;
+                if (contextText) {
+                  systemPrompt += `\n系统已为您预先检索了与当前问题相关的实时数据库内容：\n${contextText}\n你可以直接使用以上数据回答用户。若以上检索到的信息足够回答，请结合它们给用户做出最详细和准确的解答。\n`;
+                }
+                systemPrompt += `如果你需要检索其它日期、更深入搜索客户档案、核对公司白名单、检索话术与知识库，请直接通过 tool_calls 调用相关函数。请使用清晰的换行 and 丰富的 emoji 符号（增强可读性）对结果进行整理回答。`;
 
                 const apiData = await callAIChatWithTools(env, [
                   {
