@@ -1601,6 +1601,16 @@ export default {
           <div class="cal-grid" id="calGrid"></div>
           <div style="font-size:0.55rem;text-align:center;margin-top:6px;color:var(--text-light);font-weight:600;">点击日期查看意向客户</div>
         </div>
+        <div class="card" style="margin-top: 8px;">
+          <div class="card-title" style="display:flex; justify-content:space-between; align-items:center;">
+            <span>白名单快捷查询</span>
+            <span style="font-size:0.6rem; color:var(--text-soft); font-weight:normal;" id="mainWlStatus">建行建易贷</span>
+          </div>
+          <div class="register-block">
+            <input type="text" class="input-simple" id="mainWlSearchInput" placeholder="输入企业名称进行模糊搜索..." autocomplete="off" style="width:100%; box-sizing:border-box;">
+            <div id="mainWlSearchResults" style="max-height:160px; overflow-y:auto; margin-top:8px; font-size:0.72rem; display:none; flex-direction:column; gap:4px;"></div>
+          </div>
+        </div>
       </div>
       <div class="right-area">
         <div class="card">
@@ -1805,14 +1815,23 @@ export default {
   let whitelistCompanies = [];
   let whitelistLoaded = false;
   const whitelistSet = new Set();
+  const whitelistMap = new Map();
 
   function updateWhitelistSet() {
     whitelistSet.clear();
+    whitelistMap.clear();
     whitelistCompanies.forEach(c => {
+      const bank = c.bank_name || '建行建易贷';
       const name = (c.company_name || '').trim().toLowerCase();
-      if (name) whitelistSet.add(name);
+      if (name) {
+        whitelistSet.add(name);
+        whitelistMap.set(name, bank);
+      }
       const alias = (c.alias || '').trim().toLowerCase();
-      if (alias) whitelistSet.add(alias);
+      if (alias) {
+        whitelistSet.add(alias);
+        whitelistMap.set(alias, bank);
+      }
     });
   }
 
@@ -2154,6 +2173,42 @@ export default {
       });
     }
 
+    // Whitelist search on the main dashboard
+    const mainSearchInput = document.getElementById('mainWlSearchInput');
+    const mainSearchResults = document.getElementById('mainWlSearchResults');
+    if (mainSearchInput && mainSearchResults) {
+      mainSearchInput.addEventListener('input', () => {
+        const query = mainSearchInput.value.toLowerCase().trim();
+        if (!query) {
+          mainSearchResults.style.display = 'none';
+          mainSearchResults.innerHTML = '';
+          return;
+        }
+
+        // Fuzzy matching (substring match)
+        const matched = whitelistCompanies.filter(c => {
+          const nameMatch = (c.company_name || '').toLowerCase().includes(query);
+          const aliasMatch = (c.alias || '').toLowerCase().includes(query);
+          return nameMatch || aliasMatch;
+        });
+
+        // Limit results to 15
+        const limitMatches = matched.slice(0, 15);
+        if (limitMatches.length === 0) {
+          mainSearchResults.innerHTML = '<div style="color:var(--text-light); text-align:center; padding:6px; font-style:italic;">无匹配企业</div>';
+        } else {
+          mainSearchResults.innerHTML = limitMatches.map(c => {
+            const bank = c.bank_name || '建行建易贷';
+            return '<div style="display:flex; justify-content:space-between; align-items:center; padding:4px 6px; border-bottom:1px dashed var(--card-border); background:var(--btn-bg); border-radius:3px;">' +
+              '<span style="font-weight:700; color:var(--text-main);">' + esc(c.company_name) + '</span>' +
+              '<span style="font-size:0.6rem; background:var(--accent-wechat-bg); color:var(--accent-wechat); padding:1px 5px; border-radius:3px; font-weight:700; white-space:nowrap; margin-left:8px;">' + esc(bank) + '</span>' +
+              '</div>';
+          }).join('');
+        }
+        mainSearchResults.style.display = 'flex';
+      });
+    }
+
     renderFailedUploadsArea();
     fetchWhitelist(); // Load on page load
   }
@@ -2490,7 +2545,7 @@ export default {
         '<div class="client-card-tags">'+
                     (c.company ? 
             (whitelistSet.has(String(c.company).trim().toLowerCase()) 
-              ? '<span class="client-card-tag client-card-tag-company" style="background:var(--accent-wechat-bg); color:var(--accent-wechat); border-color:var(--accent-wechat);">✓ '+esc(c.company)+'</span>'
+              ? '<span class="client-card-tag client-card-tag-company" style="background:var(--accent-wechat-bg); color:var(--accent-wechat); border-color:var(--accent-wechat);">' + esc(whitelistMap.get(String(c.company).trim().toLowerCase())) + ': ' + esc(c.company) + '</span>'
               : '<span class="client-card-tag client-card-tag-company">'+esc(c.company)+'</span>'
             ) : '')+
           (c.fund ? '<span class="client-card-tag client-card-tag-fund">公积金: '+esc(c.fund)+'</span>' : '')+
@@ -2700,7 +2755,7 @@ export default {
             '<div class="client-card-tags">'+
                             (e.company ? 
                 (whitelistSet.has(String(e.company).trim().toLowerCase()) 
-                  ? '<span class="client-card-tag client-card-tag-company" style="background:var(--accent-wechat-bg); color:var(--accent-wechat); border-color:var(--accent-wechat);">✓ '+esc(e.company)+'</span>'
+                  ? '<span class="client-card-tag client-card-tag-company" style="background:var(--accent-wechat-bg); color:var(--accent-wechat); border-color:var(--accent-wechat);">' + esc(whitelistMap.get(String(e.company).trim().toLowerCase())) + ': ' + esc(e.company) + '</span>'
                   : '<span class="client-card-tag client-card-tag-company">'+esc(e.company)+'</span>'
                 ) : '')+
               (e.fund ? '<span class="client-card-tag client-card-tag-fund">公积金: '+esc(e.fund)+'</span>' : '')+
@@ -3543,7 +3598,7 @@ export default {
         '<td data-label="电话" style="padding: 10px 8px; white-space: nowrap;"><a class="client-phone" href="tel:'+esc(c.phone)+'" data-full="'+esc(c.phone)+'">'+esc(maskPhone(c.phone))+'</a><button class="phone-toggle" style="background:none;border:none;margin-left:4px;cursor:pointer;opacity:0.5;" title="显示号码">看</button></td>'+
                 '<td data-label="单位" style="padding: 10px 8px;">' + (
           company !== '-' && whitelistSet.has(String(company).trim().toLowerCase())
-            ? '<span class="tbl-tag tbl-tag-company" style="background:var(--accent-wechat-bg); color:var(--accent-wechat); border-color:var(--accent-wechat);">✓ ' + esc(company) + '</span>'
+            ? '<span class="tbl-tag tbl-tag-company" style="background:var(--accent-wechat-bg); color:var(--accent-wechat); border-color:var(--accent-wechat);">' + esc(whitelistMap.get(String(company).trim().toLowerCase())) + ': ' + esc(company) + '</span>'
             : esc(company)
         ) + '</td>'+
         '<td data-label="公积金" style="padding: 10px 8px;">'+esc(fund)+'</td>'+

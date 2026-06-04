@@ -32,11 +32,12 @@ export function createSupabaseClient(env) {
     // Normalize: accept both string[] and object[]
     const rows = companies.map(function(c) {
       if (typeof c === 'string') {
-        return { company_name: c.trim() };
+        return { company_name: c.trim(), bank_name: '建行建易贷' };
       }
       return {
         company_name: (c.company_name || '').trim(),
-        alias: c.alias || null
+        alias: c.alias || null,
+        bank_name: c.bank_name || '建行建易贷'
       };
     }).filter(function(r) {
       return r.company_name.length > 0;
@@ -73,7 +74,7 @@ export function createSupabaseClient(env) {
     if (!baseUrl || !key) return [];
 
     const resp = await fetch(
-      baseUrl + '/rest/v1/whitelist_companies?select=id,company_name,alias,created_at&order=company_name.asc',
+      baseUrl + '/rest/v1/whitelist_companies?select=id,company_name,alias,bank_name,created_at&order=company_name.asc',
       { headers: headers() }
     );
 
