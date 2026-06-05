@@ -815,6 +815,147 @@ export default {
       });
     }
 
+    // 0.7 Siri Shortcuts Download API
+    if (path === '/api/siri/download' && request.method === 'GET') {
+      try {
+        const siriKey = await env.DATA_KV.get('config:siri_key') || 'siri_default_123';
+        const origin = url.origin || `${url.protocol}//${url.host}`;
+        const queryUrl = `${origin}/api/siri?key=${encodeURIComponent(siriKey)}&query=`;
+        const queryUrlLen = queryUrl.length;
+        
+        const plistXml = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>WFWorkflowActions</key>
+	<array>
+		<dict>
+			<key>WFWorkflowActionIdentifier</key>
+			<string>is.workflow.actions.ask</string>
+			<key>WFWorkflowActionParameters</key>
+			<dict>
+				<key>UUID</key>
+				<string>A1B2C3D4-E5F6-47A8-B9C0-D1E2F3A4B5C6</string>
+				<key>WFAskActionPrompt</key>
+				<string>你想对 AI 助手说什么？</string>
+				<key>WFInputType</key>
+				<string>Text</string>
+			</dict>
+		</dict>
+		<dict>
+			<key>WFWorkflowActionIdentifier</key>
+			<string>is.workflow.actions.downloadurl</string>
+			<key>WFWorkflowActionParameters</key>
+			<dict>
+				<key>UUID</key>
+				<string>B2C3D4E5-F6A7-48B9-C0D1-E2F3A4B5C6D7</string>
+				<key>WFURL</key>
+				<dict>
+					<key>Value</key>
+					<dict>
+						<key>attachmentsByRange</key>
+						<dict>
+							<key>{${queryUrlLen}, 1}</key>
+							<dict>
+								<key>OutputName</key>
+								<string>要求输入</string>
+								<key>OutputUUID</key>
+								<string>A1B2C3D4-E5F6-47A8-B9C0-D1E2F3A4B5C6</string>
+								<key>Type</key>
+								<string>ActionOutput</string>
+							</dict>
+						</dict>
+						<key>string</key>
+						<string>${queryUrl.replace(/&/g, '&amp;')}\\uFFFC</string>
+					</dict>
+					<key>WFSerializationType</key>
+					<string>WFTextTokenString</string>
+				</dict>
+				<key>WFHTTPMethod</key>
+				<string>GET</string>
+			</dict>
+		</dict>
+		<dict>
+			<key>WFWorkflowActionIdentifier</key>
+			<string>is.workflow.actions.getvalueforkey</string>
+			<key>WFWorkflowActionParameters</key>
+			<dict>
+				<key>UUID</key>
+				<string>C3D4E5F6-A7B8-49C0-D1E2-F3A4B5C6D7E8</string>
+				<key>WFGetDictionaryValueKey</key>
+				<string>reply</string>
+				<key>WFInput</key>
+				<dict>
+					<key>Value</key>
+					<dict>
+						<key>OutputName</key>
+						<string>URL 的内容</string>
+						<key>OutputUUID</key>
+						<string>B2C3D4E5-F6A7-48B9-C0D1-E2F3A4B5C6D7</string>
+						<key>Type</key>
+						<string>ActionOutput</string>
+					</dict>
+					<key>WFSerializationType</key>
+					<string>WFTextTokenAttachment</string>
+				</dict>
+			</dict>
+		</dict>
+		<dict>
+			<key>WFWorkflowActionIdentifier</key>
+			<string>is.workflow.actions.speaktext</string>
+			<key>WFWorkflowActionParameters</key>
+			<dict>
+				<key>WFSpeakTextText</key>
+				<dict>
+					<key>Value</key>
+					<dict>
+						<key>attachmentsByRange</key>
+						<dict>
+							<key>{0, 1}</key>
+							<dict>
+								<key>OutputName</key>
+								<string>词典值</string>
+								<key>OutputUUID</key>
+								<string>C3D4E5F6-A7B8-49C0-D1E2-F3A4B5C6D7E8</string>
+								<key>Type</key>
+								<string>ActionOutput</string>
+							</dict>
+						</dict>
+						<key>string</key>
+						<string>\\uFFFC</string>
+					</dict>
+					<key>WFSerializationType</key>
+					<string>WFTextTokenString</string>
+				</dict>
+			</dict>
+		</dict>
+	</array>
+	<key>WFWorkflowClientVersion</key>
+	<string>1200</string>
+	<key>WFWorkflowClientRelease</key>
+	<string>2.1.2</string>
+	<key>WFWorkflowInputContentItemClasses</key>
+	<array>
+		<string>WFStringContentItem</string>
+	</array>
+</dict>
+</plist>`.replace(/\\uFFFC/g, '\uFFFC');
+
+        return new Response(plistXml, {
+          headers: {
+            'Content-Type': 'application/x-apple-aspen-config; charset=utf-8',
+            'Content-Disposition': 'attachment; filename="AskAI.shortcut"',
+            'Access-Control-Allow-Origin': '*'
+          }
+        });
+      } catch (err) {
+        return new Response(JSON.stringify({ error: err.message }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+    }
+
     // 0.6 Siri Shortcuts API
     if (path === '/api/siri' && (request.method === 'GET' || request.method === 'POST')) {
       try {
@@ -2664,9 +2805,15 @@ export default {
           <input type="text" class="input-simple" id="siriKeyInput" placeholder="Siri 认证密钥 (默认: siri_default_123)" style="font-size:0.7rem; height:28px; padding:0 8px;">
           <button id="saveSiriKeyBtn" class="btn-add" style="font-size:0.7rem; height:28px; margin:0; background:linear-gradient(135deg,#ff9966,#ff5e62); color:white; border:none; width:100%;">💾 保存密钥</button>
           
+          <button id="downloadSiriShortcutBtn" class="btn-secondary" style="font-size:0.7rem; height:28px; margin:0; background:var(--btn-bg); color:var(--text-main); border:1px solid var(--card-border); border-radius:var(--radius-xs); cursor:pointer; width:100%; font-weight:700;">📥 一键下载快捷指令文件 (.shortcut)</button>
+
           <div id="siriConfigStatus" style="font-size:0.62rem; padding:6px; border-radius:4px; background:var(--btn-bg); display:none; line-height:1.5;"></div>
 
           <div style="font-size:0.6rem; color:var(--text-light); line-height:1.4; margin-top:4px;">
+            <strong style="color:var(--accent-orange);">💡 快捷指令导入提示：</strong><br>
+            由于苹果 iOS 15 及以上系统的安全机制，直接下载的 <code>.shortcut</code> 文件在手机上打开时可能会提示“未签名”而无法直接导入。如果您遇到此问题：<br>
+            - <strong>推荐做法：</strong>直接使用下方极其简单的 <strong>30秒极速手动配置步骤</strong> 即可配置完成。<br>
+            - <strong>极客做法：</strong>可在 Mac 上使用终端命令 <code>shortcuts sign</code> 签名后再导入，或在已越狱设备上使用插件导入。<br><br>
             <strong>🎙️ 苹果 iOS 快捷指令配置步骤：</strong><br>
             ① 点击“保存密钥”将配置写入云端。<br>
             ② 打开 iPhone 的 **快捷指令** (Shortcuts) App。<br>
@@ -4755,6 +4902,12 @@ const rid=Math.floor(Math.random()*1000);
         statusEl.innerHTML = '❌ 同步失败: ' + e.message;
         statusEl.style.color = '#e53935';
       }
+    });
+
+    // Download Siri Shortcut File
+    document.getElementById('downloadSiriShortcutBtn').addEventListener('click', () => {
+      const siriKey = document.getElementById('siriKeyInput').value.trim() || 'siri_default_123';
+      window.open(window.location.origin + '/api/siri/download?key=' + encodeURIComponent(siriKey), '_blank');
     });
 
     async function doExport(type){
