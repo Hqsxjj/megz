@@ -2573,15 +2573,46 @@ export default {
               const headerRow = rows[0] || [];
               let targetColIndex = -1;
               let opColIndex = -1;
-              const keywords = ["公司", "单位", "企业", "名称", "白名单", "公司名称", "企业名称", "简称"];
+              const exactKeywords = ["单位全称", "公司名称", "企业名称", "单位名称", "公司全称", "企业全称"];
+              const secondaryKeywords = ["公司", "单位", "企业", "名称", "白名单", "简称"];
+              const excludeKeywords = ["行业", "性质", "账号", "代码", "等级", "类别", "类型"];
 
+              // First try exact match
               for (let i = 0; i < headerRow.length; i++) {
                 const val = String(headerRow[i] || '').trim();
-                if (keywords.some(kw => val.includes(kw))) {
+                if (exactKeywords.includes(val)) {
                   targetColIndex = i;
+                  break;
                 }
-                if (val.includes("操作") || val.includes("状态")) {
+              }
+
+              // If not found, try secondary keywords excluding noise columns
+              if (targetColIndex === -1) {
+                for (let i = 0; i < headerRow.length; i++) {
+                  const val = String(headerRow[i] || '').trim();
+                  const hasExclude = excludeKeywords.some(ex => val.includes(ex));
+                  if (!hasExclude && secondaryKeywords.some(kw => val.includes(kw))) {
+                    targetColIndex = i;
+                    break;
+                  }
+                }
+              }
+
+              // Find operation / status column (prefer "操作" over "状态")
+              for (let i = 0; i < headerRow.length; i++) {
+                const val = String(headerRow[i] || '').trim();
+                if (val.includes("操作")) {
                   opColIndex = i;
+                  break;
+                }
+              }
+              if (opColIndex === -1) {
+                for (let i = 0; i < headerRow.length; i++) {
+                  const val = String(headerRow[i] || '').trim();
+                  if (val.includes("状态")) {
+                    opColIndex = i;
+                    break;
+                  }
                 }
               }
 
