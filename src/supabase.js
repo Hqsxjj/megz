@@ -126,9 +126,16 @@ export function createSupabaseClient(env) {
     // Build a Set of lowercased company names for O(1) lookup
     var lookup = {};
     whitelist.forEach(function(entry) {
+      if (entry.status === '已失效' || entry.status === '已删除') {
+        return;
+      }
       var name = (entry.company_name || '').toLowerCase().trim();
       if (name) {
         lookup[name] = entry;
+      }
+      var alias = (entry.alias || '').toLowerCase().trim();
+      if (alias) {
+        lookup[alias] = entry;
       }
     });
 

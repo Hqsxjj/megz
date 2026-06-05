@@ -3032,6 +3032,9 @@ export default {
           }
         }
       }
+    if (val && (val.status === '已失效' || val.status === '已删除')) {
+      matchedName = null;
+      val = null;
     }
 
     if (!matchedName || !val) {

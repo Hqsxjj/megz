@@ -2773,6 +2773,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
       // 1. Try exact match first
       for (var i = 0; i < whitelistCompanies.length; i++) {
         var w = whitelistCompanies[i];
+        if (w.status === '已失效' || w.status === '已删除') continue;
         var name = (w.company_name || '').trim().toLowerCase();
         var alias = (w.alias || '').trim().toLowerCase();
         if (name === key || (alias && alias === key)) {
@@ -2785,6 +2786,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
       if (cleanCard.length >= 2) {
         for (var i = 0; i < whitelistCompanies.length; i++) {
           var w = whitelistCompanies[i];
+          if (w.status === '已失效' || w.status === '已删除') continue;
           var name = (w.company_name || '').trim().toLowerCase();
           var alias = (w.alias || '').trim().toLowerCase();
           
