@@ -815,6 +815,131 @@ export default {
       });
     }
 
+    // 0.6 Siri Shortcuts API
+    if (path === '/api/siri' && (request.method === 'GET' || request.method === 'POST')) {
+      try {
+        let query = '';
+        if (request.method === 'GET') {
+          query = url.searchParams.get('query') || url.searchParams.get('text') || '';
+        } else {
+          try {
+            const body = await request.json();
+            query = body.query || body.text || '';
+          } catch (e) {
+            query = '';
+          }
+        }
+
+        if (!query || !query.trim()) {
+          return new Response(JSON.stringify({ error: '缺少查询文本 query 参数' }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+
+        const trimmedQuery = query.trim();
+
+        // 验证密钥
+        const siriKey = await env.DATA_KV.get('config:siri_key') || 'siri_default_123';
+        const clientKey = url.searchParams.get('key') || request.headers.get('x-siri-key');
+        if (clientKey !== siriKey) {
+          return new Response(JSON.stringify({ error: '密钥验证失败，请核对快捷指令配置' }), {
+            status: 401,
+            headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+
+        const hasKey = await env.DATA_KV.get('config:ai_api_key') || await env.DATA_KV.get('config:deepseek_api_key') || env.AI_API_KEY || env.DEEPSEEK_API_KEY;
+        if (!hasKey) {
+          return new Response(JSON.stringify({ reply: '后端未配置大模型 API Key，请先登录网页端配置。' }), {
+            headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+
+        let contextText = '';
+        try {
+          const lowerContent = trimmedQuery.toLowerCase();
+          // 1. 检索今日工作登记与意向客户
+          if (lowerContent.includes('客户') || lowerContent.includes('意向') || lowerContent.includes('登记') || lowerContent.includes('今天') || lowerContent.includes('工作') || lowerContent.includes('汇报')) {
+            const d = new Date(Date.now() + 8 * 3600000);
+            const todayDate = d.toISOString().split('T')[0];
+            const raw = await env.DATA_KV.get(`work:${todayDate}`);
+            if (raw) {
+              const parsed = JSON.parse(raw);
+              contextText += `\n[今日工作登记与意向客户数据] (日期: ${todayDate}):\n` +
+                `- 今日微信数: ${parsed.wechatCount || 0}\n` +
+                `- 今日回访数: ${parsed.revisitCount || 0}\n` +
+                `- 今日上门数: ${parsed.visitCount || 0}\n` +
+                `- 今日回款数: ${parsed.paymentCount || 0}\n` +
+                `- 登记的意向客户列表:\n` +
+                (parsed.clients && parsed.clients.length > 0 ?
+                  parsed.clients.map((c, idx) => `  ${idx + 1}. 姓名: ${c.name} | 电话: ${c.phone} | 登记时间: ${c.time || ''} | 跟进/备注: ${c.note || '无'}`).join('\n') :
+                  '  (暂无意向客户)') + '\n';
+            }
+          }
+          // 2. 检查公司白名单准入
+          if (lowerContent.includes('白名单') || lowerContent.includes('公司') || lowerContent.includes('单位') || lowerContent.includes('白') || (trimmedQuery.length >= 4 && !trimmedQuery.includes('/'))) {
+            const cleanQuery = trimmedQuery.replace(/(查一下|查询|白名单|公司|是不是|在不在|白名单里有|有)/g, '').trim();
+            if (cleanQuery.length >= 2) {
+              const whitelistRes = await supabase.checkCompanies([cleanQuery]);
+              if (whitelistRes && whitelistRes.length > 0) {
+                contextText += `\n[企业白名单准入核对结果]:\n` +
+                  whitelistRes.map(r => `- 公司名: ${r.matchedName} | 状态: ${r.isMatch ? '✅ 已准入白名单' : '❌ 未准入'} | 准入银行: ${r.bank_name || '建行建易贷'} | 名单状态: ${r.status || '正常'}`).join('\n') + '\n';
+              }
+            }
+          }
+          // 3. 搜索客户档案
+          if (lowerContent.includes('查客户') || lowerContent.includes('搜索客户') || lowerContent.includes('客户档案') || (trimmedQuery.length >= 2 && trimmedQuery.length <= 4 && !lowerContent.includes('今天') && !lowerContent.includes('昨天') && !lowerContent.includes('白名单'))) {
+            const cleanQuery = trimmedQuery.replace(/(查客户|搜索客户|查询客户|客户|档案|是)/g, '').trim();
+            if (cleanQuery.length >= 1) {
+              const customerRes = await supabase.searchCustomers(cleanQuery);
+              if (customerRes && customerRes.length > 0) {
+                contextText += `\n[客户档案检索结果]:\n` +
+                  customerRes.map(c => `- 姓名: ${c.name} | 电话: ${c.mobile || '—'} | 公司: ${c.company_name || '—'} | 标签: ${c.tags ? c.tags.join(',') : '无'} | 备注/跟进记录: ${c.note || '无'}`).join('\n') + '\n';
+              }
+            }
+          }
+        } catch (prefErr) {
+          console.error('[Siri Prefetch Error]:', prefErr);
+        }
+
+        const bjTime = new Date(Date.now() + 8 * 3600000).toISOString().replace('T', ' ').substring(0, 19);
+        let systemPrompt = `你是一个专业的苹果 Siri 语音助手。当前北京时间是 ${bjTime}。\n`;
+        if (contextText) {
+          systemPrompt += `\n系统已为您预先检索了与当前问题相关的实时数据库内容：\n${contextText}\n你可以直接使用以上数据回答用户。若以上检索到的信息足够回答，请结合它们给用户做出最详细 and 准确的解答。\n`;
+        }
+        systemPrompt += `如果你需要检索其它日期、更深入搜索客户档案、核对公司白名单、检索话术与知识库，请直接通过 tool_calls 调用相关函数。请回复简洁、流畅的纯文本，适合 Siri 语音播放（尽量减少复杂格式和排版，但保留关键信息，回答长度控制在 150 字以内最佳）。`;
+
+        const apiData = await callAIChatWithTools(env, [
+          {
+            role: 'system',
+            content: systemPrompt
+          },
+          {
+            role: 'user',
+            content: trimmedQuery
+          }
+        ], 0.5, 'SiriUser');
+
+        const reply = apiData.choices[0].message.content.trim();
+        return new Response(JSON.stringify({ reply: reply }), {
+          headers: {
+            'Content-Type': 'application/json; charset=UTF-8',
+            'Access-Control-Allow-Origin': '*'
+          }
+        });
+      } catch (err) {
+        console.error('[Siri Endpoint Error]:', err);
+        return new Response(JSON.stringify({ error: err.message }), {
+          status: 500,
+          headers: {
+            'Content-Type': 'application/json; charset=UTF-8',
+            'Access-Control-Allow-Origin': '*'
+          }
+        });
+      }
+    }
+
     // ==================== BHP 拨号器接口与页面并入 ====================
     
     // 1. 获取拨号器数据
@@ -1210,6 +1335,9 @@ export default {
           break;
         case 'setGoals':
           await env.DATA_KV.put('config:goals', JSON.stringify(body.goals || {}));
+          break;
+        case 'setSiriKey':
+          await env.DATA_KV.put('config:siri_key', body.siriKey || '');
           break;
         default:
           return new Response(JSON.stringify({ error: '未知操作: ' + op }), {
@@ -2526,6 +2654,29 @@ export default {
             ② 点击"测试连接"确认配置已生效（若配置了 Secret，将执行 API 连通性测试）<br>
             ③ 再到企业微信后台填入下面的 URL 并保存<br><br>
             <strong>回调 URL:</strong> <span id="wecomCallbackUrlDisplay" style="user-select:all; background:var(--btn-bg); padding:1px 3px; border-radius:3px; word-break:break-all;"></span>
+          </div>
+        </div>
+      </details>
+
+      <details style="margin-top:10px; border:1px dashed var(--card-border); border-radius:var(--radius-xs); padding:8px; background:rgba(120,120,120,0.02);">
+        <summary style="font-size:0.75rem; color:var(--text-soft); cursor:pointer; font-weight:700; outline:none; user-select:none;">🎙️ Siri 语音快捷指令配置</summary>
+        <div style="display:flex; flex-direction:column; gap:8px; margin-top:8px;">
+          <input type="text" class="input-simple" id="siriKeyInput" placeholder="Siri 认证密钥 (默认: siri_default_123)" style="font-size:0.7rem; height:28px; padding:0 8px;">
+          <button id="saveSiriKeyBtn" class="btn-add" style="font-size:0.7rem; height:28px; margin:0; background:linear-gradient(135deg,#ff9966,#ff5e62); color:white; border:none; width:100%;">💾 保存密钥</button>
+          
+          <div id="siriConfigStatus" style="font-size:0.62rem; padding:6px; border-radius:4px; background:var(--btn-bg); display:none; line-height:1.5;"></div>
+
+          <div style="font-size:0.6rem; color:var(--text-light); line-height:1.4; margin-top:4px;">
+            <strong>🎙️ 苹果 iOS 快捷指令配置步骤：</strong><br>
+            ① 点击“保存密钥”将配置写入云端。<br>
+            ② 打开 iPhone 的 **快捷指令** (Shortcuts) App。<br>
+            ③ 新建快捷指令：<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;- 动作 1：<code>要求输入</code> -> 文本（如“你想对 AI 助手说什么？”）<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;- 动作 2：<code>获取 URL 内容</code> -> 填入下方的 API 地址，并以 <code>GET</code> 方式请求，拼接参数如下：<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<code>&lt;API地址&gt;&amp;query=&lt;输入的文本&gt;</code><br>
+            &nbsp;&nbsp;&nbsp;&nbsp;- 动作 3：<code>获取词典值</code> -> 键填入 <code>reply</code>，对象选择为“URL 的内容”<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;- 动作 4：<code>朗读文本</code> -> 填入上面的“词典值”<br><br>
+            <strong>API 基础地址:</strong> <span id="siriApiUrlDisplay" style="user-select:all; background:var(--btn-bg); padding:1px 3px; border-radius:3px; word-break:break-all;"></span>
           </div>
         </div>
       </details>
@@ -4464,6 +4615,10 @@ const rid=Math.floor(Math.random()*1000);
       document.getElementById('wecomApiProxyInput').value=localStorage.getItem('wecom_api_proxy')||'';
       document.getElementById('wecomCallbackUrlDisplay').innerText = window.location.origin + '/api/wecom/callback';
 
+      // Load Siri Key
+      document.getElementById('siriKeyInput').value=localStorage.getItem('siri_key')||'siri_default_123';
+      document.getElementById('siriApiUrlDisplay').innerText = window.location.origin + '/api/siri?key=' + (localStorage.getItem('siri_key')||'siri_default_123');
+
       document.getElementById('exportModal').classList.add('active');
     });
     document.getElementById('closeExportModalBtn').addEventListener('click',()=>document.getElementById('exportModal').classList.remove('active'));
@@ -4571,6 +4726,33 @@ const rid=Math.floor(Math.random()*1000);
         statusEl.innerHTML = html;
       } catch (e) {
         statusEl.innerHTML = '❌ 检测请求失败: ' + e.message;
+        statusEl.style.color = '#e53935';
+      }
+    });
+
+    // Save Siri Key
+    document.getElementById('saveSiriKeyBtn').addEventListener('click', async ()=>{
+      const siriKey = document.getElementById('siriKeyInput').value.trim();
+      const statusEl = document.getElementById('siriConfigStatus');
+      if (!siriKey) {
+        statusEl.style.display = 'block';
+        statusEl.innerHTML = '❌ 密钥不能为空';
+        statusEl.style.color = '#e53935';
+        return;
+      }
+      statusEl.style.display = 'block';
+      statusEl.innerHTML = '⏳ 正在保存密钥到云端...';
+      statusEl.style.color = 'var(--text-soft)';
+      
+      localStorage.setItem('siri_key', siriKey);
+      document.getElementById('siriApiUrlDisplay').innerText = window.location.origin + '/api/siri?key=' + siriKey;
+
+      try {
+        await syncOp('setSiriKey', { siriKey: siriKey });
+        statusEl.innerHTML = '✅ Siri 密钥已保存并同步！';
+        statusEl.style.color = '#43a047';
+      } catch (e) {
+        statusEl.innerHTML = '❌ 同步失败: ' + e.message;
         statusEl.style.color = '#e53935';
       }
     });
