@@ -4053,7 +4053,7 @@ const rid=Math.floor(Math.random()*1000);
       statusEl.innerHTML = '⏳ 正在检测云端配置...';
       statusEl.style.color = 'var(--text-soft)';
       try {
-        const resp = await fetch(API_BASE + '/api/wecom/debug');
+        const resp = await fetch('/api/wecom/debug');
         const data = await resp.json();
         let html = '<strong>🔍 云端配置检测结果：</strong><br>';
         html += 'Corp ID: ' + data.effective.corpId + '<br>';
