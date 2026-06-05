@@ -920,8 +920,8 @@ export const DIALER_HTML = `<!DOCTYPE html>
         </select>
         <select id="whitelistFilterSelect" style="height: 28px; font-size: 0.68rem; border: 1px solid var(--card-border); border-radius: var(--radius-xs); background: var(--btn-bg); color: var(--text-soft); font-weight: 800; outline: none; padding: 0 4px; cursor: pointer; flex-shrink: 0; width: 85px;">
           <option value="all">白名单筛选</option>
-          <option value="yes">✔ 白名单</option>
-          <option value="no">✘ 非白名单</option>
+          <option value="yes">白名单</option>
+          <option value="no">非白名单</option>
         </select>
         <button id="whitelistCheckBtn" title="对照白名单检查客户单位" style="height:28px; padding:0 8px; font-size:0.65rem; border:1px solid var(--accent-wechat); background:var(--accent-wechat-bg); color:var(--accent-wechat); border-radius:var(--radius-xs); cursor:pointer; font-weight:800; outline:none; white-space:nowrap; flex-shrink:0;">☑ 白名单</button>
         <div class="filter-group" style="flex-shrink: 0;">
@@ -2939,15 +2939,9 @@ export const DIALER_HTML = `<!DOCTYPE html>
               var matchedWl = matchWhitelistCompany(c.company);
               if (matchedWl) {
                 var bank = matchedWl.bank_name || '建行建易贷';
-                var status = matchedWl.status || '正常';
-                if (status === '已失效') {
-                  return '<span class="client-card-tag xls-dial-badge-not-whitelist" style="background:rgba(120,120,120,0.15) !important; color:#7f8c8d !important; border-color:rgba(120,120,120,0.25) !important;">✔ ' + esc(bank) + '(已失效)</span>';
-                } else if (status === '已删除') {
-                  return '<span class="client-card-tag xls-dial-badge-not-whitelist" style="background:rgba(231,76,60,0.15) !important; color:#e74c3c !important; border-color:rgba(231,76,60,0.25) !important;">✔ ' + esc(bank) + '(已删除)</span>';
-                }
-                return '<span class="client-card-tag xls-dial-badge-whitelist">✔ ' + esc(bank) + '</span>';
+                return '<span class="client-card-tag xls-dial-badge-whitelist">' + esc(bank) + '</span>';
               }
-              return whitelistLoaded ? '<span class="client-card-tag xls-dial-badge-not-whitelist">✘ 非白名单</span>' : '';
+              return '';
             })() +
           '</div>' +
           (c.note ? 

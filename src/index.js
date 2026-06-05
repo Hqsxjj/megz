@@ -2614,11 +2614,11 @@ export default {
       <div class="left-area">
         <div class="card" style="position: relative; z-index: 10; overflow: visible;">
           <div class="card-title" style="display:flex; justify-content:space-between; align-items:center;">
-            <span>白名单快捷查询</span>
-            <span style="font-size:0.6rem; color:var(--text-soft); font-weight:normal;" id="mainWlStatus">建行建易贷</span>
+            <span style="font-size:0.72rem;">白名单快捷查询</span>
+            <span style="font-size:0.55rem; color:var(--text-soft); font-weight:normal;" id="mainWlStatus">建行建易贷</span>
           </div>
           <div class="register-block" style="position: relative;">
-            <input type="text" class="input-simple" id="mainWlSearchInput" placeholder="🔍 输入企业名称进行模糊搜索..." autocomplete="off" style="width:100%; box-sizing:border-box;">
+            <input type="text" class="input-simple" id="mainWlSearchInput" placeholder="🔍 输入企业名称进行模糊搜索..." autocomplete="off" style="width:100%; box-sizing:border-box; padding:10px 12px; height:38px; font-size:0.72rem;">
             <div id="mainWlSearchResults" style="display:none; position:absolute; top:calc(100% + 4px); left:0; right:0; background:var(--card-bg); border:1px solid var(--card-border); border-radius:var(--radius-xs); box-shadow:var(--shadow-md); z-index:100; max-height:180px; overflow-y:auto; padding:4px; flex-direction:column; gap:4px; text-align:left; box-sizing:border-box;"></div>
           </div>
         </div>
@@ -3493,9 +3493,9 @@ export default {
               label = bank + '(已删除)';
               badgeStyle = 'background:rgba(231,76,60,0.1); color:#e74c3c;';
             }
-            return '<div style="display:flex; justify-content:space-between; align-items:center; padding:6px 8px; border-bottom:1px dashed var(--card-border); background:var(--btn-bg); border-radius:3px; cursor:pointer;" data-company="' + esc(c.company_name) + '" onclick="document.getElementById(\\\'custCompany\\\').value=this.dataset.company; document.getElementById(\\\'mainWlSearchResults\\\').style.display=\\\'none\\\';">' +
-              '<span style="font-weight:700; color:var(--text-main); font-size:0.7rem;">' + esc(c.company_name) + '</span>' +
-              '<span style="font-size:0.6rem; ' + badgeStyle + ' padding:1px 5px; border-radius:3px; font-weight:700; white-space:nowrap; margin-left:8px;">' + esc(label) + '</span>' +
+            return '<div style="display:flex; justify-content:space-between; align-items:center; padding:4px 6px; border-bottom:1px dashed var(--card-border); background:var(--btn-bg); border-radius:3px; cursor:pointer;" data-company="' + esc(c.company_name) + '" onclick="document.getElementById(\\\'custCompany\\\').value=this.dataset.company; document.getElementById(\\\'mainWlSearchResults\\\').style.display=\\\'none\\\';">' +
+              '<span style="font-weight:700; color:var(--text-main); font-size:0.62rem;">' + esc(c.company_name) + '</span>' +
+              '<span style="font-size:0.52rem; ' + badgeStyle + ' padding:1px 4px; border-radius:3px; font-weight:700; white-space:nowrap; margin-left:8px;">' + esc(label) + '</span>' +
               '</div>';
           }).join('');
         }
