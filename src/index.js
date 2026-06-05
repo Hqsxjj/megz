@@ -214,6 +214,54 @@ async function callAIChatWithTools(env, messages, temperature = 0.5) {
           required: ["query"]
         }
       }
+    },
+    {
+      type: "function",
+      function: {
+        name: "export_data",
+        description: "将统计数据或指定的意向客户导出推送到配置好的企业微信群机器人（Webhook）。可以导出本周数据、本月数据、全量客户，或者导出某位具体客户。",
+        parameters: {
+          type: "object",
+          properties: {
+            export_type: {
+              type: "string",
+              description: "导出数据类型。可选值: week (本周数据), month (本月数据), all_clients (合并发送全量客户表), all_clients_solo (逐条发送全量客户), single_client (导出指定客户的详细资料)",
+              enum: ["week", "month", "all_clients", "all_clients_solo", "single_client"]
+            },
+            client_query: {
+              type: "string",
+              description: "导出单个客户资料时的搜索词 (仅当 export_type 是 single_client 时生效，例如客户的姓名或电话)"
+            }
+          },
+          required: ["export_type"]
+        }
+      }
+    },
+    {
+      type: "function",
+      function: {
+        name: "add_learning_material",
+        description: "将销售原始素材（如微信聊天记录、电话录音转写文本、经典客户案例、企业政策等）进行AI提炼，并将其分类保存到学习管理知识库（Supabase）和今日锁屏背诵列表（KV）中。",
+        parameters: {
+          type: "object",
+          properties: {
+            source_type: {
+              type: "string",
+              description: "资料来源类型",
+              enum: ["微信聊天", "电话录音", "客户案例", "企业资料"]
+            },
+            content: {
+              type: "string",
+              description: "需要被提炼的原始文本材料"
+            },
+            show: {
+              type: "boolean",
+              description: "是否在锁屏上显示，默认为 true"
+            }
+          },
+          required: ["source_type", "content"]
+        }
+      }
     }
   ];
 
@@ -279,6 +327,304 @@ async function callAIChatWithTools(env, messages, temperature = 0.5) {
             getSupabase().searchLoanCases(functionArgs.query)
           ]);
           resultData = { knowledges, speechs, cases };
+        } else if (functionName === 'export_data') {
+          const webhookUrl = await env.DATA_KV.get('config:webhook_url');
+          if (!webhookUrl) {
+            resultData = { error: '企业微信群 Webhook URL 未设置，请先在网页端配置。' };
+          } else {
+            const type = functionArgs.export_type;
+            if (type === 'single_client') {
+              const query = functionArgs.client_query;
+              if (!query) {
+                resultData = { error: '导出单个客户需要提供 client_query 参数！' };
+              } else {
+                const keys = await getAllKVKeys(env, 'work:');
+                const keyValues = await getKVValuesConcurrently(env, keys);
+                const allClients = [];
+                for (const kv of keyValues) {
+                  if (kv.val) {
+                    try {
+                      const d = JSON.parse(kv.val);
+                      if (d.clients) {
+                        d.clients.forEach(c => {
+                          allClients.push({ ...c, date: c.date || kv.name.replace('work:', '') });
+                        });
+                      }
+                    } catch(e) {}
+                  }
+                }
+                const client = allClients.find(c =>
+                  (c.name && c.name.includes(query)) ||
+                  (c.phone && c.phone.includes(query))
+                );
+                if (!client) {
+                  resultData = { error: `未找到匹配“${query}”的意向客户` };
+                } else {
+                  const weekNames = ['日', '一', '二', '三', '四', '五', '六'];
+                  const datePart = (client.date || '').slice(5);
+                  const wk = client.date ? ' 周' + weekNames[new Date(client.date + 'T00:00:00').getDay()] : '';
+                  
+                  let text = '> 姓名：' + client.name + '\n';
+                  text += '> 日期: ' + datePart + wk + ' | 时间: ' + (client.time || '—') + '\n';
+                  text += '> 电话: ' + (client.phone || '—') + '\n';
+                  text += '> 单位: ' + (client.company || '—') + ' | 公积金: ' + (client.fund || '—') + '\n';
+                  if (client.note) text += '> 沟通: ' + client.note.replace(/\n/g, ' ') + '\n';
+                  if (client.followUp) text += '> 跟进: ' + client.followUp.replace(/\n/g, ' ') + '\n';
+
+                  const whResp = await fetch(webhookUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ msgtype: 'markdown', markdown: { content: text } })
+                  });
+                  if (whResp.ok) {
+                    resultData = { success: true, message: `已成功导出客户【${client.name}】到企业微信。` };
+                  } else {
+                    resultData = { error: `Webhook 发送失败，接口返回状态码: ${whResp.status}` };
+                  }
+                }
+              }
+            } else if (type === 'all_clients' || type === 'all_clients_solo') {
+              const keys = await getAllKVKeys(env, 'work:');
+              const keyValues = await getKVValuesConcurrently(env, keys);
+              const allClients = [];
+              for (const kv of keyValues) {
+                if (kv.val) {
+                  try {
+                    const d = JSON.parse(kv.val);
+                    if (d.clients) {
+                      d.clients.forEach(c => {
+                        allClients.push({ ...c, date: c.date || kv.name.replace('work:', '') });
+                      });
+                    }
+                  } catch(e) {}
+                }
+              }
+              allClients.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+
+              if (type === 'all_clients') {
+                const weekNames = ['日', '一', '二', '三', '四', '五', '六'];
+                const total = allClients.length;
+                const baseHeader = '### 意向客户全量表\n> 共计 **' + total + '** 位意向客户\n\n---\n\n';
+                const itemFormatter = (c) => {
+                  const datePart = (c.date || '').slice(5);
+                  const wk = c.date ? ' 周' + weekNames[new Date(c.date + 'T00:00:00').getDay()] : '';
+                  let itemText = '> 姓名：' + c.name + '\n';
+                  itemText += '> 日期: ' + datePart + wk + ' | 时间: ' + (c.time || '—') + '\n';
+                  itemText += '> 电话: ' + (c.phone || '—') + '\n';
+                  itemText += '> 单位: ' + (c.company || '—') + ' | 公积金: ' + (c.fund || '—') + '\n';
+                  if (c.note) itemText += '> 沟通: ' + c.note.replace(/\n/g, ' ') + '\n';
+                  if (c.followUp) itemText += '> 跟进: ' + c.followUp.replace(/\n/g, ' ') + '\n';
+                  itemText += '\n';
+                  return itemText;
+                };
+
+                await sendWebhookMarkdown(webhookUrl, baseHeader, allClients, itemFormatter);
+                resultData = { success: true, message: `已成功合并导出全部共 ${total} 位意向客户到企业微信。` };
+              } else {
+                const weekNames = ['日', '一', '二', '三', '四', '五', '六'];
+                const buildText = (c) => {
+                  const datePart = (c.date || '').slice(5);
+                  const wk = c.date ? ' 周' + weekNames[new Date(c.date + 'T00:00:00').getDay()] : '';
+                  let text = '> 姓名：' + c.name + '\n';
+                  text += '> 日期: ' + datePart + wk + ' | 时间: ' + (c.time || '—') + '\n';
+                  text += '> 电话: ' + (c.phone || '—') + '\n';
+                  text += '> 单位: ' + (c.company || '—') + ' | 公积金: ' + (c.fund || '—') + '\n';
+                  if (c.note) text += '> 沟通: ' + c.note.replace(/\n/g, ' ') + '\n';
+                  if (c.followUp) text += '> 跟进: ' + c.followUp.replace(/\n/g, ' ') + '\n';
+                  return text;
+                };
+
+                let sent = 0, failed = 0;
+                const concurrency = 3;
+                for (let i = 0; i < allClients.length; i += concurrency) {
+                  const batch = allClients.slice(i, i + concurrency);
+                  const results = await Promise.all(batch.map(async (c) => {
+                    try {
+                      const whResp = await fetch(webhookUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ msgtype: 'markdown', markdown: { content: buildText(c) } })
+                      });
+                      if (!whResp.ok) throw new Error();
+                      const body = await whResp.json();
+                      if (body.errcode !== 0) throw new Error();
+                      return true;
+                    } catch(e) { return false; }
+                  }));
+                  for (const r of results) {
+                    if (r) sent++; else failed++;
+                  }
+                }
+                resultData = { success: true, message: `逐条导出完成：共 ${allClients.length} 条，成功 ${sent} 条，失败 ${failed} 条。` };
+              }
+            } else if (type === 'week' || type === 'month') {
+              const today = new Date();
+              const dow = today.getDay();
+              const diff = dow === 0 ? 6 : dow - 1;
+              const mon = new Date(today);
+              mon.setDate(today.getDate() - diff);
+              const monStr = mon.getFullYear() + '-' + String(mon.getMonth()+1).padStart(2,'0') + '-' + String(mon.getDate()).padStart(2,'0');
+              const todayStr = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0') + '-' + String(today.getDate()).padStart(2,'0');
+              const monthPrefix = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0');
+
+              const keys = await getAllKVKeys(env, 'work:' + monthPrefix);
+              const keyValues = await getKVValuesConcurrently(env, keys);
+              let weekW = 0, monthW = 0, weekI = 0, monthI = 0, weekR = 0, monthR = 0;
+              const sorted = [];
+              for (const kv of keyValues) {
+                if (!kv.val) continue;
+                try {
+                  const d = JSON.parse(kv.val);
+                  sorted.push(d);
+                  monthW += d.wechatCount || 0;
+                  monthI += d.intentCount || 0;
+                  monthR += d.revisitCount || 0;
+                  if (d.date >= monStr && d.date <= todayStr) {
+                    weekW += d.wechatCount || 0;
+                    weekI += d.intentCount || 0;
+                    weekR += d.revisitCount || 0;
+                  }
+                } catch(e) {}
+              }
+              sorted.sort((a,b) => (a.date||'').localeCompare(b.date||''));
+
+              const weekNames = ['日', '一', '二', '三', '四', '五', '六'];
+              const title = type === 'week' ? '本周数据统计' : '本月数据统计';
+              const dateRange = type === 'week'
+                ? monStr + ' ～ ' + todayStr
+                : monthPrefix + '-01 ～ ' + todayStr;
+              const wTotal = type === 'week' ? weekW : monthW;
+              const iTotal = type === 'week' ? weekI : monthI;
+              const rTotal = type === 'week' ? weekR : monthR;
+
+              const baseHeader = '### ' + title + '\n' +
+                '> ' + dateRange + '\n\n' +
+                '<font color="info">新增微信：**' + wTotal + '**</font>\n' +
+                '<font color="warning">新增意向：**' + iTotal + '**</font>\n' +
+                '<font color="comment">客户回访：**' + rTotal + '**</font>\n' +
+                (type !== 'week' ? '\n> 本周参考: 微信 **' + weekW + '** | 意向 **' + weekI + '** | 回访 **' + weekR + '**\n' : '') +
+                '\n---\n\n';
+
+              const activeDays = sorted.filter(d => {
+                if (type === 'week' && (d.date < monStr || d.date > todayStr)) return false;
+                return true;
+              });
+
+              const itemFormatter = (d) => {
+                const datePart = d.date.slice(5);
+                const wk = '周' + weekNames[new Date(d.date + 'T00:00:00').getDay()];
+                const w = d.wechatCount || 0;
+                const it = d.intentCount || 0;
+                const r = d.revisitCount || 0;
+                
+                const clients = d.clients || [];
+                let detail = '';
+                if (clients.length > 0) {
+                  detail = clients.map(c => c.name + (c.company ? ' [' + c.company + ']' : '') + (c.fund ? ' {' + c.fund + '}' : '') + (c.note ? ' （' + c.note + '）' : '')).join('\n> ');
+                } else {
+                  detail = '*(无新增意向)*';
+                }
+                
+                let itemText = '**' + datePart + ' ' + wk + '**\n';
+                itemText += '> <font color="info">微信: ' + w + '</font> | <font color="warning">意向: ' + it + '</font> | <font color="comment">回访: ' + r + '</font>\n';
+                itemText += '> ' + detail + '\n\n';
+                return itemText;
+              };
+
+              await sendWebhookMarkdown(webhookUrl, baseHeader, activeDays, itemFormatter);
+              resultData = { success: true, message: `已成功导出${title}数据到企业微信。` };
+            }
+          }
+        } else if (functionName === 'add_learning_material') {
+          const sourceType = functionArgs.source_type;
+          const content = functionArgs.content;
+          const showOnLock = functionArgs.show !== undefined ? functionArgs.show : true;
+
+          const hasKey = await env.DATA_KV.get('config:ai_api_key') || await env.DATA_KV.get('config:deepseek_api_key') || env.AI_API_KEY || env.DEEPSEEK_API_KEY;
+          let parsedResult = null;
+
+          if (!hasKey) {
+            const mockTitles = {
+              '微信聊天': '微信客情维护与意向跟进',
+              '电话录音': '电话触客异议处理技巧',
+              '客户案例': '经典贷款获获实战案例',
+              '企业资料': '银行准入与利息政策详解'
+            };
+            const mockTags = {
+              '微信聊天': ['微信', '跟进'],
+              '电话录音': ['电话', '话术'],
+              '客户案例': ['批贷案例', '建易贷'],
+              '企业资料': ['企业准入', '白名单']
+            };
+            const title = mockTitles[sourceType] || '自主学习提炼';
+            const tags = mockTags[sourceType] || ['学习', '业务知识'];
+            const summary = content.length > 30 ? content.slice(0, 27) + '...' : content;
+            parsedResult = {
+              title: title,
+              summary: summary,
+              content: '（模拟AI提炼）\n' + content,
+              tags: tags,
+              source_type: sourceType
+            };
+          } else {
+            try {
+              const apiData = await callAIChat(env, [
+                {
+                  role: 'system',
+                  content: '你是一个智能贷款销售学习助手。根据用户提供的销售原始材料（微信聊天记录、电话录音文本、客户案例、或企业资料），进行深度提炼，总结出可以直接用于锁屏学习、话术背诵、业务记忆的核心知识。\n\n请必须只输出以下 JSON 格式的字符串（不要包裹 markdown 代码块，如 ```json，只需输出 JSON 本身）：\n{\n  "title": "提炼的知识标题 (15字以内)",\n  "summary": "一句话摘要 (30字以内)",\n  "content": "提炼的核心话术/知识要点 (150字以内)",\n  "tags": ["标签1", "标签2"]\n}'
+                },
+                {
+                  role: 'user',
+                  content: `来源类型: ${sourceType}\n\n内容:\n${content}`
+                }
+              ], 0.3, hasKey);
+
+              let aiContent = apiData.choices[0].message.content.trim();
+              if (aiContent.startsWith('```')) {
+                aiContent = aiContent.replace(/^```json\s*/i, '').replace(/```$/, '').trim();
+              }
+              parsedResult = JSON.parse(aiContent);
+              parsedResult.source_type = sourceType;
+            } catch (aiErr) {
+              parsedResult = {
+                title: '提炼知识 - ' + sourceType,
+                summary: 'AI提炼失败退回',
+                content: content,
+                tags: ['学习'],
+                source_type: sourceType
+              };
+            }
+          }
+
+          // Save to Supabase
+          try {
+            await getSupabase().saveKnowledge(parsedResult);
+          } catch(se) {
+            console.error('[supabase] saveKnowledge error:', se.message);
+          }
+
+          // Save to KV learns array
+          const d = new Date(Date.now() + 8 * 3600000);
+          const todayDate = d.toISOString().split('T')[0];
+          const raw = await env.DATA_KV.get(`work:${todayDate}`);
+          const data = raw ? JSON.parse(raw) : {
+            date: todayDate, wechatCount: 0, intentCount: 0, revisitCount: 0, visitCount: 0, paymentCount: 0, clients: [],
+            todayTodos: [], tomorrowTodos: [], tempClients: [], scripts: [], learns: [], todoLog: []
+          };
+          if (!data.learns) data.learns = [];
+          
+          const newItem = {
+            title: parsedResult.title,
+            summary: parsedResult.summary,
+            content: parsedResult.content,
+            tags: parsedResult.tags,
+            source_type: parsedResult.source_type,
+            show: showOnLock
+          };
+          data.learns.unshift(newItem);
+          await env.DATA_KV.put(`work:${todayDate}`, JSON.stringify(data));
+
+          resultData = { success: true, data: newItem, message: `已成功保存学习内容“${parsedResult.title}”并同步至锁屏展示！` };
         } else {
           resultData = { error: `Unknown tool: ${functionName}` };
         }
