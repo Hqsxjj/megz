@@ -82,6 +82,34 @@ async function sendWeComAppMessage(env, corpId, secret, agentId, touser, content
   return data;
 }
 
+// 发送纯文本消息给企业微信用户（用于回调异步回复）
+async function sendWeComTextMessage(env, corpId, secret, agentId, touser, content) {
+  const token = await getWeComAccessToken(env, corpId, secret);
+  const proxyBase = await env.DATA_KV.get('config:wecom_api_proxy') || 'https://qyapi.weixin.qq.com';
+  const cleanProxy = proxyBase.endsWith('/') ? proxyBase.slice(0, -1) : proxyBase;
+  const msgUrl = `${cleanProxy}/cgi-bin/message/send?access_token=${token}`;
+  const body = {
+    touser: touser || '@all',
+    msgtype: 'text',
+    agentid: Number(agentId),
+    text: { content: content },
+    enable_duplicate_check: 0
+  };
+  const resp = await fetch(msgUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  if (!resp.ok) {
+    throw new Error(`发送文本消息失败，HTTP 状态：${resp.status}`);
+  }
+  const data = await resp.json();
+  if (data.errcode !== 0) {
+    throw new Error(`企业微信文本消息发送错误: [${data.errcode}] ${data.errmsg}`);
+  }
+  return data;
+}
+
 async function sendMarkdownMessage(env, target, content) {
   if (typeof target === 'string' && target.startsWith('https://')) {
     const whResp = await fetch(target, {
@@ -5582,180 +5610,263 @@ const rid=Math.floor(Math.random()*1000);
             return new Response('', { status: 200 });
           }
 
-          let replyContent = '';
           const trimmedContent = content.trim();
 
-          if (trimmedContent.startsWith('/company')) {
-            const queryName = trimmedContent.replace('/company', '').trim();
-            if (!queryName) {
-              replyContent = '格式错误。用法举例：/company 腾讯科技';
-            } else {
-              try {
-                const results = await supabase.checkCompanies([queryName]);
-                const match = results[0];
-                if (match && match.isMatch) {
-                  replyContent = `🔍 查询结果：\n单位名称：${match.matchedName}\n准入银行：${match.bank_name || '建行建易贷'}\n名单状态：${match.status || '正常'}`;
-                } else {
-                  replyContent = `🔍 查询结果：\n未在白名单库中查到公司【${queryName}】。`;
-                }
-              } catch (se) {
-                replyContent = `数据库查询失败: ${se.message}`;
-              }
-            }
-          } else if (trimmedContent.startsWith('/customer')) {
-            const queryName = trimmedContent.replace('/customer', '').trim();
-            if (!queryName) {
-              replyContent = '格式错误。用法举例：/customer 张三';
-            } else {
-              try {
-                const results = await supabase.searchCustomers(queryName);
-                if (results.length === 0) {
-                  replyContent = `🔍 未在客户库中查到包含【${queryName}】的客户。`;
-                } else {
-                  replyContent = `🔍 共查到 ${results.length} 位客户：\n` + 
-                    results.map(c => `👤 姓名：${c.name}\n📞 电话：${c.mobile || '—'}\n🏢 单位：${c.company_name || '—'}\n💵 社保/公积金：${c.social_security_base || '—'}/${c.fund_base || '—'}\n🏷️ 标签：${c.tags ? c.tags.join(',') : '无'}`).join('\n\n');
-                }
-              } catch (se) {
-                replyContent = `客户数据库查询失败: ${se.message}`;
-              }
-            }
-          } else if (trimmedContent.startsWith('/product') || trimmedContent.startsWith('/case')) {
-            const queryVal = trimmedContent.replace(/^\/(product|case)/, '').trim();
-            if (!queryVal) {
-              replyContent = '格式错误。用法举例：/case 建易贷';
-            } else {
-              try {
-                const results = await supabase.searchLoanCases(queryVal);
-                if (results.length === 0) {
-                  replyContent = `🔍 未在案例库中查到包含【${queryVal}】的记录。`;
-                } else {
-                  replyContent = `🔍 查到以下案例记录：\n` +
-                    results.map(r => `🏢 公司：${r.company_name}\n🏦 贷款产品：${r.loan_product}\n💰 贷款金额：${r.loan_amount || '—'}\n📊 结果：${r.result || '—'}\n📝 总结：${r.summary || '—'}`).join('\n\n');
-                }
-              } catch (se) {
-                replyContent = `案例库查询失败: ${se.message}`;
-              }
-            }
-          } else if (trimmedContent.startsWith('/speech')) {
-            const queryVal = trimmedContent.replace('/speech', '').trim();
-            if (!queryVal) {
-              replyContent = '格式错误。用法举例：/speech 开场白';
-            } else {
-              try {
-                const results = await supabase.searchSpeech(queryVal);
-                if (results.length === 0) {
-                  replyContent = `🔍 未在话术库中查到包含【${queryVal}】的记录。`;
-                } else {
-                  replyContent = `🔍 查到以下话术：\n` +
-                    results.map(r => `📌 分类/场景：${r.category} -> ${r.scenario}\n💬 内容：${r.content}`).join('\n\n');
-                }
-              } catch (se) {
-                replyContent = `话术库查询失败: ${se.message}`;
-              }
-            }
-          } else {
-            const hasKey = await env.DATA_KV.get('config:ai_api_key') || await env.DATA_KV.get('config:deepseek_api_key') || env.AI_API_KEY || env.DEEPSEEK_API_KEY;
-            if (!hasKey) {
-              replyContent = `🤖 每日智能助手：\n\n您说：“${trimmedContent}”。\n\n提示：系统管理员尚未配置 AI 大模型 API Key，因此无法为您服务。`;
-            } else {
-              let contextText = '';
-              try {
-                const lowerContent = trimmedContent.toLowerCase();
+          // Read active send credentials from KV
+          const agentId = await env.DATA_KV.get('config:wecom_agent_id');
+          const secret = await env.DATA_KV.get('config:wecom_secret');
 
-                // 1. 检索今日工作登记与意向客户
-                if (lowerContent.includes('客户') || lowerContent.includes('意向') || lowerContent.includes('登记') || lowerContent.includes('今天') || lowerContent.includes('工作') || lowerContent.includes('汇报')) {
-                  const d = new Date(Date.now() + 8 * 3600000);
-                  const todayDate = d.toISOString().split('T')[0];
-                  const raw = await env.DATA_KV.get(`work:${todayDate}`);
-                  if (raw) {
-                    const parsed = JSON.parse(raw);
-                    contextText += `\n[今日工作登记与意向客户数据] (日期: ${todayDate}):\n` +
-                      `- 今日微信数: ${parsed.wechatCount || 0}\n` +
-                      `- 今日回访数: ${parsed.revisitCount || 0}\n` +
-                      `- 今日上门数: ${parsed.visitCount || 0}\n` +
-                      `- 今日回款数: ${parsed.paymentCount || 0}\n` +
-                      `- 登记的意向客户列表:\n` +
-                      (parsed.clients && parsed.clients.length > 0 ?
-                        parsed.clients.map((c, idx) => `  ${idx + 1}. 姓名: ${c.name} | 电话: ${c.phone} | 登记时间: ${c.time || ''} | 跟进/备注: ${c.note || '无'}`).join('\n') :
-                        '  (暂无意向客户)') + '\n';
+          // If Agent ID or Secret is missing, we must fallback to synchronous reply (passive XML)
+          if (!agentId || !secret) {
+            console.log('[WeComCallback] Agent ID or Secret not configured. Falling back to sync reply.');
+            let replyContent = '';
+            if (trimmedContent.startsWith('/company')) {
+              const queryName = trimmedContent.replace('/company', '').trim();
+              if (!queryName) {
+                replyContent = '格式错误。用法举例：/company 腾讯科技';
+              } else {
+                try {
+                  const results = await supabase.checkCompanies([queryName]);
+                  const match = results[0];
+                  if (match && match.isMatch) {
+                    replyContent = `🔍 查询结果：\n单位名称：${match.matchedName}\n准入银行：${match.bank_name || '建行建易贷'}\n名单状态：${match.status || '正常'}`;
+                  } else {
+                    replyContent = `🔍 查询结果：\n未在白名单库中查到公司【${queryName}】。`;
                   }
+                } catch (se) {
+                  replyContent = `数据库查询失败: ${se.message}`;
                 }
-
-                // 2. 检查公司白名单准入
-                if (lowerContent.includes('白名单') || lowerContent.includes('公司') || lowerContent.includes('单位') || lowerContent.includes('白') || (trimmedContent.length >= 4 && !trimmedContent.includes('/'))) {
-                  const cleanQuery = trimmedContent.replace(/(查一下|查询|白名单|公司|是不是|在不在|白名单里有|有)/g, '').trim();
-                  if (cleanQuery.length >= 2) {
-                    const whitelistRes = await supabase.checkCompanies([cleanQuery]);
-                    if (whitelistRes && whitelistRes.length > 0) {
-                      contextText += `\n[企业白名单准入核对结果]:\n` +
-                        whitelistRes.map(r => `- 公司名: ${r.matchedName} | 状态: ${r.isMatch ? '✅ 已准入白名单' : '❌ 未准入'} | 准入银行: ${r.bank_name || '建行建易贷'} | 名单状态: ${r.status || '正常'}`).join('\n') + '\n';
-                    }
-                  }
-                }
-
-                // 3. 搜索客户档案
-                if (lowerContent.includes('查客户') || lowerContent.includes('搜索客户') || lowerContent.includes('客户档案') || (trimmedContent.length >= 2 && trimmedContent.length <= 4 && !lowerContent.includes('今天') && !lowerContent.includes('昨天') && !lowerContent.includes('白名单'))) {
-                  const cleanQuery = trimmedContent.replace(/(查客户|搜索客户|查询客户|客户|档案|是)/g, '').trim();
-                  if (cleanQuery.length >= 1) {
-                    const customerRes = await supabase.searchCustomers(cleanQuery);
-                    if (customerRes && customerRes.length > 0) {
-                      contextText += `\n[客户档案检索结果]:\n` +
-                        customerRes.map(c => `- 姓名: ${c.name} | 电话: ${c.mobile || '—'} | 公司: ${c.company_name || '—'} | 标签: ${c.tags ? c.tags.join(',') : '无'} | 备注/跟进记录: ${c.note || '无'}`).join('\n') + '\n';
-                    }
-                  }
-                }
-              } catch (prefErr) {
-                console.error('[PreFetchError] Failed to pre-fetch context:', prefErr);
               }
-
-              try {
-                // Get current Beijing time (GMT+8)
-                const bjTime = new Date(Date.now() + 8 * 3600000).toISOString().replace('T', ' ').substring(0, 19);
-                let systemPrompt = `你是一个专业的银行贷款智能助手。你拥有调用 Supabase 数据库和 Cloudflare KV 数据工作的权限。当前北京时间是 ${bjTime}。\n`;
-                if (contextText) {
-                  systemPrompt += `\n系统已为您预先检索了与当前问题相关的实时数据库内容：\n${contextText}\n你可以直接使用以上数据回答用户。若以上检索到的信息足够回答，请结合它们给用户做出最详细和准确的解答。\n`;
-                }
-                systemPrompt += `如果你需要检索其它日期、更深入搜索客户档案、核对公司白名单、检索话术与知识库，请直接通过 tool_calls 调用相关函数。请使用清晰的换行 and 丰富的 emoji 符号（增强可读性）对结果进行整理回答。`;
-
-                const apiData = await callAIChatWithTools(env, [
-                  {
-                    role: 'system',
-                    content: systemPrompt
-                  },
-                  {
-                    role: 'user',
-                    content: trimmedContent
+            } else if (trimmedContent.startsWith('/customer')) {
+              const queryName = trimmedContent.replace('/customer', '').trim();
+              if (!queryName) {
+                replyContent = '格式错误。用法举例：/customer 张三';
+              } else {
+                try {
+                  const results = await supabase.searchCustomers(queryName);
+                  if (results.length === 0) {
+                    replyContent = `🔍 未在客户库中查到包含【${queryName}】的客户。`;
+                  } else {
+                    replyContent = `🔍 共查到 ${results.length} 位客户：\n` + 
+                      results.map(c => `👤 姓名：${c.name}\n📞 电话：${c.mobile || '—'}\n🏢 单位：${c.company_name || '—'}\n💵 社保/公积金：${c.social_security_base || '—'}/${c.fund_base || '—'}\n🏷️ 标签：${c.tags ? c.tags.join(',') : '无'}`).join('\n\n');
                   }
-                ], 0.5, fromUser);
-
-                replyContent = apiData.choices[0].message.content.trim();
-              } catch (aiErr) {
-                replyContent = `AI 助手调用出错: ${aiErr.message}`;
+                } catch (se) {
+                  replyContent = `客户数据库查询失败: ${se.message}`;
+                }
+              }
+            } else if (trimmedContent.startsWith('/product') || trimmedContent.startsWith('/case')) {
+              const queryVal = trimmedContent.replace(/^\/(product|case)/, '').trim();
+              if (!queryVal) {
+                replyContent = '格式错误。用法举例：/case 建易贷';
+              } else {
+                try {
+                  const results = await supabase.searchLoanCases(queryVal);
+                  if (results.length === 0) {
+                    replyContent = `🔍 未在案例库中查到包含【${queryVal}】的记录。`;
+                  } else {
+                    replyContent = `🔍 查到以下案例记录：\n` +
+                      results.map(r => `🏢 公司：${r.company_name}\n🏦 贷款产品：${r.loan_product}\n💰 贷款金额：${r.loan_amount || '—'}\n📊 结果：${r.result || '—'}\n📝 总结：${r.summary || '—'}`).join('\n\n');
+                  }
+                } catch (se) {
+                  replyContent = `案例库查询失败: ${se.message}`;
+                }
+              }
+            } else if (trimmedContent.startsWith('/speech')) {
+              const queryVal = trimmedContent.replace('/speech', '').trim();
+              if (!queryVal) {
+                replyContent = '格式错误。用法举例：/speech 开场白';
+              } else {
+                try {
+                  const results = await supabase.searchSpeech(queryVal);
+                  if (results.length === 0) {
+                    replyContent = `🔍 未在话术库中查到包含【${queryVal}】的记录。`;
+                  } else {
+                    replyContent = `🔍 查到以下话术：\n` +
+                      results.map(r => `📌 分类/场景：${r.category} -> ${r.scenario}\n💬 内容：${r.content}`).join('\n\n');
+                  }
+                } catch (se) {
+                  replyContent = `话术库查询失败: ${se.message}`;
+                }
+              }
+            } else {
+              const hasKey = await env.DATA_KV.get('config:ai_api_key') || await env.DATA_KV.get('config:deepseek_api_key') || env.AI_API_KEY || env.DEEPSEEK_API_KEY;
+              if (!hasKey) {
+                replyContent = `🤖 每日智能助手：\n\n您说：“${trimmedContent}”。\n\n提示：系统管理员尚未配置 AI 大模型 API Key 且未配置企业微信自建应用，因此无法为您服务。`;
+              } else {
+                replyContent = `⚠️ 企业微信未配置自建应用（Agent ID/Secret），导致无法使用异步模式。由于大模型对话易超时，请在网页端配置自建应用以启用完整功能。`;
               }
             }
+
+            const replyTime = Math.floor(Date.now() / 1000);
+            const replyXml = `<xml>` +
+              `<ToUserName><![CDATA[${fromUser}]]></ToUserName>` +
+              `<FromUserName><![CDATA[${toUser}]]></FromUserName>` +
+              `<CreateTime>${replyTime}</CreateTime>` +
+              `<MsgType><![CDATA[text]]></MsgType>` +
+              `<Content><![CDATA[${replyContent}]]></Content>` +
+              `</xml>`;
+
+            const encryptedReply = crypt.encrypt(replyXml);
+            const replySignature = crypt.getSignature(replyTime, nonce, encryptedReply);
+
+            const responseXml = `<xml>` +
+              `<Encrypt><![CDATA[${encryptedReply}]]></Encrypt>` +
+              `<MsgSignature><![CDATA[${replySignature}]]></MsgSignature>` +
+              `<TimeStamp>${replyTime}</TimeStamp>` +
+              `<Nonce>${nonce}</Nonce>` +
+              `</xml>`;
+
+            return new Response(responseXml, { headers: { 'Content-Type': 'application/xml; charset=UTF-8' } });
           }
 
-          const replyTime = Math.floor(Date.now() / 1000);
-          const replyXml = `<xml>` +
-            `<ToUserName><![CDATA[${fromUser}]]></ToUserName>` +
-            `<FromUserName><![CDATA[${toUser}]]></FromUserName>` +
-            `<CreateTime>${replyTime}</CreateTime>` +
-            `<MsgType><![CDATA[text]]></MsgType>` +
-            `<Content><![CDATA[${replyContent}]]></Content>` +
-            `</xml>`;
+          // Otherwise, use ASYNC mode: immediately return empty response to avoid WeCom 5s timeout.
+          console.log('[WeComCallback] Async mode activated. Returning empty response.');
 
-          const encryptedReply = crypt.encrypt(replyXml);
-          const replySignature = crypt.getSignature(replyTime, nonce, encryptedReply);
+          ctx.waitUntil((async () => {
+            try {
+              let replyContent = '';
+              if (trimmedContent.startsWith('/company')) {
+                const queryName = trimmedContent.replace('/company', '').trim();
+                if (!queryName) {
+                  replyContent = '格式错误。用法举例：/company 腾讯科技';
+                } else {
+                  const results = await supabase.checkCompanies([queryName]);
+                  const match = results[0];
+                  if (match && match.isMatch) {
+                    replyContent = `🔍 查询结果：\n单位名称：${match.matchedName}\n准入银行：${match.bank_name || '建行建易贷'}\n名单状态：${match.status || '正常'}`;
+                  } else {
+                    replyContent = `🔍 查询结果：\n未在白名单库中查到公司【${queryName}】。`;
+                  }
+                }
+              } else if (trimmedContent.startsWith('/customer')) {
+                const queryName = trimmedContent.replace('/customer', '').trim();
+                if (!queryName) {
+                  replyContent = '格式错误。用法举例：/customer 张三';
+                } else {
+                  const results = await supabase.searchCustomers(queryName);
+                  if (results.length === 0) {
+                    replyContent = `🔍 未在客户库中查到包含【${queryName}】的客户。`;
+                  } else {
+                    replyContent = `🔍 共查到 ${results.length} 位客户：\n` + 
+                      results.map(c => `👤 姓名：${c.name}\n📞 电话：${c.mobile || '—'}\n🏢 单位：${c.company_name || '—'}\n🏷️ 标签：${c.tags ? c.tags.join(',') : '无'}\n📝 备注/跟进：${c.note || '无'}`).join('\n\n');
+                  }
+                }
+              } else if (trimmedContent.startsWith('/product') || trimmedContent.startsWith('/case')) {
+                const queryVal = trimmedContent.replace(/^\/(product|case)/, '').trim();
+                if (!queryVal) {
+                  replyContent = '格式错误。用法举例：/case 建易贷';
+                } else {
+                  const results = await supabase.searchLoanCases(queryVal);
+                  if (results.length === 0) {
+                    replyContent = `🔍 未在案例库中查到包含【${queryVal}】的记录。`;
+                  } else {
+                    replyContent = `🔍 查到以下案例记录：\n` +
+                      results.map(r => `🏢 公司：${r.company_name}\n🏦 贷款产品：${r.loan_product}\n💰 贷款金额：${r.loan_amount || '—'}\n📊 结果：${r.result || '—'}\n📝 总结：${r.summary || '—'}`).join('\n\n');
+                  }
+                }
+              } else if (trimmedContent.startsWith('/speech')) {
+                const queryVal = trimmedContent.replace('/speech', '').trim();
+                if (!queryVal) {
+                  replyContent = '格式错误。用法举例：/speech 开场白';
+                } else {
+                  const results = await supabase.searchSpeech(queryVal);
+                  if (results.length === 0) {
+                    replyContent = `🔍 未在话术库中查到包含【${queryVal}】的记录。`;
+                  } else {
+                    replyContent = `🔍 查到以下话术：\n` +
+                      results.map(r => `📌 分类/场景：${r.category} -> ${r.scenario}\n💬 内容：${r.content}`).join('\n\n');
+                  }
+                }
+              } else {
+                // LLM AI dialogue
+                const hasKey = await env.DATA_KV.get('config:ai_api_key') || await env.DATA_KV.get('config:deepseek_api_key') || env.AI_API_KEY || env.DEEPSEEK_API_KEY;
+                if (!hasKey) {
+                  replyContent = `🤖 每日智能助手：\n\n您说：“${trimmedContent}”。\n\n提示：系统管理员尚未配置 AI 大模型 API Key，因此无法为您服务。`;
+                } else {
+                  let contextText = '';
+                  try {
+                    const lowerContent = trimmedContent.toLowerCase();
+                    // 1. 检索今日工作登记与意向客户
+                    if (lowerContent.includes('客户') || lowerContent.includes('意向') || lowerContent.includes('登记') || lowerContent.includes('今天') || lowerContent.includes('工作') || lowerContent.includes('汇报')) {
+                      const d = new Date(Date.now() + 8 * 3600000);
+                      const todayDate = d.toISOString().split('T')[0];
+                      const raw = await env.DATA_KV.get(`work:${todayDate}`);
+                      if (raw) {
+                        const parsed = JSON.parse(raw);
+                        contextText += `\n[今日工作登记与意向客户数据] (日期: ${todayDate}):\n` +
+                          `- 今日微信数: ${parsed.wechatCount || 0}\n` +
+                          `- 今日回访数: ${parsed.revisitCount || 0}\n` +
+                          `- 今日上门数: ${parsed.visitCount || 0}\n` +
+                          `- 今日回款数: ${parsed.paymentCount || 0}\n` +
+                          `- 登记的意向客户列表:\n` +
+                          (parsed.clients && parsed.clients.length > 0 ?
+                            parsed.clients.map((c, idx) => `  ${idx + 1}. 姓名: ${c.name} | 电话: ${c.phone} | 登记时间: ${c.time || ''} | 跟进/备注: ${c.note || '无'}`).join('\n') :
+                            '  (暂无意向客户)') + '\n';
+                      }
+                    }
+                    // 2. 检查公司白名单准入
+                    if (lowerContent.includes('白名单') || lowerContent.includes('公司') || lowerContent.includes('单位') || lowerContent.includes('白') || (trimmedContent.length >= 4 && !trimmedContent.includes('/'))) {
+                      const cleanQuery = trimmedContent.replace(/(查一下|查询|白名单|公司|是不是|在不在|白名单里有|有)/g, '').trim();
+                      if (cleanQuery.length >= 2) {
+                        const whitelistRes = await supabase.checkCompanies([cleanQuery]);
+                        if (whitelistRes && whitelistRes.length > 0) {
+                          contextText += `\n[企业白名单准入核对结果]:\n` +
+                            whitelistRes.map(r => `- 公司名: ${r.matchedName} | 状态: ${r.isMatch ? '✅ 已准入白名单' : '❌ 未准入'} | 准入银行: ${r.bank_name || '建行建易贷'} | 名单状态: ${r.status || '正常'}`).join('\n') + '\n';
+                        }
+                      }
+                    }
+                    // 3. 搜索客户档案
+                    if (lowerContent.includes('查客户') || lowerContent.includes('搜索客户') || lowerContent.includes('客户档案') || (trimmedContent.length >= 2 && trimmedContent.length <= 4 && !lowerContent.includes('今天') && !lowerContent.includes('昨天') && !lowerContent.includes('白名单'))) {
+                      const cleanQuery = trimmedContent.replace(/(查客户|搜索客户|查询客户|客户|档案|是)/g, '').trim();
+                      if (cleanQuery.length >= 1) {
+                        const customerRes = await supabase.searchCustomers(cleanQuery);
+                        if (customerRes && customerRes.length > 0) {
+                          contextText += `\n[客户档案检索结果]:\n` +
+                            customerRes.map(c => `- 姓名: ${c.name} | 电话: ${c.mobile || '—'} | 公司: ${c.company_name || '—'} | 标签: ${c.tags ? c.tags.join(',') : '无'} | 备注/跟进记录: ${c.note || '无'}`).join('\n') + '\n';
+                        }
+                      }
+                    }
+                  } catch (prefErr) {
+                    console.error('[PreFetchError] Failed to pre-fetch context:', prefErr);
+                  }
 
-          const responseXml = `<xml>` +
-            `<Encrypt><![CDATA[${encryptedReply}]]></Encrypt>` +
-            `<MsgSignature><![CDATA[${replySignature}]]></MsgSignature>` +
-            `<TimeStamp>${replyTime}</TimeStamp>` +
-            `<Nonce>${nonce}</Nonce>` +
-            `</xml>`;
+                  const bjTime = new Date(Date.now() + 8 * 3600000).toISOString().replace('T', ' ').substring(0, 19);
+                  let systemPrompt = `你是一个专业的银行贷款智能助手。你拥有调用 Supabase 数据库和 Cloudflare KV 数据工作的权限。当前北京时间是 ${bjTime}。\n`;
+                  if (contextText) {
+                    systemPrompt += `\n系统已为您预先检索了与当前问题相关的实时数据库内容：\n${contextText}\n你可以直接使用以上数据回答用户。若以上检索到的信息足够回答，请结合它们给用户做出最详细 and 准确的解答。\n`;
+                  }
+                  systemPrompt += `如果你需要检索其它日期、更深入搜索客户档案、核对公司白名单、检索话术与知识库，请直接通过 tool_calls 调用相关函数。请使用清晰的换行 and 丰富的 emoji 符号（增强可读性）对结果进行整理回答。`;
 
-          return new Response(responseXml, { headers: { 'Content-Type': 'application/xml; charset=UTF-8' } });
+                  const apiData = await callAIChatWithTools(env, [
+                    {
+                      role: 'system',
+                      content: systemPrompt
+                    },
+                    {
+                      role: 'user',
+                      content: trimmedContent
+                    }
+                  ], 0.5, fromUser);
+
+                  replyContent = apiData.choices[0].message.content.trim();
+                }
+              }
+
+              // Send the reply message actively
+              await sendWeComAppMessage(env, corpId, secret, agentId, fromUser, replyContent);
+            } catch (err) {
+              console.error('[WeComCallback Async] Error processing message:', err);
+              try {
+                await sendWeComTextMessage(env, corpId, secret, agentId, fromUser, `❌ 助手处理消息时出错：${err.message}`);
+              } catch (sendErr) {
+                console.error('[WeComCallback Async] Failed to send error message:', sendErr);
+              }
+            }
+          })());
+
+          return new Response('', { status: 200 });
         } catch (e) {
+          console.error('[WeComCallback POST] Processing failed:', e);
           return new Response('Processing failed: ' + e.message, { status: 500 });
         }
       }
