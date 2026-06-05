@@ -4961,10 +4961,16 @@ const rid=Math.floor(Math.random()*1000);
 
       // GET: Callback verification (企业微信URL验证)
       if (request.method === 'GET') {
-        const msg_signature = url.searchParams.get('msg_signature');
-        const timestamp = url.searchParams.get('timestamp');
-        const nonce = url.searchParams.get('nonce');
-        const echostr = url.searchParams.get('echostr');
+        const getRawParam = (name) => {
+          const reg = new RegExp('[?&]' + name + '=([^&]*)');
+          const m = url.search.match(reg);
+          return m ? decodeURIComponent(m[1]) : null;
+        };
+
+        const msg_signature = getRawParam('msg_signature') || url.searchParams.get('msg_signature');
+        const timestamp = getRawParam('timestamp') || url.searchParams.get('timestamp');
+        const nonce = getRawParam('nonce') || url.searchParams.get('nonce');
+        const echostr = getRawParam('echostr') || url.searchParams.get('echostr');
 
         console.log('[WeComCallback GET] msg_signature=' + msg_signature + ' timestamp=' + timestamp + ' nonce=' + nonce + ' echostr=' + (echostr ? echostr.substring(0, 20) + '...' : 'MISSING'));
 
@@ -4972,7 +4978,7 @@ const rid=Math.floor(Math.random()*1000);
           return new Response('Missing parameters', { status: 400 });
         }
 
-        // NOTE: url.searchParams.get() already does URL decoding, do NOT double-decode
+        // Use the raw parsed echostr to prevent '+' to space URL parsing bugs
         const isValid = crypt.verifySignature(msg_signature, timestamp, nonce, echostr);
         console.log('[WeComCallback GET] signature valid=' + isValid);
         if (!isValid) {
