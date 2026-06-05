@@ -2612,6 +2612,16 @@ export default {
     </div>
     <div class="two-columns">
       <div class="left-area">
+        <div class="card" style="overflow: visible;">
+          <div class="card-title" style="display:flex; justify-content:space-between; align-items:center;">
+            <span>白名单快捷查询</span>
+            <span style="font-size:0.6rem; color:var(--text-soft); font-weight:normal;" id="mainWlStatus">建行建易贷</span>
+          </div>
+          <div class="register-block" style="position: relative;">
+            <input type="text" class="input-simple" id="mainWlSearchInput" placeholder="🔍 输入企业名称进行模糊搜索..." autocomplete="off" style="width:100%; box-sizing:border-box;">
+            <div id="mainWlSearchResults" style="display:none; position:absolute; top:calc(100% + 4px); left:0; right:0; background:var(--card-bg); border:1px solid var(--card-border); border-radius:var(--radius-xs); box-shadow:var(--shadow-md); z-index:100; max-height:180px; overflow-y:auto; padding:4px; flex-direction:column; gap:4px; text-align:left; box-sizing:border-box;"></div>
+          </div>
+        </div>
         <div class="counter-row">
           <div class="counter-card wechat-fill">
             <div class="counter-header"><span class="counter-label">微信</span><div class="button-group"><button class="circle-btn" id="wechatMinus">−</button><button class="circle-btn btn-special" id="wechatPlus">+</button></div></div>
@@ -2633,16 +2643,6 @@ export default {
           <div class="cal-head"><button class="cal-nav-btn" id="calPrevBtn" title="上个月">◀</button><span id="calMonthTitle"></span><button class="cal-nav-btn" id="calNextBtn" title="下个月">▶</button></div>
           <div class="cal-grid" id="calGrid"></div>
           <div style="font-size:0.55rem;text-align:center;margin-top:6px;color:var(--text-light);font-weight:600;">点击日期查看意向客户</div>
-        </div>
-        <div class="card" style="margin-top: 8px; overflow: visible;">
-          <div class="card-title" style="display:flex; justify-content:space-between; align-items:center;">
-            <span>白名单快捷查询</span>
-            <span style="font-size:0.6rem; color:var(--text-soft); font-weight:normal;" id="mainWlStatus">建行建易贷</span>
-          </div>
-          <div class="register-block" style="position: relative;">
-            <input type="text" class="input-simple" id="mainWlSearchInput" placeholder="🔍 输入企业名称进行模糊搜索..." autocomplete="off" style="width:100%; box-sizing:border-box;">
-            <div id="mainWlSearchResults" style="display:none; position:absolute; top:calc(100% + 4px); left:0; right:0; background:var(--card-bg); border:1px solid var(--card-border); border-radius:var(--radius-xs); box-shadow:var(--shadow-md); z-index:100; max-height:180px; overflow-y:auto; padding:4px; flex-direction:column; gap:4px; text-align:left; box-sizing:border-box;"></div>
-          </div>
         </div>
       </div>
       <div class="right-area">
