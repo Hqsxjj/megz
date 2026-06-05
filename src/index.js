@@ -3012,12 +3012,34 @@ export default {
   function getWhitelistTagHtml(company, isTbl) {
     if (!company || company === '-') return isTbl ? '-' : '';
     const key = String(company).trim().toLowerCase();
-    if (!whitelistSet.has(key)) {
+    
+    let matchedName = null;
+    let val = null;
+    
+    if (whitelistSet.has(key)) {
+      matchedName = key;
+      val = whitelistMap.get(key);
+    } else {
+      // Fuzzy match: check if clean name matches (excluding common suffixes/prefixes)
+      const cleanCard = key.replace(/(有限公司|有限责任公司|公司|集团|深圳市|广州市|北京市|上海市|深圳|广州|北京|上海)/g, '').trim();
+      if (cleanCard.length >= 2) {
+        for (let wlName of whitelistSet.keys()) {
+          const cleanWl = wlName.replace(/(有限公司|有限责任公司|公司|集团|深圳市|广州市|北京市|上海市|深圳|广州|北京|上海)/g, '').trim();
+          if (cleanWl.length >= 2 && (cleanCard.includes(cleanWl) || cleanWl.includes(cleanCard))) {
+            matchedName = wlName;
+            val = whitelistMap.get(wlName);
+            break;
+          }
+        }
+      }
+    }
+
+    if (!matchedName || !val) {
       return isTbl ? esc(company) : '<span class="client-card-tag client-card-tag-company">' + esc(company) + '</span>';
     }
-    const info = whitelistMap.get(key) || { bank: '建行建易贷', status: '正常' };
-    const bank = info.bank || '建行建易贷';
-    const status = info.status || '正常';
+    
+    const bank = val.bank || '建行建易贷';
+    const status = val.status || '正常';
     let label = bank + ': ' + company;
     let badgeStyle = 'background:var(--accent-wechat-bg); color:var(--accent-wechat); border-color:var(--accent-wechat);';
     if (status === '已失效') {

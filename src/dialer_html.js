@@ -2763,6 +2763,46 @@ export const DIALER_HTML = `<!DOCTYPE html>
       reader.readAsText(file, 'utf-8');
     }
 
+    // Fuzzy/partial match whitelist company
+    function matchWhitelistCompany(company) {
+      if (!company) return null;
+      var key = String(company).trim().toLowerCase();
+      if (!key) return null;
+      if (!whitelistCompanies || whitelistCompanies.length === 0) return null;
+      
+      // 1. Try exact match first
+      for (var i = 0; i < whitelistCompanies.length; i++) {
+        var w = whitelistCompanies[i];
+        var name = (w.company_name || '').trim().toLowerCase();
+        var alias = (w.alias || '').trim().toLowerCase();
+        if (name === key || (alias && alias === key)) {
+          return w;
+        }
+      }
+      
+      // 2. Try partial/fuzzy match (excluding common prefixes/suffixes)
+      var cleanCard = key.replace(/(有限公司|有限责任公司|公司|集团|深圳市|广州市|北京市|上海市|深圳|广州|北京|上海)/g, '').trim();
+      if (cleanCard.length >= 2) {
+        for (var i = 0; i < whitelistCompanies.length; i++) {
+          var w = whitelistCompanies[i];
+          var name = (w.company_name || '').trim().toLowerCase();
+          var alias = (w.alias || '').trim().toLowerCase();
+          
+          var cleanName = name.replace(/(有限公司|有限责任公司|公司|集团|深圳市|广州市|北京市|上海市|深圳|广州|北京|上海)/g, '').trim();
+          if (cleanName.length >= 2 && (cleanCard.indexOf(cleanName) !== -1 || cleanName.indexOf(cleanCard) !== -1)) {
+            return w;
+          }
+          if (alias) {
+            var cleanAlias = alias.replace(/(有限公司|有限责任公司|公司|集团|深圳市|广州市|北京市|上海市|深圳|广州|北京|上海)/g, '').trim();
+            if (cleanAlias.length >= 2 && (cleanCard.indexOf(cleanAlias) !== -1 || cleanAlias.indexOf(cleanCard) !== -1)) {
+              return w;
+            }
+          }
+        }
+      }
+      return null;
+    }
+
     // Render client list
     function renderDialCards() {
       var container = document.getElementById('cardsContainer');
@@ -2781,11 +2821,8 @@ export const DIALER_HTML = `<!DOCTYPE html>
       var filtered = importedClients.filter(function(c) {
         var matchFilter = (currentFilter === 'all') || (c.dialedStatus === currentFilter);
         
-        var companyTrimmed = c.company ? String(c.company).trim() : '';
-        var isCompanyInWhitelist = false;
-        if (whitelistCheckResults && whitelistCheckResults[companyTrimmed]) {
-          isCompanyInWhitelist = whitelistCheckResults[companyTrimmed].isMatch;
-        }
+        var matchedWl = matchWhitelistCompany(c.company);
+        var isCompanyInWhitelist = matchedWl ? (matchedWl.status !== '已失效' && matchedWl.status !== '已删除') : false;
 
         // Whitelist dropdown filter
         var matchWlFilter = true;
@@ -2895,21 +2932,21 @@ export const DIALER_HTML = `<!DOCTYPE html>
           '</div>' +
           '<div class="client-card-tags" style="margin-top: 2px;">' +
             (c.company ? '<span class="client-card-tag client-card-tag-company">' + esc(c.company) + '</span>' : '') +
-            (whitelistCheckResults && c.company && whitelistCheckResults[String(c.company).trim()] ?
-              (whitelistCheckResults[String(c.company).trim()].isMatch
-                ? (function() {
-                    var matchInfo = whitelistCheckResults[String(c.company).trim()];
-                    var bank = matchInfo.bank_name || '建行建易贷';
-                    var status = matchInfo.status || '正常';
-                    if (status === '已失效') {
-                      return '<span class="client-card-tag xls-dial-badge-not-whitelist" style="background:rgba(120,120,120,0.15) !important; color:#7f8c8d !important; border-color:rgba(120,120,120,0.25) !important;">✔ ' + esc(bank) + '(已失效)</span>';
-                    } else if (status === '已删除') {
-                      return '<span class="client-card-tag xls-dial-badge-not-whitelist" style="background:rgba(231,76,60,0.15) !important; color:#e74c3c !important; border-color:rgba(231,76,60,0.25) !important;">✔ ' + esc(bank) + '(已删除)</span>';
-                    }
-                    return '<span class="client-card-tag xls-dial-badge-whitelist">✔ ' + esc(bank) + '</span>';
-                  })()
-                : '<span class="client-card-tag xls-dial-badge-not-whitelist">✘ 非白名单</span>')
-              : '') +
+            (function() {
+              if (!c.company) return '';
+              var matchedWl = matchWhitelistCompany(c.company);
+              if (matchedWl) {
+                var bank = matchedWl.bank_name || '建行建易贷';
+                var status = matchedWl.status || '正常';
+                if (status === '已失效') {
+                  return '<span class="client-card-tag xls-dial-badge-not-whitelist" style="background:rgba(120,120,120,0.15) !important; color:#7f8c8d !important; border-color:rgba(120,120,120,0.25) !important;">✔ ' + esc(bank) + '(已失效)</span>';
+                } else if (status === '已删除') {
+                  return '<span class="client-card-tag xls-dial-badge-not-whitelist" style="background:rgba(231,76,60,0.15) !important; color:#e74c3c !important; border-color:rgba(231,76,60,0.25) !important;">✔ ' + esc(bank) + '(已删除)</span>';
+                }
+                return '<span class="client-card-tag xls-dial-badge-whitelist">✔ ' + esc(bank) + '</span>';
+              }
+              return whitelistLoaded ? '<span class="client-card-tag xls-dial-badge-not-whitelist">✘ 非白名单</span>' : '';
+            })() +
           '</div>' +
           (c.note ? 
             '<div class="client-card-body" style="margin-top: 4px;">' +
@@ -3978,6 +4015,11 @@ export const DIALER_HTML = `<!DOCTYPE html>
             });
         });
       }
+
+      // Auto-load whitelist on initialization and re-render cards
+      fetchWhitelist().then(function() {
+        renderDialCards();
+      });
 
       // Initial check for failed uploads
       renderFailedUploadsArea();
