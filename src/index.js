@@ -4528,10 +4528,8 @@ const rid=Math.floor(Math.random()*1000);
         
         html += '<br><strong>回调 URL:</strong> ' + data.callback_url + '<br>';
         
-        const allGood = data.effective.corpId.includes('✅') && data.effective.token.includes('✅') && data.effective.aesKey.includes('✅');
-        const connGood = data.connection_test && data.connection_test.status.includes('✅');
-        
-        if (allGood && (!data.kv.wecom_secret || connGood)) {
+        const hasSecret = data.kv.wecom_secret && !data.kv.wecom_secret.includes('❌');
+        if (allGood && (!hasSecret || connGood)) {
           html += '<br>🎉 <strong style="color:#43a047;">全部配置已就绪！现在可以去企业微信后台设置回调 URL 了</strong>';
           statusEl.style.color = '#43a047';
         } else {
