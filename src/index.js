@@ -943,7 +943,7 @@ export default {
 
         return new Response(plistXml, {
           headers: {
-            'Content-Type': 'application/x-apple-aspen-config; charset=utf-8',
+            'Content-Type': 'application/octet-stream',
             'Content-Disposition': 'attachment; filename="AskAI.shortcut"',
             'Access-Control-Allow-Origin': '*'
           }
