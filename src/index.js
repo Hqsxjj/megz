@@ -4862,6 +4862,17 @@ const rid=Math.floor(Math.random()*1000);
 
     // ========== 企业微信应用机器人回调 API ==========
 
+    // 调试日志接口：返回最新接收到的企业微信请求日志
+    if (path === '/api/wecom/log' && request.method === 'GET') {
+      const logVal = await env.DATA_KV.get('config:wecom_callback_log');
+      return new Response(logVal || JSON.stringify({ message: 'No callback request received yet.' }), {
+        headers: {
+          'Content-Type': 'application/json; charset=UTF-8',
+          'Access-Control-Allow-Origin': '*'
+        }
+      });
+    }
+
     // 调试接口：检查 WeCom 配置是否已存入 KV
     if (path === '/api/wecom/debug' && request.method === 'GET') {
       const corpId = await env.DATA_KV.get('config:wecom_corp_id');
@@ -4946,6 +4957,25 @@ const rid=Math.floor(Math.random()*1000);
     }
 
     if (path === '/api/wecom/callback') {
+      // Log request to KV for diagnostics
+      try {
+        const queryParams = {};
+        for (const [k, v] of url.searchParams.entries()) {
+          queryParams[k] = v;
+        }
+        const logData = {
+          time: new Date(Date.now() + 8 * 3600000).toISOString().replace('T', ' ').substring(0, 19),
+          method: request.method,
+          url: request.url,
+          queryParams: queryParams,
+          headers: Object.fromEntries(request.headers.entries()),
+          ip: request.headers.get('cf-connecting-ip') || request.headers.get('x-real-ip') || 'unknown'
+        };
+        await env.DATA_KV.put('config:wecom_callback_log', JSON.stringify(logData));
+      } catch (logErr) {
+        console.error('[WeComCallbackLog] Failed to log request:', logErr);
+      }
+
       const corpId = await env.DATA_KV.get('config:wecom_corp_id') || env.WECOM_CORP_ID;
       const token = await env.DATA_KV.get('config:wecom_token') || env.WECOM_TOKEN;
       const aesKey = await env.DATA_KV.get('config:wecom_aes_key') || env.WECOM_AES_KEY;
