@@ -31,13 +31,56 @@ async function getKVValuesConcurrently(env, keys) {
   return results;
 }
 
-async function sendWebhookMarkdown(url, baseHeader, items, itemFormatter) {
-  const enc = new TextEncoder();
-  let currentText = baseHeader;
-  let currentBytes = enc.encode(baseHeader).length;
-  let part = 1;
-  const sendChunk = async (content) => {
-    const whResp = await fetch(url, {
+async function getWeComAccessToken(env, corpId, secret) {
+  const cacheKey = `wecom:access_token:${corpId}:${secret}`;
+  let token = await env.DATA_KV.get(cacheKey);
+  if (token) return token;
+
+  const url = `https://qyapi.weixin.qq.com/cgi-bin/gettoken?corpid=${corpId}&corpsecret=${secret}`;
+  const resp = await fetch(url);
+  if (!resp.ok) {
+    throw new Error(`获取 access_token 失败，HTTP 状态：${resp.status}`);
+  }
+  const data = await resp.json();
+  if (data.errcode !== 0) {
+    throw new Error(`企业微信接口返回错误: [${data.errcode}] ${data.errmsg}`);
+  }
+
+  // Token is valid for 7200s, cache for 7000s
+  await env.DATA_KV.put(cacheKey, data.access_token, { expirationTtl: 7000 });
+  return data.access_token;
+}
+
+async function sendWeComAppMessage(env, corpId, secret, agentId, touser, content) {
+  const token = await getWeComAccessToken(env, corpId, secret);
+  const url = `https://qyapi.weixin.qq.com/cgi-bin/message/send?access_token=${token}`;
+  const body = {
+    touser: touser || '@all',
+    msgtype: 'markdown',
+    agentid: Number(agentId),
+    markdown: {
+      content: content
+    },
+    enable_duplicate_check: 0
+  };
+  const resp = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  if (!resp.ok) {
+    throw new Error(`发送应用消息失败，HTTP 状态：${resp.status}`);
+  }
+  const data = await resp.json();
+  if (data.errcode !== 0) {
+    throw new Error(`企业微信消息发送接口返回错误: [${data.errcode}] ${data.errmsg}`);
+  }
+  return data;
+}
+
+async function sendMarkdownMessage(env, target, content) {
+  if (typeof target === 'string' && target.startsWith('https://')) {
+    const whResp = await fetch(target, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ msgtype: 'markdown', markdown: { content } })
@@ -49,6 +92,25 @@ async function sendWebhookMarkdown(url, baseHeader, items, itemFormatter) {
     if (body.errcode !== 0) {
       throw new Error('WeChat API 错误 [' + body.errcode + ']: ' + (body.errmsg || '未知'));
     }
+    return body;
+  } else if (target && typeof target === 'object') {
+    const { corpId, secret, agentId, touser } = target;
+    if (!corpId || !secret || !agentId) {
+      throw new Error('企业微信应用配置不完整 (缺少 CorpID, Secret 或 AgentID)');
+    }
+    return await sendWeComAppMessage(env, corpId, secret, agentId, touser, content);
+  } else {
+    throw new Error('无效的发送目标 (target)');
+  }
+}
+
+async function sendWebhookMarkdown(env, target, baseHeader, items, itemFormatter) {
+  const enc = new TextEncoder();
+  let currentText = baseHeader;
+  let currentBytes = enc.encode(baseHeader).length;
+  let part = 1;
+  const sendChunk = async (content) => {
+    await sendMarkdownMessage(env, target, content);
   };
 
   for (const item of items) {
@@ -120,7 +182,7 @@ async function callAIChat(env, messages, temperature = 0.5, apiKeyOverride = '')
   return await response.json();
 }
 
-async function callAIChatWithTools(env, messages, temperature = 0.5) {
+async function callAIChatWithTools(env, messages, temperature = 0.5, fromUser = '') {
   const provider = await env.DATA_KV.get('config:ai_provider') || 'deepseek';
   const apiKey = await env.DATA_KV.get('config:ai_api_key') || await env.DATA_KV.get('config:deepseek_api_key') || env.AI_API_KEY || env.DEEPSEEK_API_KEY;
   let apiBase = await env.DATA_KV.get('config:ai_api_base') || env.AI_API_BASE;
@@ -329,8 +391,23 @@ async function callAIChatWithTools(env, messages, temperature = 0.5) {
           resultData = { knowledges, speechs, cases };
         } else if (functionName === 'export_data') {
           const webhookUrl = await env.DATA_KV.get('config:webhook_url');
-          if (!webhookUrl) {
-            resultData = { error: '企业微信群 Webhook URL 未设置，请先在网页端配置。' };
+          let target;
+          if (webhookUrl && webhookUrl.trim() !== '') {
+            target = webhookUrl.trim();
+          } else {
+            // Fallback to self-built App configuration
+            const corpId = await env.DATA_KV.get('config:wecom_corp_id') || env.WECOM_CORP_ID;
+            const agentId = await env.DATA_KV.get('config:wecom_agent_id');
+            const secret = await env.DATA_KV.get('config:wecom_secret');
+            // Use sender's WeCom UserID if available
+            const touser = fromUser || await env.DATA_KV.get('config:wecom_touser') || '@all';
+            if (corpId && agentId && secret) {
+              target = { corpId, agentId, secret, touser };
+            }
+          }
+
+          if (!target) {
+            resultData = { error: '企业微信群 Webhook URL 未设置且未配置自建应用，请先在网页端配置。' };
           } else {
             const type = functionArgs.export_type;
             if (type === 'single_client') {
@@ -371,15 +448,11 @@ async function callAIChatWithTools(env, messages, temperature = 0.5) {
                   if (client.note) text += '> 沟通: ' + client.note.replace(/\n/g, ' ') + '\n';
                   if (client.followUp) text += '> 跟进: ' + client.followUp.replace(/\n/g, ' ') + '\n';
 
-                  const whResp = await fetch(webhookUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ msgtype: 'markdown', markdown: { content: text } })
-                  });
-                  if (whResp.ok) {
+                  try {
+                    await sendMarkdownMessage(env, target, text);
                     resultData = { success: true, message: `已成功导出客户【${client.name}】到企业微信。` };
-                  } else {
-                    resultData = { error: `Webhook 发送失败，接口返回状态码: ${whResp.status}` };
+                  } catch (e) {
+                    resultData = { error: `导出失败，接口返回错误: ${e.message}` };
                   }
                 }
               }
@@ -418,8 +491,12 @@ async function callAIChatWithTools(env, messages, temperature = 0.5) {
                   return itemText;
                 };
 
-                await sendWebhookMarkdown(webhookUrl, baseHeader, allClients, itemFormatter);
-                resultData = { success: true, message: `已成功合并导出全部共 ${total} 位意向客户到企业微信。` };
+                try {
+                  await sendWebhookMarkdown(env, target, baseHeader, allClients, itemFormatter);
+                  resultData = { success: true, message: `已成功合并导出全部共 ${total} 位意向客户到企业微信。` };
+                } catch (e) {
+                  resultData = { error: `导出失败: ${e.message}` };
+                }
               } else {
                 const weekNames = ['日', '一', '二', '三', '四', '五', '六'];
                 const buildText = (c) => {
@@ -440,14 +517,7 @@ async function callAIChatWithTools(env, messages, temperature = 0.5) {
                   const batch = allClients.slice(i, i + concurrency);
                   const results = await Promise.all(batch.map(async (c) => {
                     try {
-                      const whResp = await fetch(webhookUrl, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ msgtype: 'markdown', markdown: { content: buildText(c) } })
-                      });
-                      if (!whResp.ok) throw new Error();
-                      const body = await whResp.json();
-                      if (body.errcode !== 0) throw new Error();
+                      await sendMarkdownMessage(env, target, buildText(c));
                       return true;
                     } catch(e) { return false; }
                   }));
@@ -525,14 +595,18 @@ async function callAIChatWithTools(env, messages, temperature = 0.5) {
                   detail = '*(无新增意向)*';
                 }
                 
-                let itemText = '**' + datePart + ' ' + wk + '**\n';
+                let itemText = '**' + datePart + ' ' + wk + '\n';
                 itemText += '> <font color="info">微信: ' + w + '</font> | <font color="warning">意向: ' + it + '</font> | <font color="comment">回访: ' + r + '</font>\n';
                 itemText += '> ' + detail + '\n\n';
                 return itemText;
               };
 
-              await sendWebhookMarkdown(webhookUrl, baseHeader, activeDays, itemFormatter);
-              resultData = { success: true, message: `已成功导出${title}数据到企业微信。` };
+              try {
+                await sendWebhookMarkdown(env, target, baseHeader, activeDays, itemFormatter);
+                resultData = { success: true, message: `已成功导出${title}数据到企业微信。` };
+              } catch (e) {
+                resultData = { error: `导出失败: ${e.message}` };
+              }
             }
           }
         } else if (functionName === 'add_learning_material') {
@@ -1084,6 +1158,15 @@ export default {
         case 'setWecomAesKey':
           await env.DATA_KV.put('config:wecom_aes_key', body.wecomAesKey || '');
           break;
+        case 'setWecomAgentId':
+          await env.DATA_KV.put('config:wecom_agent_id', body.wecomAgentId || '');
+          break;
+        case 'setWecomSecret':
+          await env.DATA_KV.put('config:wecom_secret', body.wecomSecret || '');
+          break;
+        case 'setWecomTouser':
+          await env.DATA_KV.put('config:wecom_touser', body.wecomTouser || '');
+          break;
         case 'setAiConfig':
           if (body.aiProvider !== undefined) await env.DATA_KV.put('config:ai_provider', body.aiProvider || '');
           if (body.aiApiKey !== undefined) await env.DATA_KV.put('config:ai_api_key', body.aiApiKey || '');
@@ -1210,19 +1293,36 @@ export default {
     if (path === '/api/export' && request.method === 'POST') {
       const body = await request.json();
       const { type, webhookUrl } = body;
-      if (!type || !webhookUrl) {
-        return new Response(JSON.stringify({ error: '缺少参数' }), {
+      if (!type) {
+        return new Response(JSON.stringify({ error: '缺少 type 参数' }), {
           status: 400,
           headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
         });
       }
 
-      // SSRF Defence: Only allow official Weixin Work domain prefixes
-      if (!webhookUrl.startsWith('https://qyapi.weixin.qq.com/')) {
-        return new Response(JSON.stringify({ error: 'SSRF 安全防御：仅允许向企业微信官方域名发送 Webhook 请求' }), {
-          status: 400,
-          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-        });
+      let target;
+      if (webhookUrl && webhookUrl.trim() !== '') {
+        // SSRF Defence: Only allow official Weixin Work domain prefixes
+        if (!webhookUrl.startsWith('https://qyapi.weixin.qq.com/')) {
+          return new Response(JSON.stringify({ error: 'SSRF 安全防御：仅允许向企业微信官方域名发送 Webhook 请求' }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+        target = webhookUrl.trim();
+      } else {
+        // Fallback to self-built App configuration
+        const corpId = await env.DATA_KV.get('config:wecom_corp_id') || env.WECOM_CORP_ID;
+        const agentId = await env.DATA_KV.get('config:wecom_agent_id');
+        const secret = await env.DATA_KV.get('config:wecom_secret');
+        const touser = await env.DATA_KV.get('config:wecom_touser') || '@all';
+        if (!corpId || !agentId || !secret) {
+          return new Response(JSON.stringify({ error: '缺少 Webhook URL，且未配置自建应用凭证 (CorpID / AgentID / Secret)' }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+        target = { corpId, agentId, secret, touser };
       }
 
       // 导出单个意向客户
@@ -1246,22 +1346,12 @@ export default {
         if (client.followUp) text += '> 跟进: ' + client.followUp.replace(/\n/g, ' ') + '\n';
         
         try {
-          const whResp = await fetch(webhookUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ msgtype: 'markdown', markdown: { content: text } })
-          });
-          if (whResp.ok) {
-            return new Response(JSON.stringify({ success: true }), {
-              headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-            });
-          }
-          return new Response(JSON.stringify({ error: '企业微信接口返回错误: ' + whResp.status }), {
-            status: whResp.status,
+          await sendMarkdownMessage(env, target, text);
+          return new Response(JSON.stringify({ success: true }), {
             headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
           });
         } catch (e) {
-          return new Response(JSON.stringify({ error: '发送 webhook 遇到网络错误: ' + e.message }), {
+          return new Response(JSON.stringify({ error: '发送遇到错误: ' + e.message }), {
             status: 500,
             headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
           });
@@ -1305,12 +1395,12 @@ export default {
         };
 
         try {
-          await sendWebhookMarkdown(webhookUrl, baseHeader, allClients, itemFormatter);
+          await sendWebhookMarkdown(env, target, baseHeader, allClients, itemFormatter);
           return new Response(JSON.stringify({ success: true }), {
             headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
           });
         } catch (e) {
-          return new Response(JSON.stringify({ error: 'Webhook 发送失败: ' + e.message }), {
+          return new Response(JSON.stringify({ error: '发送失败: ' + e.message }), {
             status: 500,
             headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
           });
@@ -1355,14 +1445,7 @@ export default {
           const batch = allClients.slice(i, i + concurrency);
           const results = await Promise.all(batch.map(async (c) => {
             try {
-              const whResp = await fetch(webhookUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ msgtype: 'markdown', markdown: { content: buildText(c) } })
-              });
-              if (!whResp.ok) throw new Error('HTTP ' + whResp.status);
-              const body = await whResp.json();
-              if (body.errcode !== 0) throw new Error('[errcode ' + body.errcode + '] ' + (body.errmsg || ''));
+              await sendMarkdownMessage(env, target, buildText(c));
               return true;
             } catch(e) { return false; }
           }));
@@ -1450,12 +1533,12 @@ export default {
       };
 
       try {
-        await sendWebhookMarkdown(webhookUrl, baseHeader, activeDays, itemFormatter);
+        await sendWebhookMarkdown(env, target, baseHeader, activeDays, itemFormatter);
         return new Response(JSON.stringify({ success: true }), {
           headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
         });
       } catch (e) {
-        return new Response(JSON.stringify({ error: 'Webhook 发送失败: ' + e.message }), {
+        return new Response(JSON.stringify({ error: '发送失败: ' + e.message }), {
           status: 500,
           headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
         });
@@ -2386,12 +2469,15 @@ export default {
         <div style="font-size:0.65rem;color:var(--text-light);">用于数据主动导出推送的群机器人 Webhook 地址</div>
       </div>
 
-      <details style="margin-top:10px; border:1px dashed var(--card-border); border-radius:var(--radius-xs); padding:8px; background:rgba(120,120,120,0.02);">
-        <summary style="font-size:0.75rem; color:var(--text-soft); cursor:pointer; font-weight:700; outline:none; user-select:none;">🤖 企业微信应用机器人回调配置</summary>
+            <details style="margin-top:10px; border:1px dashed var(--card-border); border-radius:var(--radius-xs); padding:8px; background:rgba(120,120,120,0.02);">
+        <summary style="font-size:0.75rem; color:var(--text-soft); cursor:pointer; font-weight:700; outline:none; user-select:none;">🤖 企业微信应用与机器人回调配置</summary>
         <div style="display:flex; flex-direction:column; gap:8px; margin-top:8px;">
           <input type="text" class="input-simple" id="wecomCorpIdInput" placeholder="企业 Corp ID（如 ww1234567890abcdef）" style="font-size:0.7rem; height:28px; padding:0 8px;">
-          <input type="text" class="input-simple" id="wecomTokenInput" placeholder="应用 Token" style="font-size:0.7rem; height:28px; padding:0 8px;">
-          <input type="password" class="input-simple" id="wecomAesKeyInput" placeholder="应用 EncodingAESKey（43 位字符）" style="font-size:0.7rem; height:28px; padding:0 8px;">
+          <input type="text" class="input-simple" id="wecomTokenInput" placeholder="应用 Token (用于回调)" style="font-size:0.7rem; height:28px; padding:0 8px;">
+          <input type="password" class="input-simple" id="wecomAesKeyInput" placeholder="应用 EncodingAESKey (用于回调)" style="font-size:0.7rem; height:28px; padding:0 8px;">
+          <input type="text" class="input-simple" id="wecomAgentIdInput" placeholder="应用 Agent ID (用于推送，如 1000002)" style="font-size:0.7rem; height:28px; padding:0 8px;">
+          <input type="password" class="input-simple" id="wecomSecretInput" placeholder="应用 Secret (用于推送)" style="font-size:0.7rem; height:28px; padding:0 8px;">
+          <input type="text" class="input-simple" id="wecomTouserInput" placeholder="接收成员 UserID (如 WangWu，留空则为全员 @all)" style="font-size:0.7rem; height:28px; padding:0 8px;">
           <div style="display:flex; gap:6px;">
             <button id="saveWecomBotBtn" class="btn-add" style="font-size:0.7rem; height:28px; margin:0; background:var(--accent-wechat); color:white; border:none; flex:1;">💾 保存配置</button>
             <button id="testWecomBtn" class="btn-add" style="font-size:0.7rem; height:28px; margin:0; background:linear-gradient(135deg,#36d1dc,#5b86e5); color:white; border:none; flex:1;">🔍 测试连接</button>
@@ -2399,9 +2485,9 @@ export default {
           <div id="wecomConfigStatus" style="font-size:0.62rem; padding:6px; border-radius:4px; background:var(--btn-bg); display:none; line-height:1.5;"></div>
           
           <div style="font-size:0.6rem; color:var(--text-light); line-height:1.4; margin-top:4px;">
-            <strong>⚠️ 正确配置步骤：</strong><br>
-            ① 先在此页面填入 Corp ID、Token、AESKey 并点击"保存配置"<br>
-            ② 点击"测试连接"确认配置已生效（全部显示 ✅）<br>
+            <strong>⚠️ 回调与推送配置步骤：</strong><br>
+            ① 先在此页面填入 Corp ID、Token、AESKey（若使用主动推送，还需填写 Agent ID 和 Secret）并点击"保存配置"<br>
+            ② 点击"测试连接"确认配置已生效（若配置了 Secret，将执行 API 连通性测试）<br>
             ③ 再到企业微信后台填入下面的 URL 并保存<br><br>
             <strong>回调 URL:</strong> <span id="wecomCallbackUrlDisplay" style="user-select:all; background:var(--btn-bg); padding:1px 3px; border-radius:3px; word-break:break-all;"></span>
           </div>
@@ -4336,6 +4422,9 @@ const rid=Math.floor(Math.random()*1000);
       document.getElementById('wecomCorpIdInput').value=localStorage.getItem('wecom_corp_id')||'';
       document.getElementById('wecomTokenInput').value=localStorage.getItem('wecom_token')||'';
       document.getElementById('wecomAesKeyInput').value=localStorage.getItem('wecom_aes_key')||'';
+      document.getElementById('wecomAgentIdInput').value=localStorage.getItem('wecom_agent_id')||'';
+      document.getElementById('wecomSecretInput').value=localStorage.getItem('wecom_secret')||'';
+      document.getElementById('wecomTouserInput').value=localStorage.getItem('wecom_touser')||'';
       document.getElementById('wecomCallbackUrlDisplay').innerText = window.location.origin + '/api/wecom/callback';
 
       document.getElementById('exportModal').classList.add('active');
@@ -4355,11 +4444,14 @@ const rid=Math.floor(Math.random()*1000);
       const corpId = document.getElementById('wecomCorpIdInput').value.trim();
       const token = document.getElementById('wecomTokenInput').value.trim();
       const aesKey = document.getElementById('wecomAesKeyInput').value.trim();
+      const agentId = document.getElementById('wecomAgentIdInput').value.trim();
+      const secret = document.getElementById('wecomSecretInput').value.trim();
+      const touser = document.getElementById('wecomTouserInput').value.trim();
       const statusEl = document.getElementById('wecomConfigStatus');
       
       if (!corpId || !token || !aesKey) {
         statusEl.style.display = 'block';
-        statusEl.innerHTML = '❌ 请填写全部三个字段（Corp ID、Token、EncodingAESKey）';
+        statusEl.innerHTML = '❌ 请填写企业基本配置（Corp ID、Token、EncodingAESKey）';
         statusEl.style.color = '#e53935';
         return;
       }
@@ -4377,12 +4469,18 @@ const rid=Math.floor(Math.random()*1000);
       localStorage.setItem('wecom_corp_id', corpId);
       localStorage.setItem('wecom_token', token);
       localStorage.setItem('wecom_aes_key', aesKey);
+      localStorage.setItem('wecom_agent_id', agentId);
+      localStorage.setItem('wecom_secret', secret);
+      localStorage.setItem('wecom_touser', touser);
 
       try {
         await Promise.all([
           syncOp('setWecomCorpId', { wecomCorpId: corpId }),
           syncOp('setWecomToken', { wecomToken: token }),
-          syncOp('setWecomAesKey', { wecomAesKey: aesKey })
+          syncOp('setWecomAesKey', { wecomAesKey: aesKey }),
+          syncOp('setWecomAgentId', { wecomAgentId: agentId }),
+          syncOp('setWecomSecret', { wecomSecret: secret }),
+          syncOp('setWecomTouser', { wecomTouser: touser })
         ]);
         statusEl.innerHTML = '✅ 配置已保存并同步到云端！请点击"测试连接"确认配置生效';
         statusEl.style.color = '#43a047';
@@ -4396,7 +4494,7 @@ const rid=Math.floor(Math.random()*1000);
     document.getElementById('testWecomBtn').addEventListener('click', async ()=>{
       const statusEl = document.getElementById('wecomConfigStatus');
       statusEl.style.display = 'block';
-      statusEl.innerHTML = '⏳ 正在检测云端配置...';
+      statusEl.innerHTML = '⏳ 正在检测云端配置并执行 API 连通性测试...';
       statusEl.style.color = 'var(--text-soft)';
       try {
         const resp = await fetch('/api/wecom/debug');
@@ -4405,14 +4503,26 @@ const rid=Math.floor(Math.random()*1000);
         html += 'Corp ID: ' + data.effective.corpId + '<br>';
         html += 'Token: ' + data.effective.token + '<br>';
         html += 'AES Key: ' + data.effective.aesKey + '<br>';
+        html += 'Agent ID: ' + (data.kv.wecom_agent_id || '❌ 未配置') + '<br>';
+        html += 'Secret: ' + (data.kv.wecom_secret || '❌ 未配置') + '<br>';
+        html += 'Recipient: ' + (data.kv.wecom_touser || '未配置 (默认 @all)') + '<br>';
+        
+        if (data.connection_test) {
+          html += '<br><strong>📡 API 连通性测试：</strong><br>';
+          html += '状态: ' + data.connection_test.status + '<br>';
+          html += '详情: ' + data.connection_test.message + '<br>';
+        }
+        
         html += '<br><strong>回调 URL:</strong> ' + data.callback_url + '<br>';
         
         const allGood = data.effective.corpId.includes('✅') && data.effective.token.includes('✅') && data.effective.aesKey.includes('✅');
-        if (allGood) {
+        const connGood = data.connection_test && data.connection_test.status.includes('✅');
+        
+        if (allGood && (!data.kv.wecom_secret || connGood)) {
           html += '<br>🎉 <strong style="color:#43a047;">全部配置已就绪！现在可以去企业微信后台设置回调 URL 了</strong>';
           statusEl.style.color = '#43a047';
         } else {
-          html += '<br>⚠️ <strong style="color:#e53935;">有配置缺失！请先填写并保存所有配置</strong>';
+          html += '<br>⚠️ <strong style="color:#e53935;">配置不完整或连通测试失败！请检查填写</strong>';
           statusEl.style.color = '#e53935';
         }
         statusEl.innerHTML = html;
@@ -4424,9 +4534,19 @@ const rid=Math.floor(Math.random()*1000);
 
     async function doExport(type){
       const webhookUrl=document.getElementById('webhookUrlInput').value.trim();
-      if(!webhookUrl){document.getElementById('exportStatus').innerText='请填写 Webhook URL';return;}
-      localStorage.setItem('webhook_url',webhookUrl);
-      syncOp('setWebhookUrl',{webhookUrl:webhookUrl});
+      const corpId=localStorage.getItem('wecom_corp_id');
+      const agentId=localStorage.getItem('wecom_agent_id');
+      const secret=localStorage.getItem('wecom_secret');
+      
+      if(!webhookUrl && (!corpId || !agentId || !secret)){
+        document.getElementById('exportStatus').innerText='请填写 Webhook URL 或配置自建应用(CorpID / AgentID / Secret)';
+        return;
+      }
+      
+      if(webhookUrl){
+        localStorage.setItem('webhook_url',webhookUrl);
+        syncOp('setWebhookUrl',{webhookUrl:webhookUrl});
+      }
       
       document.getElementById('exportStatus').innerText='发送中...';
       try{
@@ -4450,10 +4570,6 @@ const rid=Math.floor(Math.random()*1000);
     document.getElementById('exportAllClientsBtn').addEventListener('click',()=>doExport('all_clients'));
     document.getElementById('exportSoloBtn').addEventListener('click',()=>doExport('all_clients_solo'));
   }
-
-
-
-
   // ==================== Android 设备检测 ====================
   function initAndroid(){
     const ua=navigator.userAgent||"";
@@ -5226,9 +5342,44 @@ const rid=Math.floor(Math.random()*1000);
       const aesKey = await env.DATA_KV.get('config:wecom_aes_key');
       const agentId = await env.DATA_KV.get('config:wecom_agent_id');
       const secret = await env.DATA_KV.get('config:wecom_secret');
+      const touser = await env.DATA_KV.get('config:wecom_touser');
       const envCorpId = env.WECOM_CORP_ID;
       const envToken = env.WECOM_TOKEN;
       const envAesKey = env.WECOM_AES_KEY;
+
+      let connectionTest = { status: '未配置', message: '未配置 CorpID 或 Secret，无法执行接口连通性测试。' };
+      const testCorpId = corpId || envCorpId;
+      if (testCorpId && secret) {
+        try {
+          const testUrl = `https://qyapi.weixin.qq.com/cgi-bin/gettoken?corpid=${testCorpId}&corpsecret=${secret}`;
+          const tResp = await fetch(testUrl);
+          if (tResp.ok) {
+            const tData = await tResp.json();
+            if (tData.errcode === 0) {
+              connectionTest = {
+                status: '✅ 连通成功',
+                message: '成功获取 access_token，且 API 服务连通正常！'
+              };
+            } else {
+              connectionTest = {
+                status: '❌ 连通失败',
+                message: `企业微信接口返回错误: [${tData.errcode}] ${tData.errmsg}`
+              };
+            }
+          } else {
+            connectionTest = {
+              status: '❌ 连通失败',
+              message: `请求企业微信 API 失败，HTTP 状态码: ${tResp.status}`
+            };
+          }
+        } catch (err) {
+          connectionTest = {
+            status: '❌ 连通失败',
+            message: `网络请求遇到错误: ${err.message}`
+          };
+        }
+      }
+
       return new Response(JSON.stringify({
         kv: {
           wecom_corp_id: corpId ? '已配置 (' + corpId.substring(0, 6) + '...)' : '❌ 未配置',
@@ -5236,6 +5387,7 @@ const rid=Math.floor(Math.random()*1000);
           wecom_aes_key: aesKey ? '已配置 (长度:' + aesKey.length + ')' : '❌ 未配置',
           wecom_agent_id: agentId ? '已配置 (' + agentId + ')' : '❌ 未配置',
           wecom_secret: secret ? '已配置 (' + secret.substring(0, 6) + '...)' : '❌ 未配置',
+          wecom_touser: touser ? '已配置 (' + touser + ')' : '未配置 (默认发送给 @all)',
         },
         env_fallback: {
           WECOM_CORP_ID: envCorpId ? '已配置' : '❌ 未配置',
@@ -5247,6 +5399,7 @@ const rid=Math.floor(Math.random()*1000);
           token: (token || envToken) ? '✅ 可用' : '❌ 缺失 — 回调将返回 500',
           aesKey: (aesKey || envAesKey) ? '✅ 可用' : '❌ 缺失 — 回调将返回 500',
         },
+        connection_test: connectionTest,
         callback_url: url.origin + '/api/wecom/callback',
         tip: '如果 effective 中有❌，请先在 megz 前端保存配置或调用 /api/wecom/set-config 写入配置后，再到企业微信后台验证回调URL。'
       }, null, 2), {
@@ -5555,7 +5708,7 @@ const rid=Math.floor(Math.random()*1000);
                     role: 'user',
                     content: trimmedContent
                   }
-                ], 0.5);
+                ], 0.5, fromUser);
 
                 replyContent = apiData.choices[0].message.content.trim();
               } catch (aiErr) {
