@@ -36,7 +36,9 @@ async function getWeComAccessToken(env, corpId, secret) {
   let token = await env.DATA_KV.get(cacheKey);
   if (token) return token;
 
-  const url = `https://qyapi.weixin.qq.com/cgi-bin/gettoken?corpid=${corpId}&corpsecret=${secret}`;
+  const proxyBase = await env.DATA_KV.get('config:wecom_api_proxy') || 'https://qyapi.weixin.qq.com';
+  const cleanProxy = proxyBase.endsWith('/') ? proxyBase.slice(0, -1) : proxyBase;
+  const url = `${cleanProxy}/cgi-bin/gettoken?corpid=${corpId}&corpsecret=${secret}`;
   const resp = await fetch(url);
   if (!resp.ok) {
     throw new Error(`获取 access_token 失败，HTTP 状态：${resp.status}`);
@@ -53,7 +55,9 @@ async function getWeComAccessToken(env, corpId, secret) {
 
 async function sendWeComAppMessage(env, corpId, secret, agentId, touser, content) {
   const token = await getWeComAccessToken(env, corpId, secret);
-  const url = `https://qyapi.weixin.qq.com/cgi-bin/message/send?access_token=${token}`;
+  const proxyBase = await env.DATA_KV.get('config:wecom_api_proxy') || 'https://qyapi.weixin.qq.com';
+  const cleanProxy = proxyBase.endsWith('/') ? proxyBase.slice(0, -1) : proxyBase;
+  const url = `${cleanProxy}/cgi-bin/message/send?access_token=${token}`;
   const body = {
     touser: touser || '@all',
     msgtype: 'markdown',
@@ -1166,6 +1170,9 @@ export default {
           break;
         case 'setWecomTouser':
           await env.DATA_KV.put('config:wecom_touser', body.wecomTouser || '');
+          break;
+        case 'setWecomApiProxy':
+          await env.DATA_KV.put('config:wecom_api_proxy', body.wecomApiProxy || '');
           break;
         case 'setAiConfig':
           if (body.aiProvider !== undefined) await env.DATA_KV.put('config:ai_provider', body.aiProvider || '');
@@ -2478,6 +2485,7 @@ export default {
           <input type="text" class="input-simple" id="wecomAgentIdInput" placeholder="应用 Agent ID (用于推送，如 1000002)" style="font-size:0.7rem; height:28px; padding:0 8px;">
           <input type="password" class="input-simple" id="wecomSecretInput" placeholder="应用 Secret (用于推送)" style="font-size:0.7rem; height:28px; padding:0 8px;">
           <input type="text" class="input-simple" id="wecomTouserInput" placeholder="接收成员 UserID (如 WangWu，留空则为全员 @all)" style="font-size:0.7rem; height:28px; padding:0 8px;">
+          <input type="text" class="input-simple" id="wecomApiProxyInput" placeholder="API 代理地址 (中转代理，留空使用官方默认)" style="font-size:0.7rem; height:28px; padding:0 8px;">
           <div style="display:flex; gap:6px;">
             <button id="saveWecomBotBtn" class="btn-add" style="font-size:0.7rem; height:28px; margin:0; background:var(--accent-wechat); color:white; border:none; flex:1;">💾 保存配置</button>
             <button id="testWecomBtn" class="btn-add" style="font-size:0.7rem; height:28px; margin:0; background:linear-gradient(135deg,#36d1dc,#5b86e5); color:white; border:none; flex:1;">🔍 测试连接</button>
@@ -4425,6 +4433,7 @@ const rid=Math.floor(Math.random()*1000);
       document.getElementById('wecomAgentIdInput').value=localStorage.getItem('wecom_agent_id')||'';
       document.getElementById('wecomSecretInput').value=localStorage.getItem('wecom_secret')||'';
       document.getElementById('wecomTouserInput').value=localStorage.getItem('wecom_touser')||'';
+      document.getElementById('wecomApiProxyInput').value=localStorage.getItem('wecom_api_proxy')||'';
       document.getElementById('wecomCallbackUrlDisplay').innerText = window.location.origin + '/api/wecom/callback';
 
       document.getElementById('exportModal').classList.add('active');
@@ -4447,6 +4456,7 @@ const rid=Math.floor(Math.random()*1000);
       const agentId = document.getElementById('wecomAgentIdInput').value.trim();
       const secret = document.getElementById('wecomSecretInput').value.trim();
       const touser = document.getElementById('wecomTouserInput').value.trim();
+      const apiProxy = document.getElementById('wecomApiProxyInput').value.trim();
       const statusEl = document.getElementById('wecomConfigStatus');
       
       if (!corpId || !token || !aesKey) {
@@ -4472,6 +4482,7 @@ const rid=Math.floor(Math.random()*1000);
       localStorage.setItem('wecom_agent_id', agentId);
       localStorage.setItem('wecom_secret', secret);
       localStorage.setItem('wecom_touser', touser);
+      localStorage.setItem('wecom_api_proxy', apiProxy);
 
       try {
         await Promise.all([
@@ -4480,7 +4491,8 @@ const rid=Math.floor(Math.random()*1000);
           syncOp('setWecomAesKey', { wecomAesKey: aesKey }),
           syncOp('setWecomAgentId', { wecomAgentId: agentId }),
           syncOp('setWecomSecret', { wecomSecret: secret }),
-          syncOp('setWecomTouser', { wecomTouser: touser })
+          syncOp('setWecomTouser', { wecomTouser: touser }),
+          syncOp('setWecomApiProxy', { wecomApiProxy: apiProxy })
         ]);
         statusEl.innerHTML = '✅ 配置已保存并同步到云端！请点击"测试连接"确认配置生效';
         statusEl.style.color = '#43a047';
@@ -4506,6 +4518,7 @@ const rid=Math.floor(Math.random()*1000);
         html += 'Agent ID: ' + (data.kv.wecom_agent_id || '❌ 未配置') + '<br>';
         html += 'Secret: ' + (data.kv.wecom_secret || '❌ 未配置') + '<br>';
         html += 'Recipient: ' + (data.kv.wecom_touser || '未配置 (默认 @all)') + '<br>';
+        html += 'Proxy: ' + (data.kv.wecom_api_proxy || '官方默认') + '<br>';
         
         if (data.connection_test) {
           html += '<br><strong>📡 API 连通性测试：</strong><br>';
@@ -5351,7 +5364,9 @@ const rid=Math.floor(Math.random()*1000);
       const testCorpId = corpId || envCorpId;
       if (testCorpId && secret) {
         try {
-          const testUrl = `https://qyapi.weixin.qq.com/cgi-bin/gettoken?corpid=${testCorpId}&corpsecret=${secret}`;
+          const proxyBase = await env.DATA_KV.get('config:wecom_api_proxy') || 'https://qyapi.weixin.qq.com';
+          const cleanProxy = proxyBase.endsWith('/') ? proxyBase.slice(0, -1) : proxyBase;
+          const testUrl = `${cleanProxy}/cgi-bin/gettoken?corpid=${testCorpId}&corpsecret=${secret}`;
           const tResp = await fetch(testUrl);
           if (tResp.ok) {
             const tData = await tResp.json();
@@ -5388,6 +5403,7 @@ const rid=Math.floor(Math.random()*1000);
           wecom_agent_id: agentId ? '已配置 (' + agentId + ')' : '❌ 未配置',
           wecom_secret: secret ? '已配置 (' + secret.substring(0, 6) + '...)' : '❌ 未配置',
           wecom_touser: touser ? '已配置 (' + touser + ')' : '未配置 (默认发送给 @all)',
+          wecom_api_proxy: (await env.DATA_KV.get('config:wecom_api_proxy')) || '未配置 (使用官方默认)',
         },
         env_fallback: {
           WECOM_CORP_ID: envCorpId ? '已配置' : '❌ 未配置',
