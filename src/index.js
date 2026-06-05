@@ -2612,7 +2612,7 @@ export default {
     </div>
     <div class="two-columns">
       <div class="left-area">
-        <div class="card" style="overflow: visible;">
+        <div class="card" style="position: relative; z-index: 10; overflow: visible;">
           <div class="card-title" style="display:flex; justify-content:space-between; align-items:center;">
             <span>白名单快捷查询</span>
             <span style="font-size:0.6rem; color:var(--text-soft); font-weight:normal;" id="mainWlStatus">建行建易贷</span>
