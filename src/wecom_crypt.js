@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import aesjs from 'aes-js';
 
 export class WeComCrypt {
   constructor(token, encodingAesKey, corpId) {
@@ -19,9 +20,8 @@ export class WeComCrypt {
   // Decrypt cipher (Base64 string) to plaintext XML/JSON string
   decrypt(encryptB64) {
     const encrypted = Buffer.from(encryptB64, 'base64');
-    const decipher = crypto.createDecipheriv('aes-256-cbc', this.aesKey, this.iv);
-    decipher.setAutoPadding(false); // Manually handle PKCS#7 padding
-    let decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]);
+    const aesCbc = new aesjs.ModeOfOperation.cbc(this.aesKey, this.iv);
+    let decrypted = Buffer.from(aesCbc.decrypt(encrypted));
     
     // Strip PKCS#7 padding
     const pad = decrypted[decrypted.length - 1];
@@ -39,7 +39,18 @@ export class WeComCrypt {
 
   // Encrypt plaintext message (XML string) to Base64 string
   encrypt(replyMsg) {
-    const randomBytes = crypto.randomBytes(16);
+    let randomBytes;
+    try {
+      randomBytes = crypto.randomBytes(16);
+    } catch (e) {
+      // Fallback for environment without node:crypto randomBytes
+      const arr = new Uint8Array(16);
+      for (let i = 0; i < 16; i++) {
+        arr[i] = Math.floor(Math.random() * 256);
+      }
+      randomBytes = Buffer.from(arr);
+    }
+
     const msgBuffer = Buffer.from(replyMsg, 'utf8');
     const lenBuffer = Buffer.alloc(4);
     lenBuffer.writeInt32BE(msgBuffer.length, 0);
@@ -52,10 +63,9 @@ export class WeComCrypt {
     const padBuffer = Buffer.alloc(pad, pad);
     const paddedBuffer = Buffer.concat([totalBuffer, padBuffer]);
 
-    const cipher = crypto.createCipheriv('aes-256-cbc', this.aesKey, this.iv);
-    cipher.setAutoPadding(false);
-    const encrypted = Buffer.concat([cipher.update(paddedBuffer), cipher.final()]);
-    return encrypted.toString('base64');
+    const aesCbc = new aesjs.ModeOfOperation.cbc(this.aesKey, this.iv);
+    const encryptedBytes = aesCbc.encrypt(paddedBuffer);
+    return Buffer.from(encryptedBytes).toString('base64');
   }
 
   // Create signature for replying
