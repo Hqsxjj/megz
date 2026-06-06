@@ -252,6 +252,72 @@ export function createSupabaseClient(env) {
     return await resp.json();
   }
 
+  /**
+   * Upsert customers (dialer clients) into Supabase.
+   * Uses mobile as unique key to prevent duplicates.
+   * Each customer gets: name, mobile, company_name, note, batch_label
+   */
+  async function upsertCustomers(customers) {
+    if (!baseUrl || !key) return { count: 0, error: 'Supabase not configured' };
+    if (!Array.isArray(customers) || customers.length === 0) return { count: 0 };
+
+    const rows = customers.map(function(c) {
+      return {
+        name: (c.name || '').trim() || '未知姓名',
+        mobile: (c.mobile || c.phone || '').trim(),
+        company_name: (c.company || c.company_name || '').trim(),
+        note: (c.note || '').trim(),
+        batch_label: (c.batch_label || '').trim()
+      };
+    }).filter(function(r) {
+      return r.mobile.length > 0;
+    });
+
+    if (rows.length === 0) return { count: 0 };
+
+    let count = 0;
+    const batchSize = 500;
+    for (let i = 0; i < rows.length; i += batchSize) {
+      const chunk = rows.slice(i, i + batchSize);
+      const resp = await fetch(baseUrl + '/rest/v1/customers?on_conflict=mobile', {
+        method: 'POST',
+        headers: Object.assign({}, headers(), {
+          'Prefer': 'resolution=merge-duplicates'
+        }),
+        body: JSON.stringify(chunk)
+      });
+
+      if (!resp.ok) {
+        const text = await resp.text();
+        // If batch_label column doesn't exist, retry without it
+        if (text.includes('batch_label') && text.includes('column')) {
+          const fallbackRows = chunk.map(function(r) {
+            var copy = Object.assign({}, r);
+            delete copy.batch_label;
+            delete copy.note;
+            return copy;
+          });
+          const fbResp = await fetch(baseUrl + '/rest/v1/customers?on_conflict=mobile', {
+            method: 'POST',
+            headers: Object.assign({}, headers(), {
+              'Prefer': 'resolution=merge-duplicates'
+            }),
+            body: JSON.stringify(fallbackRows)
+          });
+          if (!fbResp.ok) {
+            const fbText = await fbResp.text();
+            throw new Error('Supabase upsert customers failed [' + fbResp.status + ']: ' + fbText);
+          }
+        } else {
+          throw new Error('Supabase upsert customers failed [' + resp.status + ']: ' + text);
+        }
+      }
+      count += chunk.length;
+    }
+
+    return { count: count };
+  }
+
   return {
     upsertCompanies: upsertCompanies,
     getAllCompanies: getAllCompanies,
@@ -261,7 +327,8 @@ export function createSupabaseClient(env) {
     searchCustomers: searchCustomers,
     searchSpeech: searchSpeech,
     searchLoanCases: searchLoanCases,
-    searchKnowledge: searchKnowledge
+    searchKnowledge: searchKnowledge,
+    upsertCustomers: upsertCustomers
   };
 }
 

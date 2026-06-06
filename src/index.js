@@ -1116,6 +1116,35 @@ export default {
       }
     }
 
+    // 2b. 上传拨号器客户数据到 Supabase
+    if (path === '/api/dialer/upload-customers' && request.method === 'POST') {
+      try {
+        const body = await request.json();
+        const customers = body.customers || [];
+        const batchLabel = body.batch_label || '';
+        // Add batch_label to each customer
+        const tagged = customers.map(function(c) {
+          return Object.assign({}, c, { batch_label: batchLabel });
+        });
+        const sb = createSupabaseClient(env);
+        const result = await sb.upsertCustomers(tagged);
+        return new Response(JSON.stringify({ success: true, count: result.count }), {
+          headers: {
+            'Content-Type': 'application/json; charset=UTF-8',
+            'Access-Control-Allow-Origin': '*'
+          }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ success: false, error: e.message }), {
+          status: 500,
+          headers: {
+            'Content-Type': 'application/json; charset=UTF-8',
+            'Access-Control-Allow-Origin': '*'
+          }
+        });
+      }
+    }
+
     // 3. 代理 SheetJS 资源以加快文件解析加载
     if (path === '/xlsx.full.min.js') {
       return fetch('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js');

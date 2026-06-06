@@ -852,6 +852,10 @@ export const DIALER_HTML = `<!DOCTYPE html>
             <input type="file" id="xlsFileInput" accept=".xls,.xlsx,.csv,.docx,.pdf,.txt" style="display:none;">
             <input type="file" id="imgFileInput" accept="image/*" style="display:none;">
             <input type="file" id="vcfFileInput" accept=".vcf,.vcard" style="display:none;">
+            <div style="display: flex; gap: 6px; align-items: center; margin-top: 6px; width: 100%;">
+              <span style="font-size: 0.68rem; color: var(--text-soft); font-weight: 800; white-space: nowrap;">🏷️ 批次标签</span>
+              <input type="text" id="batchLabelInput" placeholder="如: 6月展会名单" value="" style="flex:1; height:28px; padding:0 8px; font-size:0.72rem; border:1px solid var(--card-border); border-radius:var(--radius-xs); background:var(--card-bg); color:var(--text-main); outline:none;">
+            </div>
           </div>
 
           <!-- 2. SCANNING STATE -->
@@ -1482,6 +1486,30 @@ export const DIALER_HTML = `<!DOCTYPE html>
       });
     }
 
+    // Upload imported customers to Supabase via Worker proxy
+    function uploadCustomersToSupabase(customers, batchLabel) {
+      if (!customers || customers.length === 0) return;
+      var label = batchLabel || ('导入-' + new Date().toISOString().slice(0, 16).replace('T', ' '));
+      setSyncStatus('online-unsynced', '正在上传到云端数据库...');
+      fetch('/api/dialer/upload-customers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ customers: customers, batch_label: label })
+      })
+      .then(function(res) { return res.json(); })
+      .then(function(data) {
+        if (data.success) {
+          setSyncStatus('online-synced', '已上传 ' + data.count + ' 条客户数据至 Supabase [批次: ' + label + ']');
+        } else {
+          setSyncStatus('online-unsynced', 'Supabase 上传失败: ' + (data.error || '未知错误'));
+        }
+      })
+      .catch(function(err) {
+        console.error('Supabase upload error:', err);
+        setSyncStatus('online-unsynced', 'Supabase 连接失败，数据已保存在本地和 KV');
+      });
+    }
+
     function showSyncConflictModal(localLen, cloudLen) {
       document.getElementById('conflictLocalCount').textContent = localLen;
       document.getElementById('conflictCloudCount').textContent = cloudLen;
@@ -1592,6 +1620,11 @@ export const DIALER_HTML = `<!DOCTYPE html>
       tempImportData = null;
       tempImportHeaders = [];
       tempImportDetected = null;
+      // Reset batch label with fresh default
+      var blInput = document.getElementById('batchLabelInput');
+      if (blInput) {
+        blInput.value = '导入-' + new Date().toISOString().slice(0, 16).replace('T', ' ');
+      }
     }
 
     function showAIScanningUI(fileName) {
@@ -1971,6 +2004,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
       var phoneCol = parseInt(document.getElementById('aiSelPhone').value);
       var compCol = parseInt(document.getElementById('aiSelCompany').value);
       var noteCol = parseInt(document.getElementById('aiSelNote').value);
+      var batchLabel = (document.getElementById('batchLabelInput').value || '').trim();
 
       if (phoneCol === -1) {
         alert('请至少为电话选择一列进行导入！');
@@ -2004,7 +2038,8 @@ export const DIALER_HTML = `<!DOCTYPE html>
           note: noteVal,
           dialedStatus: 'todo',
           duration: '',
-          callNote: ''
+          callNote: '',
+          batch_label: batchLabel
         });
       }
 
@@ -2018,15 +2053,26 @@ export const DIALER_HTML = `<!DOCTYPE html>
       updateDashboardVisibility(true);
       renderDialCards();
 
+      // Auto-upload to Supabase
+      uploadCustomersToSupabase(parsedCustomers, batchLabel);
+
       resetAIImporterUI();
     }
 
     function executeAIImportVcf() {
       if (!tempImportData || tempImportData.length === 0) return;
+      var batchLabel = (document.getElementById('batchLabelInput').value || '').trim();
+      // Tag each client with the batch label
+      for (var i = 0; i < tempImportData.length; i++) {
+        tempImportData[i].batch_label = batchLabel;
+      }
       importedClients = tempImportData;
       saveState();
       updateDashboardVisibility(true);
       renderDialCards();
+
+      // Auto-upload to Supabase
+      uploadCustomersToSupabase(tempImportData, batchLabel);
 
       resetAIImporterUI();
     }
@@ -2781,10 +2827,19 @@ export const DIALER_HTML = `<!DOCTYPE html>
 
     function executeAIImportUnstructured() {
       if (!tempUnstructuredContacts || tempUnstructuredContacts.length === 0) return;
+      var batchLabel = (document.getElementById('batchLabelInput').value || '').trim();
+      // Tag each client with the batch label
+      for (var i = 0; i < tempUnstructuredContacts.length; i++) {
+        tempUnstructuredContacts[i].batch_label = batchLabel;
+      }
       importedClients = tempUnstructuredContacts;
       saveState();
       updateDashboardVisibility(true);
       renderDialCards();
+
+      // Auto-upload to Supabase
+      uploadCustomersToSupabase(tempUnstructuredContacts, batchLabel);
+
       resetAIImporterUI();
     }
 
@@ -3098,6 +3153,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
           '</div>' +
           '<div class="client-card-tags" style="margin-top: 2px;">' +
             (c.company ? '<span class="client-card-tag client-card-tag-company" data-company="' + esc(c.company) + '" data-idx="' + i + '" title="点击复制单位名称">' + esc(c.company) + '</span>' : '') +
+            (c.batch_label ? '<span class="client-card-tag" style="background:rgba(74,108,247,0.08);color:#4a6cf7;font-weight:700;" title="导入批次">🏷 ' + esc(c.batch_label) + '</span>' : '') +
             (function() {
               if (!c.company) return '';
               var matchedWl = matchWhitelistCompany(c.company);
