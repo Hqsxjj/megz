@@ -1073,6 +1073,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
           <option value="no">非白名单</option>
         </select>
         <button id="whitelistCheckBtn" title="对照白名单检查客户单位" style="height:28px; padding:0 8px; font-size:0.65rem; border:1px solid var(--accent-wechat); background:var(--accent-wechat-bg); color:var(--accent-wechat); border-radius:var(--radius-xs); cursor:pointer; font-weight:800; outline:none; white-space:nowrap; flex-shrink:0;">☑ 白名单</button>
+        <button id="custViewerBtn2" title="查看 Supabase 客户数据库" style="height:28px;padding:0 8px;font-size:0.68rem;border:1px solid var(--card-border);background:var(--btn-bg);color:var(--text-soft);border-radius:var(--radius-xs);cursor:pointer;font-weight:800;outline:none;white-space:nowrap;flex-shrink:0;">📋 数据库</button>
         <div class="filter-group" style="flex-shrink: 0;">
           <button class="filter-tab active" data-filter="all">全部</button>
           <button class="filter-tab" data-filter="todo">待拨打</button>
@@ -4337,33 +4338,35 @@ export const DIALER_HTML = `<!DOCTYPE html>
 
     function initCustViewer() {
       var overlay = document.getElementById('custViewerOverlay');
+      if (!overlay) { console.error('custViewerOverlay not found'); return; }
+
       var closeBtn = document.getElementById('custViewerClose');
       var searchInput = document.getElementById('custViewerSearch');
       var catFilter = document.getElementById('custViewerCatFilter');
       var prevBtn = document.getElementById('custViewerPrev');
       var nextBtn = document.getElementById('custViewerNext');
-      var openBtn = document.getElementById('custViewerBtn');
 
-      // Open
-      if (openBtn) {
-        openBtn.addEventListener('click', function() {
-          overlay.classList.add('active');
-          custViewerPage = 1;
-          searchInput.value = '';
-          if (catFilter) catFilter.value = '';
-          fetchCustomers(1, '', '');
-        });
+      function openViewer() {
+        overlay.classList.add('active');
+        custViewerPage = 1;
+        if (searchInput) searchInput.value = '';
+        if (catFilter) catFilter.value = '';
+        fetchCustomers(1, '', '');
       }
+
+      // Bind both buttons (dropdown + control bar)
+      var btn1 = document.getElementById('custViewerBtn');
+      var btn2 = document.getElementById('custViewerBtn2');
+      if (btn1) btn1.addEventListener('click', openViewer);
+      if (btn2) btn2.addEventListener('click', openViewer);
 
       // Close
       if (closeBtn) {
         closeBtn.addEventListener('click', function() { overlay.classList.remove('active'); });
       }
-      if (overlay) {
-        overlay.addEventListener('click', function(e) {
-          if (e.target === overlay) overlay.classList.remove('active');
-        });
-      }
+      overlay.addEventListener('click', function(e) {
+        if (e.target === overlay) overlay.classList.remove('active');
+      });
 
       // Search with debounce
       if (searchInput) {
