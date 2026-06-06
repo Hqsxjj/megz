@@ -801,6 +801,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
             <button class="dropdown-item" id="whitelistMenuBtn">白名单管理</button>
             <button class="dropdown-item" id="toggleDualSimBtn">双卡轮换: 开</button>
             <button class="dropdown-item" id="toggleRotationBtn">轮换频率: 10通</button>
+            <button class="dropdown-item" id="toggleCopyLimitBtn">复制限制: 开</button>
             <button class="dropdown-item" id="exportBtn" style="display:none;">导出记录</button>
             <button class="dropdown-item" id="clearBtn" style="display:none; color: #e74c3c;">清空数据</button>
             <button class="dropdown-item" id="darkToggleBtn">切换主题</button>
@@ -1186,6 +1187,9 @@ export const DIALER_HTML = `<!DOCTYPE html>
 
     // Returns {allowed: bool, message: string}
     function checkCopyLimit() {
+      // If copy limit feature is disabled, always allow
+      if (copyLimitEnabled === false) return { allowed: true, message: '' };
+
       loadCopyLimitState();
       var now = Date.now();
 
@@ -3712,6 +3716,18 @@ export const DIALER_HTML = `<!DOCTYPE html>
           rotationCount = rotationCount === 10 ? 5 : 10;
           rotationBtn.textContent = '轮换频率: ' + rotationCount + '通';
           localStorage.setItem('dialer_rotation', String(rotationCount));
+        });
+      }
+
+      // Copy limit toggle
+      var copyLimitEnabled = localStorage.getItem('dialer_copy_limit_enabled') !== '0'; // default on
+      var copyLimitBtn = document.getElementById('toggleCopyLimitBtn');
+      if (copyLimitBtn) {
+        copyLimitBtn.textContent = '复制限制: ' + (copyLimitEnabled ? '开' : '关');
+        copyLimitBtn.addEventListener('click', function() {
+          copyLimitEnabled = !copyLimitEnabled;
+          copyLimitBtn.textContent = '复制限制: ' + (copyLimitEnabled ? '开' : '关');
+          localStorage.setItem('dialer_copy_limit_enabled', copyLimitEnabled ? '1' : '0');
         });
       }
 
