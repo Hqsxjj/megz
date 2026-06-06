@@ -259,14 +259,15 @@ export const DIALER_HTML = `<!DOCTYPE html>
     
     /* Control Panel */
     .control-bar {
-      height: 48px;
-      padding: 0 20px;
+      min-height: 48px;
+      padding: 6px 20px;
       border-bottom: 1px solid var(--border-light);
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 12px;
       flex-shrink: 0;
+      flex-wrap: wrap;
     }
     .search-input {
       width: 130px;
@@ -420,7 +421,8 @@ export const DIALER_HTML = `<!DOCTYPE html>
       text-shadow: 0 0 6px rgba(7, 193, 96, 0.45);
       font-weight: 900;
       text-decoration: line-through;
-      text-decoration-color: rgba(231, 76, 60, 0.55);
+      text-decoration-color: rgba(231, 76, 60, 0.7);
+      text-decoration-thickness: 2px;
     }
     body.dark-mode .client-phone-btn.copied {
       text-shadow: 0 0 8px rgba(7, 193, 96, 0.6);
@@ -642,9 +644,9 @@ export const DIALER_HTML = `<!DOCTYPE html>
         box-shadow: none;
       }
       .control-bar {
-        padding: 0 8px;
-        gap: 6px;
-        height: 42px;
+        padding: 4px 8px;
+        gap: 4px;
+        min-height: 42px;
       }
       .search-input {
         width: 100px;
@@ -1279,6 +1281,18 @@ export const DIALER_HTML = `<!DOCTYPE html>
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#039;');
+    }
+
+    // Cross-platform WeChat jump
+    var isAndroid = /Android/.test(navigator.userAgent) && !/iPhone|iPad|iPod/.test(navigator.userAgent);
+    function jumpToWechat() {
+      if (isAndroid) {
+        // Android: use intent:// scheme for WebView/Chrome
+        window.location.href = 'intent://#Intent;scheme=weixin;package=com.tencent.mm;end';
+      } else {
+        // iOS: use weixin:// scheme
+        window.location.href = 'weixin://';
+      }
     }
 
     function copyTextToClipboard(text) {
@@ -3246,7 +3260,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
           b.classList.add('copied');
 
           setTimeout(function() {
-            window.location.href = 'weixin://';
+            jumpToWechat();
           }, 100);
 
           setTimeout(function() {
@@ -3591,7 +3605,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
           }
 
           setTimeout(function() {
-            window.location.href = 'weixin://';
+            jumpToWechat();
           }, 100);
 
           setTimeout(function() {
