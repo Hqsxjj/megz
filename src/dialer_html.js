@@ -419,6 +419,8 @@ export const DIALER_HTML = `<!DOCTYPE html>
       color: var(--text-main) !important;
       text-shadow: 0 0 6px rgba(7, 193, 96, 0.45);
       font-weight: 900;
+      text-decoration: line-through;
+      text-decoration-color: rgba(231, 76, 60, 0.55);
     }
     body.dark-mode .client-phone-btn.copied {
       text-shadow: 0 0 8px rgba(7, 193, 96, 0.6);
