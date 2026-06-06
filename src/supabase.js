@@ -266,7 +266,7 @@ export function createSupabaseClient(env) {
 
       var baseSearch = '';
       if (search) {
-        baseSearch = '&or=(name.ilike.%25' + encodeURIComponent(search) + '%25,mobile.ilike.%25' + encodeURIComponent(search) + '%25,company_name.ilike.%25' + encodeURIComponent(search) + '%25,batch_label.ilike.%25' + encodeURIComponent(search) + '%25)';
+        baseSearch = '&or=(name.ilike.%25' + encodeURIComponent(search) + '%25,mobile.ilike.%25' + encodeURIComponent(search) + '%25,company_name.ilike.%25' + encodeURIComponent(search) + '%25)';
       }
 
       var headersWithCount = Object.assign({}, headers(), {
@@ -276,8 +276,9 @@ export function createSupabaseClient(env) {
 
       // Try column sets from most to least specific
       var colSets = [
-        'name,mobile,company_name,note,batch_label,category,created_at',
-        'name,mobile,company_name,batch_label,created_at',
+        'name,mobile,company_name,category,note,batch_label,created_at',
+        'name,mobile,company_name,category,note,created_at',
+        'name,mobile,company_name,created_at',
         '*'
       ];
       var resp = null;
