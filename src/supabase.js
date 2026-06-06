@@ -263,16 +263,12 @@ export function createSupabaseClient(env) {
     var from = (p - 1) * ps;
     var to = from + ps - 1;
 
-    var selectCols = 'name,mobile,company_name,note,batch_label,category,created_at';
-    var url = baseUrl + '/rest/v1/customers?select=' + selectCols + '&order=created_at.desc';
+    // Try full columns first, fall back to minimal if columns don't exist
+    var selectColsFull = 'name,mobile,company_name,note,batch_label,category,created_at';
+    var selectColsMin = 'name,mobile,company_name,batch_label,created_at';
+    var baseSearch = '';
     if (search) {
-      url += '&or=(name.ilike.%25' + encodeURIComponent(search) + '%25,mobile.ilike.%25' + encodeURIComponent(search) + '%25,company_name.ilike.%25' + encodeURIComponent(search) + '%25,batch_label.ilike.%25' + encodeURIComponent(search) + '%25)';
-    }
-
-    // Get total count
-    var countUrl = baseUrl + '/rest/v1/customers?select=count';
-    if (search) {
-      countUrl += '&or=(name.ilike.%25' + encodeURIComponent(search) + '%25,mobile.ilike.%25' + encodeURIComponent(search) + '%25,company_name.ilike.%25' + encodeURIComponent(search) + '%25,batch_label.ilike.%25' + encodeURIComponent(search) + '%25)';
+      baseSearch = '&or=(name.ilike.%25' + encodeURIComponent(search) + '%25,mobile.ilike.%25' + encodeURIComponent(search) + '%25,company_name.ilike.%25' + encodeURIComponent(search) + '%25,batch_label.ilike.%25' + encodeURIComponent(search) + '%25)';
     }
 
     var headersWithCount = Object.assign({}, headers(), {
@@ -280,10 +276,22 @@ export function createSupabaseClient(env) {
       'Prefer': 'count=exact'
     });
 
+    // Try full columns
+    var url = baseUrl + '/rest/v1/customers?select=' + selectColsFull + '&order=created_at.desc' + baseSearch;
     var resp = await fetch(url, { headers: headersWithCount });
+
+    // If column missing, fall back to minimal
     if (!resp.ok) {
-      var text = await resp.text();
-      throw new Error('Supabase query customers failed [' + resp.status + ']: ' + text);
+      var errText = await resp.text();
+      if (errText.includes('column') || resp.status === 400 || resp.status === 500) {
+        url = baseUrl + '/rest/v1/customers?select=' + selectColsMin + '&order=created_at.desc' + baseSearch;
+        resp = await fetch(url, { headers: headersWithCount });
+      }
+    }
+
+    if (!resp.ok) {
+      var text = resp.status === 500 ? await resp.text() : '';
+      throw new Error('Supabase query customers failed [' + resp.status + ']: ' + (text || resp.statusText));
     }
 
     var data = await resp.json();
