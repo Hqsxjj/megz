@@ -896,7 +896,9 @@ export const DIALER_HTML = `<!DOCTYPE html>
         </div>
         
         <!-- Auto Dial Toggle -->
-        <button id="autoDialBtn" title="自动拨打" style="font-size: 0.78rem; padding: 4px 10px; border: 1px solid var(--accent-wechat); background: var(--accent-wechat-bg); color: var(--accent-wechat); cursor: pointer; outline: none; font-weight: 700; border-radius: var(--radius-xs); margin-left: auto; margin-right: 8px; white-space: nowrap;">自动拨打</button>
+        <button id="autoDialBtn" title="自动拨打" style="font-size: 0.78rem; padding: 4px 10px; border: 1px solid var(--accent-wechat); background: var(--accent-wechat-bg); color: var(--accent-wechat); cursor: pointer; outline: none; font-weight: 700; border-radius: var(--radius-xs); white-space: nowrap;">自动拨打</button>
+        <!-- Database Viewer -->
+        <button id="custViewerBtn2" title="查看 Supabase 客户数据库" style="font-size: 0.78rem; padding: 4px 10px; border: 1px solid #4a6cf7; background: rgba(74,108,247,0.08); color: #4a6cf7; cursor: pointer; outline: none; font-weight: 700; border-radius: var(--radius-xs); margin-right: 8px; white-space: nowrap;">📋 数据库</button>
         <!-- Dropdown Menu Trigger on the Right -->
         <div style="position: relative; display: inline-block;">
           <button id="headerMenuBtn" title="更多设置" style="font-size: 0.8rem; padding: 6px 10px; border: none; background: transparent; cursor: pointer; outline: none; font-weight: 800; color: var(--text-soft); min-width: 44px; min-height: 34px; -webkit-tap-highlight-color: transparent; touch-action: manipulation;">更多</button>
@@ -1073,7 +1075,6 @@ export const DIALER_HTML = `<!DOCTYPE html>
           <option value="no">非白名单</option>
         </select>
         <button id="whitelistCheckBtn" title="对照白名单检查客户单位" style="height:28px; padding:0 8px; font-size:0.65rem; border:1px solid var(--accent-wechat); background:var(--accent-wechat-bg); color:var(--accent-wechat); border-radius:var(--radius-xs); cursor:pointer; font-weight:800; outline:none; white-space:nowrap; flex-shrink:0;">☑ 白名单</button>
-        <button id="custViewerBtn2" title="查看 Supabase 客户数据库" style="height:28px;padding:0 8px;font-size:0.68rem;border:1px solid var(--card-border);background:var(--btn-bg);color:var(--text-soft);border-radius:var(--radius-xs);cursor:pointer;font-weight:800;outline:none;white-space:nowrap;flex-shrink:0;">📋 数据库</button>
         <div class="filter-group" style="flex-shrink: 0;">
           <button class="filter-tab active" data-filter="all">全部</button>
           <button class="filter-tab" data-filter="todo">待拨打</button>
