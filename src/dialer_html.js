@@ -782,64 +782,96 @@ export const DIALER_HTML = `<!DOCTYPE html>
       font-size: 0.72rem !important;
       opacity: 0.85;
     }
-    /* Customer Data Viewer */
-    .cust-viewer-overlay {
-      position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 10000;
+    /* Customer Data Dashboard */
+    .db-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 10000;
       display: none; align-items: center; justify-content: center;
     }
-    .cust-viewer-overlay.active { display: flex; }
-    .cust-viewer-panel {
-      background: var(--card-bg); border-radius: 12px; width: 95vw; max-width: 900px;
-      max-height: 90vh; display: flex; flex-direction: column; overflow: hidden;
-      box-shadow: 0 8px 40px rgba(0,0,0,0.25);
+    .db-overlay.active { display: flex; }
+    .db-panel {
+      background: var(--card-bg); border-radius: 14px; width: 96vw; max-width: 1100px;
+      height: 92vh; max-height: 92vh; display: flex; flex-direction: column; overflow: hidden;
+      box-shadow: 0 12px 60px rgba(0,0,0,0.3);
     }
-    .cust-viewer-header {
+    .db-header {
       display: flex; align-items: center; justify-content: space-between;
-      padding: 12px 16px; border-bottom: 1px solid var(--border-light);
-      font-weight: 900; font-size: 0.95rem;
+      padding: 14px 20px; border-bottom: 2px solid var(--border-light);
+      background: linear-gradient(135deg, rgba(74,108,247,0.04), rgba(7,193,96,0.04));
     }
-    .cust-viewer-close {
+    .db-title { font-size: 1rem; font-weight: 900; }
+    .db-close {
       background: none; border: none; font-size: 1.3rem; cursor: pointer;
-      color: var(--text-soft); padding: 4px 8px; border-radius: 6px;
+      color: var(--text-soft); padding: 4px 10px; border-radius: 6px;
     }
-    .cust-viewer-toolbar {
-      display: flex; gap: 8px; padding: 8px 16px; align-items: center;
+    .db-close:hover { background: var(--btn-hover); }
+    /* Stats row */
+    .db-stats {
+      display: flex; gap: 10px; padding: 12px 20px; flex-wrap: wrap;
+      border-bottom: 1px solid var(--border-light);
+    }
+    .db-stat-card {
+      flex: 1; min-width: 100px; padding: 10px 14px; border-radius: 10px;
+      text-align: center; border: 1px solid var(--card-border);
+      background: var(--btn-bg);
+    }
+    .db-stat-num { font-size: 1.4rem; font-weight: 900; color: var(--text-main); }
+    .db-stat-label { font-size: 0.65rem; color: var(--text-soft); margin-top: 2px; }
+    .db-stat-card.accent-green .db-stat-num { color: #2e7d32; }
+    .db-stat-card.accent-blue .db-stat-num { color: #1565c0; }
+    .db-stat-card.accent-orange .db-stat-num { color: #e65100; }
+    .db-stat-card.accent-red .db-stat-num { color: #c62828; }
+    .db-stat-card.accent-purple .db-stat-num { color: #6a1b9a; }
+    /* Category bar */
+    .db-cat-bar {
+      display: flex; gap: 6px; padding: 8px 20px; flex-wrap: wrap; align-items: center;
+      border-bottom: 1px solid var(--border-light);
+    }
+    .db-cat-chip {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 3px 10px; border-radius: 12px; font-size: 0.68rem; font-weight: 700;
+      cursor: pointer; border: 1px solid transparent; transition: all 0.15s;
+    }
+    .db-cat-chip:hover { opacity: 0.85; }
+    .db-cat-chip.active { border-color: var(--text-main); }
+    /* Toolbar */
+    .db-toolbar {
+      display: flex; gap: 8px; padding: 8px 20px; align-items: center;
       border-bottom: 1px solid var(--border-light); flex-wrap: wrap;
     }
-    .cust-viewer-search {
-      flex: 1; min-width: 120px; height: 32px; padding: 0 10px;
+    .db-search {
+      flex: 1; min-width: 140px; height: 32px; padding: 0 10px;
       border: 1px solid var(--card-border); border-radius: 6px;
       font-size: 0.78rem; outline: none; background: var(--btn-bg); color: var(--text-main);
     }
-    .cust-viewer-table-wrap {
-      flex: 1; overflow: auto; padding: 0;
+    .db-search:focus { border-color: #4a6cf7; }
+    .db-filter {
+      height: 32px; padding: 0 8px; border: 1px solid var(--card-border);
+      border-radius: 6px; font-size: 0.72rem; background: var(--btn-bg);
+      color: var(--text-soft); outline: none; cursor: pointer;
     }
-    .cust-viewer-table {
+    /* Table */
+    .db-table-wrap { flex: 1; overflow: auto; }
+    .db-table {
       width: 100%; border-collapse: collapse; font-size: 0.74rem;
     }
-    .cust-viewer-table th {
-      position: sticky; top: 0; background: var(--btn-bg); padding: 8px 10px;
-      text-align: left; font-weight: 800; color: var(--text-soft); border-bottom: 2px solid var(--card-border);
-      white-space: nowrap;
+    .db-table thead th {
+      position: sticky; top: 0; z-index: 2;
+      background: #f8f8f8; padding: 10px 12px; text-align: left;
+      font-weight: 800; color: var(--text-soft); border-bottom: 2px solid #ddd;
+      white-space: nowrap; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.3px;
     }
-    .cust-viewer-table td {
-      padding: 7px 10px; border-bottom: 1px solid var(--border-light);
-      color: var(--text-main); max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    body.dark-mode .db-table thead th { background: #2a2a2a; border-color: #444; }
+    .db-table td {
+      padding: 9px 12px; border-bottom: 1px solid var(--border-light);
+      color: var(--text-main); max-width: 160px; overflow: hidden;
+      text-overflow: ellipsis; white-space: nowrap; font-size: 0.76rem;
     }
-    .cust-viewer-table tr:hover td { background: rgba(0,0,0,0.02); }
-    .cust-viewer-pager {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 8px 16px; border-top: 1px solid var(--border-light); font-size: 0.72rem;
+    .db-table tbody tr { transition: background 0.1s; }
+    .db-table tbody tr:hover { background: rgba(74,108,247,0.04); }
+    .db-empty {
+      text-align: center; padding: 60px 20px; color: var(--text-light); font-size: 0.85rem;
     }
-    .cust-viewer-pager button {
-      background: var(--btn-bg); border: 1px solid var(--card-border);
-      padding: 4px 12px; border-radius: 6px; cursor: pointer; font-weight: 700;
-      font-size: 0.72rem; color: var(--text-main);
-    }
-    .cust-viewer-pager button:disabled { opacity: 0.4; cursor: default; }
-    .cust-viewer-empty {
-      text-align: center; padding: 40px 20px; color: var(--text-light); font-size: 0.82rem;
-    }
+    /* Category tag (reused) */
     .cust-cat-tag {
       display: inline-block; padding: 2px 8px; border-radius: 10px;
       font-size: 0.68rem; font-weight: 700; cursor: pointer;
@@ -857,26 +889,26 @@ export const DIALER_HTML = `<!DOCTYPE html>
     .cust-cat-tag.cat-老客户 { background: #e0f7fa; color: #006064; border-color: #80deea; }
     .cust-cat-tag.cat-同行 { background: #fff8e1; color: #f57f17; border-color: #fff176; }
     .cust-cat-tag.cat-其他 { background: #eceff1; color: #455a64; border-color: #b0bec5; }
-    .cust-cat-edit-wrap {
-      display: inline-flex; gap: 4px; align-items: center;
-    }
-    .cust-cat-select {
-      font-size: 0.68rem; padding: 1px 4px; border-radius: 4px;
-      border: 1px solid var(--accent-wechat); outline: none; max-width: 80px;
-    }
-    .cust-cat-input {
-      font-size: 0.68rem; padding: 1px 6px; border-radius: 4px;
-      border: 1px solid var(--accent-wechat); outline: none; width: 70px;
-    }
-    .cust-cat-save, .cust-cat-cancel {
-      font-size: 0.65rem; padding: 1px 6px; border-radius: 3px; cursor: pointer;
-      border: none; font-weight: 700;
-    }
+    .cust-cat-edit-wrap { display: inline-flex; gap: 4px; align-items: center; }
+    .cust-cat-select { font-size: 0.68rem; padding: 1px 4px; border-radius: 4px; border: 1px solid var(--accent-wechat); outline: none; max-width: 80px; }
+    .cust-cat-input { font-size: 0.68rem; padding: 1px 6px; border-radius: 4px; border: 1px solid var(--accent-wechat); outline: none; width: 70px; }
+    .cust-cat-save, .cust-cat-cancel { font-size: 0.65rem; padding: 1px 6px; border-radius: 3px; cursor: pointer; border: none; font-weight: 700; }
     .cust-cat-save { background: var(--accent-wechat); color: #fff; }
     .cust-cat-cancel { background: var(--btn-bg); color: var(--text-soft); }
-    .cust-viewer-note {
-      max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-      font-size: 0.68rem; color: var(--text-light); cursor: pointer;
+    /* Pager */
+    .db-pager {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 20px; border-top: 1px solid var(--border-light); font-size: 0.72rem;
+    }
+    .db-pager button {
+      background: var(--btn-bg); border: 1px solid var(--card-border);
+      padding: 5px 14px; border-radius: 6px; cursor: pointer; font-weight: 700;
+      font-size: 0.72rem; color: var(--text-main);
+    }
+    .db-pager button:disabled { opacity: 0.35; cursor: default; }
+    .db-pager select {
+      height: 28px; border: 1px solid var(--card-border); border-radius: 6px;
+      font-size: 0.68rem; padding: 0 4px; background: var(--btn-bg); color: var(--text-main);
     }
   </style>
 </head>
@@ -1229,40 +1261,63 @@ export const DIALER_HTML = `<!DOCTYPE html>
   <!-- SheetJS CDN -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
-<!-- Customer Data Viewer Modal -->
-<div class="cust-viewer-overlay" id="custViewerOverlay">
-  <div class="cust-viewer-panel">
-    <div class="cust-viewer-header">
-      <span>📋 Supabase 客户数据库</span>
-      <button class="cust-viewer-close" id="custViewerClose">✕</button>
+<!-- Customer Database Dashboard -->
+<div class="db-overlay" id="dbOverlay">
+  <div class="db-panel">
+    <div class="db-header">
+      <span class="db-title">📋 客户数据库看板</span>
+      <button class="db-close" id="dbClose">✕</button>
     </div>
-    <div class="cust-viewer-toolbar">
-      <input type="text" class="cust-viewer-search" id="custViewerSearch" placeholder="搜索姓名/电话/公司/批次/分类...">
-      <span id="custViewerTotal" style="font-size:0.72rem;color:var(--text-soft);white-space:nowrap;">共 0 条</span>
-      <select id="custViewerCatFilter" style="height:30px;font-size:0.7rem;border:1px solid var(--card-border);border-radius:6px;background:var(--btn-bg);color:var(--text-soft);padding:0 6px;outline:none;">
-        <option value="">全部分类</option>
-      </select>
+    <!-- Stats Row -->
+    <div class="db-stats" id="dbStats">
+      <div class="db-stat-card"><div class="db-stat-num" id="dbStatTotal">-</div><div class="db-stat-label">总客户数</div></div>
+      <div class="db-stat-card accent-blue"><div class="db-stat-num" id="dbStatMonth">-</div><div class="db-stat-label">本月新增</div></div>
+      <div class="db-stat-card accent-green"><div class="db-stat-num" id="dbStatTagged">-</div><div class="db-stat-label">已分类</div></div>
+      <div class="db-stat-card accent-orange"><div class="db-stat-num" id="dbStatBatches">-</div><div class="db-stat-label">批次数</div></div>
+      <div class="db-stat-card accent-purple"><div class="db-stat-num" id="dbStatToday">-</div><div class="db-stat-label">今日导入</div></div>
     </div>
-    <div class="cust-viewer-table-wrap">
-      <table class="cust-viewer-table">
+    <!-- Category Distribution -->
+    <div class="db-cat-bar" id="dbCatBar"><span style="font-size:0.68rem;color:var(--text-light);">分类分布加载中...</span></div>
+    <!-- Toolbar -->
+    <div class="db-toolbar">
+      <input type="text" class="db-search" id="dbSearch" placeholder="🔍 搜索姓名 / 电话 / 公司 / 批次 / 分类...">
+      <select class="db-filter" id="dbCatFilter"><option value="">全部分类</option></select>
+      <select class="db-filter" id="dbBatchFilter"><option value="">全部批次</option></select>
+      <span style="font-size:0.7rem;color:var(--text-soft);white-space:nowrap;" id="dbTotal">共 0 条</span>
+    </div>
+    <!-- Table -->
+    <div class="db-table-wrap">
+      <table class="db-table">
         <thead>
           <tr>
-            <th style="width:90px;">分类标签</th>
+            <th style="width:90px;">分类</th>
             <th style="width:70px;">姓名</th>
-            <th style="width:120px;">电话</th>
+            <th style="width:115px;">电话</th>
             <th style="min-width:130px;">公司</th>
             <th style="width:100px;">批次</th>
-            <th style="width:90px;">入库时间</th>
+            <th style="width:85px;">入库时间</th>
           </tr>
         </thead>
-        <tbody id="custViewerTbody"></tbody>
+        <tbody id="dbTbody"></tbody>
       </table>
-      <div class="cust-viewer-empty" id="custViewerEmpty" style="display:none;">暂无数据，请先导入客户或检查 Supabase 连接</div>
+      <div class="db-empty" id="dbEmpty" style="display:none;">
+        <div style="font-size:2rem;margin-bottom:8px;">📭</div>
+        <div>暂无客户数据</div>
+        <div style="font-size:0.7rem;margin-top:4px;color:var(--text-light);">请先通过导入功能上传客户，或检查 Supabase 连接</div>
+      </div>
     </div>
-    <div class="cust-viewer-pager">
-      <button id="custViewerPrev">上一页</button>
-      <span id="custViewerPageInfo">第 1 页</span>
-      <button id="custViewerNext">下一页</button>
+    <!-- Pager -->
+    <div class="db-pager">
+      <button id="dbPrev">‹ 上一页</button>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span id="dbPageInfo" style="font-size:0.72rem;">第 1 页</span>
+        <select id="dbPageSize" style="height:26px;font-size:0.65rem;">
+          <option value="30">30条/页</option>
+          <option value="50" selected>50条/页</option>
+          <option value="100">100条/页</option>
+        </select>
+      </div>
+      <button id="dbNext">下一页 ›</button>
     </div>
   </div>
 </div>
@@ -4134,69 +4189,102 @@ export const DIALER_HTML = `<!DOCTYPE html>
 
     // ====== Customer Data Viewer (Supabase) ======
     var custViewerPage = 1;
-    var custViewerTotal = 0;
-    var custViewerPageSize = 50;
-    var custViewerSearchTimer = null;
-
-    // Preset category options
+    // ====== Customer Database Dashboard ======
+    var dbPage = 1;
+    var dbTotal = 0;
+    var dbPageSize = 50;
+    var dbSearchTimer = null;
+    var dbAllData = []; // full dataset for client-side stats
     var CUST_CATEGORIES = ['潜在客户', '意向客户', '已成交', '无效号码', '待跟进', '老客户', '同行', '其他'];
 
-    function fetchCustomers(page, search, catFilter) {
-      var p = page || 1;
-      var s = search || '';
-      var cf = catFilter || document.getElementById('custViewerCatFilter').value || '';
-      var url = '/api/dialer/customers?page=' + p + '&pageSize=' + custViewerPageSize;
-      if (s) url += '&search=' + encodeURIComponent(s);
+    function dbFetch() {
+      var search = document.getElementById('dbSearch').value || '';
+      var url = '/api/dialer/customers?page=' + dbPage + '&pageSize=' + dbPageSize;
+      if (search) url += '&search=' + encodeURIComponent(search);
 
-      document.getElementById('custViewerTbody').innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--text-light);">加载中...</td></tr>';
+      document.getElementById('dbTbody').innerHTML = '<tr><td colspan="6" style="text-align:center;padding:30px;color:var(--text-light);">⏳ 加载中...</td></tr>';
 
       fetch(url)
         .then(function(res) { return res.json(); })
         .then(function(result) {
           var data = result.data || [];
-          // Client-side category filter (since Supabase may not have the column)
-          if (cf) {
-            data = data.filter(function(c) { return (c.category || '') === cf; });
-          }
-          custViewerTotal = data.length; // approximate for client-filtered
-          custViewerPage = result.page || p;
-          renderCustomerTable(data);
-          updateCustPager();
-          document.getElementById('custViewerTotal').textContent = '共 ' + (result.total || data.length) + ' 条';
-          // Populate category filter dropdown
-          updateCatFilterOptions(data);
+          // Client-side filters
+          var catFilter = document.getElementById('dbCatFilter').value;
+          var batchFilter = document.getElementById('dbBatchFilter').value;
+          if (catFilter) data = data.filter(function(c) { return (c.category || '') === catFilter; });
+          if (batchFilter) data = data.filter(function(c) { return (c.batch_label || '') === batchFilter; });
+
+          dbTotal = result.total || data.length;
+          dbAllData = data;
+          dbRenderTable(data);
+          dbRenderPager();
+          dbRenderStats(data);
+          dbUpdateFilters(data);
+          document.getElementById('dbTotal').textContent = '共 ' + dbTotal + ' 条';
         })
         .catch(function(err) {
-          document.getElementById('custViewerTbody').innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;color:#e74c3c;">加载失败: ' + esc(err.message) + '</td></tr>';
+          document.getElementById('dbTbody').innerHTML = '<tr><td colspan="6" style="text-align:center;padding:30px;color:#e74c3c;">⚠ 加载失败: ' + esc(err.message) + '</td></tr>';
         });
     }
 
-    var allCategoriesCache = {};
-    function updateCatFilterOptions(data) {
-      var sel = document.getElementById('custViewerCatFilter');
-      if (!sel) return;
-      var currentVal = sel.value;
-      // Collect unique categories from data
+    function dbRenderStats(data) {
+      var now = new Date();
+      var thisMonth = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+      var today = now.toISOString().slice(0, 10);
+      var monthCount = 0, taggedCount = 0, todayCount = 0;
+      var batches = {};
       for (var i = 0; i < (data || []).length; i++) {
-        var cat = data[i].category;
-        if (cat) allCategoriesCache[cat] = true;
+        var c = data[i];
+        if (c.created_at && c.created_at.slice(0, 7) === thisMonth) monthCount++;
+        if (c.created_at && c.created_at.slice(0, 10) === today) todayCount++;
+        if (c.category) taggedCount++;
+        if (c.batch_label) batches[c.batch_label] = true;
       }
-      // Also add presets
-      for (var j = 0; j < CUST_CATEGORIES.length; j++) {
-        allCategoriesCache[CUST_CATEGORIES[j]] = true;
+      document.getElementById('dbStatTotal').textContent = dbTotal;
+      document.getElementById('dbStatMonth').textContent = monthCount;
+      document.getElementById('dbStatTagged').textContent = taggedCount;
+      document.getElementById('dbStatBatches').textContent = Object.keys(batches).length;
+      document.getElementById('dbStatToday').textContent = todayCount;
+
+      // Category distribution bar
+      var catCounts = {};
+      for (var j = 0; j < (data || []).length; j++) {
+        var cat = data[j].category || '未分类';
+        catCounts[cat] = (catCounts[cat] || 0) + 1;
       }
-      var html = '<option value="">全部分类</option>';
-      var keys = Object.keys(allCategoriesCache).sort();
+      var catColors = {
+        '潜在客户': 'background:#e3f2fd;color:#1565c0;', '意向客户': 'background:#fff3e0;color:#e65100;',
+        '已成交': 'background:#e8f5e9;color:#2e7d32;', '无效号码': 'background:#fce4ec;color:#c62828;',
+        '待跟进': 'background:#f3e5f5;color:#6a1b9a;', '老客户': 'background:#e0f7fa;color:#006064;',
+        '同行': 'background:#fff8e1;color:#f57f17;', '其他': 'background:#eceff1;color:#455a64;',
+        '未分类': 'background:#f5f5f5;color:#999;'
+      };
+      var catBar = document.getElementById('dbCatBar');
+      var barHtml = '';
+      var keys = Object.keys(catCounts).sort(function(a, b) { return catCounts[b] - catCounts[a]; });
       for (var k = 0; k < keys.length; k++) {
-        var selAttr = keys[k] === currentVal ? ' selected' : '';
-        html += '<option value="' + esc(keys[k]) + '"' + selAttr + '>' + esc(keys[k]) + '</option>';
+        var style = catColors[keys[k]] || 'background:#f5f5f5;color:#666;';
+        barHtml += '<span class="db-cat-chip" style="' + style + '" data-cat="' + esc(keys[k]) + '">' + esc(keys[k]) + ' <b>' + catCounts[keys[k]] + '</b></span>';
       }
-      sel.innerHTML = html;
+      catBar.innerHTML = barHtml;
+      // Wire chip clicks → set filter
+      var chips = catBar.querySelectorAll('.db-cat-chip');
+      for (var ci = 0; ci < chips.length; ci++) {
+        (function(chip) {
+          chip.addEventListener('click', function() {
+            var cf = document.getElementById('dbCatFilter');
+            var catVal = chip.dataset.cat === '未分类' ? '' : chip.dataset.cat;
+            cf.value = catVal;
+            dbPage = 1;
+            dbFetch();
+          });
+        })(chips[ci]);
+      }
     }
 
-    function renderCustomerTable(data) {
-      var tbody = document.getElementById('custViewerTbody');
-      var empty = document.getElementById('custViewerEmpty');
+    function dbRenderTable(data) {
+      var tbody = document.getElementById('dbTbody');
+      var empty = document.getElementById('dbEmpty');
       if (!data || data.length === 0) {
         tbody.innerHTML = '';
         empty.style.display = 'block';
@@ -4209,47 +4297,68 @@ export const DIALER_HTML = `<!DOCTYPE html>
         var cat = c.category || '';
         var catClass = cat ? ' set cat-' + esc(cat) : '';
         var catDisplay = cat || '点击分类';
-        var notePreview = c.note ? esc(c.note.length > 15 ? c.note.slice(0, 15) + '...' : c.note) : '';
         html += '<tr data-mobile="' + esc(c.mobile || '') + '">' +
-          // Category tag - clickable
           '<td><span class="cust-cat-tag' + catClass + '" data-mobile="' + esc(c.mobile) + '" data-cat="' + esc(cat) + '" title="点击编辑分类">' + esc(catDisplay) + '</span></td>' +
-          // Name
           '<td title="' + esc(c.name || '') + '">' + esc(c.name || '-') + '</td>' +
-          // Phone
-          '<td style="font-family:monospace;" title="' + esc(c.mobile || '') + (notePreview ? '&#10;备注: ' + notePreview : '') + '">' + esc(c.mobile || '-') + '</td>' +
-          // Company
+          '<td style="font-family:monospace;font-size:0.78rem;">' + esc(c.mobile || '-') + '</td>' +
           '<td title="' + esc(c.company_name || '') + '">' + esc(c.company_name || '-') + '</td>' +
-          // Batch label
-          '<td>' + (c.batch_label ? '<span style="background:rgba(74,108,247,0.1);color:#4a6cf7;padding:1px 6px;border-radius:4px;font-size:0.68rem;">' + esc(c.batch_label) + '</span>' : '-') + '</td>' +
-          // Created at
+          '<td>' + (c.batch_label ? '<span style="background:rgba(74,108,247,0.1);color:#4a6cf7;padding:2px 7px;border-radius:4px;font-size:0.68rem;">' + esc(c.batch_label) + '</span>' : '-') + '</td>' +
           '<td style="font-size:0.68rem;color:var(--text-soft);">' + (c.created_at ? esc(c.created_at.slice(0, 10)) : '-') + '</td>' +
         '</tr>';
       }
       tbody.innerHTML = html;
-      // Wire up category click handlers
-      wireCatTagClicks();
+      dbWireCatClicks();
     }
 
-    function wireCatTagClicks() {
-      var tags = document.querySelectorAll('#custViewerTbody .cust-cat-tag');
+    function dbRenderPager() {
+      var totalPages = Math.max(1, Math.ceil(dbTotal / dbPageSize));
+      document.getElementById('dbPageInfo').textContent = '第 ' + dbPage + ' / ' + totalPages + ' 页';
+      document.getElementById('dbPrev').disabled = dbPage <= 1;
+      document.getElementById('dbNext').disabled = dbPage >= totalPages;
+    }
+
+    function dbUpdateFilters(data) {
+      // Category filter
+      var catSel = document.getElementById('dbCatFilter');
+      var catSet = {};
+      for (var i = 0; i < CUST_CATEGORIES.length; i++) catSet[CUST_CATEGORIES[i]] = true;
+      for (var j = 0; j < (data || []).length; j++) { if (data[j].category) catSet[data[j].category] = true; }
+      var catHtml = '<option value="">全部分类</option>';
+      Object.keys(catSet).sort().forEach(function(k) {
+        catHtml += '<option value="' + esc(k) + '">' + esc(k) + '</option>';
+      });
+      if (catSel) catSel.innerHTML = catHtml;
+
+      // Batch filter
+      var batchSel = document.getElementById('dbBatchFilter');
+      var batchSet = {};
+      for (var bi = 0; bi < (data || []).length; bi++) { if (data[bi].batch_label) batchSet[data[bi].batch_label] = true; }
+      var batchHtml = '<option value="">全部批次</option>';
+      Object.keys(batchSet).sort().forEach(function(k) {
+        batchHtml += '<option value="' + esc(k) + '">' + esc(k) + '</option>';
+      });
+      if (batchSel) batchSel.innerHTML = batchHtml;
+    }
+
+    // Category edit (same as before)
+    function dbWireCatClicks() {
+      var tags = document.querySelectorAll('#dbTbody .cust-cat-tag');
       for (var i = 0; i < tags.length; i++) {
         (function(tag) {
           tag.addEventListener('click', function(e) {
             e.stopPropagation();
-            if (tag.querySelector('.cust-cat-edit-wrap')) return; // already editing
-            startCatEdit(tag);
+            if (tag.querySelector('.cust-cat-edit-wrap')) return;
+            dbStartCatEdit(tag);
           });
         })(tags[i]);
       }
     }
 
-    function startCatEdit(tag) {
+    function dbStartCatEdit(tag) {
       var mobile = tag.dataset.mobile;
       var currentCat = tag.dataset.cat || '';
       var oldHtml = tag.innerHTML;
       var oldClass = tag.className;
-
-      // Build edit UI
       var optsHtml = '';
       for (var i = 0; i < CUST_CATEGORIES.length; i++) {
         var sel = CUST_CATEGORIES[i] === currentCat ? ' selected' : '';
@@ -4258,15 +4367,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
       if (currentCat && CUST_CATEGORIES.indexOf(currentCat) === -1) {
         optsHtml += '<option value="' + esc(currentCat) + '" selected>' + esc(currentCat) + '</option>';
       }
-
-      tag.innerHTML = '<span class="cust-cat-edit-wrap">' +
-        '<select class="cust-cat-select">' + optsHtml + '</select>' +
-        '<input class="cust-cat-input" placeholder="自定义">' +
-        '<button class="cust-cat-save">✓</button>' +
-        '<button class="cust-cat-cancel">✕</button>' +
-      '</span>';
-
-      var wrap = tag.querySelector('.cust-cat-edit-wrap');
+      tag.innerHTML = '<span class="cust-cat-edit-wrap"><select class="cust-cat-select">' + optsHtml + '</select><input class="cust-cat-input" placeholder="自定义"><button class="cust-cat-save">✓</button><button class="cust-cat-cancel">✕</button></span>';
       var selEl = tag.querySelector('.cust-cat-select');
       var inputEl = tag.querySelector('.cust-cat-input');
       var saveBtn = tag.querySelector('.cust-cat-save');
@@ -4274,132 +4375,65 @@ export const DIALER_HTML = `<!DOCTYPE html>
 
       function doSave() {
         var newCat = inputEl.value.trim() || selEl.value;
-        saveCategory(mobile, newCat, tag, oldHtml, oldClass);
+        var catClass = newCat ? ' set cat-' + esc(newCat) : '';
+        tag.innerHTML = newCat || '点击分类';
+        tag.className = 'cust-cat-tag' + catClass;
+        tag.dataset.cat = newCat;
+        dbWireCatClicks();
+        fetch('/api/dialer/customers', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mobile: mobile, fields: { category: newCat } }) })
+          .then(function(r) { return r.json(); })
+          .then(function(d) { if (!d.success) { tag.innerHTML = oldHtml; tag.className = oldClass; dbWireCatClicks(); } })
+          .catch(function() { tag.innerHTML = oldHtml; tag.className = oldClass; dbWireCatClicks(); });
       }
-
-      selEl.addEventListener('change', function() {
-        if (selEl.value) inputEl.value = '';
-      });
-      inputEl.addEventListener('input', function() {
-        if (inputEl.value.trim()) selEl.value = '';
-      });
-      inputEl.addEventListener('keydown', function(e) {
-        if (e.key === 'Enter') { e.preventDefault(); doSave(); }
-      });
+      selEl.addEventListener('change', function() { if (selEl.value) inputEl.value = ''; });
+      inputEl.addEventListener('input', function() { if (inputEl.value.trim()) selEl.value = ''; });
+      inputEl.addEventListener('keydown', function(e) { if (e.key === 'Enter') { e.preventDefault(); doSave(); } });
       saveBtn.addEventListener('click', function(e) { e.stopPropagation(); doSave(); });
-      cancelBtn.addEventListener('click', function(e) {
-        e.stopPropagation();
-        tag.innerHTML = oldHtml;
-        tag.className = oldClass;
-        wireCatTagClicks();
-      });
-
-      // Focus input
+      cancelBtn.addEventListener('click', function(e) { e.stopPropagation(); tag.innerHTML = oldHtml; tag.className = oldClass; dbWireCatClicks(); });
       setTimeout(function() { inputEl.focus(); }, 50);
     }
 
-    function saveCategory(mobile, newCat, tag, oldHtml, oldClass) {
-      // Optimistic UI update
-      var catClass = newCat ? ' set cat-' + esc(newCat) : '';
-      tag.innerHTML = newCat || '点击分类';
-      tag.className = 'cust-cat-tag' + catClass;
-      tag.dataset.cat = newCat;
-      wireCatTagClicks();
-
-      // Save to Supabase via API
-      fetch('/api/dialer/customers', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mobile: mobile, fields: { category: newCat } })
-      })
-      .then(function(res) { return res.json(); })
-      .then(function(data) {
-        if (!data.success) {
-          console.error('Category save failed:', data.error);
-          // Revert on failure
-          tag.innerHTML = oldHtml;
-          tag.className = oldClass;
-          wireCatTagClicks();
-        }
-      })
-      .catch(function(err) {
-        console.error('Category save error:', err);
-        tag.innerHTML = oldHtml;
-        tag.className = oldClass;
-        wireCatTagClicks();
-      });
-    }
-
-    function updateCustPager() {
-      var totalPages = Math.max(1, Math.ceil(custViewerTotal / custViewerPageSize));
-      document.getElementById('custViewerPageInfo').textContent = '第 ' + custViewerPage + ' / ' + totalPages + ' 页';
-      document.getElementById('custViewerPrev').disabled = custViewerPage <= 1;
-      document.getElementById('custViewerNext').disabled = custViewerPage >= totalPages;
-    }
-
     function initCustViewer() {
-      var overlay = document.getElementById('custViewerOverlay');
-      if (!overlay) { console.error('custViewerOverlay not found'); return; }
+      var overlay = document.getElementById('dbOverlay');
+      if (!overlay) return;
+      var searchInput = document.getElementById('dbSearch');
+      var catFilter = document.getElementById('dbCatFilter');
+      var batchFilter = document.getElementById('dbBatchFilter');
+      var pageSizeSel = document.getElementById('dbPageSize');
 
-      var closeBtn = document.getElementById('custViewerClose');
-      var searchInput = document.getElementById('custViewerSearch');
-      var catFilter = document.getElementById('custViewerCatFilter');
-      var prevBtn = document.getElementById('custViewerPrev');
-      var nextBtn = document.getElementById('custViewerNext');
-
-      function openViewer() {
+      function openDashboard() {
         overlay.classList.add('active');
-        custViewerPage = 1;
+        dbPage = 1;
+        dbPageSize = parseInt(pageSizeSel ? pageSizeSel.value : '50');
         if (searchInput) searchInput.value = '';
         if (catFilter) catFilter.value = '';
-        fetchCustomers(1, '', '');
+        if (batchFilter) batchFilter.value = '';
+        dbFetch();
       }
 
-      // Bind both buttons (dropdown + control bar)
       var btn1 = document.getElementById('custViewerBtn');
       var btn2 = document.getElementById('custViewerBtn2');
-      if (btn1) btn1.addEventListener('click', openViewer);
-      if (btn2) btn2.addEventListener('click', openViewer);
+      if (btn1) btn1.addEventListener('click', openDashboard);
+      if (btn2) btn2.addEventListener('click', openDashboard);
 
-      // Close
-      if (closeBtn) {
-        closeBtn.addEventListener('click', function() { overlay.classList.remove('active'); });
-      }
-      overlay.addEventListener('click', function(e) {
-        if (e.target === overlay) overlay.classList.remove('active');
-      });
+      document.getElementById('dbClose').addEventListener('click', function() { overlay.classList.remove('active'); });
+      overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.classList.remove('active'); });
 
-      // Search with debounce
       if (searchInput) {
         searchInput.addEventListener('input', function() {
-          if (custViewerSearchTimer) clearTimeout(custViewerSearchTimer);
-          custViewerSearchTimer = setTimeout(function() {
-            custViewerPage = 1;
-            fetchCustomers(1, searchInput.value);
-          }, 400);
+          if (dbSearchTimer) clearTimeout(dbSearchTimer);
+          dbSearchTimer = setTimeout(function() { dbPage = 1; dbFetch(); }, 400);
         });
       }
+      if (catFilter) catFilter.addEventListener('change', function() { dbPage = 1; dbFetch(); });
+      if (batchFilter) batchFilter.addEventListener('change', function() { dbPage = 1; dbFetch(); });
+      if (pageSizeSel) pageSizeSel.addEventListener('change', function() { dbPageSize = parseInt(pageSizeSel.value); dbPage = 1; dbFetch(); });
 
-      // Category filter
-      if (catFilter) {
-        catFilter.addEventListener('change', function() {
-          custViewerPage = 1;
-          fetchCustomers(1, searchInput ? searchInput.value : '', catFilter.value);
-        });
-      }
-
-      // Pagination
-      if (prevBtn) {
-        prevBtn.addEventListener('click', function() {
-          if (custViewerPage > 1) fetchCustomers(custViewerPage - 1, searchInput ? searchInput.value : '');
-        });
-      }
-      if (nextBtn) {
-        nextBtn.addEventListener('click', function() {
-          var totalPages = Math.max(1, Math.ceil(custViewerTotal / custViewerPageSize));
-          if (custViewerPage < totalPages) fetchCustomers(custViewerPage + 1, searchInput ? searchInput.value : '');
-        });
-      }
+      document.getElementById('dbPrev').addEventListener('click', function() { if (dbPage > 1) { dbPage--; dbFetch(); } });
+      document.getElementById('dbNext').addEventListener('click', function() {
+        var totalPages = Math.max(1, Math.ceil(dbTotal / dbPageSize));
+        if (dbPage < totalPages) { dbPage++; dbFetch(); }
+      });
     }
 
     function initNoteModal() {
