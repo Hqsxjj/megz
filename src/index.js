@@ -780,7 +780,7 @@ export default {
       return new Response(null, {
         headers: {
           'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
+          'Access-Control-Allow-Methods': 'GET, POST, PATCH, DELETE, OPTIONS',
           'Access-Control-Allow-Headers': 'Content-Type',
           'Access-Control-Max-Age': '86400'
         }
@@ -1162,6 +1162,30 @@ export default {
         });
       } catch (e) {
         return new Response(JSON.stringify({ data: [], total: 0, error: e.message }), {
+          status: 500,
+          headers: {
+            'Content-Type': 'application/json; charset=UTF-8',
+            'Access-Control-Allow-Origin': '*'
+          }
+        });
+      }
+    }
+
+    // 2d. 更新单个客户分类标签
+    if (path === '/api/dialer/customers' && request.method === 'PATCH') {
+      try {
+        const body = await request.json();
+        const { mobile, fields } = body;
+        const sb = createSupabaseClient(env);
+        const updated = await sb.updateCustomer(mobile, fields);
+        return new Response(JSON.stringify({ success: true, data: updated }), {
+          headers: {
+            'Content-Type': 'application/json; charset=UTF-8',
+            'Access-Control-Allow-Origin': '*'
+          }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ success: false, error: e.message }), {
           status: 500,
           headers: {
             'Content-Type': 'application/json; charset=UTF-8',

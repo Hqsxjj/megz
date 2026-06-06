@@ -263,7 +263,7 @@ export function createSupabaseClient(env) {
     var from = (p - 1) * ps;
     var to = from + ps - 1;
 
-    var selectCols = 'name,mobile,company_name,note,batch_label,created_at';
+    var selectCols = 'name,mobile,company_name,note,batch_label,category,created_at';
     var url = baseUrl + '/rest/v1/customers?select=' + selectCols + '&order=created_at.desc';
     if (search) {
       url += '&or=(name.ilike.%25' + encodeURIComponent(search) + '%25,mobile.ilike.%25' + encodeURIComponent(search) + '%25,company_name.ilike.%25' + encodeURIComponent(search) + '%25,batch_label.ilike.%25' + encodeURIComponent(search) + '%25)';
@@ -375,8 +375,35 @@ export function createSupabaseClient(env) {
     searchLoanCases: searchLoanCases,
     searchKnowledge: searchKnowledge,
     upsertCustomers: upsertCustomers,
-    getAllCustomers: getAllCustomers
+    getAllCustomers: getAllCustomers,
+    updateCustomer: updateCustomer
   };
+
+  /**
+   * Update a single customer by mobile (unique key).
+   * fields: { category?, note?, company_name?, name? }
+   */
+  async function updateCustomer(mobile, fields) {
+    if (!baseUrl || !key) throw new Error('Supabase not configured');
+    if (!mobile) throw new Error('mobile is required');
+
+    const resp = await fetch(
+      baseUrl + '/rest/v1/customers?mobile=eq.' + encodeURIComponent(mobile),
+      {
+        method: 'PATCH',
+        headers: Object.assign({}, headers(), { 'Prefer': 'return=representation' }),
+        body: JSON.stringify(fields)
+      }
+    );
+
+    if (!resp.ok) {
+      const text = await resp.text();
+      throw new Error('Supabase update customer failed [' + resp.status + ']: ' + text);
+    }
+
+    const data = await resp.json();
+    return data && data[0] ? data[0] : null;
+  }
 }
 
 

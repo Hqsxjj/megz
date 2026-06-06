@@ -840,6 +840,44 @@ export const DIALER_HTML = `<!DOCTYPE html>
     .cust-viewer-empty {
       text-align: center; padding: 40px 20px; color: var(--text-light); font-size: 0.82rem;
     }
+    .cust-cat-tag {
+      display: inline-block; padding: 2px 8px; border-radius: 10px;
+      font-size: 0.68rem; font-weight: 700; cursor: pointer;
+      background: var(--btn-bg); color: var(--text-soft); border: 1px dashed var(--card-border);
+      max-width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      transition: all 0.15s;
+    }
+    .cust-cat-tag:hover { border-color: var(--accent-wechat); color: var(--accent-wechat); }
+    .cust-cat-tag.set { border-style: solid; }
+    .cust-cat-tag.cat-潜在客户 { background: #e3f2fd; color: #1565c0; border-color: #90caf9; }
+    .cust-cat-tag.cat-意向客户 { background: #fff3e0; color: #e65100; border-color: #ffcc80; }
+    .cust-cat-tag.cat-已成交 { background: #e8f5e9; color: #2e7d32; border-color: #a5d6a7; }
+    .cust-cat-tag.cat-无效号码 { background: #fce4ec; color: #c62828; border-color: #ef9a9a; }
+    .cust-cat-tag.cat-待跟进 { background: #f3e5f5; color: #6a1b9a; border-color: #ce93d8; }
+    .cust-cat-tag.cat-老客户 { background: #e0f7fa; color: #006064; border-color: #80deea; }
+    .cust-cat-tag.cat-同行 { background: #fff8e1; color: #f57f17; border-color: #fff176; }
+    .cust-cat-tag.cat-其他 { background: #eceff1; color: #455a64; border-color: #b0bec5; }
+    .cust-cat-edit-wrap {
+      display: inline-flex; gap: 4px; align-items: center;
+    }
+    .cust-cat-select {
+      font-size: 0.68rem; padding: 1px 4px; border-radius: 4px;
+      border: 1px solid var(--accent-wechat); outline: none; max-width: 80px;
+    }
+    .cust-cat-input {
+      font-size: 0.68rem; padding: 1px 6px; border-radius: 4px;
+      border: 1px solid var(--accent-wechat); outline: none; width: 70px;
+    }
+    .cust-cat-save, .cust-cat-cancel {
+      font-size: 0.65rem; padding: 1px 6px; border-radius: 3px; cursor: pointer;
+      border: none; font-weight: 700;
+    }
+    .cust-cat-save { background: var(--accent-wechat); color: #fff; }
+    .cust-cat-cancel { background: var(--btn-bg); color: var(--text-soft); }
+    .cust-viewer-note {
+      max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      font-size: 0.68rem; color: var(--text-light); cursor: pointer;
+    }
   </style>
 </head>
 <body>
@@ -1193,27 +1231,31 @@ export const DIALER_HTML = `<!DOCTYPE html>
 <div class="cust-viewer-overlay" id="custViewerOverlay">
   <div class="cust-viewer-panel">
     <div class="cust-viewer-header">
-      <span>📋 Supabase 客户数据</span>
+      <span>📋 Supabase 客户数据库</span>
       <button class="cust-viewer-close" id="custViewerClose">✕</button>
     </div>
     <div class="cust-viewer-toolbar">
-      <input type="text" class="cust-viewer-search" id="custViewerSearch" placeholder="搜索姓名/电话/公司/批次...">
+      <input type="text" class="cust-viewer-search" id="custViewerSearch" placeholder="搜索姓名/电话/公司/批次/分类...">
       <span id="custViewerTotal" style="font-size:0.72rem;color:var(--text-soft);white-space:nowrap;">共 0 条</span>
+      <select id="custViewerCatFilter" style="height:30px;font-size:0.7rem;border:1px solid var(--card-border);border-radius:6px;background:var(--btn-bg);color:var(--text-soft);padding:0 6px;outline:none;">
+        <option value="">全部分类</option>
+      </select>
     </div>
     <div class="cust-viewer-table-wrap">
       <table class="cust-viewer-table">
         <thead>
           <tr>
-            <th>姓名</th>
-            <th>电话</th>
-            <th>公司</th>
-            <th>批次</th>
-            <th>导入时间</th>
+            <th style="width:90px;">分类标签</th>
+            <th style="width:70px;">姓名</th>
+            <th style="width:120px;">电话</th>
+            <th style="min-width:130px;">公司</th>
+            <th style="width:100px;">批次</th>
+            <th style="width:90px;">入库时间</th>
           </tr>
         </thead>
         <tbody id="custViewerTbody"></tbody>
       </table>
-      <div class="cust-viewer-empty" id="custViewerEmpty" style="display:none;">暂无数据</div>
+      <div class="cust-viewer-empty" id="custViewerEmpty" style="display:none;">暂无数据，请先导入客户或检查 Supabase 连接</div>
     </div>
     <div class="cust-viewer-pager">
       <button id="custViewerPrev">上一页</button>
@@ -4094,26 +4136,60 @@ export const DIALER_HTML = `<!DOCTYPE html>
     var custViewerPageSize = 50;
     var custViewerSearchTimer = null;
 
-    function fetchCustomers(page, search) {
+    // Preset category options
+    var CUST_CATEGORIES = ['潜在客户', '意向客户', '已成交', '无效号码', '待跟进', '老客户', '同行', '其他'];
+
+    function fetchCustomers(page, search, catFilter) {
       var p = page || 1;
       var s = search || '';
+      var cf = catFilter || document.getElementById('custViewerCatFilter').value || '';
       var url = '/api/dialer/customers?page=' + p + '&pageSize=' + custViewerPageSize;
       if (s) url += '&search=' + encodeURIComponent(s);
 
-      document.getElementById('custViewerTbody').innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--text-light);">加载中...</td></tr>';
+      document.getElementById('custViewerTbody').innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--text-light);">加载中...</td></tr>';
 
       fetch(url)
         .then(function(res) { return res.json(); })
         .then(function(result) {
-          custViewerTotal = result.total || 0;
+          var data = result.data || [];
+          // Client-side category filter (since Supabase may not have the column)
+          if (cf) {
+            data = data.filter(function(c) { return (c.category || '') === cf; });
+          }
+          custViewerTotal = data.length; // approximate for client-filtered
           custViewerPage = result.page || p;
-          renderCustomerTable(result.data || []);
+          renderCustomerTable(data);
           updateCustPager();
-          document.getElementById('custViewerTotal').textContent = '共 ' + custViewerTotal + ' 条';
+          document.getElementById('custViewerTotal').textContent = '共 ' + (result.total || data.length) + ' 条';
+          // Populate category filter dropdown
+          updateCatFilterOptions(data);
         })
         .catch(function(err) {
-          document.getElementById('custViewerTbody').innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;color:#e74c3c;">加载失败: ' + esc(err.message) + '</td></tr>';
+          document.getElementById('custViewerTbody').innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;color:#e74c3c;">加载失败: ' + esc(err.message) + '</td></tr>';
         });
+    }
+
+    var allCategoriesCache = {};
+    function updateCatFilterOptions(data) {
+      var sel = document.getElementById('custViewerCatFilter');
+      if (!sel) return;
+      var currentVal = sel.value;
+      // Collect unique categories from data
+      for (var i = 0; i < (data || []).length; i++) {
+        var cat = data[i].category;
+        if (cat) allCategoriesCache[cat] = true;
+      }
+      // Also add presets
+      for (var j = 0; j < CUST_CATEGORIES.length; j++) {
+        allCategoriesCache[CUST_CATEGORIES[j]] = true;
+      }
+      var html = '<option value="">全部分类</option>';
+      var keys = Object.keys(allCategoriesCache).sort();
+      for (var k = 0; k < keys.length; k++) {
+        var selAttr = keys[k] === currentVal ? ' selected' : '';
+        html += '<option value="' + esc(keys[k]) + '"' + selAttr + '>' + esc(keys[k]) + '</option>';
+      }
+      sel.innerHTML = html;
     }
 
     function renderCustomerTable(data) {
@@ -4128,15 +4204,128 @@ export const DIALER_HTML = `<!DOCTYPE html>
       var html = '';
       for (var i = 0; i < data.length; i++) {
         var c = data[i];
-        html += '<tr>' +
+        var cat = c.category || '';
+        var catClass = cat ? ' set cat-' + esc(cat) : '';
+        var catDisplay = cat || '点击分类';
+        var notePreview = c.note ? esc(c.note.length > 15 ? c.note.slice(0, 15) + '...' : c.note) : '';
+        html += '<tr data-mobile="' + esc(c.mobile || '') + '">' +
+          // Category tag - clickable
+          '<td><span class="cust-cat-tag' + catClass + '" data-mobile="' + esc(c.mobile) + '" data-cat="' + esc(cat) + '" title="点击编辑分类">' + esc(catDisplay) + '</span></td>' +
+          // Name
           '<td title="' + esc(c.name || '') + '">' + esc(c.name || '-') + '</td>' +
-          '<td style="font-family:monospace;">' + esc(c.mobile || '-') + '</td>' +
+          // Phone
+          '<td style="font-family:monospace;" title="' + esc(c.mobile || '') + (notePreview ? '&#10;备注: ' + notePreview : '') + '">' + esc(c.mobile || '-') + '</td>' +
+          // Company
           '<td title="' + esc(c.company_name || '') + '">' + esc(c.company_name || '-') + '</td>' +
+          // Batch label
           '<td>' + (c.batch_label ? '<span style="background:rgba(74,108,247,0.1);color:#4a6cf7;padding:1px 6px;border-radius:4px;font-size:0.68rem;">' + esc(c.batch_label) + '</span>' : '-') + '</td>' +
+          // Created at
           '<td style="font-size:0.68rem;color:var(--text-soft);">' + (c.created_at ? esc(c.created_at.slice(0, 10)) : '-') + '</td>' +
         '</tr>';
       }
       tbody.innerHTML = html;
+      // Wire up category click handlers
+      wireCatTagClicks();
+    }
+
+    function wireCatTagClicks() {
+      var tags = document.querySelectorAll('#custViewerTbody .cust-cat-tag');
+      for (var i = 0; i < tags.length; i++) {
+        (function(tag) {
+          tag.addEventListener('click', function(e) {
+            e.stopPropagation();
+            if (tag.querySelector('.cust-cat-edit-wrap')) return; // already editing
+            startCatEdit(tag);
+          });
+        })(tags[i]);
+      }
+    }
+
+    function startCatEdit(tag) {
+      var mobile = tag.dataset.mobile;
+      var currentCat = tag.dataset.cat || '';
+      var oldHtml = tag.innerHTML;
+      var oldClass = tag.className;
+
+      // Build edit UI
+      var optsHtml = '';
+      for (var i = 0; i < CUST_CATEGORIES.length; i++) {
+        var sel = CUST_CATEGORIES[i] === currentCat ? ' selected' : '';
+        optsHtml += '<option value="' + esc(CUST_CATEGORIES[i]) + '"' + sel + '>' + esc(CUST_CATEGORIES[i]) + '</option>';
+      }
+      if (currentCat && CUST_CATEGORIES.indexOf(currentCat) === -1) {
+        optsHtml += '<option value="' + esc(currentCat) + '" selected>' + esc(currentCat) + '</option>';
+      }
+
+      tag.innerHTML = '<span class="cust-cat-edit-wrap">' +
+        '<select class="cust-cat-select">' + optsHtml + '</select>' +
+        '<input class="cust-cat-input" placeholder="自定义">' +
+        '<button class="cust-cat-save">✓</button>' +
+        '<button class="cust-cat-cancel">✕</button>' +
+      '</span>';
+
+      var wrap = tag.querySelector('.cust-cat-edit-wrap');
+      var selEl = tag.querySelector('.cust-cat-select');
+      var inputEl = tag.querySelector('.cust-cat-input');
+      var saveBtn = tag.querySelector('.cust-cat-save');
+      var cancelBtn = tag.querySelector('.cust-cat-cancel');
+
+      function doSave() {
+        var newCat = inputEl.value.trim() || selEl.value;
+        saveCategory(mobile, newCat, tag, oldHtml, oldClass);
+      }
+
+      selEl.addEventListener('change', function() {
+        if (selEl.value) inputEl.value = '';
+      });
+      inputEl.addEventListener('input', function() {
+        if (inputEl.value.trim()) selEl.value = '';
+      });
+      inputEl.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') { e.preventDefault(); doSave(); }
+      });
+      saveBtn.addEventListener('click', function(e) { e.stopPropagation(); doSave(); });
+      cancelBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        tag.innerHTML = oldHtml;
+        tag.className = oldClass;
+        wireCatTagClicks();
+      });
+
+      // Focus input
+      setTimeout(function() { inputEl.focus(); }, 50);
+    }
+
+    function saveCategory(mobile, newCat, tag, oldHtml, oldClass) {
+      // Optimistic UI update
+      var catClass = newCat ? ' set cat-' + esc(newCat) : '';
+      tag.innerHTML = newCat || '点击分类';
+      tag.className = 'cust-cat-tag' + catClass;
+      tag.dataset.cat = newCat;
+      wireCatTagClicks();
+
+      // Save to Supabase via API
+      fetch('/api/dialer/customers', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mobile: mobile, fields: { category: newCat } })
+      })
+      .then(function(res) { return res.json(); })
+      .then(function(data) {
+        if (!data.success) {
+          console.error('Category save failed:', data.error);
+          // Revert on failure
+          tag.innerHTML = oldHtml;
+          tag.className = oldClass;
+          wireCatTagClicks();
+        }
+      })
+      .catch(function(err) {
+        console.error('Category save error:', err);
+        tag.innerHTML = oldHtml;
+        tag.className = oldClass;
+        wireCatTagClicks();
+      });
     }
 
     function updateCustPager() {
@@ -4150,6 +4339,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
       var overlay = document.getElementById('custViewerOverlay');
       var closeBtn = document.getElementById('custViewerClose');
       var searchInput = document.getElementById('custViewerSearch');
+      var catFilter = document.getElementById('custViewerCatFilter');
       var prevBtn = document.getElementById('custViewerPrev');
       var nextBtn = document.getElementById('custViewerNext');
       var openBtn = document.getElementById('custViewerBtn');
@@ -4160,7 +4350,8 @@ export const DIALER_HTML = `<!DOCTYPE html>
           overlay.classList.add('active');
           custViewerPage = 1;
           searchInput.value = '';
-          fetchCustomers(1, '');
+          if (catFilter) catFilter.value = '';
+          fetchCustomers(1, '', '');
         });
       }
 
@@ -4168,9 +4359,11 @@ export const DIALER_HTML = `<!DOCTYPE html>
       if (closeBtn) {
         closeBtn.addEventListener('click', function() { overlay.classList.remove('active'); });
       }
-      overlay.addEventListener('click', function(e) {
-        if (e.target === overlay) overlay.classList.remove('active');
-      });
+      if (overlay) {
+        overlay.addEventListener('click', function(e) {
+          if (e.target === overlay) overlay.classList.remove('active');
+        });
+      }
 
       // Search with debounce
       if (searchInput) {
@@ -4183,16 +4376,24 @@ export const DIALER_HTML = `<!DOCTYPE html>
         });
       }
 
+      // Category filter
+      if (catFilter) {
+        catFilter.addEventListener('change', function() {
+          custViewerPage = 1;
+          fetchCustomers(1, searchInput ? searchInput.value : '', catFilter.value);
+        });
+      }
+
       // Pagination
       if (prevBtn) {
         prevBtn.addEventListener('click', function() {
-          if (custViewerPage > 1) fetchCustomers(custViewerPage - 1, searchInput.value);
+          if (custViewerPage > 1) fetchCustomers(custViewerPage - 1, searchInput ? searchInput.value : '');
         });
       }
       if (nextBtn) {
         nextBtn.addEventListener('click', function() {
-          var totalPages = Math.ceil(custViewerTotal / custViewerPageSize);
-          if (custViewerPage < totalPages) fetchCustomers(custViewerPage + 1, searchInput.value);
+          var totalPages = Math.max(1, Math.ceil(custViewerTotal / custViewerPageSize));
+          if (custViewerPage < totalPages) fetchCustomers(custViewerPage + 1, searchInput ? searchInput.value : '');
         });
       }
     }
