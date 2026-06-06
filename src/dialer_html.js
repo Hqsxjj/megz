@@ -1189,6 +1189,40 @@ export const DIALER_HTML = `<!DOCTYPE html>
   <!-- SheetJS CDN -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
+<!-- Customer Data Viewer Modal -->
+<div class="cust-viewer-overlay" id="custViewerOverlay">
+  <div class="cust-viewer-panel">
+    <div class="cust-viewer-header">
+      <span>📋 Supabase 客户数据</span>
+      <button class="cust-viewer-close" id="custViewerClose">✕</button>
+    </div>
+    <div class="cust-viewer-toolbar">
+      <input type="text" class="cust-viewer-search" id="custViewerSearch" placeholder="搜索姓名/电话/公司/批次...">
+      <span id="custViewerTotal" style="font-size:0.72rem;color:var(--text-soft);white-space:nowrap;">共 0 条</span>
+    </div>
+    <div class="cust-viewer-table-wrap">
+      <table class="cust-viewer-table">
+        <thead>
+          <tr>
+            <th>姓名</th>
+            <th>电话</th>
+            <th>公司</th>
+            <th>批次</th>
+            <th>导入时间</th>
+          </tr>
+        </thead>
+        <tbody id="custViewerTbody"></tbody>
+      </table>
+      <div class="cust-viewer-empty" id="custViewerEmpty" style="display:none;">暂无数据</div>
+    </div>
+    <div class="cust-viewer-pager">
+      <button id="custViewerPrev">上一页</button>
+      <span id="custViewerPageInfo">第 1 页</span>
+      <button id="custViewerNext">下一页</button>
+    </div>
+  </div>
+</div>
+
   <script>
   (function(){
     // Android WebView detection for full-screen spacing
@@ -4540,40 +4574,6 @@ export const DIALER_HTML = `<!DOCTYPE html>
 
   })();
   </script>
-
-<!-- Customer Data Viewer Modal -->
-<div class="cust-viewer-overlay" id="custViewerOverlay">
-  <div class="cust-viewer-panel">
-    <div class="cust-viewer-header">
-      <span>📋 Supabase 客户数据</span>
-      <button class="cust-viewer-close" id="custViewerClose">✕</button>
-    </div>
-    <div class="cust-viewer-toolbar">
-      <input type="text" class="cust-viewer-search" id="custViewerSearch" placeholder="搜索姓名/电话/公司/批次...">
-      <span id="custViewerTotal" style="font-size:0.72rem;color:var(--text-soft);white-space:nowrap;">共 0 条</span>
-    </div>
-    <div class="cust-viewer-table-wrap">
-      <table class="cust-viewer-table">
-        <thead>
-          <tr>
-            <th>姓名</th>
-            <th>电话</th>
-            <th>公司</th>
-            <th>批次</th>
-            <th>导入时间</th>
-          </tr>
-        </thead>
-        <tbody id="custViewerTbody"></tbody>
-      </table>
-      <div class="cust-viewer-empty" id="custViewerEmpty" style="display:none;">暂无数据</div>
-    </div>
-    <div class="cust-viewer-pager">
-      <button id="custViewerPrev">上一页</button>
-      <span id="custViewerPageInfo">第 1 页</span>
-      <button id="custViewerNext">下一页</button>
-    </div>
-  </div>
-</div>
 
 </body>
 </html>`;
