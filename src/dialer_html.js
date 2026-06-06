@@ -782,133 +782,153 @@ export const DIALER_HTML = `<!DOCTYPE html>
       font-size: 0.72rem !important;
       opacity: 0.85;
     }
-    /* Customer Data Dashboard */
+    /* ====== Customer Database Dashboard ====== */
     .db-overlay {
-      position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 10000;
+      position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 99999;
       display: none; align-items: center; justify-content: center;
+      -webkit-overflow-scrolling: touch;
     }
     .db-overlay.active { display: flex; }
     .db-panel {
-      background: var(--card-bg); border-radius: 14px; width: 96vw; max-width: 1100px;
-      height: 92vh; max-height: 92vh; display: flex; flex-direction: column; overflow: hidden;
-      box-shadow: 0 12px 60px rgba(0,0,0,0.3);
+      background: #fff; border-radius: 16px; width: 98vw; max-width: 1300px;
+      height: 95vh; max-height: 95vh; display: flex; flex-direction: column; overflow: hidden;
+      box-shadow: 0 20px 80px rgba(0,0,0,0.35);
     }
+    body.dark-mode .db-panel { background: #1a1a1a; }
+    /* Header */
     .db-header {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 14px 20px; border-bottom: 2px solid var(--border-light);
-      background: linear-gradient(135deg, rgba(74,108,247,0.04), rgba(7,193,96,0.04));
+      display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
+      padding: 14px 24px; border-bottom: 1px solid #e5e5e5;
+      background: linear-gradient(135deg, #f8faff 0%, #f0fdf5 100%);
     }
-    .db-title { font-size: 1rem; font-weight: 900; }
+    body.dark-mode .db-header { background: linear-gradient(135deg, #1a1a2e 0%, #0d2818 100%); border-color: #333; }
+    .db-title { font-size: 1.1rem; font-weight: 900; color: #1a1a1a; }
+    body.dark-mode .db-title { color: #eee; }
     .db-close {
-      background: none; border: none; font-size: 1.3rem; cursor: pointer;
-      color: var(--text-soft); padding: 4px 10px; border-radius: 6px;
+      width: 36px; height: 36px; border: none; background: rgba(0,0,0,0.06); border-radius: 50%;
+      font-size: 1.2rem; cursor: pointer; color: #666; display: flex; align-items: center; justify-content: center;
     }
-    .db-close:hover { background: var(--btn-hover); }
-    /* Stats row */
+    .db-close:hover { background: rgba(0,0,0,0.12); }
+    /* Stats */
     .db-stats {
-      display: flex; gap: 10px; padding: 12px 20px; flex-wrap: wrap;
-      border-bottom: 1px solid var(--border-light);
+      display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px;
+      padding: 14px 24px; flex-shrink: 0; border-bottom: 1px solid #eee;
     }
+    body.dark-mode .db-stats { border-color: #333; }
     .db-stat-card {
-      flex: 1; min-width: 100px; padding: 10px 14px; border-radius: 10px;
-      text-align: center; border: 1px solid var(--card-border);
-      background: var(--btn-bg);
+      text-align: center; padding: 12px 8px; border-radius: 12px;
+      border: 1px solid #e8e8e8; background: #fafafa;
     }
-    .db-stat-num { font-size: 1.4rem; font-weight: 900; color: var(--text-main); }
-    .db-stat-label { font-size: 0.65rem; color: var(--text-soft); margin-top: 2px; }
-    .db-stat-card.accent-green .db-stat-num { color: #2e7d32; }
-    .db-stat-card.accent-blue .db-stat-num { color: #1565c0; }
-    .db-stat-card.accent-orange .db-stat-num { color: #e65100; }
-    .db-stat-card.accent-red .db-stat-num { color: #c62828; }
-    .db-stat-card.accent-purple .db-stat-num { color: #6a1b9a; }
-    /* Category bar */
+    body.dark-mode .db-stat-card { background: #252525; border-color: #333; }
+    .db-stat-num { font-size: 1.6rem; font-weight: 900; color: #1a1a1a; line-height: 1.2; }
+    body.dark-mode .db-stat-num { color: #eee; }
+    .db-stat-label { font-size: 0.68rem; color: #888; margin-top: 2px; }
+    .db-stat-card.c1 .db-stat-num { color: #4a6cf7; } .db-stat-card.c2 .db-stat-num { color: #07c160; }
+    .db-stat-card.c3 .db-stat-num { color: #e67e22; } .db-stat-card.c4 .db-stat-num { color: #9b59b6; }
+    .db-stat-card.c5 .db-stat-num { color: #e74c3c; }
+    /* Category chips */
     .db-cat-bar {
-      display: flex; gap: 6px; padding: 8px 20px; flex-wrap: wrap; align-items: center;
-      border-bottom: 1px solid var(--border-light);
+      display: flex; gap: 6px; padding: 8px 24px; flex-wrap: wrap; align-items: center; flex-shrink: 0;
+      border-bottom: 1px solid #eee; min-height: 40px;
     }
+    body.dark-mode .db-cat-bar { border-color: #333; }
     .db-cat-chip {
-      display: inline-flex; align-items: center; gap: 4px;
-      padding: 3px 10px; border-radius: 12px; font-size: 0.68rem; font-weight: 700;
-      cursor: pointer; border: 1px solid transparent; transition: all 0.15s;
+      display: inline-flex; align-items: center; gap: 4px; padding: 4px 12px;
+      border-radius: 20px; font-size: 0.7rem; font-weight: 700; cursor: pointer;
+      border: 1px solid transparent; white-space: nowrap; user-select: none;
     }
-    .db-cat-chip:hover { opacity: 0.85; }
-    .db-cat-chip.active { border-color: var(--text-main); }
+    .db-cat-chip:hover { filter: brightness(0.95); }
     /* Toolbar */
     .db-toolbar {
-      display: flex; gap: 8px; padding: 8px 20px; align-items: center;
-      border-bottom: 1px solid var(--border-light); flex-wrap: wrap;
+      display: flex; gap: 10px; padding: 10px 24px; align-items: center; flex-shrink: 0;
+      border-bottom: 1px solid #eee; flex-wrap: wrap;
     }
+    body.dark-mode .db-toolbar { border-color: #333; }
     .db-search {
-      flex: 1; min-width: 140px; height: 32px; padding: 0 10px;
-      border: 1px solid var(--card-border); border-radius: 6px;
-      font-size: 0.78rem; outline: none; background: var(--btn-bg); color: var(--text-main);
+      flex: 1; min-width: 180px; height: 36px; padding: 0 14px;
+      border: 1px solid #ddd; border-radius: 20px; font-size: 0.82rem;
+      outline: none; background: #f9f9f9; color: #333;
     }
-    .db-search:focus { border-color: #4a6cf7; }
+    .db-search:focus { border-color: #4a6cf7; background: #fff; }
+    body.dark-mode .db-search { background: #2a2a2a; border-color: #444; color: #eee; }
+    body.dark-mode .db-search:focus { background: #333; }
     .db-filter {
-      height: 32px; padding: 0 8px; border: 1px solid var(--card-border);
-      border-radius: 6px; font-size: 0.72rem; background: var(--btn-bg);
-      color: var(--text-soft); outline: none; cursor: pointer;
+      height: 36px; padding: 0 12px; border: 1px solid #ddd; border-radius: 20px;
+      font-size: 0.74rem; background: #f9f9f9; color: #555; outline: none; cursor: pointer; min-width: 90px;
     }
+    body.dark-mode .db-filter { background: #2a2a2a; border-color: #444; color: #ccc; }
     /* Table */
-    .db-table-wrap { flex: 1; overflow: auto; }
-    .db-table {
-      width: 100%; border-collapse: collapse; font-size: 0.74rem;
-    }
+    .db-table-wrap { flex: 1; overflow: auto; -webkit-overflow-scrolling: touch; }
+    .db-table { width: 100%; border-collapse: collapse; min-width: 700px; }
     .db-table thead th {
       position: sticky; top: 0; z-index: 2;
-      background: #f8f8f8; padding: 10px 12px; text-align: left;
-      font-weight: 800; color: var(--text-soft); border-bottom: 2px solid #ddd;
-      white-space: nowrap; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.3px;
+      background: #f5f5f5; padding: 10px 14px; text-align: left;
+      font-weight: 800; color: #666; border-bottom: 2px solid #ddd;
+      white-space: nowrap; font-size: 0.7rem; letter-spacing: 0.3px;
     }
-    body.dark-mode .db-table thead th { background: #2a2a2a; border-color: #444; }
+    body.dark-mode .db-table thead th { background: #252525; border-color: #444; color: #aaa; }
     .db-table td {
-      padding: 9px 12px; border-bottom: 1px solid var(--border-light);
-      color: var(--text-main); max-width: 160px; overflow: hidden;
-      text-overflow: ellipsis; white-space: nowrap; font-size: 0.76rem;
+      padding: 10px 14px; border-bottom: 1px solid #f0f0f0; color: #333;
+      max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.8rem;
     }
-    .db-table tbody tr { transition: background 0.1s; }
-    .db-table tbody tr:hover { background: rgba(74,108,247,0.04); }
-    .db-empty {
-      text-align: center; padding: 60px 20px; color: var(--text-light); font-size: 0.85rem;
-    }
-    /* Category tag (reused) */
+    body.dark-mode .db-table td { color: #ddd; border-color: #2a2a2a; }
+    .db-table tbody tr:hover td { background: rgba(74,108,247,0.03); }
+    body.dark-mode .db-table tbody tr:hover td { background: rgba(74,108,247,0.08); }
+    .db-empty { text-align: center; padding: 80px 20px; color: #999; font-size: 0.9rem; }
+    .db-loading { text-align: center; padding: 60px 20px; color: #999; }
+    /* Category tags */
     .cust-cat-tag {
-      display: inline-block; padding: 2px 8px; border-radius: 10px;
-      font-size: 0.68rem; font-weight: 700; cursor: pointer;
-      background: var(--btn-bg); color: var(--text-soft); border: 1px dashed var(--card-border);
-      max-width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-      transition: all 0.15s;
+      display: inline-block; padding: 3px 10px; border-radius: 12px;
+      font-size: 0.7rem; font-weight: 700; cursor: pointer;
+      background: #f0f0f0; color: #888; border: 1px dashed #ccc;
+      max-width: 85px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
-    .cust-cat-tag:hover { border-color: var(--accent-wechat); color: var(--accent-wechat); }
     .cust-cat-tag.set { border-style: solid; }
-    .cust-cat-tag.cat-潜在客户 { background: #e3f2fd; color: #1565c0; border-color: #90caf9; }
-    .cust-cat-tag.cat-意向客户 { background: #fff3e0; color: #e65100; border-color: #ffcc80; }
-    .cust-cat-tag.cat-已成交 { background: #e8f5e9; color: #2e7d32; border-color: #a5d6a7; }
-    .cust-cat-tag.cat-无效号码 { background: #fce4ec; color: #c62828; border-color: #ef9a9a; }
-    .cust-cat-tag.cat-待跟进 { background: #f3e5f5; color: #6a1b9a; border-color: #ce93d8; }
-    .cust-cat-tag.cat-老客户 { background: #e0f7fa; color: #006064; border-color: #80deea; }
-    .cust-cat-tag.cat-同行 { background: #fff8e1; color: #f57f17; border-color: #fff176; }
-    .cust-cat-tag.cat-其他 { background: #eceff1; color: #455a64; border-color: #b0bec5; }
-    .cust-cat-edit-wrap { display: inline-flex; gap: 4px; align-items: center; }
-    .cust-cat-select { font-size: 0.68rem; padding: 1px 4px; border-radius: 4px; border: 1px solid var(--accent-wechat); outline: none; max-width: 80px; }
-    .cust-cat-input { font-size: 0.68rem; padding: 1px 6px; border-radius: 4px; border: 1px solid var(--accent-wechat); outline: none; width: 70px; }
-    .cust-cat-save, .cust-cat-cancel { font-size: 0.65rem; padding: 1px 6px; border-radius: 3px; cursor: pointer; border: none; font-weight: 700; }
-    .cust-cat-save { background: var(--accent-wechat); color: #fff; }
-    .cust-cat-cancel { background: var(--btn-bg); color: var(--text-soft); }
+    .cust-cat-tag:hover { filter: brightness(0.9); }
+    .cust-cat-tag.cat-潜在客户 { background:#e3f2fd;color:#1565c0;border-color:#90caf9; }
+    .cust-cat-tag.cat-意向客户 { background:#fff3e0;color:#e65100;border-color:#ffcc80; }
+    .cust-cat-tag.cat-已成交 { background:#e8f5e9;color:#2e7d32;border-color:#a5d6a7; }
+    .cust-cat-tag.cat-无效号码 { background:#fce4ec;color:#c62828;border-color:#ef9a9a; }
+    .cust-cat-tag.cat-待跟进 { background:#f3e5f5;color:#6a1b9a;border-color:#ce93d8; }
+    .cust-cat-tag.cat-老客户 { background:#e0f7fa;color:#006064;border-color:#80deea; }
+    .cust-cat-tag.cat-同行 { background:#fff8e1;color:#f57f17;border-color:#fff176; }
+    .cust-cat-tag.cat-其他 { background:#eceff1;color:#455a64;border-color:#b0bec5; }
+    .cust-cat-edit-wrap { display: inline-flex; gap: 3px; align-items: center; }
+    .cust-cat-select, .cust-cat-input { font-size: 0.68rem; padding: 2px 6px; border-radius: 4px; border: 1px solid #4a6cf7; outline: none; }
+    .cust-cat-input { width: 72px; }
+    .cust-cat-save, .cust-cat-cancel { font-size: 0.65rem; padding: 2px 8px; border-radius: 4px; cursor: pointer; border: none; font-weight: 700; }
+    .cust-cat-save { background: #07c160; color: #fff; }
+    .cust-cat-cancel { background: #eee; color: #666; }
     /* Pager */
     .db-pager {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 10px 20px; border-top: 1px solid var(--border-light); font-size: 0.72rem;
+      display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
+      padding: 12px 24px; border-top: 1px solid #eee; font-size: 0.74rem; gap: 8px; flex-wrap: wrap;
     }
+    body.dark-mode .db-pager { border-color: #333; }
     .db-pager button {
-      background: var(--btn-bg); border: 1px solid var(--card-border);
-      padding: 5px 14px; border-radius: 6px; cursor: pointer; font-weight: 700;
-      font-size: 0.72rem; color: var(--text-main);
+      background: #f5f5f5; border: 1px solid #ddd; padding: 6px 16px;
+      border-radius: 8px; cursor: pointer; font-weight: 700; font-size: 0.74rem; color: #333;
     }
-    .db-pager button:disabled { opacity: 0.35; cursor: default; }
+    body.dark-mode .db-pager button { background: #2a2a2a; border-color: #444; color: #ccc; }
+    .db-pager button:disabled { opacity: 0.3; cursor: default; }
     .db-pager select {
-      height: 28px; border: 1px solid var(--card-border); border-radius: 6px;
-      font-size: 0.68rem; padding: 0 4px; background: var(--btn-bg); color: var(--text-main);
+      height: 32px; border: 1px solid #ddd; border-radius: 8px; font-size: 0.7rem;
+      padding: 0 6px; background: #fff; color: #333;
+    }
+    body.dark-mode .db-pager select { background: #2a2a2a; border-color: #444; color: #ccc; }
+    /* Mobile responsive */
+    @media (max-width: 768px) {
+      .db-panel { width: 100vw; height: 100vh; max-height: 100vh; border-radius: 0; }
+      .db-stats { grid-template-columns: repeat(3, 1fr); gap: 6px; padding: 8px 12px; }
+      .db-stat-card { padding: 8px 4px; }
+      .db-stat-num { font-size: 1.2rem; }
+      .db-header { padding: 10px 14px; }
+      .db-toolbar { padding: 8px 12px; gap: 6px; }
+      .db-search { min-width: 100px; height: 32px; font-size: 0.76rem; }
+      .db-filter { height: 32px; font-size: 0.7rem; padding: 0 8px; }
+      .db-table td, .db-table thead th { padding: 8px 10px; font-size: 0.72rem; }
+      .db-pager { padding: 8px 12px; }
+      .db-cat-bar { padding: 6px 12px; }
     }
   </style>
 </head>
@@ -1261,61 +1281,46 @@ export const DIALER_HTML = `<!DOCTYPE html>
   <!-- SheetJS CDN -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
-<!-- Customer Database Dashboard -->
+<!-- Customer Database Dashboard (v2) -->
 <div class="db-overlay" id="dbOverlay">
   <div class="db-panel">
     <div class="db-header">
-      <span class="db-title">📋 客户数据库看板</span>
+      <span class="db-title">📋 客户数据库看板 <span style="font-size:0.65rem;color:#999;font-weight:400;" id="dbVer">v2</span></span>
       <button class="db-close" id="dbClose">✕</button>
     </div>
-    <!-- Stats Row -->
     <div class="db-stats" id="dbStats">
-      <div class="db-stat-card"><div class="db-stat-num" id="dbStatTotal">-</div><div class="db-stat-label">总客户数</div></div>
-      <div class="db-stat-card accent-blue"><div class="db-stat-num" id="dbStatMonth">-</div><div class="db-stat-label">本月新增</div></div>
-      <div class="db-stat-card accent-green"><div class="db-stat-num" id="dbStatTagged">-</div><div class="db-stat-label">已分类</div></div>
-      <div class="db-stat-card accent-orange"><div class="db-stat-num" id="dbStatBatches">-</div><div class="db-stat-label">批次数</div></div>
-      <div class="db-stat-card accent-purple"><div class="db-stat-num" id="dbStatToday">-</div><div class="db-stat-label">今日导入</div></div>
+      <div class="db-stat-card c1"><div class="db-stat-num" id="dbStatTotal">-</div><div class="db-stat-label">总客户数</div></div>
+      <div class="db-stat-card c2"><div class="db-stat-num" id="dbStatMonth">-</div><div class="db-stat-label">本月新增</div></div>
+      <div class="db-stat-card c3"><div class="db-stat-num" id="dbStatTagged">-</div><div class="db-stat-label">已分类</div></div>
+      <div class="db-stat-card c4"><div class="db-stat-num" id="dbStatBatches">-</div><div class="db-stat-label">批次数</div></div>
+      <div class="db-stat-card c5"><div class="db-stat-num" id="dbStatToday">-</div><div class="db-stat-label">今日导入</div></div>
     </div>
-    <!-- Category Distribution -->
-    <div class="db-cat-bar" id="dbCatBar"><span style="font-size:0.68rem;color:var(--text-light);">分类分布加载中...</span></div>
-    <!-- Toolbar -->
+    <div class="db-cat-bar" id="dbCatBar"><span style="font-size:0.7rem;color:#aaa;">分类分布加载中...</span></div>
     <div class="db-toolbar">
-      <input type="text" class="db-search" id="dbSearch" placeholder="🔍 搜索姓名 / 电话 / 公司 / 批次 / 分类...">
+      <input type="text" class="db-search" id="dbSearch" placeholder="🔍 搜索姓名 / 电话 / 公司...">
       <select class="db-filter" id="dbCatFilter"><option value="">全部分类</option></select>
       <select class="db-filter" id="dbBatchFilter"><option value="">全部批次</option></select>
-      <span style="font-size:0.7rem;color:var(--text-soft);white-space:nowrap;" id="dbTotal">共 0 条</span>
+      <span style="font-size:0.72rem;color:#999;white-space:nowrap;" id="dbTotal">共 0 条</span>
     </div>
-    <!-- Table -->
     <div class="db-table-wrap">
       <table class="db-table">
-        <thead>
-          <tr>
-            <th style="width:90px;">分类</th>
-            <th style="width:70px;">姓名</th>
-            <th style="width:115px;">电话</th>
-            <th style="min-width:130px;">公司</th>
-            <th style="width:100px;">批次</th>
-            <th style="width:85px;">入库时间</th>
-          </tr>
-        </thead>
-        <tbody id="dbTbody"></tbody>
+        <thead><tr>
+          <th style="width:90px;">分类标签</th>
+          <th style="width:70px;">姓名</th>
+          <th style="width:120px;">电话</th>
+          <th style="min-width:140px;">公司</th>
+          <th style="width:110px;">批次</th>
+          <th style="width:90px;">入库时间</th>
+        </tr></thead>
+        <tbody id="dbTbody"><tr><td colspan="6" class="db-loading">⏳ 加载中...</td></tr></tbody>
       </table>
-      <div class="db-empty" id="dbEmpty" style="display:none;">
-        <div style="font-size:2rem;margin-bottom:8px;">📭</div>
-        <div>暂无客户数据</div>
-        <div style="font-size:0.7rem;margin-top:4px;color:var(--text-light);">请先通过导入功能上传客户，或检查 Supabase 连接</div>
-      </div>
+      <div class="db-empty" id="dbEmpty" style="display:none;"><div style="font-size:2.5rem;margin-bottom:12px;">📭</div><div>暂无客户数据</div><div style="font-size:0.72rem;color:#aaa;margin-top:4px;">导入客户或检查 Supabase 连接</div></div>
     </div>
-    <!-- Pager -->
     <div class="db-pager">
       <button id="dbPrev">‹ 上一页</button>
-      <div style="display:flex;align-items:center;gap:8px;">
-        <span id="dbPageInfo" style="font-size:0.72rem;">第 1 页</span>
-        <select id="dbPageSize" style="height:26px;font-size:0.65rem;">
-          <option value="30">30条/页</option>
-          <option value="50" selected>50条/页</option>
-          <option value="100">100条/页</option>
-        </select>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <span id="dbPageInfo">第 1 页</span>
+        <select id="dbPageSize"><option value="30">30条/页</option><option value="50" selected>50条/页</option><option value="100">100条/页</option></select>
       </div>
       <button id="dbNext">下一页 ›</button>
     </div>
@@ -4189,258 +4194,136 @@ export const DIALER_HTML = `<!DOCTYPE html>
 
     // ====== Customer Data Viewer (Supabase) ======
     var custViewerPage = 1;
-    // ====== Customer Database Dashboard ======
-    var dbPage = 1;
-    var dbTotal = 0;
-    var dbPageSize = 50;
-    var dbSearchTimer = null;
-    var dbAllData = []; // full dataset for client-side stats
-    var CUST_CATEGORIES = ['潜在客户', '意向客户', '已成交', '无效号码', '待跟进', '老客户', '同行', '其他'];
+    // ====== Customer Database Dashboard v2 ======
+    var DB = { page: 1, total: 0, pageSize: 50, timer: null };
+    var CATS = ['潜在客户','意向客户','已成交','无效号码','待跟进','老客户','同行','其他'];
+    var CAT_COLORS = {
+      '潜在客户':'background:#e3f2fd;color:#1565c0;border-color:#90caf9','意向客户':'background:#fff3e0;color:#e65100;border-color:#ffcc80',
+      '已成交':'background:#e8f5e9;color:#2e7d32;border-color:#a5d6a7','无效号码':'background:#fce4ec;color:#c62828;border-color:#ef9a9a',
+      '待跟进':'background:#f3e5f5;color:#6a1b9a;border-color:#ce93d8','老客户':'background:#e0f7fa;color:#006064;border-color:#80deea',
+      '同行':'background:#fff8e1;color:#f57f17;border-color:#fff176','其他':'background:#eceff1;color:#455a64;border-color:#b0bec5',
+      '未分类':'background:#f5f5f5;color:#999;border-color:#ddd'
+    };
 
     function dbFetch() {
-      var search = document.getElementById('dbSearch').value || '';
-      var url = '/api/dialer/customers?page=' + dbPage + '&pageSize=' + dbPageSize;
-      if (search) url += '&search=' + encodeURIComponent(search);
-
-      document.getElementById('dbTbody').innerHTML = '<tr><td colspan="6" style="text-align:center;padding:30px;color:var(--text-light);">⏳ 加载中...</td></tr>';
-
-      fetch(url)
-        .then(function(res) { return res.json(); })
-        .then(function(result) {
-          var data = result.data || [];
-          // Client-side filters
-          var catFilter = document.getElementById('dbCatFilter').value;
-          var batchFilter = document.getElementById('dbBatchFilter').value;
-          if (catFilter) data = data.filter(function(c) { return (c.category || '') === catFilter; });
-          if (batchFilter) data = data.filter(function(c) { return (c.batch_label || '') === batchFilter; });
-
-          dbTotal = result.total || data.length;
-          dbAllData = data;
-          dbRenderTable(data);
-          dbRenderPager();
-          dbRenderStats(data);
-          dbUpdateFilters(data);
-          document.getElementById('dbTotal').textContent = '共 ' + dbTotal + ' 条';
-        })
-        .catch(function(err) {
-          document.getElementById('dbTbody').innerHTML = '<tr><td colspan="6" style="text-align:center;padding:30px;color:#e74c3c;">⚠ 加载失败: ' + esc(err.message) + '</td></tr>';
-        });
+      var s = document.getElementById('dbSearch');
+      var q = s ? s.value : '';
+      var url = '/api/dialer/customers?page=' + DB.page + '&pageSize=' + DB.pageSize;
+      if (q) url += '&search=' + encodeURIComponent(q);
+      document.getElementById('dbTbody').innerHTML = '<tr><td colspan="6" class="db-loading">⏳ 加载中...</td></tr>';
+      fetch(url).then(function(r){return r.json();}).then(function(res){
+        var data = res.data || [];
+        var cf = document.getElementById('dbCatFilter'); if (cf && cf.value) data = data.filter(function(c){return c.category === cf.value;});
+        var bf = document.getElementById('dbBatchFilter'); if (bf && bf.value) data = data.filter(function(c){return c.batch_label === bf.value;});
+        DB.total = res.total || data.length;
+        dbTable(data); dbPager(); dbStats(data); dbFilters(data);
+        document.getElementById('dbTotal').textContent = '共 ' + DB.total + ' 条';
+      }).catch(function(err){
+        document.getElementById('dbTbody').innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;color:#e74c3c;">⚠ 加载失败: ' + esc(err.message) + '</td></tr>';
+      });
     }
 
-    function dbRenderStats(data) {
-      var now = new Date();
-      var thisMonth = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
-      var today = now.toISOString().slice(0, 10);
-      var monthCount = 0, taggedCount = 0, todayCount = 0;
-      var batches = {};
-      for (var i = 0; i < (data || []).length; i++) {
-        var c = data[i];
-        if (c.created_at && c.created_at.slice(0, 7) === thisMonth) monthCount++;
-        if (c.created_at && c.created_at.slice(0, 10) === today) todayCount++;
-        if (c.category) taggedCount++;
-        if (c.batch_label) batches[c.batch_label] = true;
-      }
-      document.getElementById('dbStatTotal').textContent = dbTotal;
-      document.getElementById('dbStatMonth').textContent = monthCount;
-      document.getElementById('dbStatTagged').textContent = taggedCount;
+    function dbStats(data) {
+      var d = data || [];
+      var now = new Date(); var m = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0'); var t = now.toISOString().slice(0,10);
+      var mc=0,tc=0,tdc=0; var batches={};
+      for (var i=0;i<d.length;i++) { var c=d[i]; if(c.created_at&&c.created_at.slice(0,7)===m)mc++; if(c.created_at&&c.created_at.slice(0,10)===t)tdc++; if(c.category)tc++; if(c.batch_label)batches[c.batch_label]=true; }
+      document.getElementById('dbStatTotal').textContent = DB.total;
+      document.getElementById('dbStatMonth').textContent = mc;
+      document.getElementById('dbStatTagged').textContent = tc;
       document.getElementById('dbStatBatches').textContent = Object.keys(batches).length;
-      document.getElementById('dbStatToday').textContent = todayCount;
-
-      // Category distribution bar
-      var catCounts = {};
-      for (var j = 0; j < (data || []).length; j++) {
-        var cat = data[j].category || '未分类';
-        catCounts[cat] = (catCounts[cat] || 0) + 1;
-      }
-      var catColors = {
-        '潜在客户': 'background:#e3f2fd;color:#1565c0;', '意向客户': 'background:#fff3e0;color:#e65100;',
-        '已成交': 'background:#e8f5e9;color:#2e7d32;', '无效号码': 'background:#fce4ec;color:#c62828;',
-        '待跟进': 'background:#f3e5f5;color:#6a1b9a;', '老客户': 'background:#e0f7fa;color:#006064;',
-        '同行': 'background:#fff8e1;color:#f57f17;', '其他': 'background:#eceff1;color:#455a64;',
-        '未分类': 'background:#f5f5f5;color:#999;'
-      };
-      var catBar = document.getElementById('dbCatBar');
-      var barHtml = '';
-      var keys = Object.keys(catCounts).sort(function(a, b) { return catCounts[b] - catCounts[a]; });
-      for (var k = 0; k < keys.length; k++) {
-        var style = catColors[keys[k]] || 'background:#f5f5f5;color:#666;';
-        barHtml += '<span class="db-cat-chip" style="' + style + '" data-cat="' + esc(keys[k]) + '">' + esc(keys[k]) + ' <b>' + catCounts[keys[k]] + '</b></span>';
-      }
-      catBar.innerHTML = barHtml;
-      // Wire chip clicks → set filter
-      var chips = catBar.querySelectorAll('.db-cat-chip');
-      for (var ci = 0; ci < chips.length; ci++) {
-        (function(chip) {
-          chip.addEventListener('click', function() {
-            var cf = document.getElementById('dbCatFilter');
-            var catVal = chip.dataset.cat === '未分类' ? '' : chip.dataset.cat;
-            cf.value = catVal;
-            dbPage = 1;
-            dbFetch();
-          });
-        })(chips[ci]);
-      }
+      document.getElementById('dbStatToday').textContent = tdc;
+      // Cat bar
+      var cc={};
+      for (var j=0;j<d.length;j++){ var cat=d[j].category||'未分类'; cc[cat]=(cc[cat]||0)+1; }
+      var keys=Object.keys(cc).sort(function(a,b){return cc[b]-cc[a];});
+      var bar=document.getElementById('dbCatBar'), h='';
+      for (var k=0;k<keys.length;k++){ var s=CAT_COLORS[keys[k]]||CAT_COLORS['未分类']; h+='<span class="db-cat-chip" style="'+s+'" data-cat="'+esc(keys[k])+'">'+esc(keys[k])+' <b>'+cc[keys[k]]+'</b></span>'; }
+      bar.innerHTML = h || '<span style="font-size:0.7rem;color:#aaa;">暂无数据</span>';
+      var chips=bar.querySelectorAll('.db-cat-chip');
+      for (var ci=0;ci<chips.length;ci++){(function(ch){ch.addEventListener('click',function(){var f=document.getElementById('dbCatFilter');f.value=ch.dataset.cat==='未分类'?'':ch.dataset.cat;DB.page=1;dbFetch();});})(chips[ci]);}
     }
 
-    function dbRenderTable(data) {
-      var tbody = document.getElementById('dbTbody');
-      var empty = document.getElementById('dbEmpty');
-      if (!data || data.length === 0) {
-        tbody.innerHTML = '';
-        empty.style.display = 'block';
-        return;
-      }
-      empty.style.display = 'none';
-      var html = '';
-      for (var i = 0; i < data.length; i++) {
-        var c = data[i];
-        var cat = c.category || '';
-        var catClass = cat ? ' set cat-' + esc(cat) : '';
-        var catDisplay = cat || '点击分类';
-        html += '<tr data-mobile="' + esc(c.mobile || '') + '">' +
-          '<td><span class="cust-cat-tag' + catClass + '" data-mobile="' + esc(c.mobile) + '" data-cat="' + esc(cat) + '" title="点击编辑分类">' + esc(catDisplay) + '</span></td>' +
-          '<td title="' + esc(c.name || '') + '">' + esc(c.name || '-') + '</td>' +
-          '<td style="font-family:monospace;font-size:0.78rem;">' + esc(c.mobile || '-') + '</td>' +
-          '<td title="' + esc(c.company_name || '') + '">' + esc(c.company_name || '-') + '</td>' +
-          '<td>' + (c.batch_label ? '<span style="background:rgba(74,108,247,0.1);color:#4a6cf7;padding:2px 7px;border-radius:4px;font-size:0.68rem;">' + esc(c.batch_label) + '</span>' : '-') + '</td>' +
-          '<td style="font-size:0.68rem;color:var(--text-soft);">' + (c.created_at ? esc(c.created_at.slice(0, 10)) : '-') + '</td>' +
+    function dbTable(data) {
+      var tb=document.getElementById('dbTbody'), em=document.getElementById('dbEmpty');
+      if (!data||data.length===0){ tb.innerHTML=''; em.style.display='block'; return; }
+      em.style.display='none'; var h='';
+      for (var i=0;i<data.length;i++){
+        var c=data[i], cat=c.category||'', cc2=cat?' set cat-'+esc(cat):'';
+        h+='<tr data-mobile="'+esc(c.mobile||'')+'">'+
+          '<td><span class="cust-cat-tag'+cc2+'" data-m="'+esc(c.mobile)+'" data-c="'+esc(cat)+'">'+esc(cat||'点击分类')+'</span></td>'+
+          '<td>'+esc(c.name||'-')+'</td>'+
+          '<td style="font-family:monospace;font-size:0.8rem;">'+esc(c.mobile||'-')+'</td>'+
+          '<td>'+esc(c.company_name||'-')+'</td>'+
+          '<td>'+(c.batch_label?'<span style="background:rgba(74,108,247,0.1);color:#4a6cf7;padding:2px 8px;border-radius:4px;font-size:0.7rem;">'+esc(c.batch_label)+'</span>':'-')+'</td>'+
+          '<td style="font-size:0.7rem;color:#999;">'+(c.created_at?esc(c.created_at.slice(0,10)):'-')+'</td>'+
         '</tr>';
       }
-      tbody.innerHTML = html;
-      dbWireCatClicks();
+      tb.innerHTML=h; dbWireCats();
     }
 
-    function dbRenderPager() {
-      var totalPages = Math.max(1, Math.ceil(dbTotal / dbPageSize));
-      document.getElementById('dbPageInfo').textContent = '第 ' + dbPage + ' / ' + totalPages + ' 页';
-      document.getElementById('dbPrev').disabled = dbPage <= 1;
-      document.getElementById('dbNext').disabled = dbPage >= totalPages;
+    function dbPager(){
+      var tp=Math.max(1,Math.ceil(DB.total/DB.pageSize));
+      document.getElementById('dbPageInfo').textContent='第 '+DB.page+' / '+tp+' 页';
+      var p=document.getElementById('dbPrev'),n=document.getElementById('dbNext');
+      if(p)p.disabled=DB.page<=1; if(n)n.disabled=DB.page>=tp;
     }
 
-    function dbUpdateFilters(data) {
-      // Category filter
-      var catSel = document.getElementById('dbCatFilter');
-      var catSet = {};
-      for (var i = 0; i < CUST_CATEGORIES.length; i++) catSet[CUST_CATEGORIES[i]] = true;
-      for (var j = 0; j < (data || []).length; j++) { if (data[j].category) catSet[data[j].category] = true; }
-      var catHtml = '<option value="">全部分类</option>';
-      Object.keys(catSet).sort().forEach(function(k) {
-        catHtml += '<option value="' + esc(k) + '">' + esc(k) + '</option>';
-      });
-      if (catSel) catSel.innerHTML = catHtml;
-
-      // Batch filter
-      var batchSel = document.getElementById('dbBatchFilter');
-      var batchSet = {};
-      for (var bi = 0; bi < (data || []).length; bi++) { if (data[bi].batch_label) batchSet[data[bi].batch_label] = true; }
-      var batchHtml = '<option value="">全部批次</option>';
-      Object.keys(batchSet).sort().forEach(function(k) {
-        batchHtml += '<option value="' + esc(k) + '">' + esc(k) + '</option>';
-      });
-      if (batchSel) batchSel.innerHTML = batchHtml;
+    function dbFilters(data){
+      var catS=document.getElementById('dbCatFilter'), batchS=document.getElementById('dbBatchFilter');
+      var cs={},bs={}; for(var i=0;i<CATS.length;i++)cs[CATS[i]]=true;
+      for(var j=0;j<(data||[]).length;j++){if(data[j].category)cs[data[j].category]=true;if(data[j].batch_label)bs[data[j].batch_label]=true;}
+      if(catS){var ch='<option value="">全部分类</option>';Object.keys(cs).sort().forEach(function(k){ch+='<option value="'+esc(k)+'">'+esc(k)+'</option>';});catS.innerHTML=ch;}
+      if(batchS){var bh='<option value="">全部批次</option>';Object.keys(bs).sort().forEach(function(k){bh+='<option value="'+esc(k)+'">'+esc(k)+'</option>';});batchS.innerHTML=bh;}
     }
 
-    // Category edit (same as before)
-    function dbWireCatClicks() {
-      var tags = document.querySelectorAll('#dbTbody .cust-cat-tag');
-      for (var i = 0; i < tags.length; i++) {
-        (function(tag) {
-          tag.addEventListener('click', function(e) {
-            e.stopPropagation();
-            if (tag.querySelector('.cust-cat-edit-wrap')) return;
-            dbStartCatEdit(tag);
-          });
-        })(tags[i]);
-      }
+    function dbWireCats(){
+      var tags=document.querySelectorAll('#dbTbody .cust-cat-tag');
+      for(var i=0;i<tags.length;i++){(function(tag){tag.onclick=function(e){e.stopPropagation();if(tag.querySelector('.cust-cat-edit-wrap'))return;dbEditCat(tag);};})(tags[i]);}
     }
 
-    function dbStartCatEdit(tag) {
-      var mobile = tag.dataset.mobile;
-      var currentCat = tag.dataset.cat || '';
-      var oldHtml = tag.innerHTML;
-      var oldClass = tag.className;
-      var optsHtml = '';
-      for (var i = 0; i < CUST_CATEGORIES.length; i++) {
-        var sel = CUST_CATEGORIES[i] === currentCat ? ' selected' : '';
-        optsHtml += '<option value="' + esc(CUST_CATEGORIES[i]) + '"' + sel + '>' + esc(CUST_CATEGORIES[i]) + '</option>';
+    function dbEditCat(tag){
+      var mobile=tag.dataset.m, cur=tag.dataset.c||'', oldH=tag.innerHTML, oldC=tag.className;
+      var oh=''; for(var i=0;i<CATS.length;i++)oh+='<option value="'+esc(CATS[i])+'"'+(CATS[i]===cur?' selected':'')+'>'+esc(CATS[i])+'</option>';
+      if(cur&&CATS.indexOf(cur)===-1)oh+='<option value="'+esc(cur)+'" selected>'+esc(cur)+'</option>';
+      tag.innerHTML='<span class="cust-cat-edit-wrap"><select class="cust-cat-select">'+oh+'</select><input class="cust-cat-input" placeholder="自定义"><button class="cust-cat-save">✓</button><button class="cust-cat-cancel">✕</button></span>';
+      var sel=tag.querySelector('.cust-cat-select'), inp=tag.querySelector('.cust-cat-input'), sv=tag.querySelector('.cust-cat-save'), cn=tag.querySelector('.cust-cat-cancel');
+      function save(){var nc=inp.value.trim()||sel.value;var cl=nc?' set cat-'+esc(nc):'';tag.innerHTML=nc||'点击分类';tag.className='cust-cat-tag'+cl;tag.dataset.c=nc;dbWireCats();
+        fetch('/api/dialer/customers',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({mobile:mobile,fields:{category:nc}})}).then(function(r){return r.json()}).then(function(d){if(!d.success){tag.innerHTML=oldH;tag.className=oldC;dbWireCats();}}).catch(function(){tag.innerHTML=oldH;tag.className=oldC;dbWireCats();});
       }
-      if (currentCat && CUST_CATEGORIES.indexOf(currentCat) === -1) {
-        optsHtml += '<option value="' + esc(currentCat) + '" selected>' + esc(currentCat) + '</option>';
-      }
-      tag.innerHTML = '<span class="cust-cat-edit-wrap"><select class="cust-cat-select">' + optsHtml + '</select><input class="cust-cat-input" placeholder="自定义"><button class="cust-cat-save">✓</button><button class="cust-cat-cancel">✕</button></span>';
-      var selEl = tag.querySelector('.cust-cat-select');
-      var inputEl = tag.querySelector('.cust-cat-input');
-      var saveBtn = tag.querySelector('.cust-cat-save');
-      var cancelBtn = tag.querySelector('.cust-cat-cancel');
-
-      function doSave() {
-        var newCat = inputEl.value.trim() || selEl.value;
-        var catClass = newCat ? ' set cat-' + esc(newCat) : '';
-        tag.innerHTML = newCat || '点击分类';
-        tag.className = 'cust-cat-tag' + catClass;
-        tag.dataset.cat = newCat;
-        dbWireCatClicks();
-        fetch('/api/dialer/customers', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mobile: mobile, fields: { category: newCat } }) })
-          .then(function(r) { return r.json(); })
-          .then(function(d) { if (!d.success) { tag.innerHTML = oldHtml; tag.className = oldClass; dbWireCatClicks(); } })
-          .catch(function() { tag.innerHTML = oldHtml; tag.className = oldClass; dbWireCatClicks(); });
-      }
-      selEl.addEventListener('change', function() { if (selEl.value) inputEl.value = ''; });
-      inputEl.addEventListener('input', function() { if (inputEl.value.trim()) selEl.value = ''; });
-      inputEl.addEventListener('keydown', function(e) { if (e.key === 'Enter') { e.preventDefault(); doSave(); } });
-      saveBtn.addEventListener('click', function(e) { e.stopPropagation(); doSave(); });
-      cancelBtn.addEventListener('click', function(e) { e.stopPropagation(); tag.innerHTML = oldHtml; tag.className = oldClass; dbWireCatClicks(); });
-      setTimeout(function() { inputEl.focus(); }, 50);
+      sel.onchange=function(){if(sel.value)inp.value='';}; inp.oninput=function(){if(inp.value.trim())sel.value='';};
+      inp.onkeydown=function(e){if(e.key==='Enter'){e.preventDefault();save();}};
+      sv.onclick=function(e){e.stopPropagation();save();};
+      cn.onclick=function(e){e.stopPropagation();tag.innerHTML=oldH;tag.className=oldC;dbWireCats();};
+      setTimeout(function(){inp.focus();},50);
     }
 
-    function initCustViewer() {
-      var overlay = document.getElementById('dbOverlay');
-      if (!overlay) { console.error('dbOverlay not found'); return; }
-      var searchInput = document.getElementById('dbSearch');
-      var catFilter = document.getElementById('dbCatFilter');
-      var batchFilter = document.getElementById('dbBatchFilter');
-      var pageSizeSel = document.getElementById('dbPageSize');
+    function openDBDashboard(){
+      var ov=document.getElementById('dbOverlay'); if(!ov)return;
+      ov.classList.add('active'); DB.page=1;
+      var si=document.getElementById('dbSearch'); if(si)si.value='';
+      var cf=document.getElementById('dbCatFilter'); if(cf)cf.value='';
+      var bf=document.getElementById('dbBatchFilter'); if(bf)bf.value='';
+      DB.pageSize=parseInt((document.getElementById('dbPageSize')||{}).value||'50');
+      dbFetch();
+    }
+    window.openDBDashboard = openDBDashboard;
 
-      function openDashboard() {
-        overlay.classList.add('active');
-        dbPage = 1;
-        dbPageSize = parseInt(pageSizeSel ? pageSizeSel.value : '50');
-        if (searchInput) searchInput.value = '';
-        if (catFilter) catFilter.value = '';
-        if (batchFilter) batchFilter.value = '';
-        dbFetch();
-      }
-
-      // Expose globally for inline onclick fallback
-      window.openDBDashboard = openDashboard;
-
-      var btn1 = document.getElementById('custViewerBtn');
-      var btn2 = document.getElementById('custViewerBtn2');
-      if (btn1) btn1.addEventListener('click', openDashboard);
-      if (btn2) btn2.addEventListener('click', openDashboard);
-
-      if (document.getElementById('dbClose')) {
-        document.getElementById('dbClose').addEventListener('click', function() { overlay.classList.remove('active'); });
-      }
-      overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.classList.remove('active'); });
-
-      if (searchInput) {
-        searchInput.addEventListener('input', function() {
-          if (dbSearchTimer) clearTimeout(dbSearchTimer);
-          dbSearchTimer = setTimeout(function() { dbPage = 1; dbFetch(); }, 400);
-        });
-      }
-      if (catFilter) catFilter.addEventListener('change', function() { dbPage = 1; dbFetch(); });
-      if (batchFilter) batchFilter.addEventListener('change', function() { dbPage = 1; dbFetch(); });
-      if (pageSizeSel) pageSizeSel.addEventListener('change', function() { dbPageSize = parseInt(pageSizeSel.value); dbPage = 1; dbFetch(); });
-
-      var prevBtn = document.getElementById('dbPrev');
-      var nextBtn = document.getElementById('dbNext');
-      if (prevBtn) prevBtn.addEventListener('click', function() { if (dbPage > 1) { dbPage--; dbFetch(); } });
-      if (nextBtn) nextBtn.addEventListener('click', function() {
-        var totalPages = Math.max(1, Math.ceil(dbTotal / dbPageSize));
-        if (dbPage < totalPages) { dbPage++; dbFetch(); }
-      });
+    function initCustViewer(){
+      var ov=document.getElementById('dbOverlay'); if(!ov)return;
+      var bt1=document.getElementById('custViewerBtn'), bt2=document.getElementById('custViewerBtn2');
+      if(bt1)bt1.addEventListener('click',openDBDashboard);
+      if(bt2)bt2.addEventListener('click',openDBDashboard);
+      var cls=document.getElementById('dbClose'); if(cls)cls.addEventListener('click',function(){ov.classList.remove('active');});
+      ov.addEventListener('click',function(e){if(e.target===ov)ov.classList.remove('active');});
+      var si=document.getElementById('dbSearch'); if(si)si.addEventListener('input',function(){clearTimeout(DB.timer);DB.timer=setTimeout(function(){DB.page=1;dbFetch();},400);});
+      var cf=document.getElementById('dbCatFilter'); if(cf)cf.addEventListener('change',function(){DB.page=1;dbFetch();});
+      var bf=document.getElementById('dbBatchFilter'); if(bf)bf.addEventListener('change',function(){DB.page=1;dbFetch();});
+      var ps=document.getElementById('dbPageSize'); if(ps)ps.addEventListener('change',function(){DB.pageSize=parseInt(ps.value);DB.page=1;dbFetch();});
+      var pr=document.getElementById('dbPrev'); if(pr)pr.addEventListener('click',function(){if(DB.page>1){DB.page--;dbFetch();}});
+      var nx=document.getElementById('dbNext'); if(nx)nx.addEventListener('click',function(){var tp=Math.max(1,Math.ceil(DB.total/DB.pageSize));if(DB.page<tp){DB.page++;dbFetch();}});
+      // Hash trigger: /dialer#db auto-opens
+      if(window.location.hash==='#db'){setTimeout(openDBDashboard,300);}
     }
 
     function initNoteModal() {

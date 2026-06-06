@@ -1307,7 +1307,12 @@ export default {
     // 6. 服务拨号器单页 HTML
     if (path === '/dialer' || path === '/dialer/') {
       return new Response(DIALER_HTML, {
-        headers: { 'Content-Type': 'text/html; charset=UTF-8' }
+        headers: {
+          'Content-Type': 'text/html; charset=UTF-8',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
       });
     }
 
