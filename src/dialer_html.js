@@ -930,7 +930,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
         <!-- Auto Dial Toggle -->
         <button id="autoDialBtn" title="自动拨打" style="font-size: 0.78rem; padding: 4px 10px; border: 1px solid var(--accent-wechat); background: var(--accent-wechat-bg); color: var(--accent-wechat); cursor: pointer; outline: none; font-weight: 700; border-radius: var(--radius-xs); white-space: nowrap;">自动拨打</button>
         <!-- Database Viewer -->
-        <button id="custViewerBtn2" title="查看 Supabase 客户数据库" style="font-size: 0.78rem; padding: 4px 10px; border: 1px solid #4a6cf7; background: rgba(74,108,247,0.08); color: #4a6cf7; cursor: pointer; outline: none; font-weight: 700; border-radius: var(--radius-xs); margin-right: 8px; white-space: nowrap;">📋 数据库</button>
+        <button id="custViewerBtn2" title="查看 Supabase 客户数据库" onclick="if(window.openDBDashboard)window.openDBDashboard();else{document.getElementById('dbOverlay').classList.add('active');alert('看板已打开，数据加载中...');}" style="font-size: 0.78rem; padding: 4px 10px; border: 1px solid #4a6cf7; background: rgba(74,108,247,0.08); color: #4a6cf7; cursor: pointer; outline: none; font-weight: 700; border-radius: var(--radius-xs); margin-right: 8px; white-space: nowrap;">📋 数据库</button>
         <!-- Dropdown Menu Trigger on the Right -->
         <div style="position: relative; display: inline-block;">
           <button id="headerMenuBtn" title="更多设置" style="font-size: 0.8rem; padding: 6px 10px; border: none; background: transparent; cursor: pointer; outline: none; font-weight: 800; color: var(--text-soft); min-width: 44px; min-height: 34px; -webkit-tap-highlight-color: transparent; touch-action: manipulation;">更多</button>
@@ -4395,7 +4395,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
 
     function initCustViewer() {
       var overlay = document.getElementById('dbOverlay');
-      if (!overlay) return;
+      if (!overlay) { console.error('dbOverlay not found'); return; }
       var searchInput = document.getElementById('dbSearch');
       var catFilter = document.getElementById('dbCatFilter');
       var batchFilter = document.getElementById('dbBatchFilter');
@@ -4411,12 +4411,17 @@ export const DIALER_HTML = `<!DOCTYPE html>
         dbFetch();
       }
 
+      // Expose globally for inline onclick fallback
+      window.openDBDashboard = openDashboard;
+
       var btn1 = document.getElementById('custViewerBtn');
       var btn2 = document.getElementById('custViewerBtn2');
       if (btn1) btn1.addEventListener('click', openDashboard);
       if (btn2) btn2.addEventListener('click', openDashboard);
 
-      document.getElementById('dbClose').addEventListener('click', function() { overlay.classList.remove('active'); });
+      if (document.getElementById('dbClose')) {
+        document.getElementById('dbClose').addEventListener('click', function() { overlay.classList.remove('active'); });
+      }
       overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.classList.remove('active'); });
 
       if (searchInput) {
@@ -4429,8 +4434,10 @@ export const DIALER_HTML = `<!DOCTYPE html>
       if (batchFilter) batchFilter.addEventListener('change', function() { dbPage = 1; dbFetch(); });
       if (pageSizeSel) pageSizeSel.addEventListener('change', function() { dbPageSize = parseInt(pageSizeSel.value); dbPage = 1; dbFetch(); });
 
-      document.getElementById('dbPrev').addEventListener('click', function() { if (dbPage > 1) { dbPage--; dbFetch(); } });
-      document.getElementById('dbNext').addEventListener('click', function() {
+      var prevBtn = document.getElementById('dbPrev');
+      var nextBtn = document.getElementById('dbNext');
+      if (prevBtn) prevBtn.addEventListener('click', function() { if (dbPage > 1) { dbPage--; dbFetch(); } });
+      if (nextBtn) nextBtn.addEventListener('click', function() {
         var totalPages = Math.max(1, Math.ceil(dbTotal / dbPageSize));
         if (dbPage < totalPages) { dbPage++; dbFetch(); }
       });
