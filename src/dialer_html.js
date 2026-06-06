@@ -437,6 +437,11 @@ export const DIALER_HTML = `<!DOCTYPE html>
     .client-card-tag-company {
       background: rgba(7,193,96,0.08);
       color: var(--accent-wechat);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .client-card-tag-company:hover {
+      background: var(--btn-hover);
     }
     .client-card-body {
       display: flex;
@@ -956,7 +961,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
       </div>
       <div id="callAssistCompanyRow" style="display:none;margin-top:2px;width:100%;">
         <span style="font-size:0.7rem;color:var(--text-light);font-weight:800;">公司：</span>
-        <span id="callAssistCompany" style="font-size:0.75rem;font-weight:800;color:var(--accent-wechat);background:rgba(7,193,96,0.08);padding:2px 8px;border-radius:var(--radius-xs);"></span>
+        <span id="callAssistCompany" title="点击复制单位" style="font-size:0.75rem;font-weight:800;color:var(--accent-wechat);background:rgba(7,193,96,0.08);padding:2px 8px;border-radius:var(--radius-xs);cursor:pointer;display:inline-block;"></span>
       </div>
       <div id="callAssistNoteRow" style="display:none;margin-top:4px;width:100%;text-align:left;">
         <span style="font-size:0.7rem;color:var(--text-light);font-weight:800;">备注：</span>
@@ -2925,7 +2930,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
             '<div class="client-card-primary" style="display: flex; align-items: center; width: 100%; gap: 6px;">' +
               '<span class="client-card-name-btn" data-name="' + esc(c.name) + '" data-idx="' + i + '" title="点击复制姓名" style="flex: 0 0 62px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block;">' + esc(c.name) + '</span>' +
               '<span class="client-card-phone-wrap" style="flex: 0 0 110px; display: inline-flex; align-items: center;">' +
-                '<span class="' + phoneClass + '" data-phone="' + esc(c.phone) + '" data-idx="' + i + '" title="点击复制号码" style="font-size: 0.82rem;">' + esc(c.phone) + '</span>' +
+                '<span class="' + phoneClass + '" data-phone="' + esc(c.phone) + '" data-idx="' + i + '" title="点击复制并跳转微信加好友" style="font-size: 0.82rem;">' + esc(c.phone) + '</span>' +
               '</span>' +
               '<div style="margin-left: auto; display: inline-flex; align-items: center; justify-content: flex-end; flex-shrink: 0;">' +
                 badgeHtml +
@@ -2933,7 +2938,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
             '</div>' +
           '</div>' +
           '<div class="client-card-tags" style="margin-top: 2px;">' +
-            (c.company ? '<span class="client-card-tag client-card-tag-company">' + esc(c.company) + '</span>' : '') +
+            (c.company ? '<span class="client-card-tag client-card-tag-company" data-company="' + esc(c.company) + '" data-idx="' + i + '" title="点击复制单位名称">' + esc(c.company) + '</span>' : '') +
             (function() {
               if (!c.company) return '';
               var matchedWl = matchWhitelistCompany(c.company);
@@ -3074,8 +3079,8 @@ export const DIALER_HTML = `<!DOCTYPE html>
           copyTextToClipboard(phone);
           
           var oldText = b.textContent;
-          if (oldText === '已复制') return;
-          b.textContent = '已复制';
+          if (oldText === '已复制，正在打开微信...') return;
+          b.textContent = '已复制，正在打开微信...';
           var oldColor = b.style.color;
           b.style.color = 'var(--accent-wechat)';
           
@@ -3088,9 +3093,13 @@ export const DIALER_HTML = `<!DOCTYPE html>
           b.classList.add('copied');
 
           setTimeout(function() {
+            window.location.href = 'weixin://';
+          }, 100);
+
+          setTimeout(function() {
             b.textContent = phone;
             b.style.color = oldColor;
-          }, 1000);
+          }, 1500);
         });
       });
 
@@ -3124,6 +3133,26 @@ export const DIALER_HTML = `<!DOCTYPE html>
 
           setTimeout(function() {
             b.textContent = name;
+            b.style.color = oldColor;
+          }, 1000);
+        });
+      });
+
+      // Wire up company click copy
+      container.querySelectorAll('.client-card-tag-company').forEach(function(b) {
+        b.addEventListener('click', function(e) {
+          e.stopPropagation();
+          var company = b.dataset.company;
+          copyTextToClipboard(company);
+          
+          var oldText = b.textContent;
+          if (oldText === '已复制') return;
+          b.textContent = '已复制';
+          var oldColor = b.style.color;
+          b.style.color = 'var(--accent-wechat)';
+          
+          setTimeout(function() {
+            b.textContent = company;
             b.style.color = oldColor;
           }, 1000);
         });
@@ -3201,6 +3230,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
       var companyEl = document.getElementById('callAssistCompany');
       if (c.company && String(c.company).trim()) {
         companyEl.textContent = c.company;
+        companyEl.dataset.company = c.company;
         companyRow.style.display = 'flex';
         companyRow.style.alignItems = 'center';
         companyRow.style.gap = '4px';
@@ -3380,8 +3410,8 @@ export const DIALER_HTML = `<!DOCTYPE html>
           copyTextToClipboard(phone);
           
           var oldText = phoneDisp.textContent;
-          if (oldText === '已复制') return;
-          phoneDisp.textContent = '已复制';
+          if (oldText === '已复制，正在打开微信...') return;
+          phoneDisp.textContent = '已复制，正在打开微信...';
           
           var client = importedClients[currentCallIdx];
           if (client) {
@@ -3400,8 +3430,12 @@ export const DIALER_HTML = `<!DOCTYPE html>
           }
 
           setTimeout(function() {
+            window.location.href = 'weixin://';
+          }, 100);
+
+          setTimeout(function() {
             phoneDisp.textContent = phone;
-          }, 1000);
+          }, 1500);
         });
       }
 
@@ -3435,6 +3469,24 @@ export const DIALER_HTML = `<!DOCTYPE html>
 
           setTimeout(function() {
             nameDisp.textContent = name;
+          }, 1000);
+        });
+      }
+
+      var companyDisp = document.getElementById('callAssistCompany');
+      if (companyDisp) {
+        companyDisp.addEventListener('click', function(e) {
+          e.stopPropagation();
+          var company = companyDisp.dataset.company || companyDisp.textContent;
+          if (!company || company === '-') return;
+          copyTextToClipboard(company);
+          
+          var oldText = companyDisp.textContent;
+          if (oldText === '已复制') return;
+          companyDisp.textContent = '已复制';
+          
+          setTimeout(function() {
+            companyDisp.textContent = company;
           }, 1000);
         });
       }
