@@ -1145,6 +1145,32 @@ export default {
       }
     }
 
+    // 2c. 查询 Supabase 客户数据（分页+搜索）
+    if (path === '/api/dialer/customers' && request.method === 'GET') {
+      try {
+        const url = new URL(request.url);
+        const page = parseInt(url.searchParams.get('page') || '1');
+        const pageSize = parseInt(url.searchParams.get('pageSize') || '50');
+        const search = url.searchParams.get('search') || '';
+        const sb = createSupabaseClient(env);
+        const result = await sb.getAllCustomers(page, pageSize, search);
+        return new Response(JSON.stringify(result), {
+          headers: {
+            'Content-Type': 'application/json; charset=UTF-8',
+            'Access-Control-Allow-Origin': '*'
+          }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ data: [], total: 0, error: e.message }), {
+          status: 500,
+          headers: {
+            'Content-Type': 'application/json; charset=UTF-8',
+            'Access-Control-Allow-Origin': '*'
+          }
+        });
+      }
+    }
+
     // 3. 代理 SheetJS 资源以加快文件解析加载
     if (path === '/xlsx.full.min.js') {
       return fetch('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js');

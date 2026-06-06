@@ -782,6 +782,64 @@ export const DIALER_HTML = `<!DOCTYPE html>
       font-size: 0.72rem !important;
       opacity: 0.85;
     }
+    /* Customer Data Viewer */
+    .cust-viewer-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 10000;
+      display: none; align-items: center; justify-content: center;
+    }
+    .cust-viewer-overlay.active { display: flex; }
+    .cust-viewer-panel {
+      background: var(--card-bg); border-radius: 12px; width: 95vw; max-width: 900px;
+      max-height: 90vh; display: flex; flex-direction: column; overflow: hidden;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.25);
+    }
+    .cust-viewer-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 16px; border-bottom: 1px solid var(--border-light);
+      font-weight: 900; font-size: 0.95rem;
+    }
+    .cust-viewer-close {
+      background: none; border: none; font-size: 1.3rem; cursor: pointer;
+      color: var(--text-soft); padding: 4px 8px; border-radius: 6px;
+    }
+    .cust-viewer-toolbar {
+      display: flex; gap: 8px; padding: 8px 16px; align-items: center;
+      border-bottom: 1px solid var(--border-light); flex-wrap: wrap;
+    }
+    .cust-viewer-search {
+      flex: 1; min-width: 120px; height: 32px; padding: 0 10px;
+      border: 1px solid var(--card-border); border-radius: 6px;
+      font-size: 0.78rem; outline: none; background: var(--btn-bg); color: var(--text-main);
+    }
+    .cust-viewer-table-wrap {
+      flex: 1; overflow: auto; padding: 0;
+    }
+    .cust-viewer-table {
+      width: 100%; border-collapse: collapse; font-size: 0.74rem;
+    }
+    .cust-viewer-table th {
+      position: sticky; top: 0; background: var(--btn-bg); padding: 8px 10px;
+      text-align: left; font-weight: 800; color: var(--text-soft); border-bottom: 2px solid var(--card-border);
+      white-space: nowrap;
+    }
+    .cust-viewer-table td {
+      padding: 7px 10px; border-bottom: 1px solid var(--border-light);
+      color: var(--text-main); max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .cust-viewer-table tr:hover td { background: rgba(0,0,0,0.02); }
+    .cust-viewer-pager {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 8px 16px; border-top: 1px solid var(--border-light); font-size: 0.72rem;
+    }
+    .cust-viewer-pager button {
+      background: var(--btn-bg); border: 1px solid var(--card-border);
+      padding: 4px 12px; border-radius: 6px; cursor: pointer; font-weight: 700;
+      font-size: 0.72rem; color: var(--text-main);
+    }
+    .cust-viewer-pager button:disabled { opacity: 0.4; cursor: default; }
+    .cust-viewer-empty {
+      text-align: center; padding: 40px 20px; color: var(--text-light); font-size: 0.82rem;
+    }
   </style>
 </head>
 <body>
@@ -817,6 +875,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
             <button class="dropdown-item copy-limit-sub" id="toggleThreshold30">  30次限制: ✓</button>
             <button class="dropdown-item" id="exportBtn" style="display:none;">导出记录</button>
             <button class="dropdown-item" id="clearBtn" style="display:none; color: #e74c3c;">清空数据</button>
+            <button class="dropdown-item" id="custViewerBtn">📋 客户数据</button>
             <button class="dropdown-item" id="darkToggleBtn">切换主题</button>
           </div>
         </div>
@@ -3995,6 +4054,115 @@ export const DIALER_HTML = `<!DOCTYPE html>
       }
     }
 
+    // ====== Customer Data Viewer (Supabase) ======
+    var custViewerPage = 1;
+    var custViewerTotal = 0;
+    var custViewerPageSize = 50;
+    var custViewerSearchTimer = null;
+
+    function fetchCustomers(page, search) {
+      var p = page || 1;
+      var s = search || '';
+      var url = '/api/dialer/customers?page=' + p + '&pageSize=' + custViewerPageSize;
+      if (s) url += '&search=' + encodeURIComponent(s);
+
+      document.getElementById('custViewerTbody').innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--text-light);">加载中...</td></tr>';
+
+      fetch(url)
+        .then(function(res) { return res.json(); })
+        .then(function(result) {
+          custViewerTotal = result.total || 0;
+          custViewerPage = result.page || p;
+          renderCustomerTable(result.data || []);
+          updateCustPager();
+          document.getElementById('custViewerTotal').textContent = '共 ' + custViewerTotal + ' 条';
+        })
+        .catch(function(err) {
+          document.getElementById('custViewerTbody').innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;color:#e74c3c;">加载失败: ' + esc(err.message) + '</td></tr>';
+        });
+    }
+
+    function renderCustomerTable(data) {
+      var tbody = document.getElementById('custViewerTbody');
+      var empty = document.getElementById('custViewerEmpty');
+      if (!data || data.length === 0) {
+        tbody.innerHTML = '';
+        empty.style.display = 'block';
+        return;
+      }
+      empty.style.display = 'none';
+      var html = '';
+      for (var i = 0; i < data.length; i++) {
+        var c = data[i];
+        html += '<tr>' +
+          '<td title="' + esc(c.name || '') + '">' + esc(c.name || '-') + '</td>' +
+          '<td style="font-family:monospace;">' + esc(c.mobile || '-') + '</td>' +
+          '<td title="' + esc(c.company_name || '') + '">' + esc(c.company_name || '-') + '</td>' +
+          '<td>' + (c.batch_label ? '<span style="background:rgba(74,108,247,0.1);color:#4a6cf7;padding:1px 6px;border-radius:4px;font-size:0.68rem;">' + esc(c.batch_label) + '</span>' : '-') + '</td>' +
+          '<td style="font-size:0.68rem;color:var(--text-soft);">' + (c.created_at ? esc(c.created_at.slice(0, 10)) : '-') + '</td>' +
+        '</tr>';
+      }
+      tbody.innerHTML = html;
+    }
+
+    function updateCustPager() {
+      var totalPages = Math.max(1, Math.ceil(custViewerTotal / custViewerPageSize));
+      document.getElementById('custViewerPageInfo').textContent = '第 ' + custViewerPage + ' / ' + totalPages + ' 页';
+      document.getElementById('custViewerPrev').disabled = custViewerPage <= 1;
+      document.getElementById('custViewerNext').disabled = custViewerPage >= totalPages;
+    }
+
+    function initCustViewer() {
+      var overlay = document.getElementById('custViewerOverlay');
+      var closeBtn = document.getElementById('custViewerClose');
+      var searchInput = document.getElementById('custViewerSearch');
+      var prevBtn = document.getElementById('custViewerPrev');
+      var nextBtn = document.getElementById('custViewerNext');
+      var openBtn = document.getElementById('custViewerBtn');
+
+      // Open
+      if (openBtn) {
+        openBtn.addEventListener('click', function() {
+          overlay.classList.add('active');
+          custViewerPage = 1;
+          searchInput.value = '';
+          fetchCustomers(1, '');
+        });
+      }
+
+      // Close
+      if (closeBtn) {
+        closeBtn.addEventListener('click', function() { overlay.classList.remove('active'); });
+      }
+      overlay.addEventListener('click', function(e) {
+        if (e.target === overlay) overlay.classList.remove('active');
+      });
+
+      // Search with debounce
+      if (searchInput) {
+        searchInput.addEventListener('input', function() {
+          if (custViewerSearchTimer) clearTimeout(custViewerSearchTimer);
+          custViewerSearchTimer = setTimeout(function() {
+            custViewerPage = 1;
+            fetchCustomers(1, searchInput.value);
+          }, 400);
+        });
+      }
+
+      // Pagination
+      if (prevBtn) {
+        prevBtn.addEventListener('click', function() {
+          if (custViewerPage > 1) fetchCustomers(custViewerPage - 1, searchInput.value);
+        });
+      }
+      if (nextBtn) {
+        nextBtn.addEventListener('click', function() {
+          var totalPages = Math.ceil(custViewerTotal / custViewerPageSize);
+          if (custViewerPage < totalPages) fetchCustomers(custViewerPage + 1, searchInput.value);
+        });
+      }
+    }
+
     function initNoteModal() {
       var modal = document.getElementById('noteModal');
       var closeBtn = document.getElementById('closeNoteModalBtn');
@@ -4368,8 +4536,44 @@ export const DIALER_HTML = `<!DOCTYPE html>
     safeInit('initWhitelist', initWhitelist);
     safeInit('initAIImporter', initAIImporter);
     safeInit('loadPersistedState', loadPersistedState);
+    safeInit('initCustViewer', initCustViewer);
 
   })();
   </script>
+
+<!-- Customer Data Viewer Modal -->
+<div class="cust-viewer-overlay" id="custViewerOverlay">
+  <div class="cust-viewer-panel">
+    <div class="cust-viewer-header">
+      <span>📋 Supabase 客户数据</span>
+      <button class="cust-viewer-close" id="custViewerClose">✕</button>
+    </div>
+    <div class="cust-viewer-toolbar">
+      <input type="text" class="cust-viewer-search" id="custViewerSearch" placeholder="搜索姓名/电话/公司/批次...">
+      <span id="custViewerTotal" style="font-size:0.72rem;color:var(--text-soft);white-space:nowrap;">共 0 条</span>
+    </div>
+    <div class="cust-viewer-table-wrap">
+      <table class="cust-viewer-table">
+        <thead>
+          <tr>
+            <th>姓名</th>
+            <th>电话</th>
+            <th>公司</th>
+            <th>批次</th>
+            <th>导入时间</th>
+          </tr>
+        </thead>
+        <tbody id="custViewerTbody"></tbody>
+      </table>
+      <div class="cust-viewer-empty" id="custViewerEmpty" style="display:none;">暂无数据</div>
+    </div>
+    <div class="cust-viewer-pager">
+      <button id="custViewerPrev">上一页</button>
+      <span id="custViewerPageInfo">第 1 页</span>
+      <button id="custViewerNext">下一页</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>`;

@@ -253,6 +253,52 @@ export function createSupabaseClient(env) {
   }
 
   /**
+   * Get all customers with pagination and optional search.
+   */
+  async function getAllCustomers(page, pageSize, search) {
+    if (!baseUrl || !key) return { data: [], total: 0, page: page || 1, pageSize: pageSize || 50 };
+
+    var p = page || 1;
+    var ps = pageSize || 50;
+    var from = (p - 1) * ps;
+    var to = from + ps - 1;
+
+    var selectCols = 'name,mobile,company_name,note,batch_label,created_at';
+    var url = baseUrl + '/rest/v1/customers?select=' + selectCols + '&order=created_at.desc';
+    if (search) {
+      url += '&or=(name.ilike.%25' + encodeURIComponent(search) + '%25,mobile.ilike.%25' + encodeURIComponent(search) + '%25,company_name.ilike.%25' + encodeURIComponent(search) + '%25,batch_label.ilike.%25' + encodeURIComponent(search) + '%25)';
+    }
+
+    // Get total count
+    var countUrl = baseUrl + '/rest/v1/customers?select=count';
+    if (search) {
+      countUrl += '&or=(name.ilike.%25' + encodeURIComponent(search) + '%25,mobile.ilike.%25' + encodeURIComponent(search) + '%25,company_name.ilike.%25' + encodeURIComponent(search) + '%25,batch_label.ilike.%25' + encodeURIComponent(search) + '%25)';
+    }
+
+    var headersWithCount = Object.assign({}, headers(), {
+      'Range': from + '-' + to,
+      'Prefer': 'count=exact'
+    });
+
+    var resp = await fetch(url, { headers: headersWithCount });
+    if (!resp.ok) {
+      var text = await resp.text();
+      throw new Error('Supabase query customers failed [' + resp.status + ']: ' + text);
+    }
+
+    var data = await resp.json();
+    // Extract total from Content-Range header
+    var total = data.length;
+    var contentRange = resp.headers.get('Content-Range');
+    if (contentRange) {
+      var parts = contentRange.split('/');
+      if (parts.length === 2) total = parseInt(parts[1], 10) || total;
+    }
+
+    return { data: Array.isArray(data) ? data : [], total: total, page: p, pageSize: ps };
+  }
+
+  /**
    * Upsert customers (dialer clients) into Supabase.
    * Uses mobile as unique key to prevent duplicates.
    * Each customer gets: name, mobile, company_name, note, batch_label
@@ -328,7 +374,8 @@ export function createSupabaseClient(env) {
     searchSpeech: searchSpeech,
     searchLoanCases: searchLoanCases,
     searchKnowledge: searchKnowledge,
-    upsertCustomers: upsertCustomers
+    upsertCustomers: upsertCustomers,
+    getAllCustomers: getAllCustomers
   };
 }
 
