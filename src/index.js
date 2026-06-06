@@ -1195,6 +1195,46 @@ export default {
       }
     }
 
+    // 2e. 调试：查看 Supabase 表结构
+    if (path === '/api/debug/schema' && request.method === 'GET') {
+      try {
+        const sb = createSupabaseClient(env);
+        // Fetch customers table schema via PostgREST
+        const resp = await fetch(env.SUPABASE_URL + '/rest/v1/', {
+          headers: {
+            'apikey': env.SUPABASE_KEY,
+            'Authorization': 'Bearer ' + env.SUPABASE_KEY
+          }
+        });
+        const openApi = await resp.text();
+        // Try to query a few rows to see actual column names
+        let sampleData = null;
+        try {
+          const sampleResp = await fetch(env.SUPABASE_URL + '/rest/v1/customers?limit=1', {
+            headers: {
+              'apikey': env.SUPABASE_KEY,
+              'Authorization': 'Bearer ' + env.SUPABASE_KEY
+            }
+          });
+          sampleData = await sampleResp.json();
+        } catch(e) {
+          sampleData = { error: e.message };
+        }
+        return new Response(JSON.stringify({
+          openapi_preview: openApi.slice(0, 3000),
+          sample_customers: sampleData,
+          customers_row_count: Array.isArray(sampleData) ? sampleData.length : 0
+        }, null, 2), {
+          headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ error: e.message }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+    }
+
     // 3. 代理 SheetJS 资源以加快文件解析加载
     if (path === '/xlsx.full.min.js') {
       return fetch('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js');
