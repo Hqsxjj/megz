@@ -258,52 +258,57 @@ export function createSupabaseClient(env) {
   async function getAllCustomers(page, pageSize, search) {
     if (!baseUrl || !key) return { data: [], total: 0, page: page || 1, pageSize: pageSize || 50 };
 
-    var p = page || 1;
-    var ps = pageSize || 50;
-    var from = (p - 1) * ps;
-    var to = from + ps - 1;
+    try {
+      var p = page || 1;
+      var ps = pageSize || 50;
+      var from = (p - 1) * ps;
+      var to = from + ps - 1;
 
-    // Try full columns first, fall back to minimal if columns don't exist
-    var selectColsFull = 'name,mobile,company_name,note,batch_label,category,created_at';
-    var selectColsMin = 'name,mobile,company_name,batch_label,created_at';
-    var baseSearch = '';
-    if (search) {
-      baseSearch = '&or=(name.ilike.%25' + encodeURIComponent(search) + '%25,mobile.ilike.%25' + encodeURIComponent(search) + '%25,company_name.ilike.%25' + encodeURIComponent(search) + '%25,batch_label.ilike.%25' + encodeURIComponent(search) + '%25)';
-    }
-
-    var headersWithCount = Object.assign({}, headers(), {
-      'Range': from + '-' + to,
-      'Prefer': 'count=exact'
-    });
-
-    // Try full columns
-    var url = baseUrl + '/rest/v1/customers?select=' + selectColsFull + '&order=created_at.desc' + baseSearch;
-    var resp = await fetch(url, { headers: headersWithCount });
-
-    // If column missing, fall back to minimal
-    if (!resp.ok) {
-      var errText = await resp.text();
-      if (errText.includes('column') || resp.status === 400 || resp.status === 500) {
-        url = baseUrl + '/rest/v1/customers?select=' + selectColsMin + '&order=created_at.desc' + baseSearch;
-        resp = await fetch(url, { headers: headersWithCount });
+      var baseSearch = '';
+      if (search) {
+        baseSearch = '&or=(name.ilike.%25' + encodeURIComponent(search) + '%25,mobile.ilike.%25' + encodeURIComponent(search) + '%25,company_name.ilike.%25' + encodeURIComponent(search) + '%25,batch_label.ilike.%25' + encodeURIComponent(search) + '%25)';
       }
-    }
 
-    if (!resp.ok) {
-      var text = resp.status === 500 ? await resp.text() : '';
-      throw new Error('Supabase query customers failed [' + resp.status + ']: ' + (text || resp.statusText));
-    }
+      var headersWithCount = Object.assign({}, headers(), {
+        'Range': from + '-' + to,
+        'Prefer': 'count=exact'
+      });
 
-    var data = await resp.json();
-    // Extract total from Content-Range header
-    var total = data.length;
-    var contentRange = resp.headers.get('Content-Range');
-    if (contentRange) {
-      var parts = contentRange.split('/');
-      if (parts.length === 2) total = parseInt(parts[1], 10) || total;
-    }
+      // Try column sets from most to least specific
+      var colSets = [
+        'name,mobile,company_name,note,batch_label,category,created_at',
+        'name,mobile,company_name,batch_label,created_at',
+        '*'
+      ];
+      var resp = null;
+      var data = null;
 
-    return { data: Array.isArray(data) ? data : [], total: total, page: p, pageSize: ps };
+      for (var ci = 0; ci < colSets.length; ci++) {
+        var url2 = baseUrl + '/rest/v1/customers?select=' + colSets[ci] + '&order=created_at.desc' + baseSearch;
+        resp = await fetch(url2, { headers: headersWithCount });
+        if (resp.ok) {
+          data = await resp.json();
+          break;
+        }
+      }
+
+      if (!data) {
+        console.error('[supabase] getAllCustomers failed, returning empty');
+        return { data: [], total: 0, page: p, pageSize: ps };
+      }
+
+      var total = data.length;
+      var contentRange = resp.headers.get('Content-Range');
+      if (contentRange) {
+        var parts = contentRange.split('/');
+        if (parts.length === 2) total = parseInt(parts[1], 10) || total;
+      }
+
+      return { data: Array.isArray(data) ? data : [], total: total, page: p, pageSize: ps };
+    } catch (e) {
+      console.error('[supabase] getAllCustomers error:', e.message);
+      return { data: [], total: 0, page: page || 1, pageSize: pageSize || 50 };
+    }
   }
 
   /**

@@ -1162,7 +1162,7 @@ export default {
         });
       } catch (e) {
         return new Response(JSON.stringify({ data: [], total: 0, error: e.message }), {
-          status: 500,
+          status: 200,
           headers: {
             'Content-Type': 'application/json; charset=UTF-8',
             'Access-Control-Allow-Origin': '*'
