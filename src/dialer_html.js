@@ -745,9 +745,38 @@ export const DIALER_HTML = `<!DOCTYPE html>
       padding: 5px 0;
       border-bottom: 1px solid var(--border-light);
     }
+    /* Copy limit toast */
+    .copy-limit-toast {
+      position: fixed;
+      top: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #e74c3c;
+      color: #fff;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 0.88rem;
+      font-weight: 600;
+      z-index: 9999;
+      box-shadow: 0 4px 16px rgba(231, 76, 60, 0.35);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+      max-width: 90vw;
+      text-align: center;
+    }
+    .copy-limit-toast.show {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .copy-limit-toast.warn {
+      background: #f39c12;
+      box-shadow: 0 4px 16px rgba(243, 156, 18, 0.35);
+    }
   </style>
 </head>
 <body>
+  <div class="copy-limit-toast" id="copyLimitToast"></div>
   <div class="app-shell">
     <div class="container">
       <!-- Header -->
@@ -1106,6 +1135,95 @@ export const DIALER_HTML = `<!DOCTYPE html>
     var whitelistLoaded = false;
     var pageSize = 100;
     var currentSort = 'shuffle';
+
+    // Copy Rate Limiting
+    var COPY_LIMIT_K = 'standalone_dialer_copy_limit';
+    var copyLimitState = null;
+
+    function loadCopyLimitState() {
+      if (copyLimitState) return;
+      try {
+        var saved = localStorage.getItem(COPY_LIMIT_K);
+        if (saved) {
+          copyLimitState = JSON.parse(saved);
+        } else {
+          copyLimitState = { count: 0, restrictedUntil: null, triggeredThresholds: [] };
+        }
+        // Clear expired restriction but keep count for cumulative tracking
+        if (copyLimitState.restrictedUntil && Date.now() > copyLimitState.restrictedUntil) {
+          copyLimitState.restrictedUntil = null;
+        }
+        // Initialize triggeredThresholds if missing from older state
+        if (!copyLimitState.triggeredThresholds) {
+          copyLimitState.triggeredThresholds = [];
+        }
+      } catch (e) {
+        copyLimitState = { count: 0, restrictedUntil: null, triggeredThresholds: [] };
+      }
+    }
+
+    function saveCopyLimitState() {
+      try {
+        localStorage.setItem(COPY_LIMIT_K, JSON.stringify(copyLimitState));
+      } catch(e) {}
+    }
+
+    var copyLimitToastTimer = null;
+    function showCopyLimitToast(msg, isWarn) {
+      var toast = document.getElementById('copyLimitToast');
+      if (!toast) return;
+      toast.textContent = msg;
+      toast.className = 'copy-limit-toast';
+      if (isWarn) toast.classList.add('warn');
+      // Force reflow
+      void toast.offsetWidth;
+      toast.classList.add('show');
+      if (copyLimitToastTimer) clearTimeout(copyLimitToastTimer);
+      copyLimitToastTimer = setTimeout(function() {
+        toast.classList.remove('show');
+      }, 4000);
+    }
+
+    // Returns {allowed: bool, message: string}
+    function checkCopyLimit() {
+      loadCopyLimitState();
+      var now = Date.now();
+
+      // Check if currently restricted
+      if (copyLimitState.restrictedUntil && now < copyLimitState.restrictedUntil) {
+        var remainingMin = Math.ceil((copyLimitState.restrictedUntil - now) / 60000);
+        return { allowed: false, message: '⏳ 已达到复制上限，请等待 ' + remainingMin + ' 分钟后再试' };
+      }
+
+      // Clear expired restriction but keep count for cumulative tracking
+      if (copyLimitState.restrictedUntil && now >= copyLimitState.restrictedUntil) {
+        copyLimitState.restrictedUntil = null;
+      }
+
+      // Increment cumulative count
+      copyLimitState.count++;
+
+      // Check thresholds: 5, 10, 20, 30 — each triggers only once
+      var thresholds = [5, 10, 20, 30];
+      var hitThreshold = null;
+      for (var i = 0; i < thresholds.length; i++) {
+        if (copyLimitState.count >= thresholds[i] && copyLimitState.triggeredThresholds.indexOf(thresholds[i]) === -1) {
+          hitThreshold = thresholds[i];
+          copyLimitState.triggeredThresholds.push(thresholds[i]);
+          break;
+        }
+      }
+
+      if (hitThreshold) {
+        var restrictionMinutes = 30 + Math.floor(Math.random() * 31); // 30-60 min
+        copyLimitState.restrictedUntil = now + restrictionMinutes * 60 * 1000;
+        saveCopyLimitState();
+        return { allowed: false, message: '🚫 已复制 ' + copyLimitState.count + ' 个号码（第' + hitThreshold + '个触发），限制 ' + restrictionMinutes + ' 分钟' };
+      }
+
+      saveCopyLimitState();
+      return { allowed: true, message: '' };
+    }
 
     // Dark Mode Control
     function initDark() {
@@ -3076,14 +3194,22 @@ export const DIALER_HTML = `<!DOCTYPE html>
           e.stopPropagation();
           var phone = b.dataset.phone;
           var idx = parseInt(b.dataset.idx);
+
+          // Rate limit check
+          var limit = checkCopyLimit();
+          if (!limit.allowed) {
+            showCopyLimitToast(limit.message, false);
+            return;
+          }
+
           copyTextToClipboard(phone);
-          
+
           var oldText = b.textContent;
           if (oldText === '已复制，正在打开微信...') return;
           b.textContent = '已复制，正在打开微信...';
           var oldColor = b.style.color;
           b.style.color = 'var(--accent-wechat)';
-          
+
           var client = importedClients[idx];
           if (client) {
             client.copied = true;
@@ -3407,12 +3533,20 @@ export const DIALER_HTML = `<!DOCTYPE html>
         phoneDisp.addEventListener('click', function(e) {
           e.stopPropagation();
           var phone = phoneDisp.dataset.phone;
+
+          // Rate limit check
+          var limit = checkCopyLimit();
+          if (!limit.allowed) {
+            showCopyLimitToast(limit.message, false);
+            return;
+          }
+
           copyTextToClipboard(phone);
-          
+
           var oldText = phoneDisp.textContent;
           if (oldText === '已复制，正在打开微信...') return;
           phoneDisp.textContent = '已复制，正在打开微信...';
-          
+
           var client = importedClients[currentCallIdx];
           if (client) {
             client.copied = true;
