@@ -773,6 +773,11 @@ export const DIALER_HTML = `<!DOCTYPE html>
       background: #f39c12;
       box-shadow: 0 4px 16px rgba(243, 156, 18, 0.35);
     }
+    .copy-limit-sub {
+      padding-left: 24px !important;
+      font-size: 0.72rem !important;
+      opacity: 0.85;
+    }
   </style>
 </head>
 <body>
@@ -802,6 +807,10 @@ export const DIALER_HTML = `<!DOCTYPE html>
             <button class="dropdown-item" id="toggleDualSimBtn">双卡轮换: 开</button>
             <button class="dropdown-item" id="toggleRotationBtn">轮换频率: 10通</button>
             <button class="dropdown-item" id="toggleCopyLimitBtn">复制限制: 开</button>
+            <button class="dropdown-item copy-limit-sub" id="toggleThreshold5">  5次限制: ✓</button>
+            <button class="dropdown-item copy-limit-sub" id="toggleThreshold10">  10次限制: ✓</button>
+            <button class="dropdown-item copy-limit-sub" id="toggleThreshold20">  20次限制: ✓</button>
+            <button class="dropdown-item copy-limit-sub" id="toggleThreshold30">  30次限制: ✓</button>
             <button class="dropdown-item" id="exportBtn" style="display:none;">导出记录</button>
             <button class="dropdown-item" id="clearBtn" style="display:none; color: #e74c3c;">清空数据</button>
             <button class="dropdown-item" id="darkToggleBtn">切换主题</button>
@@ -1137,8 +1146,19 @@ export const DIALER_HTML = `<!DOCTYPE html>
     var pageSize = 100;
     var currentSort = 'shuffle';
 
-    // Copy Rate Limiting
+    // Copy Rate Limiting - configurable
     var COPY_LIMIT_K = 'standalone_dialer_copy_limit';
+    var copyLimitEnabled = localStorage.getItem('dialer_copy_limit_enabled') !== '0'; // default on
+    var copyLimitThresholds = {}; // { '5': true, '10': true, ... }
+    try {
+      var savedThresholds = JSON.parse(localStorage.getItem('dialer_copy_limit_thresholds') || '{}');
+      copyLimitThresholds['5'] = savedThresholds['5'] !== false;
+      copyLimitThresholds['10'] = savedThresholds['10'] !== false;
+      copyLimitThresholds['20'] = savedThresholds['20'] !== false;
+      copyLimitThresholds['30'] = savedThresholds['30'] !== false;
+    } catch(e) {
+      copyLimitThresholds = { '5': true, '10': true, '20': true, '30': true };
+    }
     var copyLimitState = null;
 
     function loadCopyLimitState() {
@@ -1207,13 +1227,14 @@ export const DIALER_HTML = `<!DOCTYPE html>
       // Increment cumulative count
       copyLimitState.count++;
 
-      // Check thresholds: 5, 10, 20, 30 — each triggers only once
-      var thresholds = [5, 10, 20, 30];
+      // Check enabled thresholds in ascending order — each triggers only once
+      var thresholdKeys = ['5', '10', '20', '30'];
       var hitThreshold = null;
-      for (var i = 0; i < thresholds.length; i++) {
-        if (copyLimitState.count >= thresholds[i] && copyLimitState.triggeredThresholds.indexOf(thresholds[i]) === -1) {
-          hitThreshold = thresholds[i];
-          copyLimitState.triggeredThresholds.push(thresholds[i]);
+      for (var i = 0; i < thresholdKeys.length; i++) {
+        var t = parseInt(thresholdKeys[i], 10);
+        if (copyLimitThresholds[thresholdKeys[i]] && copyLimitState.count >= t && copyLimitState.triggeredThresholds.indexOf(t) === -1) {
+          hitThreshold = t;
+          copyLimitState.triggeredThresholds.push(t);
           break;
         }
       }
@@ -3719,8 +3740,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
         });
       }
 
-      // Copy limit toggle
-      var copyLimitEnabled = localStorage.getItem('dialer_copy_limit_enabled') !== '0'; // default on
+      // Copy limit toggle - master switch
       var copyLimitBtn = document.getElementById('toggleCopyLimitBtn');
       if (copyLimitBtn) {
         copyLimitBtn.textContent = '复制限制: ' + (copyLimitEnabled ? '开' : '关');
@@ -3729,6 +3749,44 @@ export const DIALER_HTML = `<!DOCTYPE html>
           copyLimitBtn.textContent = '复制限制: ' + (copyLimitEnabled ? '开' : '关');
           localStorage.setItem('dialer_copy_limit_enabled', copyLimitEnabled ? '1' : '0');
         });
+      }
+
+      // Copy limit threshold toggles
+      function saveThresholds() {
+        try { localStorage.setItem('dialer_copy_limit_thresholds', JSON.stringify(copyLimitThresholds)); } catch(e) {}
+      }
+      function updateThresholdBtn(id, key) {
+        var btn = document.getElementById(id);
+        if (btn) {
+          btn.textContent = '  ' + key + '次限制: ' + (copyLimitThresholds[key] ? '✓' : '✗');
+        }
+      }
+      function toggleThreshold(key) {
+        copyLimitThresholds[key] = !copyLimitThresholds[key];
+        saveThresholds();
+      }
+      // Init all threshold button labels
+      updateThresholdBtn('toggleThreshold5', '5');
+      updateThresholdBtn('toggleThreshold10', '10');
+      updateThresholdBtn('toggleThreshold20', '20');
+      updateThresholdBtn('toggleThreshold30', '30');
+      // Wire up clicks
+      var thresholdBtns = [
+        { id: 'toggleThreshold5', key: '5' },
+        { id: 'toggleThreshold10', key: '10' },
+        { id: 'toggleThreshold20', key: '20' },
+        { id: 'toggleThreshold30', key: '30' }
+      ];
+      for (var ti = 0; ti < thresholdBtns.length; ti++) {
+        (function(cfg) {
+          var btn = document.getElementById(cfg.id);
+          if (btn) {
+            btn.addEventListener('click', function() {
+              toggleThreshold(cfg.key);
+              updateThresholdBtn(cfg.id, cfg.key);
+            });
+          }
+        })(thresholdBtns[ti]);
       }
 
 
