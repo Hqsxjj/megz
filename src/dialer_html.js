@@ -2824,15 +2824,19 @@ export const DIALER_HTML = `<!DOCTYPE html>
           .then(function(r) { return r.json(); })
           .then(function(result) {
             if (document.getElementById('aiLog4')) { document.getElementById('aiLog4').innerHTML = '✅ AI 识别完成'; document.getElementById('aiLog4').style.opacity = '1'; }
-            var contacts = [];
+            // AI returns rawText transcription — use parser to extract phone numbers
+            var allText = result.rawText || result.note || '';
+            var contacts = parsePhoneContactsFromRawText(allText);
+            // Also merge any structured contacts from AI
             if (result.contacts && result.contacts.length > 0) {
-              result.contacts.forEach(function(c) { if (c.phone) contacts.push({ name: c.name || '', phone: c.phone, company: c.company || '', note: c.note || '' }); });
-            } else if (result.name || result.phone) {
-              contacts.push({ name: result.name || '', phone: result.phone || '', company: result.company || '', note: result.note || result.fund || '' });
+              result.contacts.forEach(function(c) {
+                if (c.phone && !contacts.find(function(x) { return x.phone === c.phone; })) {
+                  contacts.push({ name: c.name || '', phone: c.phone, company: c.company || '', note: c.note || '' });
+                }
+              });
             }
-            if (result.rawText || result.note) {
-              var extra = parsePhoneContactsFromRawText(result.rawText || result.note || '');
-              extra.forEach(function(ec) { if (!contacts.find(function(c) { return c.phone === ec.phone; })) contacts.push(ec); });
+            if (!allText && (result.name || result.phone)) {
+              contacts.push({ name: result.name || '', phone: result.phone || '', company: result.company || '', note: result.note || '' });
             }
             renderAIUnstructuredReport(file.name, contacts);
           })
