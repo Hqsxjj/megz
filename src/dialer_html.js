@@ -2803,82 +2803,168 @@ export const DIALER_HTML = `<!DOCTYPE html>
 
     function handleImageOCR(file) {
       showAIScanningUI(file.name);
-      document.getElementById('aiScanStatus').innerHTML = '⚙️ AI 正在载入视觉 OCR 引擎...';
-      if (document.getElementById('aiLog1')) {
-        document.getElementById('aiLog1').innerHTML = '⏳ 正在加载 tesseract.js 视觉分析库...';
-        document.getElementById('aiLog1').style.opacity = '1';
-      }
-      
-      loadScript('https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.1.1/tesseract.min.js')
-        .then(function() {
-          if (document.getElementById('aiLog2')) {
-            document.getElementById('aiLog2').innerHTML = '✅ 视觉神经网络就绪';
-            document.getElementById('aiLog2').style.opacity = '1';
-          }
-          document.getElementById('aiScanStatus').innerHTML = '📸 正在下载中英文语言模型包...';
-          
+
+      // Check if AI Vision API is configured (needs API key)
+      var aiApiKey = (localStorage.getItem('ai_api_key') || localStorage.getItem('deepseek_api_key') || '').trim();
+
+      if (aiApiKey) {
+        // ====== AI Vision API 模式 ======
+        document.getElementById('aiScanStatus').innerHTML = '🤖 AI 视觉大模型识别中...';
+        if (document.getElementById('aiLog1')) {
+          document.getElementById('aiLog1').innerHTML = '⏳ 正在将图片发送至 AI 视觉模型...';
+          document.getElementById('aiLog1').style.opacity = '1';
+        }
+        if (document.getElementById('aiLog2')) {
+          document.getElementById('aiLog2').innerHTML = '🧠 使用多模态大模型深度理解图片内容';
+          document.getElementById('aiLog2').style.opacity = '1';
+        }
+
+        var reader = new FileReader();
+        reader.onload = function(e) {
+          var base64 = e.target.result;
           if (document.getElementById('aiLog3')) {
-            document.getElementById('aiLog3').innerHTML = '⏳ 正在从 CDN 获取高精 chi_sim+eng 模型...';
+            document.getElementById('aiLog3').innerHTML = '📸 图片编码完成，等待 AI 返回结果...';
             document.getElementById('aiLog3').style.opacity = '1';
           }
-          
+
+          fetch('/api/ocr', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ image: base64, mode: 'bulk' })
+          })
+          .then(function(resp) {
+            if (!resp.ok) {
+              return resp.json().then(function(err) { throw new Error(err.error || 'HTTP ' + resp.status); });
+            }
+            return resp.json();
+          })
+          .then(function(result) {
+            if (document.getElementById('aiLog4')) {
+              document.getElementById('aiLog4').innerHTML = '✅ AI 视觉识别完成';
+              document.getElementById('aiLog4').style.opacity = '1';
+            }
+            document.getElementById('aiScanStatus').innerHTML = '✅ AI 识别成功！';
+
+            // Build contacts array from AI Vision result
+            var contacts = [];
+
+            // Use bulk contacts from AI
+            if (result.contacts && result.contacts.length > 0) {
+              result.contacts.forEach(function(c) {
+                if (c.phone) {
+                  contacts.push({
+                    name: c.name || '',
+                    phone: c.phone,
+                    company: c.company || '',
+                    note: c.note || ''
+                  });
+                }
+              });
+            } else if (result.name || result.phone) {
+              // Fallback single result
+              contacts.push({
+                name: result.name || '',
+                phone: result.phone || '',
+                company: result.company || '',
+                note: result.note || result.fund || ''
+              });
+            }
+
+            // Also extract additional contacts from raw text if present
+            var rawText = result.rawText || result.note || '';
+            if (rawText) {
+              var extraContacts = parsePhoneContactsFromRawText(rawText);
+              extraContacts.forEach(function(ec) {
+                if (!contacts.find(function(c) { return c.phone === ec.phone; })) {
+                  contacts.push(ec);
+                }
+              });
+            }
+
+            setTimeout(function() {
+              renderAIUnstructuredReport(file.name, contacts);
+            }, 400);
+          })
+          .catch(function(err) {
+            console.error('[AI Vision OCR] 失败，回退到本地 Tesseract:', err.message);
+            if (document.getElementById('aiLog3')) {
+              document.getElementById('aiLog3').innerHTML = '⚠️ AI 云端识别失败: ' + err.message + '，切换本地引擎...';
+              document.getElementById('aiLog3').style.opacity = '1';
+            }
+            // Fallback to Tesseract
+            runTesseractOCR(file);
+          });
+        };
+        reader.onerror = function() {
+          runTesseractOCR(file);
+        };
+        reader.readAsDataURL(file);
+      } else {
+        // ====== 未配置 API Key，使用本地 Tesseract ======
+        if (document.getElementById('aiLog1')) {
+          document.getElementById('aiLog1').innerHTML = '💡 提示: 配置 AI API Key 可启用高精度云端视觉识别';
+          document.getElementById('aiLog1').style.opacity = '1';
+        }
+        runTesseractOCR(file);
+      }
+    }
+
+    // 本地 Tesseract OCR 回退方案
+    function runTesseractOCR(file) {
+      document.getElementById('aiScanStatus').innerHTML = '⚙️ 本地 OCR 引擎识别中...';
+      if (document.getElementById('aiLog2')) {
+        document.getElementById('aiLog2').innerHTML = '⏳ 正在加载 tesseract.js 视觉分析库...';
+        document.getElementById('aiLog2').style.opacity = '1';
+      }
+
+      loadScript('https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.1.1/tesseract.min.js')
+        .then(function() {
+          if (document.getElementById('aiLog3')) {
+            document.getElementById('aiLog3').innerHTML = '✅ 视觉神经网络就绪，下载中英文语言包...';
+            document.getElementById('aiLog3').style.opacity = '1';
+          }
+
           Tesseract.createWorker({
             langPath: window.location.origin + '/tessdata',
             logger: function(m) {
               if (m.status === 'recognizing text') {
                 var pct = Math.round(m.progress * 100);
-                document.getElementById('aiScanStatus').innerHTML = '📸 图像文字 AI 深度识别中：' + pct + '%';
-                if (document.getElementById('aiLog3')) {
-                  document.getElementById('aiLog3').innerHTML = '✅ 模型载入成功，识别进行中...';
-                }
+                document.getElementById('aiScanStatus').innerHTML = '📸 本地 OCR: ' + pct + '%';
                 if (document.getElementById('aiLog4')) {
-                  document.getElementById('aiLog4').innerHTML = '⚡ OCR 进度: ' + pct + '%';
+                  document.getElementById('aiLog4').innerHTML = '⚡ 进度: ' + pct + '%';
                   document.getElementById('aiLog4').style.opacity = '1';
                 }
-              } else if (m.status === 'loading chi_sim.traineddata' || m.status === 'loading eng.traineddata') {
-                var loadPct = m.progress ? ' (' + Math.round(m.progress * 100) + '%)' : '';
-                document.getElementById('aiScanStatus').innerHTML = '🧠 正在载入语言模型包' + loadPct + '...';
               }
             }
           }).then(function(worker) {
-            return Promise.resolve(worker.load())
-              .then(function() {
-                return Promise.resolve(worker.loadLanguage('chi_sim+eng'));
-              })
-              .then(function() {
-                return Promise.resolve(worker.initialize('chi_sim+eng'));
-              })
-              .then(function() {
-                return Promise.resolve(worker.recognize(file));
-              })
+            return worker.load()
+              .then(function() { return worker.loadLanguage('chi_sim+eng'); })
+              .then(function() { return worker.initialize('chi_sim+eng'); })
+              .then(function() { return worker.recognize(file); })
               .then(function(result) {
-                try {
-                  worker.terminate();
-                } catch(e) {}
+                try { worker.terminate(); } catch(e) {}
                 return result;
               })
               .catch(function(err) {
-                try {
-                  worker.terminate();
-                } catch(e) {}
+                try { worker.terminate(); } catch(e) {}
                 throw err;
               });
           }).then(function(result) {
             if (document.getElementById('aiLog4')) {
-              document.getElementById('aiLog4').innerHTML = '✅ 图像文字识别与神经特征映射完毕';
+              document.getElementById('aiLog4').innerHTML = '✅ 本地 OCR 识别完毕';
             }
             var text = result.data.text;
             setTimeout(function() {
               var contacts = parsePhoneContactsFromRawText(text);
               renderAIUnstructuredReport(file.name, contacts);
-            }, 800);
+            }, 400);
           }).catch(function(err) {
-            alert('视觉 OCR 识别失败：' + (err.message || err));
+            alert('OCR 识别失败：' + (err.message || err));
             resetAIImporterUI();
           });
         })
         .catch(function(err) {
-          alert('视觉识别引擎加载失败：' + err.message);
+          alert('OCR 引擎加载失败：' + err.message);
           resetAIImporterUI();
         });
     }

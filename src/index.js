@@ -6770,6 +6770,7 @@ const rid=Math.floor(Math.random()*1000);
       try {
         const body = await request.json();
         const imageBase64 = body.image;
+        const ocrMode = body.mode || 'single'; // 'single' = 单客户提取, 'bulk' = 批量联系人提取
         if (!imageBase64) {
           return new Response(JSON.stringify({ error: '缺少 image 参数 (base64 图片)' }), {
             status: 400,
@@ -6830,7 +6831,9 @@ const rid=Math.floor(Math.random()*1000);
               content: [
                 {
                   type: 'text',
-                  text: '请识别这张客户信息截图，提取以下字段并以 JSON 格式返回。\n\n规则：\n- name: 客户姓名\n- phone: 电话号码（11位数字）\n- company: 工作单位/公司名称\n- fund: 公积金信息（如有）\n- note: 沟通记录/备注信息\n\n如果某个字段无法从图片中识别，该字段的值设为空字符串 ""。\n\n请只输出 JSON，不要包裹代码块：\n{"name":"","phone":"","company":"","fund":"","note":""}'
+                  text: ocrMode === 'bulk'
+                    ? '请识别这张图片中的所有联系人信息。提取每个联系人的姓名和电话号码，以 JSON 数组格式返回。\n\n规则：\n- contacts: 联系人数组，每个元素包含 name（姓名）和 phone（电话号码）\n- rawText: 图片中识别出的所有原始文本\n\n注意：\n- 电话号码通常为 11 位数字（手机号）或带区号的座机号\n- 姓名通常在中国手机号的上方或左侧\n- 如果图片是微信聊天截图，请提取对话中提到的所有联系人信息\n- 忽略无关的 UI 元素文字\n\n请只输出 JSON，不要包裹代码块：\n{"contacts":[{"name":"张三","phone":"13800138000"}],"rawText":"所有识别出的文本内容"}'
+                    : '请识别这张客户信息截图，提取以下字段并以 JSON 格式返回。\n\n规则：\n- name: 客户姓名\n- phone: 电话号码（11位数字）\n- company: 工作单位/公司名称\n- fund: 公积金信息（如有）\n- note: 沟通记录/备注信息\n\n如果某个字段无法从图片中识别，该字段的值设为空字符串 ""。\n\n请只输出 JSON，不要包裹代码块：\n{"name":"","phone":"","company":"","fund":"","note":""}'
                 },
                 {
                   type: 'image_url',
@@ -6869,6 +6872,17 @@ const rid=Math.floor(Math.random()*1000);
           } else {
             throw new Error('无法解析 OCR 结果');
           }
+        }
+
+        if (ocrMode === 'bulk') {
+          return new Response(JSON.stringify({
+            contacts: parsed.contacts || [],
+            rawText: parsed.rawText || '',
+            name: (parsed.contacts && parsed.contacts[0]) ? parsed.contacts[0].name : '',
+            phone: (parsed.contacts && parsed.contacts[0]) ? parsed.contacts[0].phone : ''
+          }), {
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
         }
 
         return new Response(JSON.stringify({
