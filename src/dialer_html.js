@@ -2365,10 +2365,11 @@ export const DIALER_HTML = `<!DOCTYPE html>
         if (cleanStr.length < 1 || cleanStr.length > 6) {
           return false;
         }
-        // If single character, must be a surname
-        if (cleanStr.length === 1 && !SURNAMES.test(cleanStr)) {
-          return false;
-        }
+        // Single character: accept as surname (common in phone dialers)
+            if (cleanStr.length === 1) {
+              if (!/^[一-龥]$/.test(cleanStr)) return false;
+              return true;
+            }
         if (/姓名|电话|手机|号码|公司|备注|联系人|客户|微信|意向|跟进|记录|挂断|接通|无效|加微信|想买|说明|介绍|详情|tel|phone|mobile|name/i.test(cleanStr)) {
           return false;
         }
