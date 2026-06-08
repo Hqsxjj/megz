@@ -2824,19 +2824,29 @@ export const DIALER_HTML = `<!DOCTYPE html>
           .then(function(r) { return r.json(); })
           .then(function(result) {
             if (document.getElementById('aiLog4')) { document.getElementById('aiLog4').innerHTML = '✅ AI 识别完成'; document.getElementById('aiLog4').style.opacity = '1'; }
-            // AI returns rawText transcription — use parser to extract phone numbers
-            var allText = result.rawText || result.note || '';
-            var contacts = parsePhoneContactsFromRawText(allText);
-            // Also merge any structured contacts from AI
+            // Primary: structured contacts from AI
+            var contacts = [];
             if (result.contacts && result.contacts.length > 0) {
               result.contacts.forEach(function(c) {
-                if (c.phone && !contacts.find(function(x) { return x.phone === c.phone; })) {
-                  contacts.push({ name: c.name || '', phone: c.phone, company: c.company || '', note: c.note || '' });
+                if (c.phone || c.name) {
+                  contacts.push({
+                    name: c.name || '',
+                    phone: c.phone || '',
+                    company: c.company || '',
+                    note: c.note || ''
+                  });
                 }
               });
             }
-            if (!allText && (result.name || result.phone)) {
-              contacts.push({ name: result.name || '', phone: result.phone || '', company: result.company || '', note: result.note || '' });
+            // Fallback: parse rawText for phone numbers
+            var allText = result.rawText || '';
+            if (allText) {
+              var parsed = parsePhoneContactsFromRawText(allText);
+              parsed.forEach(function(p) {
+                if (p.phone && !contacts.find(function(x) { return x.phone === p.phone; })) {
+                  contacts.push(p);
+                }
+              });
             }
             renderAIUnstructuredReport(file.name, contacts);
           })
