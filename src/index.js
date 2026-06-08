@@ -6830,7 +6830,7 @@ const rid=Math.floor(Math.random()*1000);
         // OCR 必须使用支持图片的模型（Gemini / GPT-4V 等）
         const visionApiKey = await env.DATA_KV.get('config:vision_api_key') || '';
         const visionApiBase = await env.DATA_KV.get('config:vision_api_base') || 'https://generativelanguage.googleapis.com/v1beta/openai/';
-        const visionModel = 'gemini-2.5-flash';
+        const visionModel = 'gemini-3.5-flash';
 
         let apiKey, apiBase, model;
         if (visionApiKey) {
@@ -6845,7 +6845,7 @@ const rid=Math.floor(Math.random()*1000);
             // Gemini 本身就支持图片
             apiKey = await env.DATA_KV.get('config:ai_api_key') || await env.DATA_KV.get('config:deepseek_api_key') || env.AI_API_KEY || env.DEEPSEEK_API_KEY;
             apiBase = await env.DATA_KV.get('config:ai_api_base') || env.AI_API_BASE || 'https://generativelanguage.googleapis.com/v1beta/openai/';
-            model = await env.DATA_KV.get('config:ai_model') || env.AI_API_MODEL || 'gemini-2.5-flash';
+            model = await env.DATA_KV.get('config:ai_model') || env.AI_API_MODEL || 'gemini-3.5-flash';
           } else if (provider === 'custom') {
             // 自定义 OpenAI 兼容接口（可能支持 Vision 如 GPT-4V）
             apiKey = await env.DATA_KV.get('config:ai_api_key') || await env.DATA_KV.get('config:deepseek_api_key') || env.AI_API_KEY || env.DEEPSEEK_API_KEY;
