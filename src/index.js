@@ -7015,6 +7015,7 @@ const rid=Math.floor(Math.random()*1000);
 
         const aiData = await aiResp.json();
         let content = aiData.choices[0].message.content.trim();
+        console.log('[OCR] AI raw response (first 500 chars):', content.substring(0, 500));
         if (content.startsWith('```')) {
           content = content.replace(/^```json\s*/i, '').replace(/```$/, '').trim();
         }
@@ -7026,9 +7027,11 @@ const rid=Math.floor(Math.random()*1000);
           // 尝试提取 JSON
           const jsonMatch = content.match(/\{[\s\S]*\}/);
           if (jsonMatch) {
-            parsed = JSON.parse(jsonMatch[0]);
-          } else {
-            throw new Error('无法解析 OCR 结果');
+            try { parsed = JSON.parse(jsonMatch[0]); } catch(e2) {}
+          }
+          // JSON 解析失败 — 把原始内容当作 rawText 返回
+          if (!parsed) {
+            parsed = { rawText: content, contacts: [] };
           }
         }
 
