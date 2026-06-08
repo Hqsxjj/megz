@@ -2652,6 +2652,21 @@ export default {
       color: var(--text-light);
       font-weight: 600;
     }
+    .client-card-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+    .client-card-date-badge {
+      font-size: 0.68rem;
+      font-weight: 700;
+      color: var(--accent-intent);
+      background: var(--accent-intent-bg);
+      padding: 2px 8px;
+      border-radius: 10px;
+      white-space: nowrap;
+    }
     .client-card-tags {
       display: flex;
       flex-wrap: wrap;
@@ -5648,7 +5663,10 @@ const rid=Math.floor(Math.random()*1000);
                 '<button class="phone-toggle all-phone-toggle" title="显示号码">看</button>' +
               '</span>' +
             '</div>' +
-            (c.time ? '<span class="client-card-time">' + esc(c.time) + '</span>' : '') +
+            '<div class="client-card-meta">' +
+              '<span class="client-card-date-badge">' + esc(c.date) + '</span>' +
+              '<span class="client-card-time">' + esc(c.time || '—') + '</span>' +
+            '</div>' +
           '</div>' +
           '<div class="client-card-tags">' +
             (c.company ? getWhitelistTagHtml(c.company, false) : '') +
