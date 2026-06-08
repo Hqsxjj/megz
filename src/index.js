@@ -6919,21 +6919,32 @@ const rid=Math.floor(Math.random()*1000);
                   if (prev && /^[一-龥]{1,4}$/.test(prev)) { name = prev; break; }
                 }
               }
+
               var after = line.substring(line.indexOf(phone) + phone.length).trim();
+
               if (after && /^\d+/.test(after)) {
-                // After phone is a number (amount/salary), company is on next line
-                for (var k = i + 1; k < lines.length && k <= i + 2; k++) {
-                  var nextLine = lines[k].trim();
-                  if (nextLine && !/^\d+$/.test(nextLine) && nextLine.length > 1) { company = nextLine; break; }
-                }
+                // Phone line has trailing number → note/amount
                 note = after;
+                // Company on next line
+                for (var k = i + 1; k < lines.length && k <= i + 2; k++) {
+                  var nl = lines[k].trim();
+                  if (nl && !/^\d+$/.test(nl) && nl.length > 1) { company = nl; break; }
+                }
               } else if (after) {
+                // Phone line has trailing text → company (possibly + status)
                 company = after.replace(/[\d.]+[\d\s]*$/g, '').replace(/\s*(新增跟进|已拨|正常号|空号|停机|无法接通).*$/, '').trim();
               } else {
-                // Nothing after phone — look at next line for company
-                for (var k2 = i + 1; k2 < lines.length && k2 <= i + 2; k2++) {
+                // Nothing after phone — scan next lines
+                for (var k2 = i + 1; k2 < lines.length && k2 <= i + 3; k2++) {
                   var nl2 = lines[k2].trim();
-                  if (nl2 && !/^\d+$/.test(nl2) && nl2.length > 1) { company = nl2; break; }
+                  if (!nl2) continue;
+                  if (/^\d+$/.test(nl2)) {
+                    // Number → note/amount
+                    if (!note) note = nl2;
+                  } else if (nl2.length > 1 && !/^\d{11}$/.test(nl2)) {
+                    // Text → company
+                    company = nl2; break;
+                  }
                 }
               }
             }
