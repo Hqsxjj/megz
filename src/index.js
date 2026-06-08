@@ -5645,10 +5645,6 @@ const rid=Math.floor(Math.random()*1000);
               '<button class="phone-toggle all-phone-toggle" title="显示号码">看</button>' +
             '</span>' +
           '</div>' +
-          '<div class="client-card-meta">' +
-            '<span class="client-card-date-badge">' + esc(c.date) + '</span>' +
-            '<span class="client-card-time">' + esc(c.time || '—') + '</span>' +
-          '</div>' +
         '</div>' +
         '<div class="client-card-tags">' +
           (c.company ? getWhitelistTagHtml(c.company, false) : '') +
@@ -5656,12 +5652,12 @@ const rid=Math.floor(Math.random()*1000);
         '</div>' +
         '<div class="client-card-body">' +
           '<div class="client-card-content-block">' +
-            '<span class="client-card-label">沟通记录</span>' +
+            '<span class="client-card-label">沟通记录 <span class="client-card-time-inline">' + esc(c.date) + ' ' + esc(c.time || '') + '</span></span>' +
             '<span class="client-card-text">' + esc(c.note || '') + '</span>' +
           '</div>' +
           (c.followUp ?
             '<div class="client-card-content-block follow-up">' +
-              '<span class="client-card-label">跟进情况</span>' +
+              '<span class="client-card-label">跟进情况 <span class="client-card-time-inline">' + esc(c.date) + ' ' + esc(c.time || '') + '</span></span>' +
               '<span class="client-card-text">' + esc(c.followUp) + '</span>' +
             '</div>' : '') +
         '</div>' +
