@@ -2939,13 +2939,14 @@ export default {
       </div>
       <div class="right-area">
         <div class="card">
-          <div class="card-title">意向登记</div>
+          <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;">意向登记<button class="btn-add" id="clipboardPasteBtn" style="font-size:0.65rem;padding:3px 10px;height:24px;background:linear-gradient(135deg,#667eea,#764ba2);color:white;border:none;border-radius:12px;font-weight:700;cursor:pointer;" title="从剪贴板粘贴截图自动识别">📋 粘贴截图识别</button></div>
           <div class="register-block">
             <div class="form-line"><input type="text" class="input-simple" id="custName" placeholder="姓名" autocomplete="off"><input type="text" class="input-simple" id="custPhone" placeholder="电话" autocomplete="off"></div>
             <div class="form-line"><input type="text" class="input-simple" id="custCompany" placeholder="单位" autocomplete="off"><input type="text" class="input-simple" id="custFund" placeholder="公积金" autocomplete="off"></div>
             <textarea class="input-simple note-textarea" id="custNote" placeholder="沟通记录 (必填)" rows="3"></textarea>
             <textarea class="input-simple note-textarea" id="custFollowUp" placeholder="跟进情况" rows="2"></textarea>
             <button class="btn-add" id="addClientBtn">+ 添加</button>
+            <div id="clipboardStatus" style="font-size:0.65rem;color:var(--text-light);text-align:center;min-height:18px;margin-top:4px;"></div>
             <div class="client-scroll" id="clientList"></div>
           </div>
         </div>
@@ -5532,6 +5533,110 @@ const rid=Math.floor(Math.random()*1000);
     });
   }
   document.getElementById('addClientBtn').addEventListener('click',addClient);
+
+  // ========== 剪贴板截图 OCR 识别 ==========
+  document.getElementById('clipboardPasteBtn').addEventListener('click', async () => {
+    const statusEl = document.getElementById('clipboardStatus');
+    const btn = document.getElementById('clipboardPasteBtn');
+    statusEl.textContent = '⏳ 读取剪贴板...';
+    btn.disabled = true;
+
+    try {
+      // 检查浏览器支持
+      if (!navigator.clipboard || !navigator.clipboard.read) {
+        throw new Error('浏览器不支持剪贴板读取，请使用 Chrome/Edge');
+      }
+
+      // 读取剪贴板
+      const items = await navigator.clipboard.read();
+      let imageBlob = null;
+
+      for (const item of items) {
+        const imageTypes = item.types.filter(t => t.startsWith('image/'));
+        if (imageTypes.length > 0) {
+          imageBlob = await item.getType(imageTypes[0]);
+          break;
+        }
+      }
+
+      if (!imageBlob) {
+        throw new Error('剪贴板中没有图片，请先截图（Win+Shift+S 或 微信截图）后重试');
+      }
+
+      statusEl.textContent = '⏳ 正在 OCR 识别...（约 3-5 秒）';
+
+      // 转 base64
+      const reader = new FileReader();
+      const base64Promise = new Promise((resolve, reject) => {
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(new Error('图片读取失败'));
+      });
+      reader.readAsDataURL(imageBlob);
+      const base64 = await base64Promise;
+
+      // 发送到后端 OCR
+      const resp = await fetch('/api/ocr', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image: base64 })
+      });
+
+      if (!resp.ok) {
+        const errData = await resp.json().catch(() => ({}));
+        throw new Error(errData.error || 'OCR 请求失败 HTTP ' + resp.status);
+      }
+
+      const result = await resp.json();
+
+      // 自动填入表单
+      if (result.name) {
+        document.getElementById('custName').value = result.name;
+        document.getElementById('custName').style.borderColor = 'var(--accent-wechat)';
+      }
+      if (result.phone) {
+        document.getElementById('custPhone').value = result.phone;
+        document.getElementById('custPhone').style.borderColor = 'var(--accent-wechat)';
+      }
+      if (result.company) {
+        document.getElementById('custCompany').value = result.company;
+        document.getElementById('custCompany').style.borderColor = 'var(--accent-wechat)';
+      }
+      if (result.note) {
+        document.getElementById('custNote').value = result.note;
+        document.getElementById('custNote').style.borderColor = 'var(--accent-wechat)';
+      }
+      if (result.fund) {
+        document.getElementById('custFund').value = result.fund;
+        document.getElementById('custFund').style.borderColor = 'var(--accent-wechat)';
+      }
+
+      // 构建成功消息
+      const fields = [];
+      if (result.name) fields.push('姓名: ' + result.name);
+      if (result.phone) fields.push('电话: ' + result.phone);
+      if (result.company) fields.push('单位: ' + result.company);
+      if (result.note) fields.push('备注: ' + result.note);
+      if (result.fund) fields.push('公积金: ' + result.fund);
+
+      statusEl.innerHTML = '✅ 识别成功！' + (fields.length > 0 ? '<br>' + fields.join(' | ') : '');
+      statusEl.style.color = 'var(--accent-wechat)';
+
+      // 3秒后恢复边框颜色
+      setTimeout(() => {
+        ['custName','custPhone','custCompany','custNote','custFund'].forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.style.borderColor = '';
+        });
+      }, 3000);
+
+    } catch (e) {
+      statusEl.innerHTML = '❌ ' + e.message;
+      statusEl.style.color = '#e53935';
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
   document.getElementById('addTodayTodoBtn').addEventListener('click',addTodayTodo);
   document.getElementById('addTodoBtn').addEventListener('click',addTodo);
   document.getElementById('todayTodoInput').addEventListener('keypress',e=>{if(e.key==='Enter')addTodayTodo();});
@@ -6655,6 +6760,131 @@ const rid=Math.floor(Math.random()*1000);
       } catch (e) {
         return new Response(JSON.stringify({ error: e.message }), {
           status: 502,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+    }
+
+    // OCR 截图识别（剪贴板粘贴）
+    if (path === '/api/ocr' && request.method === 'POST') {
+      try {
+        const body = await request.json();
+        const imageBase64 = body.image;
+        if (!imageBase64) {
+          return new Response(JSON.stringify({ error: '缺少 image 参数 (base64 图片)' }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+
+        // 检查 AI API Key
+        const apiKey = await env.DATA_KV.get('config:ai_api_key') || await env.DATA_KV.get('config:deepseek_api_key') || env.AI_API_KEY || env.DEEPSEEK_API_KEY;
+        if (!apiKey) {
+          return new Response(JSON.stringify({ error: '未配置 AI API Key，请先在网页端配置。' }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+
+        const provider = await env.DATA_KV.get('config:ai_provider') || 'deepseek';
+        let apiBase = await env.DATA_KV.get('config:ai_api_base') || env.AI_API_BASE;
+        let model = await env.DATA_KV.get('config:ai_model') || env.AI_API_MODEL;
+
+        // Vision API 配置
+        if (provider === 'gemini') {
+          if (!apiBase) apiBase = 'https://generativelanguage.googleapis.com/v1beta/openai/';
+          if (!model) model = 'gemini-2.5-flash';
+        } else if (provider === 'deepseek') {
+          // DeepSeek 不支持图片，自动切换到 Gemini
+          if (!apiBase) apiBase = 'https://generativelanguage.googleapis.com/v1beta/openai/';
+          if (!model) model = 'gemini-2.5-flash';
+        } else {
+          // Custom OpenAI — 假设支持 Vision（如 GPT-4V）
+          if (!apiBase) apiBase = 'https://api.openai.com/v1/';
+          if (!model) model = 'gpt-4o';
+        }
+
+        let url = apiBase;
+        if (!url.endsWith('/')) url += '/';
+        url += 'chat/completions';
+
+        // 限制图片大小（max ~4MB base64）
+        const imageSizeMB = imageBase64.length / 1024 / 1024 * 0.75; // 近似原始大小
+        if (imageSizeMB > 5) {
+          return new Response(JSON.stringify({ error: '图片过大（超过 5MB），请压缩后再试。' }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+
+        const aiResp = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + apiKey
+          },
+          body: JSON.stringify({
+            model: model,
+            messages: [{
+              role: 'user',
+              content: [
+                {
+                  type: 'text',
+                  text: '请识别这张客户信息截图，提取以下字段并以 JSON 格式返回。\n\n规则：\n- name: 客户姓名\n- phone: 电话号码（11位数字）\n- company: 工作单位/公司名称\n- fund: 公积金信息（如有）\n- note: 沟通记录/备注信息\n\n如果某个字段无法从图片中识别，该字段的值设为空字符串 ""。\n\n请只输出 JSON，不要包裹代码块：\n{"name":"","phone":"","company":"","fund":"","note":""}'
+                },
+                {
+                  type: 'image_url',
+                  image_url: { url: imageBase64 }
+                }
+              ]
+            }],
+            temperature: 0.1,
+            max_tokens: 500
+          })
+        });
+
+        if (!aiResp.ok) {
+          const errText = await aiResp.text();
+          console.error('[OCR] AI API error:', errText);
+          return new Response(JSON.stringify({ error: 'AI 识别失败: HTTP ' + aiResp.status + ' - ' + (errText.substring(0, 200)) }), {
+            status: 502,
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+
+        const aiData = await aiResp.json();
+        let content = aiData.choices[0].message.content.trim();
+        if (content.startsWith('```')) {
+          content = content.replace(/^```json\s*/i, '').replace(/```$/, '').trim();
+        }
+
+        let parsed;
+        try {
+          parsed = JSON.parse(content);
+        } catch (e) {
+          // 尝试提取 JSON
+          const jsonMatch = content.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            parsed = JSON.parse(jsonMatch[0]);
+          } else {
+            throw new Error('无法解析 OCR 结果');
+          }
+        }
+
+        return new Response(JSON.stringify({
+          name: parsed.name || '',
+          phone: parsed.phone || '',
+          company: parsed.company || '',
+          fund: parsed.fund || '',
+          note: parsed.note || ''
+        }), {
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+
+      } catch (e) {
+        console.error('[OCR] error:', e.message);
+        return new Response(JSON.stringify({ error: 'OCR 处理失败: ' + e.message }), {
+          status: 500,
           headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
         });
       }
