@@ -5657,7 +5657,7 @@ const rid=Math.floor(Math.random()*1000);
           '</div>' +
           (c.followUp ?
             '<div class="client-card-content-block follow-up">' +
-              '<span class="client-card-label">跟进情况 <span class="client-card-time-inline">' + esc(c.date) + ' ' + esc(c.time || '') + '</span></span>' +
+              '<span class="client-card-label">跟进情况 <span class="client-card-time-inline">' + esc(c.date) + ' ' + esc(c.followUpTime || getCurrentTime()) + '</span></span>' +
               '<span class="client-card-text">' + esc(c.followUp) + '</span>' +
             '</div>' : '') +
         '</div>' +
@@ -5758,7 +5758,8 @@ const rid=Math.floor(Math.random()*1000);
           (time ? item.time === time : true));
         const updatedClient = {
           date: date, time: c.time || getCurrentTime(),
-          name: n, phone: p, company: comp, fund: fund, note: nt, followUp: fu
+          name: n, phone: p, company: comp, fund: fund, note: nt, followUp: fu,
+          followUpTime: fu !== (c.followUp || '') ? getCurrentTime() : (c.followUpTime || '')
         };
         if (idx !== -1) { allList[idx] = updatedClient; }
         else { allList.push(updatedClient); }
@@ -5854,7 +5855,7 @@ const rid=Math.floor(Math.random()*1000);
           if (!p) { alert('电话号码不能为空，请填写完整！'); return; }
           if (!nt) { alert('沟通记录为必填项，请填写完整！'); return; }
 
-          const newClient = { name: n, phone: p, company: comp, fund: fund, note: nt, followUp: fu, date: d, time: getCurrentTime() };
+          const newClient = { name: n, phone: p, company: comp, fund: fund, note: nt, followUp: fu, date: d, time: getCurrentTime(), followUpTime: fu ? getCurrentTime() : '' };
 
           const allList = JSON.parse(localStorage.getItem(CLIENTS_K) || '[]');
           allList.push(newClient);
