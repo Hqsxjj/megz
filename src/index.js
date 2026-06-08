@@ -7077,7 +7077,7 @@ const rid=Math.floor(Math.random()*1000);
                 var nm = before.match(/([一-龥]{1,4})\s*$/);
                 if (nm) name = nm[1].replace(/^[新旧]\s*/, '');
                 var after = line.substring(line.indexOf(phone) + phone.length).trim();
-                company = after.replace(/[\d.]+[\d\s]*$/g, '').replace(/\s*新增跟进.*$/, '').trim();
+                company = after.replace(/[\d.]+[\d\s]*$/g, '').replace(/\s*(新增跟进|已拨|正常号|空号|停机|无法接通).*$/, '').trim();
                 var nums = after.match(/[\d.]+/g);
                 note = nums ? nums.join(' ') : '';
               }
