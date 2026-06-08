@@ -1004,7 +1004,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
             <div id="textImportPanel" style="display:none; flex-direction:column; gap:6px; width:100%; margin-top:6px;">
               <textarea id="textImportArea" placeholder="在此粘贴文本，如：张三 13800138000 腾讯科技 备注" style="width:100%; height:120px; padding:8px; font-size:0.72rem; border:1px solid var(--card-border); border-radius:var(--radius-xs); background:var(--card-bg); color:var(--text-main); resize:vertical; outline:none; font-family:monospace;"></textarea>
               <div style="display:flex; gap:6px;">
-                <button class="btn-primary" style="flex:1; padding:6px; font-size:0.72rem; background:var(--wechat-gradient); color:white; border:none; border-radius:var(--radius-xs); font-weight:700;" onclick="var t=document.getElementById('textImportArea').value.trim();if(!t){alert('请先粘贴文本');return;}var c=parsePhoneContactsFromRawText(t);if(c.length===0){alert('未识别到联系人');return;}document.getElementById('textImportPanel').style.display='none';renderAIUnstructuredReport('文本粘贴识别',c);">🔍 智能识别提取</button>
+                <button class="btn-primary" style="flex:1; padding:6px; font-size:0.72rem; background:var(--wechat-gradient); color:white; border:none; border-radius:var(--radius-xs); font-weight:700;" onclick="var t=document.getElementById('textImportArea').value.trim();if(!t){alert('请先粘贴文本');return;}var c=window.parsePhoneContactsFromRawText(t);if(c.length===0){alert('未识别到联系人');return;}document.getElementById('textImportPanel').style.display='none';window.renderAIUnstructuredReport('文本粘贴识别',c);">🔍 智能识别提取</button>
                 <button class="btn-secondary" style="padding:6px 12px; font-size:0.72rem; background:var(--btn-bg); color:var(--text-soft); border:1px solid var(--card-border); border-radius:var(--radius-xs);" onclick="document.getElementById('textImportPanel').style.display='none';">取消</button>
               </div>
             </div>
@@ -4363,8 +4363,8 @@ export const DIALER_HTML = `<!DOCTYPE html>
       dbFetch();
     }
     window.openDBDashboard = openDBDashboard;
-
-    function initCustViewer(){
+    window.parsePhoneContactsFromRawText = parsePhoneContactsFromRawText;
+    window.renderAIUnstructuredReport = renderAIUnstructuredReport;
       var ov=document.getElementById('dbOverlay'); if(!ov)return;
       var bt1=document.getElementById('custViewerBtn'), bt2=document.getElementById('custViewerBtn2');
       if(bt1)bt1.addEventListener('click',openDBDashboard);
