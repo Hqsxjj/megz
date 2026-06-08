@@ -6990,7 +6990,7 @@ const rid=Math.floor(Math.random()*1000);
                 {
                   type: 'text',
                   text: ocrMode === 'bulk'
-                    ? '提取图片中所有包含电话号码的数据行。每行格式：姓名 电话 公司名 其他信息（空格分隔）。\n\n规则：\n- 忽略UI元素、按钮、标题、统计数字\n- 只提取有11位手机号的行\n- 公司名完整保留不要截断\n- 每行一条记录\n\n只输出JSON：{"rawText":"姓名 13800138000 公司全称 备注"}'
+                    ? '完整转录这张图片中的所有文字。逐行输出，保留原始排版。\n\n只输出JSON：{"rawText":"全部文字"}'
                     : '你是一个OCR助手。请识别这张客户信息截图，提取以下字段：\n\n- name: 客户姓名（2-4个汉字）\n- phone: 电话号码（11位数字手机号）\n- company: 工作单位/公司名称\n- fund: 公积金信息\n- note: 备注/沟通记录\n\n如某字段无法识别则为空字符串。\n\n输出纯JSON（禁止markdown代码块）：\n{"name":"姓名","phone":"13800138000","company":"单位名","fund":"","note":"备注内容"}'
                 },
                 {
@@ -7036,15 +7036,61 @@ const rid=Math.floor(Math.random()*1000);
         }
 
         if (ocrMode === 'bulk') {
-          // Bulk mode: AI transcribes all text, frontend extracts phone numbers
           var rawText = parsed.rawText || '';
-          // Also try to extract contacts if AI provided them
-          var contacts = parsed.contacts || [];
+          // Server-side phone number extraction from rawText
+          var phoneRe = /1[3-9]\d{9}/g;
+          var seenPhones = {};
+          var extractedContacts = [];
+
+          var lines = rawText.split(/\n/);
+          lines.forEach(function(line) {
+            var phones = line.match(phoneRe);
+            if (!phones) return;
+            phones.forEach(function(phone) {
+              if (seenPhones[phone]) return;
+              seenPhones[phone] = true;
+
+              var name = '', company = '', note = '';
+              var cols = line.split(/\t/);
+              if (cols.length >= 3) {
+                // Tab-separated: find phone column
+                var phoneCol = -1;
+                for (var ci = 0; ci < cols.length; ci++) {
+                  if (cols[ci].includes(phone)) { phoneCol = ci; break; }
+                }
+                if (phoneCol >= 0) {
+                  if (phoneCol > 0) name = cols[phoneCol - 1].replace(/^[新旧]\s*/, '').trim();
+                  // Find first non-numeric, non-action column after phone
+                  for (var ci2 = phoneCol + 1; ci2 < cols.length; ci2++) {
+                    var val = cols[ci2].trim();
+                    if (val && !/^[\d.]+$/.test(val) && val !== '新增跟进' && val !== '已拨') {
+                      company = val; break;
+                    }
+                  }
+                  note = cols.filter(function(x, i) {
+                    return i > phoneCol && x.trim() && !/^[\d.]+$/.test(x.trim()) && x.trim() !== '新增跟进' && x.trim() !== company;
+                  }).join(' ').trim();
+                }
+              } else {
+                // Space-separated fallback
+                var before = line.substring(0, line.indexOf(phone));
+                var nm = before.match(/([一-龥]{1,4})\s*$/);
+                if (nm) name = nm[1].replace(/^[新旧]\s*/, '');
+                var after = line.substring(line.indexOf(phone) + phone.length).trim();
+                company = after.replace(/[\d.]+[\d\s]*$/g, '').replace(/\s*新增跟进.*$/, '').trim();
+                var nums = after.match(/[\d.]+/g);
+                note = nums ? nums.join(' ') : '';
+              }
+
+              extractedContacts.push({ name: name, phone: phone, company: company, note: note });
+            });
+          });
+
           return new Response(JSON.stringify({
-            contacts: contacts,
+            contacts: extractedContacts,
             rawText: rawText,
-            name: (contacts[0]) ? contacts[0].name : '',
-            phone: (contacts[0]) ? contacts[0].phone : ''
+            name: extractedContacts[0] ? extractedContacts[0].name : '',
+            phone: extractedContacts[0] ? extractedContacts[0].phone : ''
           }), {
             headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
           });
