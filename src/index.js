@@ -1496,6 +1496,8 @@ export default {
       data.searchApiKey = await env.DATA_KV.get('config:search_api_key') || '';
       data.momentsWebhookUrl = await env.DATA_KV.get('config:moments_webhook_url') || '';
       data.momentsEnabled = await env.DATA_KV.get('config:moments_enabled') || 'true';
+      data.visionApiKey = await env.DATA_KV.get('config:vision_api_key') || '';
+      data.visionApiBase = await env.DATA_KV.get('config:vision_api_base') || '';
       // Inject goals
       data.goals = JSON.parse(await env.DATA_KV.get('config:goals') || '{}');
       return new Response(JSON.stringify(data), {
@@ -1509,7 +1511,7 @@ export default {
       const items = Array.isArray(body) ? body : [body];
       let hasError = false;
       for (const item of items) {
-        const { date, wechatCount, intentCount, revisitCount, visitCount, paymentCount, clients, todayTodos, tomorrowTodos, tempClients, scripts, learns, todoLog, webhookUrl, deepseekApiKey, wecomCorpId, wecomToken, wecomAesKey, aiProvider, aiApiKey, aiApiBase, aiModel, searchProvider, searchApiKey, momentsWebhookUrl, momentsEnabled, _ts } = item;
+        const { date, wechatCount, intentCount, revisitCount, visitCount, paymentCount, clients, todayTodos, tomorrowTodos, tempClients, scripts, learns, todoLog, webhookUrl, deepseekApiKey, wecomCorpId, wecomToken, wecomAesKey, aiProvider, aiApiKey, aiApiBase, aiModel, searchProvider, searchApiKey, momentsWebhookUrl, momentsEnabled, visionApiKey, visionApiBase, _ts } = item;
         if (!date) { hasError = true; continue; }
         
         // If a non-empty Webhook URL is supplied, persist it globally
@@ -1552,6 +1554,12 @@ export default {
         if (momentsEnabled !== undefined) {
           await env.DATA_KV.put('config:moments_enabled', momentsEnabled ? 'true' : 'false');
         }
+        if (visionApiKey !== undefined) {
+          await env.DATA_KV.put('config:vision_api_key', visionApiKey);
+        }
+        if (visionApiBase !== undefined) {
+          await env.DATA_KV.put('config:vision_api_base', visionApiBase);
+        }
 
         // 读取云端现有数据
         const rawExisting = await env.DATA_KV.get(`work:${date}`);
@@ -1592,6 +1600,8 @@ export default {
           searchApiKey: searchApiKey !== undefined ? searchApiKey : (existing.searchApiKey || ''),
           momentsWebhookUrl: momentsWebhookUrl !== undefined ? momentsWebhookUrl : (existing.momentsWebhookUrl || ''),
           momentsEnabled: momentsEnabled !== undefined ? momentsEnabled : (existing.momentsEnabled || 'true'),
+          visionApiKey: visionApiKey !== undefined ? visionApiKey : (existing.visionApiKey || ''),
+          visionApiBase: visionApiBase !== undefined ? visionApiBase : (existing.visionApiBase || ''),
           lastLoadDate: date,
           lastModified: new Date().toISOString(),
           _ts: _ts || Date.now()
@@ -1756,6 +1766,10 @@ export default {
         case 'setMomentsConfig':
           if (body.momentsWebhookUrl !== undefined) await env.DATA_KV.put('config:moments_webhook_url', body.momentsWebhookUrl || '');
           if (body.momentsEnabled !== undefined) await env.DATA_KV.put('config:moments_enabled', body.momentsEnabled ? 'true' : 'false');
+          break;
+        case 'setVisionConfig':
+          if (body.visionApiKey !== undefined) await env.DATA_KV.put('config:vision_api_key', body.visionApiKey || '');
+          if (body.visionApiBase !== undefined) await env.DATA_KV.put('config:vision_api_base', body.visionApiBase || '');
           break;
         case 'setAiConfig':
           if (body.aiProvider !== undefined) await env.DATA_KV.put('config:ai_provider', body.aiProvider || '');
@@ -3122,6 +3136,19 @@ export default {
       </details>
 
       <details style="margin-top:10px; border:1px dashed var(--card-border); border-radius:var(--radius-xs); padding:8px; background:rgba(120,120,120,0.02);">
+        <summary style="font-size:0.75rem; color:var(--text-soft); cursor:pointer; font-weight:700; outline:none; user-select:none;">👁️ Gemini Vision 图片识别 (独立配置)</summary>
+        <div style="display:flex; flex-direction:column; gap:6px; margin-top:8px;">
+          <input type="password" class="input-simple" id="visionApiKeyInput" placeholder="Gemini API Key (用于 OCR 图片/文档/表格识别)" style="font-size:0.7rem; height:28px; padding:0 8px;">
+          <input type="text" class="input-simple" id="visionApiBaseInput" placeholder="接口地址 (默认 Gemini)" style="font-size:0.7rem; height:28px; padding:0 8px;">
+          <button id="saveVisionConfigBtn" class="btn-add" style="font-size:0.7rem; height:28px; margin:0; background:linear-gradient(135deg,#11998e,#38ef7d); color:white; border:none; width:100%; font-weight:700;">💾 保存</button>
+          <div style="font-size:0.6rem; color:var(--text-light); line-height:1.4; margin-top:2px;">
+            独立配置一个 Gemini API Key 专用于图片 OCR、文档扫描、表格识别等视觉任务。<br>
+            💡 <strong>不填则自动复用上方 AI 大模型 Key</strong>（但主模型选 DeepSeek 等不支持图片时识别效果会下降）。
+          </div>
+        </div>
+      </details>
+
+      <details style="margin-top:10px; border:1px dashed var(--card-border); border-radius:var(--radius-xs); padding:8px; background:rgba(120,120,120,0.02);">
         <summary style="font-size:0.75rem; color:var(--text-soft); cursor:pointer; font-weight:700; outline:none; user-select:none;">🔍 AI 联网搜索配置</summary>
         <div style="display:flex; flex-direction:column; gap:6px; margin-top:8px;">
           <div style="display:flex; align-items:center; gap:6px;">
@@ -4090,6 +4117,8 @@ export default {
       if(data.searchApiKey!==undefined)localStorage.setItem('search_api_key',data.searchApiKey);
       if(data.momentsWebhookUrl!==undefined)localStorage.setItem('moments_webhook_url',data.momentsWebhookUrl);
       if(data.momentsEnabled!==undefined)localStorage.setItem('moments_enabled',data.momentsEnabled);
+      if(data.visionApiKey!==undefined)localStorage.setItem('vision_api_key',data.visionApiKey);
+      if(data.visionApiBase!==undefined)localStorage.setItem('vision_api_base',data.visionApiBase);
       localStorage.setItem(LOCAL_TS_K,data._ts);
       refreshAll();
       addSyncLog('✅ 拉取并合并云端最新数据完成');
@@ -4139,6 +4168,8 @@ export default {
     if(data.searchApiKey!==undefined)localStorage.setItem('search_api_key',data.searchApiKey);
     if(data.momentsWebhookUrl!==undefined)localStorage.setItem('moments_webhook_url',data.momentsWebhookUrl);
     if(data.momentsEnabled!==undefined)localStorage.setItem('moments_enabled',data.momentsEnabled);
+    if(data.visionApiKey!==undefined)localStorage.setItem('vision_api_key',data.visionApiKey);
+    if(data.visionApiBase!==undefined)localStorage.setItem('vision_api_base',data.visionApiBase);
     if(data.lastLoadDate)localStorage.setItem(LAST_LOAD_DATE_K,data.lastLoadDate);
     localStorage.setItem(LOCAL_TS_K,data._ts||Date.now());
     return true;
@@ -5131,6 +5162,10 @@ const rid=Math.floor(Math.random()*1000);
       document.getElementById('momentsEnabledCheck').checked = localStorage.getItem('moments_enabled') !== 'false';
       document.getElementById('momentsWebhookUrlInput').value = localStorage.getItem('moments_webhook_url') || '';
 
+      // Load vision config
+      document.getElementById('visionApiKeyInput').value = localStorage.getItem('vision_api_key') || '';
+      document.getElementById('visionApiBaseInput').value = localStorage.getItem('vision_api_base') || '';
+
       document.getElementById('exportModal').classList.add('active');
     });
     document.getElementById('closeExportModalBtn').addEventListener('click',()=>document.getElementById('exportModal').classList.remove('active'));
@@ -5273,6 +5308,20 @@ const rid=Math.floor(Math.random()*1000);
     document.getElementById('downloadSiriShortcutBtn').addEventListener('click', () => {
       const siriKey = document.getElementById('siriKeyInput').value.trim() || 'siri_default_123';
       window.open(window.location.origin + '/api/siri/download?key=' + encodeURIComponent(siriKey), '_blank');
+    });
+
+    // Save vision config
+    document.getElementById('saveVisionConfigBtn').addEventListener('click', async () => {
+      const apiKey = document.getElementById('visionApiKeyInput').value.trim();
+      const apiBase = document.getElementById('visionApiBaseInput').value.trim();
+      localStorage.setItem('vision_api_key', apiKey);
+      localStorage.setItem('vision_api_base', apiBase);
+      try {
+        await syncOp('setVisionConfig', { visionApiKey: apiKey, visionApiBase: apiBase });
+        document.getElementById('exportStatus').innerText = apiKey ? '✅ Gemini Vision Key 已保存！图片识别将使用独立 Key。' : '✅ 已清除，图片识别将复用 AI 大模型 Key。';
+      } catch (e) {
+        document.getElementById('exportStatus').innerText = '❌ 保存失败: ' + e.message;
+      }
     });
 
     // Save search config
@@ -6778,31 +6827,37 @@ const rid=Math.floor(Math.random()*1000);
           });
         }
 
-        // 检查 AI API Key
-        const apiKey = await env.DATA_KV.get('config:ai_api_key') || await env.DATA_KV.get('config:deepseek_api_key') || env.AI_API_KEY || env.DEEPSEEK_API_KEY;
-        if (!apiKey) {
-          return new Response(JSON.stringify({ error: '未配置 AI API Key，请先在网页端配置。' }), {
-            status: 400,
-            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-          });
-        }
+        // OCR 优先使用独立的 Gemini Vision API Key，否则回退到通用 AI Key
+        const visionApiKey = await env.DATA_KV.get('config:vision_api_key') || '';
+        const visionApiBase = await env.DATA_KV.get('config:vision_api_base') || 'https://generativelanguage.googleapis.com/v1beta/openai/';
+        const visionModel = 'gemini-2.5-flash';
 
-        const provider = await env.DATA_KV.get('config:ai_provider') || 'deepseek';
-        let apiBase = await env.DATA_KV.get('config:ai_api_base') || env.AI_API_BASE;
-        let model = await env.DATA_KV.get('config:ai_model') || env.AI_API_MODEL;
-
-        // Vision API 配置
-        if (provider === 'gemini') {
-          if (!apiBase) apiBase = 'https://generativelanguage.googleapis.com/v1beta/openai/';
-          if (!model) model = 'gemini-2.5-flash';
-        } else if (provider === 'deepseek') {
-          // DeepSeek 不支持图片，自动切换到 Gemini
-          if (!apiBase) apiBase = 'https://generativelanguage.googleapis.com/v1beta/openai/';
-          if (!model) model = 'gemini-2.5-flash';
+        let apiKey, apiBase, model;
+        if (visionApiKey) {
+          // 使用独立 Vision API Key
+          apiKey = visionApiKey;
+          apiBase = visionApiBase;
+          model = visionModel;
         } else {
-          // Custom OpenAI — 假设支持 Vision（如 GPT-4V）
-          if (!apiBase) apiBase = 'https://api.openai.com/v1/';
-          if (!model) model = 'gpt-4o';
+          // 回退到通用 AI Key
+          apiKey = await env.DATA_KV.get('config:ai_api_key') || await env.DATA_KV.get('config:deepseek_api_key') || env.AI_API_KEY || env.DEEPSEEK_API_KEY;
+          if (!apiKey) {
+            return new Response(JSON.stringify({ error: '未配置 AI API Key 或 Gemini Vision API Key，请先在网页端配置。' }), {
+              status: 400,
+              headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+            });
+          }
+          const provider = await env.DATA_KV.get('config:ai_provider') || 'deepseek';
+          apiBase = await env.DATA_KV.get('config:ai_api_base') || env.AI_API_BASE;
+          model = await env.DATA_KV.get('config:ai_model') || env.AI_API_MODEL;
+          if (provider === 'gemini') {
+            if (!apiBase) apiBase = 'https://generativelanguage.googleapis.com/v1beta/openai/';
+            if (!model) model = 'gemini-2.5-flash';
+          } else {
+            // DeepSeek 及其它不支持图片，自动切 Gemini
+            if (!apiBase) apiBase = 'https://generativelanguage.googleapis.com/v1beta/openai/';
+            if (!model) model = 'gemini-2.5-flash';
+          }
         }
 
         let url = apiBase;

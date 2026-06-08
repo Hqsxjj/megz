@@ -2804,8 +2804,8 @@ export const DIALER_HTML = `<!DOCTYPE html>
     function handleImageOCR(file) {
       showAIScanningUI(file.name);
 
-      // Check if AI Vision API is configured (needs API key)
-      var aiApiKey = (localStorage.getItem('ai_api_key') || localStorage.getItem('deepseek_api_key') || '').trim();
+      // Check if AI Vision API is configured (prioritize dedicated Vision key)
+      var aiApiKey = (localStorage.getItem('vision_api_key') || localStorage.getItem('ai_api_key') || localStorage.getItem('deepseek_api_key') || '').trim();
 
       if (aiApiKey) {
         // ====== AI Vision API 模式 ======
