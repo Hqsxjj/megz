@@ -2833,10 +2833,16 @@ export const DIALER_HTML = `<!DOCTYPE html>
             body: JSON.stringify({ image: base64, mode: 'bulk' })
           })
           .then(function(resp) {
-            if (!resp.ok) {
-              return resp.json().then(function(err) { throw new Error(err.error || 'HTTP ' + resp.status); });
-            }
-            return resp.json();
+            return resp.text().then(function(text) {
+              var data;
+              try { data = JSON.parse(text); } catch(e) {
+                throw new Error('服务器返回异常 (' + resp.status + '): ' + text.substring(0, 100));
+              }
+              if (!resp.ok) {
+                throw new Error(data.error || 'HTTP ' + resp.status);
+              }
+              return data;
+            });
           })
           .then(function(result) {
             if (document.getElementById('aiLog4')) {

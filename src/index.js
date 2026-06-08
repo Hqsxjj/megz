@@ -6827,36 +6827,42 @@ const rid=Math.floor(Math.random()*1000);
           });
         }
 
-        // OCR 优先使用独立的 Gemini Vision API Key，否则回退到通用 AI Key
+        // OCR 必须使用支持图片的模型（Gemini / GPT-4V 等）
         const visionApiKey = await env.DATA_KV.get('config:vision_api_key') || '';
         const visionApiBase = await env.DATA_KV.get('config:vision_api_base') || 'https://generativelanguage.googleapis.com/v1beta/openai/';
         const visionModel = 'gemini-2.5-flash';
 
         let apiKey, apiBase, model;
         if (visionApiKey) {
-          // 使用独立 Vision API Key
+          // 优先: 独立 Vision API Key → Gemini
           apiKey = visionApiKey;
           apiBase = visionApiBase;
           model = visionModel;
         } else {
-          // 回退到通用 AI Key
-          apiKey = await env.DATA_KV.get('config:ai_api_key') || await env.DATA_KV.get('config:deepseek_api_key') || env.AI_API_KEY || env.DEEPSEEK_API_KEY;
-          if (!apiKey) {
-            return new Response(JSON.stringify({ error: '未配置 AI API Key 或 Gemini Vision API Key，请先在网页端配置。' }), {
+          // 回退: 检查通用 AI 是否支持图片
+          const provider = await env.DATA_KV.get('config:ai_provider') || 'deepseek';
+          if (provider === 'gemini') {
+            // Gemini 本身就支持图片
+            apiKey = await env.DATA_KV.get('config:ai_api_key') || await env.DATA_KV.get('config:deepseek_api_key') || env.AI_API_KEY || env.DEEPSEEK_API_KEY;
+            apiBase = await env.DATA_KV.get('config:ai_api_base') || env.AI_API_BASE || 'https://generativelanguage.googleapis.com/v1beta/openai/';
+            model = await env.DATA_KV.get('config:ai_model') || env.AI_API_MODEL || 'gemini-2.5-flash';
+          } else if (provider === 'custom') {
+            // 自定义 OpenAI 兼容接口（可能支持 Vision 如 GPT-4V）
+            apiKey = await env.DATA_KV.get('config:ai_api_key') || await env.DATA_KV.get('config:deepseek_api_key') || env.AI_API_KEY || env.DEEPSEEK_API_KEY;
+            apiBase = await env.DATA_KV.get('config:ai_api_base') || env.AI_API_BASE || 'https://api.openai.com/v1/';
+            model = await env.DATA_KV.get('config:ai_model') || env.AI_API_MODEL || 'gpt-4o';
+          } else {
+            // DeepSeek 等其他不支持图片的 → 需要单独配 Vision Key
+            return new Response(JSON.stringify({ error: '当前 AI 大模型 (DeepSeek) 不支持图片识别。请在网页端 → 导出配置 → 「👁️ Gemini Vision 图片识别」中填入独立的 Gemini API Key。' }), {
               status: 400,
               headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
             });
           }
-          const provider = await env.DATA_KV.get('config:ai_provider') || 'deepseek';
-          apiBase = await env.DATA_KV.get('config:ai_api_base') || env.AI_API_BASE;
-          model = await env.DATA_KV.get('config:ai_model') || env.AI_API_MODEL;
-          if (provider === 'gemini') {
-            if (!apiBase) apiBase = 'https://generativelanguage.googleapis.com/v1beta/openai/';
-            if (!model) model = 'gemini-2.5-flash';
-          } else {
-            // DeepSeek 及其它不支持图片，自动切 Gemini
-            if (!apiBase) apiBase = 'https://generativelanguage.googleapis.com/v1beta/openai/';
-            if (!model) model = 'gemini-2.5-flash';
+          if (!apiKey) {
+            return new Response(JSON.stringify({ error: '未配置 AI API Key，请先在网页端配置。' }), {
+              status: 400,
+              headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+            });
           }
         }
 
