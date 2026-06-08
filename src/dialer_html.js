@@ -1,4 +1,4 @@
-﻿export const DIALER_HTML = `<!DOCTYPE html>
+export const DIALER_HTML = `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
@@ -2802,157 +2802,98 @@
     }
 
     function handleImageOCR(file) {
-      try {
       showAIScanningUI(file.name);
 
-      // Check if AI Vision API is configured (prioritize dedicated Vision key)
-      var aiApiKey = (localStorage.getItem('vision_api_key') || localStorage.getItem('ai_api_key') || localStorage.getItem('deepseek_api_key') || '').trim();
+      // Check if AI Vision Key configured — try cloud API first
+      var visionKey = (localStorage.getItem('vision_api_key') || '').trim();
+      var aiKey = visionKey || (localStorage.getItem('ai_api_key') || localStorage.getItem('deepseek_api_key') || '').trim();
 
-      if (aiApiKey) {
-        // ====== AI Vision API 模式 ======
-        document.getElementById('aiScanStatus').innerHTML = '🤖 AI 视觉大模型识别中...';
-        if (document.getElementById('aiLog1')) {
-          document.getElementById('aiLog1').innerHTML = '⏳ 正在将图片发送至 AI 视觉模型...';
-          document.getElementById('aiLog1').style.opacity = '1';
-        }
-        if (document.getElementById('aiLog2')) {
-          document.getElementById('aiLog2').innerHTML = '🧠 使用多模态大模型深度理解图片内容';
-          document.getElementById('aiLog2').style.opacity = '1';
-        }
+      if (aiKey) {
+        document.getElementById('aiScanStatus').innerHTML = '🤖 AI 云端视觉识别中...';
+        if (document.getElementById('aiLog1')) { document.getElementById('aiLog1').innerHTML = '⏳ 图片发送至 AI 视觉模型...'; document.getElementById('aiLog1').style.opacity = '1'; }
+        if (document.getElementById('aiLog2')) { document.getElementById('aiLog2').innerHTML = '🧠 Gemini 多模态识别引擎'; document.getElementById('aiLog2').style.opacity = '1'; }
 
         var reader = new FileReader();
         reader.onload = function(e) {
-          var base64 = e.target.result;
-          if (document.getElementById('aiLog3')) {
-            document.getElementById('aiLog3').innerHTML = '📸 图片编码完成，等待 AI 返回结果...';
-            document.getElementById('aiLog3').style.opacity = '1';
-          }
-
+          if (document.getElementById('aiLog3')) { document.getElementById('aiLog3').innerHTML = '📸 图片编码完成，等待返回...'; document.getElementById('aiLog3').style.opacity = '1'; }
           fetch('/api/ocr', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ image: base64, mode: 'bulk' })
+            body: JSON.stringify({ image: e.target.result, mode: 'bulk' })
           })
-          .then(function(resp) {
-            return resp.text().then(function(text) {
-              var data;
-              try { data = JSON.parse(text); } catch(e) {
-                throw new Error('服务器返回异常 (' + resp.status + '): ' + text.substring(0, 100));
-              }
-              if (!resp.ok) {
-                throw new Error(data.error || 'HTTP ' + resp.status);
-              }
-              return data;
-            });
-          })
+          .then(function(r) { return r.json(); })
           .then(function(result) {
-            if (document.getElementById('aiLog4')) {
-              document.getElementById('aiLog4').innerHTML = '✅ AI 视觉识别完成';
-              document.getElementById('aiLog4').style.opacity = '1';
-            }
-            document.getElementById('aiScanStatus').innerHTML = '✅ AI 识别成功！';
-
-            // Build contacts array from AI Vision result
+            if (document.getElementById('aiLog4')) { document.getElementById('aiLog4').innerHTML = '✅ AI 识别完成'; document.getElementById('aiLog4').style.opacity = '1'; }
             var contacts = [];
-
-            // Use bulk contacts from AI
             if (result.contacts && result.contacts.length > 0) {
-              result.contacts.forEach(function(c) {
-                if (c.phone) {
-                  contacts.push({
-                    name: c.name || '',
-                    phone: c.phone,
-                    company: c.company || '',
-                    note: c.note || ''
-                  });
-                }
-              });
+              result.contacts.forEach(function(c) { if (c.phone) contacts.push({ name: c.name || '', phone: c.phone, company: c.company || '', note: c.note || '' }); });
             } else if (result.name || result.phone) {
-              // Fallback single result
-              contacts.push({
-                name: result.name || '',
-                phone: result.phone || '',
-                company: result.company || '',
-                note: result.note || result.fund || ''
-              });
+              contacts.push({ name: result.name || '', phone: result.phone || '', company: result.company || '', note: result.note || result.fund || '' });
             }
-
-            // Also extract additional contacts from raw text if present
-            var rawText = result.rawText || result.note || '';
-            if (rawText) {
-              var extraContacts = parsePhoneContactsFromRawText(rawText);
-              extraContacts.forEach(function(ec) {
-                if (!contacts.find(function(c) { return c.phone === ec.phone; })) {
-                  contacts.push(ec);
-                }
-              });
+            if (result.rawText || result.note) {
+              var extra = parsePhoneContactsFromRawText(result.rawText || result.note || '');
+              extra.forEach(function(ec) { if (!contacts.find(function(c) { return c.phone === ec.phone; })) contacts.push(ec); });
             }
-
-            setTimeout(function() {
-              renderAIUnstructuredReport(file.name, contacts);
-            }, 400);
+            renderAIUnstructuredReport(file.name, contacts);
           })
           .catch(function(err) {
-            console.error('[AI Vision OCR] 失败:', err.message);
-            if (document.getElementById('aiLog3')) {
-              document.getElementById('aiLog3').innerHTML = '⚠️ AI 云端识别失败: ' + err.message;
-              document.getElementById('aiLog3').style.opacity = '1';
-            }
-            document.getElementById('aiScanStatus').innerHTML = '⚠️ 云端识别失败';
-            alert('AI 云端识别失败：' + (err.message || err) + '\n\n请复制此错误信息。');
-            resetAIImporterUI();
+            console.error('AI Vision failed, fallback to Tesseract:', err.message);
+            if (document.getElementById('aiLog3')) { document.getElementById('aiLog3').innerHTML = '⚠️ 云端失败: ' + err.message + '，切换本地引擎...'; document.getElementById('aiLog3').style.opacity = '1'; }
+            runTesseractOCR(file);
           });
         };
-        reader.onerror = function() {
-          alert('图片读取失败，请重试。');
-          resetAIImporterUI();
-        };
+        reader.onerror = function() { runTesseractOCR(file); };
         reader.readAsDataURL(file);
-      } else {
-        // 未配置 API Key
-        alert('未配置 AI Vision API Key。\n请在网页端 → 导出配置 → 「👁️ Gemini Vision 图片识别」中填入 Gemini API Key。');
-        resetAIImporterUI();
+        return;
       }
-      } catch(e) {
-        alert('OCR 流程异常: ' + (e.message || e) + '\n行号: ' + (e.lineNumber || '?'));
-        resetAIImporterUI();
-      }
+
+      // No AI key — use local Tesseract
+      runTesseractOCR(file);
     }
 
-    // 本地 Tesseract OCR 回退方案
     function runTesseractOCR(file) {
-      document.getElementById('aiScanStatus').innerHTML = '⚙️ 本地 OCR 引擎识别中...';
-      if (document.getElementById('aiLog2')) {
-        document.getElementById('aiLog2').innerHTML = '⏳ 正在加载 tesseract.js 视觉分析库...';
-        document.getElementById('aiLog2').style.opacity = '1';
+      document.getElementById('aiScanStatus').innerHTML = '⚙️ AI 正在载入视觉 OCR 引擎...';
+      if (document.getElementById('aiLog1')) {
+        document.getElementById('aiLog1').innerHTML = '⏳ 正在加载 tesseract.js 视觉分析库...';
+        document.getElementById('aiLog1').style.opacity = '1';
       }
 
       loadScript('https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.1.1/tesseract.min.js')
         .then(function() {
+          if (document.getElementById('aiLog2')) {
+            document.getElementById('aiLog2').innerHTML = '✅ 视觉神经网络就绪';
+            document.getElementById('aiLog2').style.opacity = '1';
+          }
+          document.getElementById('aiScanStatus').innerHTML = '📸 正在下载中英文语言模型包...';
+
           if (document.getElementById('aiLog3')) {
-            document.getElementById('aiLog3').innerHTML = '✅ 视觉神经网络就绪，下载中英文语言包...';
+            document.getElementById('aiLog3').innerHTML = '⏳ 正在从 CDN 获取高精 chi_sim+eng 模型...';
             document.getElementById('aiLog3').style.opacity = '1';
           }
 
-          var _wp = Tesseract.createWorker({
+          Tesseract.createWorker({
             langPath: window.location.origin + '/tessdata',
             logger: function(m) {
-              if (m && m.status === 'recognizing text') {
-                var pct = Math.round((m.progress || 0) * 100);
-                document.getElementById('aiScanStatus').innerHTML = '📸 本地 OCR: ' + pct + '%';
+              if (m.status === 'recognizing text') {
+                var pct = Math.round(m.progress * 100);
+                document.getElementById('aiScanStatus').innerHTML = '📸 图像文字 AI 深度识别中：' + pct + '%';
+                if (document.getElementById('aiLog3')) {
+                  document.getElementById('aiLog3').innerHTML = '✅ 模型载入成功，识别进行中...';
+                }
                 if (document.getElementById('aiLog4')) {
-                  document.getElementById('aiLog4').innerHTML = '⚡ 进度: ' + pct + '%';
+                  document.getElementById('aiLog4').innerHTML = '⚡ OCR 进度: ' + pct + '%';
                   document.getElementById('aiLog4').style.opacity = '1';
                 }
+              } else if (m.status === 'loading chi_sim.traineddata' || m.status === 'loading eng.traineddata') {
+                var loadPct = m.progress ? ' (' + Math.round(m.progress * 100) + '%)' : '';
+                document.getElementById('aiScanStatus').innerHTML = '🧠 正在载入语言模型包' + loadPct + '...';
               }
             }
-          });
-          if (!_wp || typeof _wp.then !== 'function') throw new Error('Tesseract引擎初始化异常');
-          return _wp.then(function(worker) {
-            return worker.load()
-              .then(function() { return worker.loadLanguage('chi_sim+eng'); })
-              .then(function() { return worker.initialize('chi_sim+eng'); })
-              .then(function() { return worker.recognize(file); })
+          }).then(function(worker) {
+            return Promise.resolve(worker.load())
+              .then(function() { return Promise.resolve(worker.loadLanguage('chi_sim+eng')); })
+              .then(function() { return Promise.resolve(worker.initialize('chi_sim+eng')); })
+              .then(function() { return Promise.resolve(worker.recognize(file)); })
               .then(function(result) {
                 try { worker.terminate(); } catch(e) {}
                 return result;
@@ -2963,15 +2904,15 @@
               });
           }).then(function(result) {
             if (document.getElementById('aiLog4')) {
-              document.getElementById('aiLog4').innerHTML = '✅ 本地 OCR 识别完毕';
+              document.getElementById('aiLog4').innerHTML = '✅ 图像文字识别与神经特征映射完毕';
             }
             var text = result.data.text;
             setTimeout(function() {
               var contacts = parsePhoneContactsFromRawText(text);
               renderAIUnstructuredReport(file.name, contacts);
-            }, 400);
+            }, 800);
           }).catch(function(err) {
-            alert('OCR 识别失败：' + (err.message || err));
+            alert('本地 OCR 识别失败：' + (err.message || err));
             resetAIImporterUI();
           });
         })
