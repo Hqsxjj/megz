@@ -2742,6 +2742,23 @@ export default {
       border-top: 1px dashed var(--border-light);
       padding-top: 8px;
     }
+    .client-card-actions-top {
+      position: absolute;
+      top: 8px;
+      right: 10px;
+      display: flex;
+      gap: 4px;
+      z-index: 2;
+    }
+    .client-card-actions-top .card-action-btn {
+      font-size: 0.68rem;
+      padding: 3px 8px;
+      opacity: 0.6;
+      transition: opacity 0.15s;
+    }
+    .all-client-card:hover .client-card-actions-top .card-action-btn {
+      opacity: 1;
+    }
 
 
 
@@ -2749,6 +2766,7 @@ export default {
     /* ===== 全量客户卡片布局 ===== */
     .all-client-card {
       margin-bottom: 10px;
+      padding-right: 60px;
     }
     .all-client-card-editing {
       border-color: var(--accent-wechat) !important;
@@ -5647,9 +5665,9 @@ const rid=Math.floor(Math.random()*1000);
               '<span class="client-card-text">' + esc(c.followUp) + '</span>' +
             '</div>' : '') +
         '</div>' +
-        '<div class="client-card-actions">' +
-          '<button class="all-export-btn card-action-btn" data-date="' + esc(c.date) + '" data-name="' + esc(c.name) + '" data-phone="' + esc(c.phone) + '" data-time="' + esc(c.time || '') + '" title="导出">📤 导出</button>' +
-          '<button class="all-edit-btn card-action-btn" data-date="' + esc(c.date) + '" data-name="' + esc(c.name) + '" data-phone="' + esc(c.phone) + '" data-time="' + esc(c.time || '') + '" title="编辑">✏️ 编辑</button>' +
+        '<div class="client-card-actions-top">' +
+          '<button class="all-edit-btn card-action-btn" data-date="' + esc(c.date) + '" data-name="' + esc(c.name) + '" data-phone="' + esc(c.phone) + '" data-time="' + esc(c.time || '') + '" title="编辑">✏️</button>' +
+          '<button class="all-export-btn card-action-btn" data-date="' + esc(c.date) + '" data-name="' + esc(c.name) + '" data-phone="' + esc(c.phone) + '" data-time="' + esc(c.time || '') + '" title="导出">📤</button>' +
         '</div>' +
       '</div>';
     });
@@ -5693,7 +5711,7 @@ const rid=Math.floor(Math.random()*1000);
         if (r.ok) { alert('客户已成功导出到企业微信！'); }
         else { const err = await r.json(); alert('导出失败: ' + (err.error || r.statusText)); }
       } catch (errVal) { alert('网络错误: ' + errVal.message); }
-      b.textContent = '📤 导出'; b.disabled = false;
+      b.textContent = '📤'; b.disabled = false;
     }));
 
     // --- Edit client (inline card edit) ---
