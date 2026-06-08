@@ -1,4 +1,4 @@
-// 每日工作 - Cloudflare Worker 版本
+﻿// 每日工作 - Cloudflare Worker 版本
 // 部署后绑定 DATA_KV 即可使用
 
 import { DIALER_HTML } from './dialer_html.js';
@@ -2571,71 +2571,9 @@ export default {
       .intent-table th, .intent-table td { padding: 8px 6px; }
       .tbl-note-cell { min-width: 200px; }
 
-      /* Mobile: 全量客户弹窗留出空白可点区域 */
+      /* Mobile: 全量客户弹窗卡片适配 */
       #allClientsModal .modal-card { max-height: 93vh !important; max-width: 100vw !important; margin-top: 7vh !important; border-radius: 16px 16px 0 0 !important; }
-      /* Mobile: 隐藏操作列标签，保留编辑按钮 */
-      #allClientsModal td[data-label="操作"]::before { content: none !important; }
-      /* Mobile clients table card layout */
-      .clients-table, .clients-table thead, .clients-table tbody, .clients-table th, .clients-table td, .clients-table tr {
-        display: block;
-        width: 100% !important;
-        box-sizing: border-box;
-      }
-      .clients-table thead {
-        display: none !important;
-      }
-      .clients-table tbody tr {
-        background: var(--btn-bg);
-        border: 1px solid var(--card-border);
-        border-radius: var(--radius-sm);
-        padding: 12px 14px;
-        margin-bottom: 12px;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-      }
-      .clients-table td {
-        padding: 6px 0 !important;
-        border-bottom: 0.5px dashed var(--border-light) !important;
-        text-align: left !important;
-        font-size: 0.85rem !important;
-        display: flex;
-        align-items: flex-start;
-        justify-content: flex-start;
-        min-height: 28px;
-      }
-      .clients-table td:last-child {
-        border-bottom: none !important;
-        justify-content: center;
-      }
-      .clients-table td::before {
-        content: attr(data-label) ": ";
-        font-weight: 800;
-        color: var(--text-soft);
-        width: 80px;
-        flex-shrink: 0;
-        margin-top: 1px;
-      }
-      .clients-table td[data-label="沟通情况"],
-      .clients-table td[data-label="跟进情况"] {
-        flex-direction: column;
-        align-items: stretch;
-        padding: 8px 0 !important;
-      }
-      .clients-table td[data-label="沟通情况"]::before,
-      .clients-table td[data-label="跟进情况"]::before {
-        width: 100%;
-        margin-bottom: 6px;
-      }
-      .clients-table td[data-label="沟通情况"] span,
-      .clients-table td[data-label="跟进情况"] span {
-        padding-left: 4px;
-        line-height: 1.4;
-      }
-      .clients-table td input,
-      .clients-table td textarea {
-        flex: 1;
-        width: 100% !important;
-        box-sizing: border-box !important;
-      }
+      .all-client-card .card-action-btn { font-size: 0.7rem !important; padding: 4px 10px !important; }
     }
     /* ===== 紧凑表格与待办行样式 ===== */
     .table-compact { width: 100%; border-collapse: collapse; font-size: 0.78rem; color: var(--text-main); text-align: left; }
@@ -2785,6 +2723,67 @@ export default {
 
 
 
+
+    /* ===== 全量客户卡片分组布局 ===== */
+    .all-clients-date-group {
+      margin-bottom: 16px;
+    }
+    .all-clients-date-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      margin-bottom: 8px;
+      background: linear-gradient(135deg, rgba(7,193,96,0.06) 0%, rgba(74,108,247,0.04) 100%);
+      border-radius: var(--radius-sm);
+      border-left: 3px solid var(--accent-wechat);
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      backdrop-filter: blur(4px);
+    }
+    body.dark-mode .all-clients-date-header {
+      background: linear-gradient(135deg, rgba(7,193,96,0.08) 0%, rgba(74,108,247,0.06) 100%);
+    }
+    .all-clients-date-label {
+      font-size: 0.85rem;
+      font-weight: 800;
+      color: var(--text-main);
+    }
+    .all-clients-date-count {
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: var(--accent-wechat);
+      background: rgba(7,193,96,0.1);
+      padding: 2px 10px;
+      border-radius: 12px;
+    }
+    body.dark-mode .all-clients-date-count {
+      background: rgba(7,193,96,0.15);
+    }
+    .all-client-card {
+      margin-bottom: 10px;
+    }
+    .all-client-card-editing {
+      border-color: var(--accent-wechat) !important;
+      box-shadow: 0 0 0 1px rgba(7,193,96,0.2) !important;
+    }
+    .card-action-btn {
+      background: none;
+      border: 1px solid var(--card-border);
+      color: var(--text-soft);
+      cursor: pointer;
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 5px 12px;
+      border-radius: var(--radius-xs);
+      transition: all 0.15s;
+    }
+    .card-action-btn:hover {
+      background: var(--btn-hover);
+      border-color: var(--accent-wechat);
+      color: var(--accent-wechat);
+    }
     /* ==================== Android 专属适配 ==================== */
     body.android { font-family: Roboto, "Noto Sans SC", "Noto Sans", "Droid Sans Fallback", sans-serif; }
     /* Android 使用 static vh 避免 toolbar 收展导致 dvh 布局抖动 */
@@ -3210,24 +3209,8 @@ export default {
 <div id="allClientsModal" class="modal-overlay">
   <div class="modal-card" style="width:100vw;height:100vh;max-width:100vw;max-height:100vh;margin:0;border-radius:0;border:none;box-sizing:border-box;">
     <div class="modal-header"><div style="display:flex;align-items:center;gap:12px;"><span>意向客户全量登记表</span><button id="allClientsAddBtn" class="btn-add" style="font-size:0.75rem;padding:4px 12px;height:28px;">+ 新增意向</button><button id="allClientsExportBtn" class="btn-add" style="font-size:0.75rem;padding:4px 12px;height:28px;background:var(--intent-gradient);">导出</button></div><button id="closeAllClientsModalBtn">✕</button></div>
-    <div style="overflow-x:auto;flex:1;min-height:0;margin-top:10px;">
-      <table class="clients-table" style="width:100%;border-collapse:collapse;text-align:left;font-size:0.8rem;font-weight:500;">
-        <thead>
-          <tr style="border-bottom:2px solid var(--border-light);color:var(--text-soft);font-weight:700;">
-            <th style="padding:10px 8px;">日期</th>
-            <th style="padding:10px 8px;">姓名</th>
-            <th style="padding:10px 8px;">电话</th>
-            <th style="padding:10px 8px;">单位</th>
-            <th style="padding:10px 8px;">公积金</th>
-            <th style="padding:10px 8px;">沟通情况</th>
-            <th style="padding:10px 8px;">跟进情况</th>
-            <th style="padding:10px 8px;text-align:center;">操作</th>
-          </tr>
-        </thead>
-        <tbody id="allClientsTableBody">
-          <!-- JS 动态渲染 -->
-        </tbody>
-      </table>
+    <div style="overflow-y:auto;flex:1;min-height:0;margin-top:10px;padding:0 4px;" id="allClientsCardList">
+      <!-- JS 动态渲染为卡片 -->
     </div>
   </div>
 </div>
@@ -5612,153 +5595,183 @@ const rid=Math.floor(Math.random()*1000);
     }
   },30000);
 
-  // ==================== 意向客户全量表 ====================
+  // ==================== 意向客户全量表（卡片模式） ====================
   async function loadAllClients() {
     try {
       const r = await fetch('/api/all-clients');
       if (r.ok) {
         const data = await r.json();
-        renderAllClientsTable(data);
+        renderAllClientsCards(data);
       }
     } catch(e) {
       const local = JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
       local.sort((a,b) => (b.date||'').localeCompare(a.date||''));
-      renderAllClientsTable(local);
+      renderAllClientsCards(local);
     }
   }
 
-  function renderAllClientsTable(clients) {
-    const tbody = document.getElementById('allClientsTableBody');
+  function renderAllClientsCards(clients) {
+    const container = document.getElementById('allClientsCardList');
+    if (!container) return;
     if (clients.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: var(--text-light); padding: 20px;">暂无数据</td></tr>';
+      container.innerHTML = '<div style="text-align:center;color:var(--text-light);padding:40px;font-size:0.9rem;">暂无数据</div>';
       return;
     }
-    tbody.innerHTML = clients.map((c, idx) => {
-      const company = c.company || '-';
-      const fund = c.fund || '-';
-      const note = c.note || '-';
-      const followUp = c.followUp || '-';
-      return '<tr data-date="'+esc(c.date)+'" data-name="'+esc(c.name)+'" data-phone="'+esc(c.phone)+'">'+
-        '<td data-label="日期" style="padding: 10px 8px; white-space: nowrap;">'+esc(c.date)+'</td>'+
-        '<td data-label="姓名" style="padding: 10px 8px; font-weight: 700;">'+esc(c.name)+'</td>'+
-        '<td data-label="电话" style="padding: 10px 8px; white-space: nowrap;"><a class="client-phone" href="tel:'+esc(c.phone)+'" data-full="'+esc(c.phone)+'">'+esc(maskPhone(c.phone))+'</a><button class="phone-toggle" style="background:none;border:none;margin-left:4px;cursor:pointer;opacity:0.5;" title="显示号码">看</button></td>'+
-                '<td data-label="单位" style="padding: 10px 8px;">' + getWhitelistTagHtml(company, true) + '</td>'+
-        '<td data-label="公积金" style="padding: 10px 8px;">'+esc(fund)+'</td>'+
-        '<td data-label="沟通情况" style="padding: 10px 8px; min-width: 240px; max-width: 400px; word-break: break-word;"><span style="flex: 1; word-break: break-word; white-space: pre-wrap;">'+esc(note)+'</span></td>'+
-        '<td data-label="跟进情况" style="padding: 10px 8px; min-width: 180px; max-width: 300px; word-break: break-word;"><span style="flex: 1; word-break: break-word; white-space: pre-wrap;">'+esc(followUp)+'</span></td>'+
-        '<td data-label="操作" style="padding: 10px 8px; text-align: center; white-space: nowrap;">'+
-          '<button class="export-all-single-btn" data-date="'+esc(c.date)+'" data-name="'+esc(c.name)+'" data-phone="'+esc(c.phone)+'" data-time="'+esc(c.time||'')+'" style="background:none;border:none;color:var(--accent-intent);cursor:pointer;font-size:0.9rem;font-weight:700;margin-right:6px;" title="导出">导出</button>'+
-          '<button class="edit-all-client-btn" data-date="'+esc(c.date)+'" data-name="'+esc(c.name)+'" data-phone="'+esc(c.phone)+'" data-time="'+esc(c.time||'')+'" style="background:none;border:none;color:var(--accent-wechat);cursor:pointer;font-size:0.9rem;font-weight:700;margin-right:6px;" title="编辑">编辑</button>'+
-        '</td>'+
-      '</tr>';
-    }).join('');
 
-    tbody.querySelectorAll('.phone-toggle').forEach(b => b.addEventListener('click', e => {
+    // Group by date
+    const grouped = {};
+    clients.forEach(c => {
+      const d = c.date || '未知日期';
+      if (!grouped[d]) grouped[d] = [];
+      grouped[d].push(c);
+    });
+
+    // Sort dates descending
+    const sortedDates = Object.keys(grouped).sort((a, b) => b.localeCompare(a));
+
+    let html = '';
+    sortedDates.forEach(date => {
+      const dayClients = grouped[date];
+      html += '<div class="all-clients-date-group">';
+      html += '<div class="all-clients-date-header">';
+      html += '<span class="all-clients-date-label">' + esc(date) + '</span>';
+      html += '<span class="all-clients-date-count">' + dayClients.length + ' 位意向</span>';
+      html += '</div>';
+
+      dayClients.forEach((c, idx) => {
+        html += '<div class="client-card-item all-client-card" data-date="' + esc(c.date) + '" data-name="' + esc(c.name) + '" data-phone="' + esc(c.phone) + '" data-time="' + esc(c.time || '') + '">' +
+          '<div class="client-card-top">' +
+            '<div class="client-card-primary">' +
+              '<span class="client-card-name">' + esc(c.name) + '</span>' +
+              '<span class="client-card-phone-wrap">' +
+                '<a class="client-card-phone all-phone-link" href="tel:' + esc(c.phone) + '" data-full="' + esc(c.phone) + '">' + esc(maskPhone(c.phone)) + '</a>' +
+                '<button class="phone-toggle all-phone-toggle" title="显示号码">看</button>' +
+              '</span>' +
+            '</div>' +
+            (c.time ? '<span class="client-card-time">' + esc(c.time) + '</span>' : '') +
+          '</div>' +
+          '<div class="client-card-tags">' +
+            (c.company ? getWhitelistTagHtml(c.company, false) : '') +
+            (c.fund ? '<span class="client-card-tag client-card-tag-fund">公积金: ' + esc(c.fund) + '</span>' : '') +
+          '</div>' +
+          '<div class="client-card-body">' +
+            '<div class="client-card-content-block">' +
+              '<span class="client-card-label">沟通记录</span>' +
+              '<span class="client-card-text">' + esc(c.note || '') + '</span>' +
+            '</div>' +
+            (c.followUp ?
+              '<div class="client-card-content-block follow-up">' +
+                '<span class="client-card-label">跟进情况</span>' +
+                '<span class="client-card-text" style="color:var(--accent-wechat);">' + esc(c.followUp) + '</span>' +
+              '</div>' : '') +
+          '</div>' +
+          '<div class="client-card-actions">' +
+            '<button class="all-export-btn card-action-btn" data-date="' + esc(c.date) + '" data-name="' + esc(c.name) + '" data-phone="' + esc(c.phone) + '" data-time="' + esc(c.time || '') + '" title="导出">📤 导出</button>' +
+            '<button class="all-edit-btn card-action-btn" data-date="' + esc(c.date) + '" data-name="' + esc(c.name) + '" data-phone="' + esc(c.phone) + '" data-time="' + esc(c.time || '') + '" title="编辑">✏️ 编辑</button>' +
+          '</div>' +
+        '</div>';
+      });
+
+      html += '</div>'; // close date group
+    });
+
+    container.innerHTML = html;
+
+    // --- Phone toggle ---
+    container.querySelectorAll('.all-phone-toggle').forEach(b => b.addEventListener('click', e => {
       e.stopPropagation();
-      const phoneSpan = b.previousElementSibling;
-      const full = phoneSpan.dataset.full;
-      if (phoneSpan.textContent === full) {
-        phoneSpan.textContent = maskPhone(full);
+      const phoneLink = b.previousElementSibling;
+      const full = phoneLink.dataset.full;
+      if (phoneLink.textContent === full) {
+        phoneLink.textContent = maskPhone(full);
         b.title = '显示号码';
         b.textContent = '看';
       } else {
-        phoneSpan.textContent = full;
+        phoneLink.textContent = full;
         b.title = '隐藏号码';
         b.textContent = '隐';
       }
     }));
 
-    tbody.querySelectorAll('.export-all-single-btn').forEach(b => b.addEventListener('click', async e => {
-      const date = b.dataset.date;
-      const name = b.dataset.name;
-      const phone = b.dataset.phone;
-      const time = b.dataset.time;
-      const c = clients.find(item => item.date === date && item.name === name && item.phone === phone && (time ? item.time === time : true));
+    // --- Export single client ---
+    container.querySelectorAll('.all-export-btn').forEach(b => b.addEventListener('click', async e => {
+      e.stopPropagation();
+      const date = b.dataset.date, name = b.dataset.name, phone = b.dataset.phone, time = b.dataset.time;
+      const c = clients.find(item => item.date === date && item.name === name && item.phone === phone &&
+        (time ? item.time === time : true));
       if (!c) return;
       const savedUrl = (localStorage.getItem('webhook_url') || '').trim();
       if (!savedUrl) {
         alert('请先在主菜单 → 导出数据 中配置企业微信 Webhook URL');
         return;
       }
-      b.textContent = '发送中...';
-      b.disabled = true;
+      b.textContent = '发送中...'; b.disabled = true;
       try {
         const r = await fetch('/api/export', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ type: 'single_client', webhookUrl: savedUrl, client: c })
         });
-        if (r.ok) {
-          alert('客户已成功导出到企业微信！');
-        } else {
-          const err = await r.json();
-          alert('导出失败: ' + (err.error || r.statusText));
-        }
-      } catch (errVal) {
-        alert('网络错误: ' + errVal.message);
-      }
-      b.textContent = '导出';
-      b.disabled = false;
+        if (r.ok) { alert('客户已成功导出到企业微信！'); }
+        else { const err = await r.json(); alert('导出失败: ' + (err.error || r.statusText)); }
+      } catch (errVal) { alert('网络错误: ' + errVal.message); }
+      b.textContent = '📤 导出'; b.disabled = false;
     }));
 
-    tbody.querySelectorAll('.edit-all-client-btn').forEach(b => b.addEventListener('click', e => {
-      const date = b.dataset.date;
-      const name = b.dataset.name;
-      const phone = b.dataset.phone;
-      const time = b.dataset.time;
-      const tr = b.closest('tr');
-      
-      const c = clients.find(item => item.date === date && item.name === name && item.phone === phone && (time ? item.time === time : true));
-      if (!c) return;
+    // --- Edit client (inline card edit) ---
+    container.querySelectorAll('.all-edit-btn').forEach(b => b.addEventListener('click', e => {
+      e.stopPropagation();
+      const date = b.dataset.date, name = b.dataset.name, phone = b.dataset.phone, time = b.dataset.time;
+      const card = b.closest('.all-client-card');
+      const c = clients.find(item => item.date === date && item.name === name && item.phone === phone &&
+        (time ? item.time === time : true));
+      if (!c || !card) return;
 
-      tr.innerHTML = 
-        '<td data-label="日期" style="padding: 10px 8px; white-space: nowrap;">'+esc(date)+'</td>'+
-        '<td data-label="姓名" style="padding: 10px 8px;"><input type="text" class="input-simple edit-name-input" style="padding: 4px 6px; font-size: 0.8rem; font-weight: 700; width: 80px;" value="'+esc(c.name)+'"></td>'+
-        '<td data-label="电话" style="padding: 10px 8px;"><input type="text" class="input-simple edit-phone-input" style="padding: 4px 6px; font-size: 0.8rem; width: 110px;" value="'+esc(c.phone)+'"></td>'+
-        '<td data-label="单位" style="padding: 10px 8px;"><input type="text" class="input-simple edit-company-input" style="padding: 4px 6px; font-size: 0.8rem; width: 120px;" value="'+esc(c.company||'')+'"></td>'+
-        '<td data-label="公积金" style="padding: 10px 8px;"><input type="text" class="input-simple edit-fund-input" style="padding: 4px 6px; font-size: 0.8rem; width: 80px;" value="'+esc(c.fund||'')+'"></td>'+
-        '<td data-label="沟通情况" style="padding: 10px 8px;"><textarea class="input-simple edit-note-input" style="padding: 4px 6px; font-size: 0.8rem; width: 100%; min-height: 80px; resize: vertical; line-height: 1.6;">'+esc(c.note||'')+'</textarea></td>'+
-        '<td data-label="跟进情况" style="padding: 10px 8px;"><textarea class="input-simple edit-follow-input" style="padding: 4px 6px; font-size: 0.8rem; width: 100%; min-height: 80px; resize: vertical; line-height: 1.6;">'+esc(c.followUp||'')+'</textarea></td>'+
-        '<td data-label="操作" style="padding: 10px 8px; text-align: center; white-space: nowrap;">'+
-          '<button class="save-all-client-btn" style="background:none;border:none;color:var(--accent-wechat);cursor:pointer;font-size:0.9rem;font-weight:700;margin-right:6px;" title="保存">保存</button>'+
-          '<button class="cancel-all-client-btn" style="background:none;border:none;color:var(--text-light);cursor:pointer;font-size:0.9rem;font-weight:700;" title="取消">取消</button>'+
-        '</td>';
+      // Replace card content with edit form
+      card.classList.add('all-client-card-editing');
+      card.innerHTML =
+        '<div class="client-card-top">' +
+          '<span style="font-size:0.75rem;font-weight:700;color:var(--accent-wechat);">' + esc(date) + ' · 编辑中</span>' +
+        '</div>' +
+        '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+          '<input type="text" class="input-simple edit-name-input" placeholder="姓名" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.8rem;font-weight:700;" value="' + esc(c.name) + '">' +
+          '<input type="text" class="input-simple edit-phone-input" placeholder="电话" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.8rem;" value="' + esc(c.phone) + '">' +
+        '</div>' +
+        '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+          '<input type="text" class="input-simple edit-company-input" placeholder="单位" style="flex:2;min-width:120px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.company || '') + '">' +
+          '<input type="text" class="input-simple edit-fund-input" placeholder="公积金" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.fund || '') + '">' +
+        '</div>' +
+        '<textarea class="input-simple edit-note-input" placeholder="沟通记录" style="width:100%;min-height:70px;padding:8px;font-size:0.78rem;resize:vertical;box-sizing:border-box;">' + esc(c.note || '') + '</textarea>' +
+        '<textarea class="input-simple edit-follow-input" placeholder="跟进情况" style="width:100%;min-height:60px;padding:8px;font-size:0.78rem;resize:vertical;box-sizing:border-box;">' + esc(c.followUp || '') + '</textarea>' +
+        '<div style="display:flex;justify-content:flex-end;gap:8px;border-top:1px dashed var(--card-border);padding-top:8px;">' +
+          '<button class="save-all-client-btn btn-add" style="font-size:0.75rem;padding:6px 16px;background:var(--accent-wechat);color:white;border:none;border-radius:6px;font-weight:700;">💾 保存</button>' +
+          '<button class="cancel-all-client-btn btn-add" style="font-size:0.75rem;padding:6px 16px;background:var(--btn-bg);color:var(--text-soft);border:1px solid var(--card-border);border-radius:6px;font-weight:700;">取消</button>' +
+        '</div>';
 
       // Bind Save
-      tr.querySelector('.save-all-client-btn').onclick = async () => {
-        const n = tr.querySelector('.edit-name-input').value.trim();
-        const p = tr.querySelector('.edit-phone-input').value.trim();
-        const comp = tr.querySelector('.edit-company-input').value.trim();
-        const fund = tr.querySelector('.edit-fund-input').value.trim();
-        const nt = tr.querySelector('.edit-note-input').value.trim();
-        const fu = tr.querySelector('.edit-follow-input').value.trim();
+      card.querySelector('.save-all-client-btn').onclick = async () => {
+        const n = card.querySelector('.edit-name-input').value.trim();
+        const p = card.querySelector('.edit-phone-input').value.trim();
+        const comp = card.querySelector('.edit-company-input').value.trim();
+        const fund = card.querySelector('.edit-fund-input').value.trim();
+        const nt = card.querySelector('.edit-note-input').value.trim();
+        const fu = card.querySelector('.edit-follow-input').value.trim();
 
-        if(!n){alert('姓名不能为空，请填写完整！');return;}
-        if(!p){alert('电话号码不能为空，请填写完整！');return;}
-        if(!nt){alert('沟通记录为必填项，请填写完整！');return;}
+        if (!n) { alert('姓名不能为空，请填写完整！'); return; }
+        if (!p) { alert('电话号码不能为空，请填写完整！'); return; }
+        if (!nt) { alert('沟通记录为必填项，请填写完整！'); return; }
 
-        // 更新本地数据
-        const allList = JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
-        const idx = allList.findIndex(item => item.date === date && item.name === name && item.phone === phone && (time ? item.time === time : true));
+        const allList = JSON.parse(localStorage.getItem(CLIENTS_K) || '[]');
+        const idx = allList.findIndex(item => item.date === date && item.name === name && item.phone === phone &&
+          (time ? item.time === time : true));
         const updatedClient = {
-          date: date,
-          time: c.time || getCurrentTime(),
-          name: n,
-          phone: p,
-          company: comp,
-          fund: fund,
-          note: nt,
-          followUp: fu
+          date: date, time: c.time || getCurrentTime(),
+          name: n, phone: p, company: comp, fund: fund, note: nt, followUp: fu
         };
-        if (idx !== -1) {
-          allList[idx] = updatedClient;
-        } else {
-          allList.push(updatedClient);
-        }
+        if (idx !== -1) { allList[idx] = updatedClient; }
+        else { allList.push(updatedClient); }
         localStorage.setItem(CLIENTS_K, JSON.stringify(allList));
 
-        // 原子更新云端
-        await syncOp('updateClient', { matchName: name, matchPhone: phone, matchTime: c.time||'', client: updatedClient }, date);
+        await syncOp('updateClient', { matchName: name, matchPhone: phone, matchTime: c.time || '', client: updatedClient }, date);
 
         loadAllClients();
         renderClientList();
@@ -5766,11 +5779,11 @@ const rid=Math.floor(Math.random()*1000);
       };
 
       // Bind Cancel
-      tr.querySelector('.cancel-all-client-btn').onclick = () => {
-        loadAllClients();
-      };
+      card.querySelector('.cancel-all-client-btn').onclick = () => { loadAllClients(); };
     }));
-  }  function initAllClientsBtn() {
+  }
+
+  function initAllClientsBtn() {
     const allClientsBtn = document.getElementById('allClientsBtn');
     if (allClientsBtn) {
       allClientsBtn.addEventListener('click', () => {
@@ -5794,7 +5807,7 @@ const rid=Math.floor(Math.random()*1000);
           return;
         }
         const card = document.querySelector('#allClientsModal .modal-card');
-        if (card && card.contains(e.target) && !e.target.closest('button, input, textarea, a, select, label, tr')) {
+        if (card && card.contains(e.target) && !e.target.closest('button, input, textarea, a, select, label')) {
           modal.classList.remove('active');
         }
       });
@@ -5803,54 +5816,54 @@ const rid=Math.floor(Math.random()*1000);
     const addBtn = document.getElementById('allClientsAddBtn');
     if (addBtn) {
       addBtn.addEventListener('click', () => {
-        if (document.getElementById('newClientRow')) return;
-        const tbody = document.getElementById('allClientsTableBody');
-        const emptyTd = tbody.querySelector('td[colspan="8"]');
-        if (emptyTd) {
-          tbody.innerHTML = '';
-        }
-        const tr = document.createElement('tr');
-        tr.id = 'newClientRow';
-        tr.innerHTML = 
-          '<td data-label="日期" style="padding: 10px 8px; white-space: nowrap;"><input type="date" class="input-simple new-date-input" style="padding: 4px 6px; font-size: 0.8rem; width: 115px;" value="' + getTodayStr() + '"></td>' +
-          '<td data-label="姓名" style="padding: 10px 8px;"><input type="text" class="input-simple new-name-input" placeholder="姓名" style="padding: 4px 6px; font-size: 0.8rem; font-weight: 700; width: 80px;"></td>' +
-          '<td data-label="电话" style="padding: 10px 8px;"><input type="text" class="input-simple new-phone-input" placeholder="电话" style="padding: 4px 6px; font-size: 0.8rem; width: 110px;"></td>' +
-          '<td data-label="单位" style="padding: 10px 8px;"><input type="text" class="input-simple new-company-input" placeholder="单位" style="padding: 4px 6px; font-size: 0.8rem; width: 120px;"></td>' +
-          '<td data-label="公积金" style="padding: 10px 8px;"><input type="text" class="input-simple new-fund-input" placeholder="公积金" style="padding: 4px 6px; font-size: 0.8rem; width: 80px;"></td>' +
-          '<td data-label="沟通情况" style="padding: 10px 8px;"><textarea class="input-simple new-note-input" placeholder="沟通情况" style="padding: 4px 6px; font-size: 0.8rem; width: 100%; min-height: 80px; resize: vertical; line-height: 1.6;"></textarea></td>' +
-          '<td data-label="跟进情况" style="padding: 10px 8px;"><textarea class="input-simple new-follow-input" placeholder="跟进情况" style="padding: 4px 6px; font-size: 0.8rem; width: 100%; min-height: 80px; resize: vertical; line-height: 1.6;"></textarea></td>' +
-          '<td data-label="操作" style="padding: 10px 8px; text-align: center; white-space: nowrap;">' +
-            '<button class="save-new-client-btn" style="background:none;border:none;color:var(--accent-wechat);cursor:pointer;font-size:0.9rem;font-weight:700;margin-right:6px;" title="保存">保存</button>' +
-            '<button class="cancel-new-client-btn" style="background:none;border:none;color:var(--text-light);cursor:pointer;font-size:0.9rem;font-weight:700;" title="取消">取消</button>' +
-          '</td>';
-        tbody.insertBefore(tr, tbody.firstChild);
+        if (document.getElementById('newClientCard')) return;
+        const container = document.getElementById('allClientsCardList');
+        if (!container) return;
 
-        tr.querySelector('.save-new-client-btn').onclick = async () => {
-          const d = tr.querySelector('.new-date-input').value.trim();
-          const n = tr.querySelector('.new-name-input').value.trim();
-          const p = tr.querySelector('.new-phone-input').value.trim();
-          const comp = tr.querySelector('.new-company-input').value.trim();
-          const fund = tr.querySelector('.new-fund-input').value.trim();
-          const nt = tr.querySelector('.new-note-input').value.trim();
-          const fu = tr.querySelector('.new-follow-input').value.trim();
+        const card = document.createElement('div');
+        card.id = 'newClientCard';
+        card.className = 'client-card-item all-client-card';
+        card.style.border = '2px dashed var(--accent-wechat)';
+        card.innerHTML =
+          '<div class="client-card-top">' +
+            '<span style="font-size:0.8rem;font-weight:800;color:var(--accent-wechat);">➕ 新增意向客户</span>' +
+          '</div>' +
+          '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+            '<input type="date" class="input-simple new-date-input" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + getTodayStr() + '">' +
+            '<input type="text" class="input-simple new-name-input" placeholder="姓名" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.8rem;font-weight:700;">' +
+            '<input type="text" class="input-simple new-phone-input" placeholder="电话" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.8rem;">' +
+          '</div>' +
+          '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+            '<input type="text" class="input-simple new-company-input" placeholder="单位" style="flex:2;min-width:120px;padding:6px 8px;font-size:0.78rem;">' +
+            '<input type="text" class="input-simple new-fund-input" placeholder="公积金" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;">' +
+          '</div>' +
+          '<textarea class="input-simple new-note-input" placeholder="沟通记录（必填）" style="width:100%;min-height:70px;padding:8px;font-size:0.78rem;resize:vertical;box-sizing:border-box;"></textarea>' +
+          '<textarea class="input-simple new-follow-input" placeholder="跟进情况" style="width:100%;min-height:60px;padding:8px;font-size:0.78rem;resize:vertical;box-sizing:border-box;"></textarea>' +
+          '<div style="display:flex;justify-content:flex-end;gap:8px;border-top:1px dashed var(--card-border);padding-top:8px;">' +
+            '<button class="save-new-client-btn btn-add" style="font-size:0.75rem;padding:6px 16px;background:var(--accent-wechat);color:white;border:none;border-radius:6px;font-weight:700;">💾 保存</button>' +
+            '<button class="cancel-new-client-btn btn-add" style="font-size:0.75rem;padding:6px 16px;background:var(--btn-bg);color:var(--text-soft);border:1px solid var(--card-border);border-radius:6px;font-weight:700;">取消</button>' +
+          '</div>';
 
-          if(!d){alert('请选择日期！');return;}
-          if(!n){alert('姓名不能为空，请填写完整！');return;}
-          if(!p){alert('电话号码不能为空，请填写完整！');return;}
-          if(!nt){alert('沟通记录为必填项，请填写完整！');return;}
+        container.insertBefore(card, container.firstChild);
+        card.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
-          const newClient = {
-            name: n,
-            phone: p,
-            company: comp,
-            fund: fund,
-            note: nt,
-            followUp: fu,
-            date: d,
-            time: getCurrentTime()
-          };
+        card.querySelector('.save-new-client-btn').onclick = async () => {
+          const d = card.querySelector('.new-date-input').value.trim();
+          const n = card.querySelector('.new-name-input').value.trim();
+          const p = card.querySelector('.new-phone-input').value.trim();
+          const comp = card.querySelector('.new-company-input').value.trim();
+          const fund = card.querySelector('.new-fund-input').value.trim();
+          const nt = card.querySelector('.new-note-input').value.trim();
+          const fu = card.querySelector('.new-follow-input').value.trim();
 
-          const allList = JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
+          if (!d) { alert('请选择日期！'); return; }
+          if (!n) { alert('姓名不能为空，请填写完整！'); return; }
+          if (!p) { alert('电话号码不能为空，请填写完整！'); return; }
+          if (!nt) { alert('沟通记录为必填项，请填写完整！'); return; }
+
+          const newClient = { name: n, phone: p, company: comp, fund: fund, note: nt, followUp: fu, date: d, time: getCurrentTime() };
+
+          const allList = JSON.parse(localStorage.getItem(CLIENTS_K) || '[]');
           allList.push(newClient);
           localStorage.setItem(CLIENTS_K, JSON.stringify(allList));
 
@@ -5866,9 +5879,7 @@ const rid=Math.floor(Math.random()*1000);
           refreshAll();
         };
 
-        tr.querySelector('.cancel-new-client-btn').onclick = () => {
-          loadAllClients();
-        };
+        card.querySelector('.cancel-new-client-btn').onclick = () => { loadAllClients(); };
       });
     }
 
