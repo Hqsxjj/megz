@@ -3140,7 +3140,11 @@ export default {
         <div style="display:flex; flex-direction:column; gap:6px; margin-top:8px;">
           <input type="password" class="input-simple" id="visionApiKeyInput" placeholder="Gemini API Key (用于 OCR 图片/文档/表格识别)" style="font-size:0.7rem; height:28px; padding:0 8px;">
           <input type="text" class="input-simple" id="visionApiBaseInput" placeholder="接口地址 (默认 Gemini)" style="font-size:0.7rem; height:28px; padding:0 8px;">
-          <button id="saveVisionConfigBtn" class="btn-add" style="font-size:0.7rem; height:28px; margin:0; background:linear-gradient(135deg,#11998e,#38ef7d); color:white; border:none; width:100%; font-weight:700;">💾 保存</button>
+          <div style="display:flex; gap:6px;">
+            <button id="saveVisionConfigBtn" class="btn-add" style="font-size:0.7rem; height:28px; margin:0; background:linear-gradient(135deg,#11998e,#38ef7d); color:white; border:none; flex:1; font-weight:700;">💾 保存</button>
+            <button id="testVisionBtn" class="btn-add" style="font-size:0.7rem; height:28px; margin:0; background:linear-gradient(135deg,#36d1dc,#5b86e5); color:white; border:none; flex:1; font-weight:700;">🔍 测试连接</button>
+          </div>
+          <div id="visionConfigStatus" style="font-size:0.62rem; padding:4px 6px; border-radius:4px; background:var(--btn-bg); display:none; line-height:1.5;"></div>
           <div style="font-size:0.6rem; color:var(--text-light); line-height:1.4; margin-top:2px;">
             独立配置一个 Gemini API Key 专用于图片 OCR、文档扫描、表格识别等视觉任务。<br>
             💡 <strong>不填则自动复用上方 AI 大模型 Key</strong>（但主模型选 DeepSeek 等不支持图片时识别效果会下降）。
@@ -5324,6 +5328,50 @@ const rid=Math.floor(Math.random()*1000);
       }
     });
 
+    // Test Vision API connectivity
+    document.getElementById('testVisionBtn').addEventListener('click', async () => {
+      const apiKey = document.getElementById('visionApiKeyInput').value.trim();
+      const apiBase = document.getElementById('visionApiBaseInput').value.trim() || 'https://generativelanguage.googleapis.com/v1beta/openai/';
+      const statusEl = document.getElementById('visionConfigStatus');
+
+      if (!apiKey) {
+        statusEl.style.display = 'block';
+        statusEl.innerHTML = '❌ 请先填入 Gemini API Key';
+        statusEl.style.color = '#e53935';
+        return;
+      }
+
+      statusEl.style.display = 'block';
+      statusEl.innerHTML = '⏳ 正在测试 Gemini Vision API 连通性...';
+      statusEl.style.color = 'var(--text-soft)';
+
+      try {
+        // Save key first
+        localStorage.setItem('vision_api_key', apiKey);
+        localStorage.setItem('vision_api_base', apiBase);
+        await syncOp('setVisionConfig', { visionApiKey: apiKey, visionApiBase: apiBase });
+
+        // Test via /api/ocr/test
+        const resp = await fetch('/api/ocr/test', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ apiKey: apiKey, apiBase: apiBase })
+        });
+
+        const result = await resp.json();
+        if (result.success) {
+          statusEl.innerHTML = '✅ 连接成功！模型: ' + result.model + '<br>响应正常，可以正常识别图片。';
+          statusEl.style.color = '#43a047';
+        } else {
+          statusEl.innerHTML = '❌ 连接失败: ' + (result.error || '未知错误');
+          statusEl.style.color = '#e53935';
+        }
+      } catch (e) {
+        statusEl.innerHTML = '❌ 测试请求失败: ' + e.message;
+        statusEl.style.color = '#e53935';
+      }
+    });
+
     // Save search config
     document.getElementById('saveSearchConfigBtn').addEventListener('click', async () => {
       const provider = document.getElementById('searchProviderSelect').value;
@@ -6809,6 +6857,55 @@ const rid=Math.floor(Math.random()*1000);
       } catch (e) {
         return new Response(JSON.stringify({ error: e.message }), {
           status: 502,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+    }
+
+    // OCR Vision API 连通性测试
+    if (path === '/api/ocr/test' && request.method === 'POST') {
+      try {
+        const body = await request.json();
+        const apiKey = body.apiKey;
+        const apiBase = body.apiBase || 'https://generativelanguage.googleapis.com/v1beta/openai/';
+        if (!apiKey) {
+          return new Response(JSON.stringify({ success: false, error: '缺少 API Key' }), {
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+
+        let url = apiBase;
+        if (!url.endsWith('/')) url += '/';
+        url += 'chat/completions';
+
+        // Send a simple text-only request to test API key validity
+        const resp = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
+          body: JSON.stringify({
+            model: 'gemini-3.5-flash',
+            messages: [{ role: 'user', content: 'Say "OK"' }],
+            max_tokens: 5
+          })
+        });
+
+        if (!resp.ok) {
+          const errText = await resp.text();
+          let errMsg = 'HTTP ' + resp.status;
+          try {
+            const errJson = JSON.parse(errText);
+            errMsg = errJson.error?.message || errJson.error?.code || errText.substring(0, 100);
+          } catch(e) {}
+          return new Response(JSON.stringify({ success: false, error: errMsg }), {
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+
+        return new Response(JSON.stringify({ success: true, model: 'gemini-3.5-flash' }), {
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ success: false, error: e.message }), {
           headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
         });
       }
