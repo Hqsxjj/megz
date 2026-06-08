@@ -2683,6 +2683,13 @@ export default {
       color: var(--accent-intent);
       border: 0.5px solid rgba(7, 193, 96, 0.2);
     }
+    .client-card-tag-bank {
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: var(--radius-xs);
+      border: 0.5px solid rgba(7,193,96,0.3);
+    }
     .client-card-tag-fund {
       background: rgba(255, 183, 77, 0.1);
       color: #e67e22;
@@ -3329,20 +3336,29 @@ export default {
     if (!matchedName || !val) {
       return isTbl ? esc(company) : '<span class="client-card-tag client-card-tag-company">' + esc(company) + '</span>';
     }
-    
+
     const bank = val.bank || '建行建易贷';
+    const bankShort = bank.replace('建行', '').replace('建设银行', '') || bank;
     const status = val.status || '正常';
-    let label = bank + ': ' + company;
-    let badgeStyle = 'background:var(--accent-wechat-bg); color:var(--accent-wechat); border-color:var(--accent-wechat);';
+    let bankBadgeStyle = 'background:var(--accent-wechat-bg); color:var(--accent-wechat); border-color:rgba(7,193,96,0.3);';
+    let bankLabel = bankShort;
     if (status === '已失效') {
-      label = bank + '(已失效): ' + company;
-      badgeStyle = 'background:rgba(120,120,120,0.15); color:#7f8c8d; border-color:rgba(120,120,120,0.25);';
+      bankBadgeStyle = 'background:rgba(120,120,120,0.12); color:#95a5a6; border-color:rgba(120,120,120,0.25);';
+      bankLabel = bankShort + '(已失效)';
     } else if (status === '已删除') {
-      label = bank + '(已删除): ' + company;
-      badgeStyle = 'background:rgba(231,76,60,0.15); color:#e74c3c; border-color:rgba(231,76,60,0.25);';
+      bankBadgeStyle = 'background:rgba(231,76,60,0.1); color:#e74c3c; border-color:rgba(231,76,60,0.2);';
+      bankLabel = bankShort + '(已删除)';
     }
-    const className = isTbl ? 'tbl-tag tbl-tag-company' : 'client-card-tag client-card-tag-company';
-    return '<span class="' + className + '" style="' + badgeStyle + '">' + esc(label) + '</span>';
+    if (isTbl) {
+      // Table: keep combined label
+      let label = bank + ': ' + company;
+      if (status === '已失效') label = bank + '(已失效): ' + company;
+      else if (status === '已删除') label = bank + '(已删除): ' + company;
+      return '<span class="tbl-tag tbl-tag-company" style="' + bankBadgeStyle + '">' + esc(label) + '</span>';
+    }
+    // Card: company name + separate bank badge
+    return '<span class="client-card-tag client-card-tag-company">' + esc(company) + '</span>' +
+      '<span class="client-card-tag client-card-tag-bank" style="' + bankBadgeStyle + '">' + esc(bankLabel) + '</span>';
   }
 
   function fetchWhitelist() {
@@ -4160,7 +4176,7 @@ export default {
           (c.followUp ? 
             '<div class="client-card-content-block follow-up">'+
               '<span class="client-card-label">跟进情况</span>'+
-              '<span class="client-card-text" style="color:var(--accent-wechat);">'+esc(c.followUp)+'</span>'+
+              '<span class="client-card-text">'+esc(c.followUp)+'</span>'+
             '</div>' : '')+
         '</div>'+
         '<div class="client-card-actions">'+
@@ -5628,7 +5644,7 @@ const rid=Math.floor(Math.random()*1000);
           (c.followUp ?
             '<div class="client-card-content-block follow-up">' +
               '<span class="client-card-label">跟进情况</span>' +
-              '<span class="client-card-text" style="color:var(--accent-wechat);">' + esc(c.followUp) + '</span>' +
+              '<span class="client-card-text">' + esc(c.followUp) + '</span>' +
             '</div>' : '') +
         '</div>' +
         '<div class="client-card-actions">' +
