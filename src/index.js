@@ -6772,12 +6772,12 @@ const rid=Math.floor(Math.random()*1000);
     }
 
     try {
-      // 步骤 1: 联网搜索最新资讯
+      // 步骤 1: 联网搜索今日热点和生活资讯
       let searchContext = '';
       const searchQueries = [
-        '2026年最新贷款政策 房贷利率 LPR',
-        '近期金融行业热点新闻 银行政策',
-        '贷款中介 朋友圈文案 营销技巧'
+        '2026年6月今日热点新闻 头条',
+        '今日热门话题 社会热点 民生',
+        '2026年6月生活趋势 美食 旅行 健康'
       ];
 
       for (const sq of searchQueries) {
@@ -6796,18 +6796,19 @@ const rid=Math.floor(Math.random()*1000);
 
       // 步骤 2: 调用 AI 生成 3 条朋友圈文案
       const prompt = searchContext
-        ? `你是一位资深的贷款销售顾问兼社交媒体营销专家。请根据以下最新行业资讯，撰写 3 条适合发布到微信朋友圈的营销文案。
+        ? `你是一位朋友圈文案创作高手，在金融行业工作。请根据今日热点和资讯，撰写 3 条适合发微信朋友圈的文案。
 
-## 最新行业资讯参考
+## 今日热点参考
 ${searchContext}
 
 ## 文案要求
-1. 3 条文案风格各异（如：专业干货型、情感共鸣型、轻松互动型）
-2. 每条 100-200 字，适合朋友圈阅读
-3. 内容与贷款/金融/银行业务相关，体现专业度
-4. 适当使用 Emoji 增加亲和力
-5. 避免硬广告感，以提供价值为主
-6. 可以穿插客户成功案例故事（匿名化处理）
+1. **第1条 - 今日热点型**: 结合当天发生的热门事件/新闻，发表你的观点或感悟，展现你对时事的关注和思考
+2. **第2条 - 生活分享型**: 分享日常生活点滴（美食、运动、旅行、读书、亲子、宠物等），温暖真实，有生活气息
+3. **第3条 - 轻松互动型**: 轻松有趣的内容，可以是段子、冷知识、提问互动，引发好友评论
+4. 每条 80-180 字，适合朋友圈碎片化阅读
+5. 语气自然口语化，像真人发的而不是营销号
+6. 适当使用 Emoji 增加活力
+7. **不要硬推销贷款产品**，最多在热点型那条顺带提一句职业相关感悟
 
 ## 输出格式
 请严格按以下 JSON 格式输出（只输出 JSON，不要包裹代码块）：
@@ -6820,14 +6821,16 @@ ${searchContext}
     {"type": "风格标签", "content": "朋友圈文案内容"}
   ]
 }`
-        : `你是一位资深的贷款销售顾问兼社交媒体营销专家。请撰写 3 条适合发布到微信朋友圈的营销文案。
+        : `你是一位朋友圈文案创作高手，在金融行业工作。请撰写 3 条适合发微信朋友圈的文案（今天是 ${dateStr}）。
 
 ## 文案要求
-1. 3 条文案风格各异（如：专业干货型、情感共鸣型、轻松互动型）
-2. 每条 100-200 字，适合朋友圈阅读
-3. 内容与贷款/金融/银行业务相关，体现专业度
-4. 适当使用 Emoji 增加亲和力
-5. 避免硬广告感，以提供价值为主
+1. **第1条 - 生活感悟型**: 分享日常生活中的小确幸或感悟（美食、运动、旅行、读书等），温暖真实
+2. **第2条 - 热点观点型**: 对社会现象或身边事的思考点评，展现独立思考
+3. **第3条 - 轻松互动型**: 轻松有趣，可以是段子、冷知识、提问互动，引发好友评论
+4. 每条 80-180 字，适合朋友圈碎片化阅读
+5. 语气自然口语化，像真人发的而不是营销号
+6. 适当使用 Emoji 增加活力
+7. **不要硬推销产品**，可以偶尔提及金融/贷款行业的工作日常，但以生活为主
 
 ## 输出格式
 请严格按以下 JSON 格式输出（只输出 JSON，不要包裹代码块）：
@@ -6877,9 +6880,10 @@ ${searchContext}
       markdown += `---\n\n`;
 
       posts.forEach((post, i) => {
-        const typeEmoji = post.type.includes('专业') || post.type.includes('干货') ? '📊' :
-                         post.type.includes('情感') || post.type.includes('共鸣') ? '💬' :
-                         post.type.includes('互动') || post.type.includes('轻松') ? '🎯' : '📝';
+        const typeEmoji = post.type.includes('热点') ? '🔥' :
+                         post.type.includes('生活') ? '🌿' :
+                         post.type.includes('互动') || post.type.includes('轻松') ? '💬' :
+                         post.type.includes('感悟') ? '✨' : '📝';
         markdown += `### ${typeEmoji} 第${i + 1}条 · ${post.type}\n`;
         markdown += `${post.content}\n\n`;
         if (i < posts.length - 1) {
@@ -6912,9 +6916,10 @@ ${searchContext}
 
         for (let i = 0; i < posts.length; i++) {
           const post = posts[i];
-          const typeEmoji = post.type.includes('专业') || post.type.includes('干货') ? '📊' :
-                           post.type.includes('情感') || post.type.includes('共鸣') ? '💬' :
-                           post.type.includes('互动') || post.type.includes('轻松') ? '🎯' : '📝';
+          const typeEmoji = post.type.includes('热点') ? '🔥' :
+                           post.type.includes('生活') ? '🌿' :
+                           post.type.includes('互动') || post.type.includes('轻松') ? '💬' :
+                           post.type.includes('感悟') ? '✨' : '📝';
           const postText = `### ${typeEmoji} 第${i + 1}条 · ${post.type}\n${post.content}\n\n---\n\n`;
           const postBytes = encoder.encode(postText).length;
 
