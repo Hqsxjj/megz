@@ -4365,6 +4365,8 @@ export const DIALER_HTML = `<!DOCTYPE html>
     window.openDBDashboard = openDBDashboard;
     window.parsePhoneContactsFromRawText = parsePhoneContactsFromRawText;
     window.renderAIUnstructuredReport = renderAIUnstructuredReport;
+
+    function initCustViewer(){
       var ov=document.getElementById('dbOverlay'); if(!ov)return;
       var bt1=document.getElementById('custViewerBtn'), bt2=document.getElementById('custViewerBtn2');
       if(bt1)bt1.addEventListener('click',openDBDashboard);
