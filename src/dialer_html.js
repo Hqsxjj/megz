@@ -2840,7 +2840,17 @@ export const DIALER_HTML = `<!DOCTYPE html>
               var extra = parsePhoneContactsFromRawText(result.rawText || result.note || '');
               extra.forEach(function(ec) { if (!contacts.find(function(c) { return c.phone === ec.phone; })) contacts.push(ec); });
             }
-            renderAIUnstructuredReport(file.name, contacts);
+            if (contacts.length > 0) {
+              // 自动存入 Supabase
+              tempUnstructuredContacts = contacts;
+              document.getElementById('aiScanStatus').innerHTML = '✅ 识别 ' + contacts.length + ' 人，正在自动存入 Supabase...';
+              if (document.getElementById('aiLog4')) { document.getElementById('aiLog4').innerHTML = '💾 自动写入数据库...'; document.getElementById('aiLog4').style.opacity = '1'; }
+              executeAIImportUnstructured();
+              if (document.getElementById('aiLog4')) { document.getElementById('aiLog4').innerHTML = '✅ 已自动存入 Supabase！'; }
+              setTimeout(function() { resetAIImporterUI(); }, 1500);
+            } else {
+              renderAIUnstructuredReport(file.name, contacts);
+            }
           })
           .catch(function(err) {
             console.error('AI Vision failed, fallback to Tesseract:', err.message);
