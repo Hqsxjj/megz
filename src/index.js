@@ -2739,43 +2739,7 @@ export default {
 
 
 
-    /* ===== 全量客户卡片分组布局 ===== */
-    .all-clients-date-group {
-      margin-bottom: 16px;
-    }
-    .all-clients-date-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 10px 14px;
-      margin-bottom: 8px;
-      background: linear-gradient(135deg, rgba(7,193,96,0.06) 0%, rgba(74,108,247,0.04) 100%);
-      border-radius: var(--radius-sm);
-      border-left: 3px solid var(--accent-wechat);
-      position: sticky;
-      top: 0;
-      z-index: 5;
-      backdrop-filter: blur(4px);
-    }
-    body.dark-mode .all-clients-date-header {
-      background: linear-gradient(135deg, rgba(7,193,96,0.08) 0%, rgba(74,108,247,0.06) 100%);
-    }
-    .all-clients-date-label {
-      font-size: 0.85rem;
-      font-weight: 800;
-      color: var(--text-main);
-    }
-    .all-clients-date-count {
-      font-size: 0.72rem;
-      font-weight: 700;
-      color: var(--accent-wechat);
-      background: rgba(7,193,96,0.1);
-      padding: 2px 10px;
-      border-radius: 12px;
-    }
-    body.dark-mode .all-clients-date-count {
-      background: rgba(7,193,96,0.15);
-    }
+    /* ===== 全量客户卡片布局 ===== */
     .all-client-card {
       margin-bottom: 10px;
     }
@@ -5633,64 +5597,45 @@ const rid=Math.floor(Math.random()*1000);
       return;
     }
 
-    // Group by date
-    const grouped = {};
-    clients.forEach(c => {
-      const d = c.date || '未知日期';
-      if (!grouped[d]) grouped[d] = [];
-      grouped[d].push(c);
-    });
-
-    // Sort dates descending
-    const sortedDates = Object.keys(grouped).sort((a, b) => b.localeCompare(a));
+    // Sort by date descending
+    clients.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
 
     let html = '';
-    sortedDates.forEach(date => {
-      const dayClients = grouped[date];
-      html += '<div class="all-clients-date-group">';
-      html += '<div class="all-clients-date-header">';
-      html += '<span class="all-clients-date-label">' + esc(date) + '</span>';
-      html += '<span class="all-clients-date-count">' + dayClients.length + ' 位意向</span>';
-      html += '</div>';
-
-      dayClients.forEach((c, idx) => {
-        html += '<div class="client-card-item all-client-card" data-date="' + esc(c.date) + '" data-name="' + esc(c.name) + '" data-phone="' + esc(c.phone) + '" data-time="' + esc(c.time || '') + '">' +
-          '<div class="client-card-top">' +
-            '<div class="client-card-primary">' +
-              '<span class="client-card-name">' + esc(c.name) + '</span>' +
-              '<span class="client-card-phone-wrap">' +
-                '<a class="client-card-phone all-phone-link" href="tel:' + esc(c.phone) + '" data-full="' + esc(c.phone) + '">' + esc(maskPhone(c.phone)) + '</a>' +
-                '<button class="phone-toggle all-phone-toggle" title="显示号码">看</button>' +
-              '</span>' +
-            '</div>' +
-            '<div class="client-card-meta">' +
-              '<span class="client-card-date-badge">' + esc(c.date) + '</span>' +
-              '<span class="client-card-time">' + esc(c.time || '—') + '</span>' +
-            '</div>' +
+    clients.forEach((c, idx) => {
+      html += '<div class="client-card-item all-client-card" data-date="' + esc(c.date) + '" data-name="' + esc(c.name) + '" data-phone="' + esc(c.phone) + '" data-time="' + esc(c.time || '') + '">' +
+        '<div class="client-card-top">' +
+          '<div class="client-card-primary">' +
+            '<span class="client-card-name">' + esc(c.name) + '</span>' +
+            '<span class="client-card-phone-wrap">' +
+              '<a class="client-card-phone all-phone-link" href="tel:' + esc(c.phone) + '" data-full="' + esc(c.phone) + '">' + esc(maskPhone(c.phone)) + '</a>' +
+              '<button class="phone-toggle all-phone-toggle" title="显示号码">看</button>' +
+            '</span>' +
           '</div>' +
-          '<div class="client-card-tags">' +
-            (c.company ? getWhitelistTagHtml(c.company, false) : '') +
-            (c.fund ? '<span class="client-card-tag client-card-tag-fund">公积金: ' + esc(c.fund) + '</span>' : '') +
+          '<div class="client-card-meta">' +
+            '<span class="client-card-date-badge">' + esc(c.date) + '</span>' +
+            '<span class="client-card-time">' + esc(c.time || '—') + '</span>' +
           '</div>' +
-          '<div class="client-card-body">' +
-            '<div class="client-card-content-block">' +
-              '<span class="client-card-label">沟通记录</span>' +
-              '<span class="client-card-text">' + esc(c.note || '') + '</span>' +
-            '</div>' +
-            (c.followUp ?
-              '<div class="client-card-content-block follow-up">' +
-                '<span class="client-card-label">跟进情况</span>' +
-                '<span class="client-card-text" style="color:var(--accent-wechat);">' + esc(c.followUp) + '</span>' +
-              '</div>' : '') +
+        '</div>' +
+        '<div class="client-card-tags">' +
+          (c.company ? getWhitelistTagHtml(c.company, false) : '') +
+          (c.fund ? '<span class="client-card-tag client-card-tag-fund">公积金: ' + esc(c.fund) + '</span>' : '') +
+        '</div>' +
+        '<div class="client-card-body">' +
+          '<div class="client-card-content-block">' +
+            '<span class="client-card-label">沟通记录</span>' +
+            '<span class="client-card-text">' + esc(c.note || '') + '</span>' +
           '</div>' +
-          '<div class="client-card-actions">' +
-            '<button class="all-export-btn card-action-btn" data-date="' + esc(c.date) + '" data-name="' + esc(c.name) + '" data-phone="' + esc(c.phone) + '" data-time="' + esc(c.time || '') + '" title="导出">📤 导出</button>' +
-            '<button class="all-edit-btn card-action-btn" data-date="' + esc(c.date) + '" data-name="' + esc(c.name) + '" data-phone="' + esc(c.phone) + '" data-time="' + esc(c.time || '') + '" title="编辑">✏️ 编辑</button>' +
-          '</div>' +
-        '</div>';
-      });
-
-      html += '</div>'; // close date group
+          (c.followUp ?
+            '<div class="client-card-content-block follow-up">' +
+              '<span class="client-card-label">跟进情况</span>' +
+              '<span class="client-card-text" style="color:var(--accent-wechat);">' + esc(c.followUp) + '</span>' +
+            '</div>' : '') +
+        '</div>' +
+        '<div class="client-card-actions">' +
+          '<button class="all-export-btn card-action-btn" data-date="' + esc(c.date) + '" data-name="' + esc(c.name) + '" data-phone="' + esc(c.phone) + '" data-time="' + esc(c.time || '') + '" title="导出">📤 导出</button>' +
+          '<button class="all-edit-btn card-action-btn" data-date="' + esc(c.date) + '" data-name="' + esc(c.name) + '" data-phone="' + esc(c.phone) + '" data-time="' + esc(c.time || '') + '" title="编辑">✏️ 编辑</button>' +
+        '</div>' +
+      '</div>';
     });
 
     container.innerHTML = html;
