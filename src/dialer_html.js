@@ -2802,6 +2802,7 @@
     }
 
     function handleImageOCR(file) {
+      try {
       showAIScanningUI(file.name);
 
       // Check if AI Vision API is configured (prioritize dedicated Vision key)
@@ -2910,6 +2911,10 @@
       } else {
         // 未配置 API Key
         alert('未配置 AI Vision API Key。\n请在网页端 → 导出配置 → 「👁️ Gemini Vision 图片识别」中填入 Gemini API Key。');
+        resetAIImporterUI();
+      }
+      } catch(e) {
+        alert('OCR 流程异常: ' + (e.message || e) + '\n行号: ' + (e.lineNumber || '?'));
         resetAIImporterUI();
       }
     }
