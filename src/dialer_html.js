@@ -999,18 +999,18 @@ export const DIALER_HTML = `<!DOCTYPE html>
               <label class="btn-primary" for="xlsFileInput" id="xlsSelectBtn" style="cursor:pointer; display:inline-flex; align-items:center; justify-content:center; padding: 8px 16px; font-size: 0.76rem; flex: 1; min-width: 130px; text-align: center;">📂 导入表格 / 文档</label>
               <label class="btn-primary" for="imgFileInput" id="imgSelectBtn" style="cursor:pointer; display:inline-flex; align-items:center; justify-content:center; padding: 8px 16px; font-size: 0.76rem; flex: 1; min-width: 130px; text-align: center; background: var(--revisit-gradient) !important; color: white;">📸 智能图片 OCR</label>
               <label class="btn-secondary" for="vcfFileInput" id="vcfSelectBtn" style="cursor:pointer; display:inline-flex; align-items:center; justify-content:center; padding: 8px 16px; font-size: 0.76rem; flex: 1; min-width: 130px; text-align: center;">👤 导入 VCF 通录</label>
-              <button class="btn-secondary" id="textImportBtn" style="cursor:pointer; display:inline-flex; align-items:center; justify-content:center; padding: 8px 16px; font-size: 0.76rem; flex: 1; min-width: 130px; text-align: center; background: linear-gradient(135deg,#667eea,#764ba2); color:white; border:none; font-weight:700;">📝 粘贴文本识别</button>
+              <button class="btn-secondary" id="textImportBtn" style="cursor:pointer; display:inline-flex; align-items:center; justify-content:center; padding: 8px 16px; font-size: 0.76rem; flex: 1; min-width: 130px; text-align: center; background: linear-gradient(135deg,#667eea,#764ba2); color:white; border:none; font-weight:700;" onclick="document.getElementById('textImportPanel').style.display='flex';document.getElementById('textImportArea').value='';document.getElementById('textImportArea').focus();">📝 粘贴文本识别</button>
+            </div>
+            <div id="textImportPanel" style="display:none; flex-direction:column; gap:6px; width:100%; margin-top:6px;">
+              <textarea id="textImportArea" placeholder="在此粘贴文本，如：张三 13800138000 腾讯科技 备注" style="width:100%; height:120px; padding:8px; font-size:0.72rem; border:1px solid var(--card-border); border-radius:var(--radius-xs); background:var(--card-bg); color:var(--text-main); resize:vertical; outline:none; font-family:monospace;"></textarea>
+              <div style="display:flex; gap:6px;">
+                <button class="btn-primary" style="flex:1; padding:6px; font-size:0.72rem; background:var(--wechat-gradient); color:white; border:none; border-radius:var(--radius-xs); font-weight:700;" onclick="var t=document.getElementById('textImportArea').value.trim();if(!t){alert('请先粘贴文本');return;}var c=parsePhoneContactsFromRawText(t);if(c.length===0){alert('未识别到联系人');return;}document.getElementById('textImportPanel').style.display='none';renderAIUnstructuredReport('文本粘贴识别',c);">🔍 智能识别提取</button>
+                <button class="btn-secondary" style="padding:6px 12px; font-size:0.72rem; background:var(--btn-bg); color:var(--text-soft); border:1px solid var(--card-border); border-radius:var(--radius-xs);" onclick="document.getElementById('textImportPanel').style.display='none';">取消</button>
+              </div>
             </div>
             <input type="file" id="xlsFileInput" accept=".xls,.xlsx,.csv,.docx,.pdf,.txt" style="display:none;">
             <input type="file" id="imgFileInput" accept="image/*" style="display:none;">
             <input type="file" id="vcfFileInput" accept=".vcf,.vcard" style="display:none;">
-            <div id="textImportPanel" style="display:none; flex-direction:column; gap:6px; width:100%; margin-top:6px;">
-              <textarea id="textImportArea" placeholder="在此粘贴文本内容...&#10;支持格式：姓名 电话 公司 备注（空格/Tab/换行分隔均可）&#10;示例：&#10;张三 13800138000 腾讯科技 意向明确&#10;李四 13900139000 阿里巴巴 需跟进" style="width:100%; height:120px; padding:8px; font-size:0.72rem; border:1px solid var(--card-border); border-radius:var(--radius-xs); background:var(--card-bg); color:var(--text-main); resize:vertical; outline:none; font-family:monospace;"></textarea>
-              <div style="display:flex; gap:6px;">
-                <button id="textImportRecognizeBtn" class="btn-primary" style="flex:1; padding:6px; font-size:0.72rem; background:var(--wechat-gradient); color:white; border:none; border-radius:var(--radius-xs); font-weight:700;">🔍 智能识别提取</button>
-                <button id="textImportCancelBtn" class="btn-secondary" style="padding:6px 12px; font-size:0.72rem; background:var(--btn-bg); color:var(--text-soft); border:1px solid var(--card-border); border-radius:var(--radius-xs);">取消</button>
-              </div>
-            </div>
             <div style="display: flex; gap: 6px; align-items: center; margin-top: 6px; width: 100%;">
               <span style="font-size: 0.68rem; color: var(--text-soft); font-weight: 800; white-space: nowrap;">🏷️ 批次标签</span>
               <input type="text" id="batchLabelInput" placeholder="如: 6月展会名单" value="" style="flex:1; height:28px; padding:0 8px; font-size:0.72rem; border:1px solid var(--card-border); border-radius:var(--radius-xs); background:var(--card-bg); color:var(--text-main); outline:none;">
@@ -2839,16 +2839,15 @@ export const DIALER_HTML = `<!DOCTYPE html>
           })
           .then(function(result) {
             if (document.getElementById('aiLog4')) { document.getElementById('aiLog4').innerHTML = '✅ AI 识别完成'; document.getElementById('aiLog4').style.opacity = '1'; }
-            // Server-side already extracted contacts with regex
             var contacts = [];
             if (result.contacts && result.contacts.length > 0) {
-              result.contacts.forEach(function(c) {
-                if (c.phone) contacts.push({ name: c.name || '', phone: c.phone, company: c.company || '', note: c.note || '' });
-              });
+              result.contacts.forEach(function(c) { if (c.phone) contacts.push({ name: c.name || '', phone: c.phone, company: c.company || '', note: c.note || '' }); });
+            } else if (result.name || result.phone) {
+              contacts.push({ name: result.name || '', phone: result.phone || '', company: result.company || '', note: result.note || result.fund || '' });
             }
-            // Fallback: rawText + frontend parser
-            if (contacts.length === 0 && (result.rawText || result.note)) {
-              contacts = parsePhoneContactsFromRawText(result.rawText || result.note || '');
+            if (result.rawText || result.note) {
+              var extra = parsePhoneContactsFromRawText(result.rawText || result.note || '');
+              extra.forEach(function(ec) { if (!contacts.find(function(c) { return c.phone === ec.phone; })) contacts.push(ec); });
             }
             // 显示识别报告 — 用户检查标签后手动确认导入
             renderAIUnstructuredReport(file.name, contacts);
@@ -4133,41 +4132,6 @@ export const DIALER_HTML = `<!DOCTYPE html>
           var file = e.target.files[0];
           if (file) handleFileImportDispatch(file);
           e.target.value = '';
-        });
-      }
-
-      // Text import (paste & recognize)
-      var textImportBtn = document.getElementById('textImportBtn');
-      var textImportPanel = document.getElementById('textImportPanel');
-      var textImportArea = document.getElementById('textImportArea');
-      var textImportRecognizeBtn = document.getElementById('textImportRecognizeBtn');
-      var textImportCancelBtn = document.getElementById('textImportCancelBtn');
-
-      if (textImportBtn) {
-        textImportBtn.addEventListener('click', function() {
-          textImportPanel.style.display = 'flex';
-          textImportArea.value = '';
-          textImportArea.focus();
-        });
-      }
-      if (textImportCancelBtn) {
-        textImportCancelBtn.addEventListener('click', function() {
-          textImportPanel.style.display = 'none';
-        });
-      }
-      if (textImportRecognizeBtn) {
-        textImportRecognizeBtn.addEventListener('click', function() {
-          var rawText = textImportArea.value.trim();
-          if (!rawText) { alert('请先粘贴文本内容'); return; }
-          // Use same extraction as image OCR — parsePhoneContactsFromRawText
-          var contacts = parsePhoneContactsFromRawText(rawText);
-          if (contacts.length === 0) {
-            alert('未识别到任何联系人。\n\n请确保文本包含11位手机号，格式如：\n张三 13800138000 腾讯科技 备注');
-            return;
-          }
-          // Show in report UI
-          textImportPanel.style.display = 'none';
-          renderAIUnstructuredReport('文本粘贴识别', contacts);
         });
       }
 
