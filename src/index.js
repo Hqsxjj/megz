@@ -6862,6 +6862,97 @@ const rid=Math.floor(Math.random()*1000);
       }
     }
 
+    // OCR 文本提取（粘贴文本直接解析）
+    if (path === '/api/ocr/text' && request.method === 'POST') {
+      try {
+        const body = await request.json();
+        const rawText = body.rawText || '';
+        if (!rawText.trim()) {
+          return new Response(JSON.stringify({ contacts: [] }), {
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+
+        // Server-side phone number extraction
+        var phoneRe = /1[3-9]\d{9}/g;
+        var seenPhones = {};
+        var extractedContacts = [];
+        var lines = rawText.split(/\r?\n/);
+
+        for (var i = 0; i < lines.length; i++) {
+          var line = lines[i].trim();
+          if (!line) continue;
+          var phones = line.match(phoneRe);
+          if (!phones) continue;
+          phones.forEach(function(phone) {
+            if (seenPhones[phone]) return;
+            seenPhones[phone] = true;
+
+            var name = '', company = '', note = '';
+            var cols = line.split(/\t/);
+
+            if (cols.length >= 3) {
+              // Tab-separated format
+              var phoneCol = -1;
+              for (var ci = 0; ci < cols.length; ci++) {
+                if (cols[ci].includes(phone)) { phoneCol = ci; break; }
+              }
+              if (phoneCol >= 0) {
+                if (phoneCol > 0) name = cols[phoneCol - 1].replace(/^[新旧]\s*/, '').trim();
+                for (var ci2 = phoneCol + 1; ci2 < cols.length; ci2++) {
+                  var val = cols[ci2].trim();
+                  if (val && !/^[\d.]+$/.test(val) && val !== '新增跟进' && val !== '已拨') {
+                    company = val; break;
+                  }
+                }
+              }
+            } else {
+              // Space-separated or multi-line format
+              var before = line.substring(0, line.indexOf(phone));
+              var nm = before.match(/([一-龥]{1,4})\s*$/);
+              if (nm) {
+                name = nm[1].replace(/^[新旧]\s*/, '');
+              } else {
+                // Look at previous lines for name (multi-line format)
+                for (var j = i - 1; j >= 0 && j >= i - 2; j--) {
+                  var prev = lines[j].trim();
+                  if (prev && /^[一-龥]{1,4}$/.test(prev)) { name = prev; break; }
+                }
+              }
+              var after = line.substring(line.indexOf(phone) + phone.length).trim();
+              if (after && /^\d+/.test(after)) {
+                // After phone is a number (amount/salary), company is on next line
+                for (var k = i + 1; k < lines.length && k <= i + 2; k++) {
+                  var nextLine = lines[k].trim();
+                  if (nextLine && !/^\d+$/.test(nextLine) && nextLine.length > 1) { company = nextLine; break; }
+                }
+                note = after;
+              } else if (after) {
+                company = after.replace(/[\d.]+[\d\s]*$/g, '').replace(/\s*(新增跟进|已拨|正常号|空号|停机|无法接通).*$/, '').trim();
+              } else {
+                // Nothing after phone — look at next line for company
+                for (var k2 = i + 1; k2 < lines.length && k2 <= i + 2; k2++) {
+                  var nl2 = lines[k2].trim();
+                  if (nl2 && !/^\d+$/.test(nl2) && nl2.length > 1) { company = nl2; break; }
+                }
+              }
+            }
+
+            extractedContacts.push({ name: name, phone: phone, company: company, note: note });
+          });
+        }
+
+        return new Response(JSON.stringify({ contacts: extractedContacts }), {
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ error: e.message }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+    }
+
     // OCR Vision API 连通性测试
     if (path === '/api/ocr/test' && request.method === 'POST') {
       try {
@@ -7042,8 +7133,10 @@ const rid=Math.floor(Math.random()*1000);
           var seenPhones = {};
           var extractedContacts = [];
 
-          var lines = rawText.split(/\n/);
+          var lines = rawText.split(/\r?\n/);
           lines.forEach(function(line) {
+            line = line.trim();
+            if (!line) return;
             var phones = line.match(phoneRe);
             if (!phones) return;
             phones.forEach(function(phone) {
