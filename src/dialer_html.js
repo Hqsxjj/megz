@@ -69,43 +69,41 @@ export const DIALER_HTML = `<!DOCTYPE html>
     .container {
       flex: 1;
       width: 100%;
-      max-width: 520px;
-      margin: 0 auto;
+      max-width: none;
+      margin: 0;
       display: flex;
       flex-direction: column;
       overflow: hidden;
-      background: var(--card-bg);
-      border-left: 1px solid var(--border-light);
-      border-right: 1px solid var(--border-light);
-      box-shadow: 0 4px 30px rgba(0,0,0,0.03);
+      background: var(--bg-app);
     }
-    
-    /* Header Bar */
+
+    /* Header Bar — full width */
     .header-bar {
-      height: 34px;
-      padding: 0 12px;
+      height: 36px;
+      padding: 0 16px;
       border-bottom: 1px solid var(--border-light);
       display: flex;
       align-items: center;
       justify-content: space-between;
       flex-shrink: 0;
       position: relative;
+      background: var(--card-bg);
     }
     .header-stats-minimal {
-      font-size: 0.76rem;
+      font-size: 0.78rem;
       font-weight: 900;
       color: var(--text-soft);
       display: flex;
       align-items: center;
-      gap: 4px;
+      gap: 6px;
     }
     .header-dropdown {
       position: absolute;
-      top: 30px;
-      right: 0;
+      top: 34px;
+      right: 4px;
       background: var(--card-bg);
       border: 1px solid var(--card-border);
-      border-radius: var(--radius-sm);
+      border-radius: 6px;
       box-shadow: 0 8px 24px rgba(0,0,0,0.12);
       z-index: 2500;
       display: flex;
@@ -113,12 +111,11 @@ export const DIALER_HTML = `<!DOCTYPE html>
       padding: 4px 0;
       max-height: 60vh;
       overflow-y: auto;
-      min-width: 120px;
-      min-width: 130px;
+      min-width: 140px;
     }
     .dropdown-item {
-      padding: 8px 12px;
-      font-size: 0.74rem;
+      padding: 8px 14px;
+      font-size: 0.76rem;
       color: var(--text-soft);
       cursor: pointer;
       display: flex;
@@ -153,24 +150,26 @@ export const DIALER_HTML = `<!DOCTYPE html>
       background: var(--btn-hover);
     }
     
-    /* Dashboard Area */
+    /* Dashboard Area — compact horizontal */
     .dashboard-panel {
-      padding: 16px 20px;
-      background: var(--bg-app);
+      padding: 10px 16px;
+      background: var(--card-bg);
       border-bottom: 1px solid var(--border-light);
       flex-shrink: 0;
     }
     .import-zone {
-      background: var(--card-bg);
-      border: 2px dashed var(--card-border);
-      border-radius: var(--radius-sm);
-      padding: 24px;
+      background: var(--bg-app);
+      border: 1.5px dashed var(--card-border);
+      border-radius: 6px;
+      padding: 16px 24px;
       text-align: center;
       display: flex;
-      flex-direction: column;
+      flex-direction: row;
       align-items: center;
-      gap: 12px;
+      justify-content: center;
+      gap: 16px;
       transition: all 0.2s;
+      flex-wrap: wrap;
     }
     .import-zone.dragover {
       border-color: var(--accent-wechat);
@@ -178,8 +177,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
     }
     .import-buttons {
       display: flex;
-      gap: 12px;
-      margin-top: 4px;
+      gap: 10px;
     }
     .btn-primary {
       background: var(--wechat-gradient);
@@ -214,38 +212,39 @@ export const DIALER_HTML = `<!DOCTYPE html>
       box-shadow: 0 6px 16px rgba(74,108,247,0.3);
     }
     
-    /* Stats Bar */
+    /* Stats Bar — compact horizontal */
     .stats-bar {
-      margin-top: 14px;
+      margin-top: 0;
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      background: var(--card-bg);
-      border: 1px solid var(--card-border);
-      border-radius: var(--radius-xs);
-      padding: 12px 18px;
+      gap: 24px;
+      background: transparent;
+      border: none;
+      border-radius: 0;
+      padding: 6px 0;
+      flex-wrap: wrap;
     }
     .stat-item {
       display: flex;
-      flex-direction: column;
-      gap: 4px;
+      flex-direction: row;
+      align-items: center;
+      gap: 6px;
     }
     .stat-label {
-      font-size: 0.68rem;
+      font-size: 0.7rem;
       color: var(--text-light);
-      text-transform: uppercase;
     }
     .stat-val {
-      font-size: 1.1rem;
+      font-size: 0.95rem;
       font-weight: 900;
       color: var(--text-main);
     }
     .progress-track {
       flex: 1;
-      height: 8px;
+      min-width: 120px;
+      height: 6px;
       background: var(--btn-bg);
-      border-radius: 4px;
-      margin: 0 24px;
+      border-radius: 3px;
       overflow: hidden;
       position: relative;
     }
@@ -253,31 +252,31 @@ export const DIALER_HTML = `<!DOCTYPE html>
       height: 100%;
       background: var(--wechat-gradient);
       width: 0%;
-      border-radius: 4px;
+      border-radius: 3px;
       transition: width 0.3s ease;
     }
-    
-    /* Control Panel */
+
+    /* Control Panel — full width toolbar */
     .control-bar {
-      min-height: 48px;
-      padding: 6px 20px;
+      min-height: 40px;
+      padding: 6px 16px;
       border-bottom: 1px solid var(--border-light);
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      gap: 12px;
+      gap: 10px;
       flex-shrink: 0;
       flex-wrap: wrap;
+      background: var(--card-bg);
     }
     .search-input {
-      width: 130px;
+      width: 160px;
       flex-shrink: 0;
-      height: 32px;
-      background: var(--btn-bg);
+      height: 30px;
+      background: var(--bg-app);
       border: 1px solid var(--card-border);
-      border-radius: var(--radius-xs);
-      padding: 0 12px;
-      font-size: 0.8rem;
+      border-radius: 4px;
+      padding: 0 10px;
+      font-size: 0.78rem;
       color: var(--text-main);
       outline: none;
       font-weight: 700;
@@ -310,40 +309,84 @@ export const DIALER_HTML = `<!DOCTYPE html>
       color: var(--accent-wechat);
     }
     
-    /* Cards Container */
+    /* Cards Container — Table on desktop, cards on mobile */
     .cards-content {
       flex: 1;
-      overflow-y: auto;
-      padding: 10px 14px;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
+      overflow: auto;
+      padding: 0;
     }
-    
-    /* Contact Card */
+    /* CRM Table */
+    .crm-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      min-width: 900px;
+    }
+    .crm-table thead th {
+      position: sticky; top: 0; z-index: 2;
+      background: #f0f0f0;
+      padding: 6px 10px;
+      text-align: left;
+      font-weight: 700;
+      color: #444;
+      border: 1px solid #d0d0d0;
+      border-top: none;
+      border-bottom: 2px solid #c0c0c0;
+      white-space: nowrap;
+      font-size: 12px;
+      cursor: pointer;
+      user-select: none;
+    }
+    .crm-table thead th:hover { background: #e4e4e4; }
+    .crm-table thead th .sort-arrow { font-size: 10px; margin-left: 2px; opacity: 0.35; }
+    .crm-table thead th.sorted .sort-arrow { opacity: 1; color: #4a6cf7; }
+    .crm-table td {
+      padding: 4px 10px;
+      border: 1px solid #e0e0e0;
+      color: #333;
+      white-space: nowrap;
+      font-size: 13px;
+      vertical-align: middle;
+    }
+    .crm-table tbody tr:nth-child(even) td { background: #f8f9fa; }
+    .crm-table tbody tr:hover td { background: rgba(74,108,247,0.05) !important; }
+    .crm-table tbody tr.row-dialed td { opacity: 0.55; }
+    .crm-table .col-no { width: 40px; text-align: center; color: #aaa; font-size: 11px; }
+    .crm-table .col-status { width: 80px; }
+    .crm-table .col-name { min-width: 70px; }
+    .crm-table .col-phone { min-width: 115px; font-family: monospace; }
+    .crm-table .col-company { min-width: 140px; }
+    .crm-table .col-note { min-width: 80px; max-width: 150px; overflow: hidden; text-overflow: ellipsis; }
+    .crm-table .col-batch { min-width: 90px; }
+    .crm-table .col-action { width: 60px; text-align: center; }
+    body.dark-mode .crm-table thead th { background: #2a2a2a; border-color: #444; color: #ccc; border-bottom-color: #555; }
+    body.dark-mode .crm-table thead th:hover { background: #333; }
+    body.dark-mode .crm-table td { color: #ddd; border-color: #3a3a3a; }
+    body.dark-mode .crm-table tbody tr:nth-child(even) td { background: #232323; }
+    body.dark-mode .crm-table tbody tr:hover td { background: rgba(74,108,247,0.1) !important; }
     .xls-dial-card {
       background: var(--card-bg);
       border: 1px solid var(--card-border);
-      border-radius: var(--radius-xs);
-      padding: 10px 12px;
+      border-radius: 6px;
+      padding: 10px 14px;
       display: flex;
       flex-direction: column;
       gap: 6px;
-      box-shadow: var(--shadow-card);
+      box-shadow: none;
       position: relative;
-      transition: all 0.2s ease;
+      transition: all 0.15s ease;
     }
     .xls-dial-card:hover {
-      border-color: rgba(7, 193, 96, 0.4);
-      transform: translateY(-1px);
+      border-color: rgba(74,108,247,0.3);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
     }
     .xls-dial-card.dialed {
-      opacity: 0.75;
+      opacity: 0.65;
       border-color: var(--border-light);
-      background: rgba(0, 0, 0, 0.005);
+      background: rgba(0, 0, 0, 0.01);
     }
     body.dark-mode .xls-dial-card.dialed {
-      background: rgba(255, 255, 255, 0.003);
+      background: rgba(255, 255, 255, 0.01);
     }
     .xls-dial-badge {
       font-size: 0.65rem;
@@ -671,6 +714,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
       .cards-content {
         padding: 6px 8px;
         gap: 6px;
+        grid-template-columns: 1fr; /* single column on mobile */
       }
       .xls-dial-card {
         padding: 8px 10px;
@@ -1341,7 +1385,20 @@ export const DIALER_HTML = `<!DOCTYPE html>
       <input type="text" class="db-search" id="dbSearch" placeholder="🔍 搜索姓名 / 电话 / 公司...">
       <select class="db-filter" id="dbCatFilter"><option value="">全部分类</option></select>
       <select class="db-filter" id="dbBatchFilter"><option value="">全部批次</option></select>
+      <button class="db-filter" id="dbBatchCatBtn" title="批量分类" style="font-weight:700;white-space:nowrap;">🏷 批量分类</button>
       <span style="font-size:0.72rem;color:#999;white-space:nowrap;" id="dbTotal">共 0 条</span>
+    </div>
+    <!-- Batch category mini-panel -->
+    <div id="dbBatchCatPanel" style="display:none;padding:6px 16px;border-bottom:1px solid #e0e0e0;background:#fafafa;display:none;align-items:center;gap:8px;flex-wrap:wrap;">
+      <span style="font-size:12px;font-weight:700;color:#555;">批量设置分类：</span>
+      <select id="dbBatchCatSel" style="height:28px;border:1px solid #ccc;border-radius:3px;font-size:12px;padding:0 6px;">
+        <option value="">选择批次</option>
+      </select>
+      <span style="font-size:12px;color:#888;">→</span>
+      <select id="dbCatTargetSel" style="height:28px;border:1px solid #ccc;border-radius:3px;font-size:12px;padding:0 6px;"></select>
+      <button id="dbBatchCatApply" style="height:28px;padding:0 14px;background:#4a6cf7;color:#fff;border:none;border-radius:4px;font-size:12px;font-weight:700;cursor:pointer;">应用</button>
+      <button id="dbBatchCatCancel" style="height:28px;padding:0 10px;background:#eee;color:#666;border:none;border-radius:4px;font-size:12px;cursor:pointer;">取消</button>
+      <span id="dbBatchCatStatus" style="font-size:11px;color:#07c160;display:none;"></span>
     </div>
     <div class="db-table-wrap">
       <table class="db-table">
@@ -3404,87 +3461,52 @@ export const DIALER_HTML = `<!DOCTYPE html>
       var end = Math.min(start + pageSize, total);
       var sliced = sorted.slice(start, end);
 
-      var cardsHtml = sliced.map(function(c) {
-        // Find real index in original list
-        var i = importedClients.indexOf(c);
+      // Build CRM Table
+      var tableHtml = '<table class="crm-table"><thead><tr>' +
+        '<th class="col-no">#</th>' +
+        '<th class="col-status">状态</th>' +
+        '<th class="col-name">姓名</th>' +
+        '<th class="col-phone">电话</th>' +
+        '<th class="col-company">公司</th>' +
+        '<th class="col-note">备注/金额</th>' +
+        '<th class="col-batch">批次</th>' +
+        '<th class="col-action">操作</th>' +
+      '</tr></thead><tbody>';
 
-        var badgeHtml = '<span class="xls-dial-badge xls-dial-badge-todo">待拨打</span>';
-        var cardClass = 'xls-dial-card';
+      tableHtml += sliced.map(function(c, idx) {
+        var rowNo = (currentPage - 1) * pageSize + idx + 1;
+
+        var badgeHtml = '<span style="font-size:11px;padding:1px 6px;border-radius:3px;background:#f0f0f0;color:#888;">待拨</span>';
+        var rowClass = '';
         if (c.dialedStatus === 'success') {
-          badgeHtml = '<span class="xls-dial-badge xls-dial-badge-success">已接通 (' + (c.duration || '00:00') + ')</span>';
-          cardClass += ' dialed';
-          if (c.phone) {
-            badgeHtml += ' <button class="rec-play-btn" data-phone="' + esc(c.phone) + '" title="播放通话录音" style="font-size:0.6rem;padding:1px 6px;border:1px solid #07c160;background:rgba(7,193,96,0.08);color:#07c160;border-radius:3px;cursor:pointer;font-weight:700;margin-left:4px;" onclick="event.stopPropagation();var p=this.dataset.phone;var a=document.createElement(\\x27audio\\x27);a.controls=true;a.style.width=\\x27100%\\x27;a.style.height=\\x2728px\\x27;a.style.marginTop=\\x274px\\x27;var w=this.nextElementSibling;if(w&&w.classList.contains(\\x27rec-audio-wrap\\x27)){w.remove();return;}var d=document.createElement(\\x27div\\x27);d.className=\\x27rec-audio-wrap\\x27;d.style.width=\\x27100%\\x27;d.appendChild(a);this.parentElement.appendChild(d);a.src=\\x27/api/local-recording?phone=\\x27+encodeURIComponent(p);a.play().catch(function(){});">▶ 录音</button>';
-          }
+          badgeHtml = '<span style="font-size:11px;padding:1px 6px;border-radius:3px;background:rgba(7,193,96,0.12);color:#07c160;">已拨</span>';
+          rowClass = ' row-dialed';
         } else if (c.dialedStatus === 'failed') {
-          badgeHtml = '<span class="xls-dial-badge xls-dial-badge-failed">未接通</span>';
-          cardClass += ' dialed';
-          if (c.phone) {
-            badgeHtml += ' <button class="rec-play-btn" data-phone="' + esc(c.phone) + '" title="播放通话录音" style="font-size:0.6rem;padding:1px 6px;border:1px solid #e67e22;background:rgba(245,124,0,0.08);color:#e67e22;border-radius:3px;cursor:pointer;font-weight:700;margin-left:4px;" onclick="event.stopPropagation();var p=this.dataset.phone;var a=document.createElement(\\x27audio\\x27);a.controls=true;a.style.width=\\x27100%\\x27;a.style.height=\\x2728px\\x27;a.style.marginTop=\\x274px\\x27;var w=this.nextElementSibling;if(w&&w.classList.contains(\\x27rec-audio-wrap\\x27)){w.remove();return;}var d=document.createElement(\\x27div\\x27);d.className=\\x27rec-audio-wrap\\x27;d.style.width=\\x27100%\\x27;d.appendChild(a);this.parentElement.appendChild(d);a.src=\\x27/api/local-recording?phone=\\x27+encodeURIComponent(p);a.play().catch(function(){});">▶ 录音</button>';
+          badgeHtml = '<span style="font-size:11px;padding:1px 6px;border-radius:3px;background:rgba(231,76,60,0.1);color:#e74c3c;">未通</span>';
+          rowClass = ' row-dialed';
+        }
+
+        var wlBadge = '';
+        if (c.company) {
+          var matchedWl = matchWhitelistCompany(c.company);
+          if (matchedWl) {
+            wlBadge = ' <span style="font-size:10px;background:rgba(7,193,96,0.1);color:#07c160;padding:0 4px;border-radius:2px;">' + esc(matchedWl.bank_name || '白名单') + '</span>';
           }
         }
 
-        var phoneClass = c.copied ? 'client-phone-btn copied' : 'client-phone-btn';
-
-        return '<div class="' + cardClass + '" id="xdc_' + i + '">' +
-          '<div class="client-card-top">' +
-            '<div class="client-card-primary" style="display: flex; align-items: center; width: 100%; gap: 6px;">' +
-              '<span class="client-card-name-btn" data-name="' + esc(c.name) + '" data-idx="' + i + '" title="点击复制姓名" style="flex: 0 0 62px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block;">' + esc(c.name) + '</span>' +
-              '<span class="client-card-phone-wrap" style="flex: 0 0 110px; display: inline-flex; align-items: center;">' +
-                '<span class="' + phoneClass + '" data-phone="' + esc(c.phone) + '" data-idx="' + i + '" title="点击复制并跳转微信加好友" style="font-size: 0.82rem;">' + esc(c.phone) + '</span>' +
-              '</span>' +
-              '<div style="margin-left: auto; display: inline-flex; align-items: center; justify-content: flex-end; flex-shrink: 0;">' +
-                badgeHtml +
-              '</div>' +
-            '</div>' +
-          '</div>' +
-          '<div class="client-card-tags" style="margin-top: 2px;">' +
-            (c.company ? '<span class="client-card-tag client-card-tag-company" data-company="' + esc(c.company) + '" data-idx="' + i + '" title="点击复制单位名称">' + esc(c.company) + '</span>' : '') +
-            (c.batch_label ? '<span class="client-card-tag" style="background:rgba(74,108,247,0.08);color:#4a6cf7;font-weight:700;" title="导入批次">🏷 ' + esc(c.batch_label) + '</span>' : '') +
-            (function() {
-              if (!c.company) return '';
-              var matchedWl = matchWhitelistCompany(c.company);
-              if (matchedWl) {
-                var bank = matchedWl.bank_name || '建行建易贷';
-                return '<span class="client-card-tag xls-dial-badge-whitelist">' + esc(bank) + '</span>';
-              }
-              return '';
-            })() +
-          '</div>' +
-          (c.note ? 
-            '<div class="client-card-body" style="margin-top: 4px;">' +
-              '<div class="client-card-content-block follow-up" style="background:rgba(74,108,247,0.03); border-left:3px solid #4a6cf7; padding: 6px 8px; border-radius: 0 var(--radius-xs) var(--radius-xs) 0;">' +
-                '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px;">' +
-                  '<span class="client-card-label" style="color:#4a6cf7; font-weight:800; font-size:0.65rem;">资料备注</span>' +
-                  '<span class="client-card-tag-note" data-note="' + esc(c.note) + '" style="font-size:0.6rem; color:#4a6cf7; cursor:pointer; text-decoration:underline;">[放大查看]</span>' +
-                '</div>' +
-                '<span class="client-card-text" style="color:var(--text-soft); white-space:pre-wrap; display:block; margin-top:2px;">' + esc(c.note) + '</span>' +
-              '</div>' +
-            '</div>' : '') +
-          (c.callNote ? 
-            '<div class="client-card-body" style="margin-top: 4px;">' +
-              '<div class="client-card-content-block follow-up">' +
-                '<span class="client-card-label">通话小记</span>' +
-                '<span class="client-card-text" style="color:var(--accent-wechat);">' + esc(c.callNote) + '</span>' +
-              '</div>' +
-            '</div>' : '') +
-          (typeof AndroidDialer !== 'undefined' && AndroidDialer.hasRecording(c.phone) ? 
-            '<div class="client-card-body" style="margin-top: 4px;">' +
-              '<div class="client-card-content-block" style="background:rgba(9,187,7,0.03); border-left:3px solid var(--accent-wechat); padding: 6px 8px; border-radius: 0 var(--radius-xs) var(--radius-xs) 0;">' +
-                '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px;">' +
-                  '<span class="client-card-label" style="color:var(--accent-wechat); font-weight:800; font-size:0.65rem;">通话录音</span>' +
-                  '<span style="font-size:0.6rem; color:var(--accent-wechat); font-weight:bold;">[本地录音就绪]</span>' +
-                '</div>' +
-                '<audio src="/api/local-recording?phone=' + encodeURIComponent(c.phone) + '" controls style="width: 100%; height: 32px; outline: none; margin-top: 4px; display: block;"></audio>' +
-              '</div>' +
-            '</div>' : '') +
-          '<div class="client-card-actions">' +
-            '<a href="tel:' + esc(c.phone) + '" class="btn-primary xls-card-dial-btn" data-idx="' + i + '" style="font-size:0.75rem;padding:2px 12px;height:28px;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;">拨打</a>' +
-          '</div>' +
-        '</div>';
+        return '<tr class="' + rowClass + '" data-idx="' + idx + '">' +
+          '<td class="col-no">' + rowNo + '</td>' +
+          '<td class="col-status">' + badgeHtml + '</td>' +
+          '<td class="col-name"><span class="crm-copy-btn" data-copy="' + esc(c.name||'') + '" title="点击复制">' + esc(c.name||'-') + '</span></td>' +
+          '<td class="col-phone"><span class="crm-copy-btn" data-copy="' + esc(c.phone||'') + '" title="点击复制">' + esc(c.phone||'-') + '</span></td>' +
+          '<td class="col-company"><span class="crm-copy-btn" data-copy="' + esc(c.company||'') + '">' + esc(c.company||'-') + '</span>' + wlBadge + '</td>' +
+          '<td class="col-note">' + esc(c.note||'-') + '</td>' +
+          '<td class="col-batch">' + '<span style="font-size:11px;background:rgba(74,108,247,0.08);color:#4a6cf7;padding:1px 6px;border-radius:3px;">' + (c.batch_label || (c.created_at ? c.created_at.slice(5,16).replace('T',' ') : '-')) + '</span>' + '</td>' +
+          '<td class="col-action"><a href="tel:' + esc(c.phone) + '" style="display:inline-block;padding:3px 10px;background:linear-gradient(135deg,#07c160,#06ad56);color:#fff;border-radius:4px;text-decoration:none;font-size:12px;font-weight:700;">拨打</a></td>' +
+        '</tr>';
       }).join('');
 
-      // Build Pagination HTML
+      tableHtml += '</tbody></table>';
       var pagHtml = '';
       if (totalPages > 1) {
         pagHtml += '<div class="pagination-bar" style="display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 8px; margin-top: 18px; padding: 12px 0; border-top: 1px dashed var(--border-light); width: 100%;">';
@@ -3528,7 +3550,21 @@ export const DIALER_HTML = `<!DOCTYPE html>
         pagHtml += '</div>';
       }
 
-      container.innerHTML = cardsHtml + pagHtml;
+      container.innerHTML = tableHtml + pagHtml;
+
+      // Wire up CRM table copy buttons
+      container.querySelectorAll('.crm-copy-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          var text = this.dataset.copy;
+          if (!text) return;
+          navigator.clipboard.writeText(text).then(function() {
+            // Brief flash
+            var orig = btn.style.color;
+            btn.style.color = '#07c160';
+            setTimeout(function() { btn.style.color = orig; }, 600);
+          }).catch(function() {});
+        });
+      });
 
       // Wire up pagination click handlers
       if (totalPages > 1) {
@@ -3572,126 +3608,16 @@ export const DIALER_HTML = `<!DOCTYPE html>
         }
       }
 
-      // Wire up card phone click copy
-      container.querySelectorAll('.client-phone-btn').forEach(function(b) {
-        b.addEventListener('click', function(e) {
-          e.stopPropagation();
-          var phone = b.dataset.phone;
-          var idx = parseInt(b.dataset.idx);
-
-          // Rate limit check
-          var limit = checkCopyLimit();
-          if (!limit.allowed) {
-            showCopyLimitToast(limit.message, false);
-            return;
-          }
-
-          copyTextToClipboard(phone);
-
-          var oldText = b.textContent;
-          if (oldText === '已复制，正在打开微信...') return;
-          b.textContent = '已复制，正在打开微信...';
-          var oldColor = b.style.color;
-          b.style.color = 'var(--accent-wechat)';
-
-          var client = importedClients[idx];
-          if (client) {
-            client.copied = true;
-            saveState();
-          }
-
-          b.classList.add('copied');
-
-          setTimeout(function() {
-            jumpToWechat();
-          }, 100);
-
-          setTimeout(function() {
-            b.textContent = phone;
-            b.style.color = oldColor;
-          }, 1500);
-        });
-      });
-
-      // Wire up name click copy
-      container.querySelectorAll('.client-card-name-btn').forEach(function(b) {
-        b.addEventListener('click', function(e) {
-          e.stopPropagation();
-          var name = b.dataset.name;
-          var idx = parseInt(b.dataset.idx);
-          copyTextToClipboard(name);
-          
-          var oldText = b.textContent;
-          if (oldText === '已复制') return;
-          b.textContent = '已复制';
-          var oldColor = b.style.color;
-          b.style.color = 'var(--accent-wechat)';
-          
-          var client = importedClients[idx];
-          if (client) {
-            client.copied = true;
-            saveState();
-          }
-
-          var card = document.getElementById('xdc_' + idx);
-          if (card) {
-            var phoneBtn = card.querySelector('.client-phone-btn');
-            if (phoneBtn) {
-              phoneBtn.classList.add('copied');
-            }
-          }
-
-          setTimeout(function() {
-            b.textContent = name;
-            b.style.color = oldColor;
-          }, 1000);
-        });
-      });
-
-      // Wire up company click copy
-      container.querySelectorAll('.client-card-tag-company').forEach(function(b) {
-        b.addEventListener('click', function(e) {
-          e.stopPropagation();
-          var company = b.dataset.company;
-          copyTextToClipboard(company);
-          
-          var oldText = b.textContent;
-          if (oldText === '已复制') return;
-          b.textContent = '已复制';
-          var oldColor = b.style.color;
-          b.style.color = 'var(--accent-wechat)';
-          
-          setTimeout(function() {
-            b.textContent = company;
-            b.style.color = oldColor;
-          }, 1000);
-        });
-      });
-
-      // Wire up card tag note click modal
-      container.querySelectorAll('.client-card-tag-note').forEach(function(b) {
-        b.addEventListener('click', function(e) {
-          e.stopPropagation();
-          var note = b.dataset.note || '(空)';
-          var content = document.getElementById('noteModalContent');
-          if (content) {
-            content.textContent = note;
-          }
-          var modal = document.getElementById('noteModal');
-          if (modal) {
-            modal.classList.add('active');
-          }
-        });
-      });
-
-      // Wire up call button
-      container.querySelectorAll('.xls-card-dial-btn').forEach(function(btn) {
+      // Wire up table dial buttons with call assistant
+      container.querySelectorAll('.col-action a').forEach(function(btn, idx) {
         btn.addEventListener('click', function(e) {
-          var idx = parseInt(this.dataset.idx);
-          // Delay opening the modal by 200ms to allow Safari to natively trigger the tel: anchor navigation first
-          setTimeout(function() {
-            startCallAssistant(idx);
-          }, 200);
+          // Let the tel: link work natively
+          var client = sliced[idx];
+          if (client) {
+            setTimeout(function() {
+              startCallAssistant(importedClients.indexOf(client));
+            }, 300);
+          }
         });
       });
     }
@@ -4349,6 +4275,9 @@ export const DIALER_HTML = `<!DOCTYPE html>
         if (noteVal && /^\d+(\.\d+)?$/.test(noteVal.trim())) {
           noteStyle = 'text-align:right;font-family:monospace;';
         }
+        // Format import time: "06-08 11:15" or full datetime
+        var importTime = c.created_at ? c.created_at.slice(5,16).replace('T',' ') : '';
+        var batchDisplay = c.batch_label ? esc(c.batch_label) : (importTime || '-');
         h+='<tr data-mobile="'+esc(c.mobile||'')+'">'+
           '<td class="col-rowno">'+(rowBase+i+1)+'</td>'+
           '<td><span class="cust-cat-tag'+cc2+'" data-m="'+esc(c.mobile)+'" data-c="'+esc(cat)+'">'+esc(cat||'点击分类')+'</span></td>'+
@@ -4356,8 +4285,8 @@ export const DIALER_HTML = `<!DOCTYPE html>
           '<td style="font-family:monospace;">'+esc(c.mobile||'-')+'</td>'+
           '<td>'+esc(c.company_name||'-')+'</td>'+
           '<td style="'+noteStyle+'">'+noteDisplay+'</td>'+
-          '<td>'+(c.batch_label?'<span style="background:rgba(74,108,247,0.1);color:#4a6cf7;padding:2px 8px;border-radius:4px;font-size:12px;">'+esc(c.batch_label)+'</span>':'-')+'</td>'+
-          '<td style="font-size:12px;color:#888;">'+(c.created_at?esc(c.created_at.slice(0,10)):'-')+'</td>'+
+          '<td><span style="background:rgba(74,108,247,0.08);color:#4a6cf7;padding:2px 8px;border-radius:4px;font-size:11px;">'+batchDisplay+'</span></td>'+
+          '<td style="font-size:12px;color:#888;">'+(c.created_at?esc(c.created_at.slice(0,16).replace('T',' ')):'-')+'</td>'+
         '</tr>';
       }
       tb.innerHTML=h; dbWireCats(); dbWireSortHeaders();
@@ -4457,6 +4386,65 @@ export const DIALER_HTML = `<!DOCTYPE html>
       var nx=document.getElementById('dbNext'); if(nx)nx.addEventListener('click',function(){var tp=Math.max(1,Math.ceil(DB.total/DB.pageSize));if(DB.page<tp){DB.page++;dbFetch();}});
       // Hash trigger: /dialer#db auto-opens
       if(window.location.hash==='#db'){setTimeout(openDBDashboard,300);}
+
+      // Batch category wiring
+      var bcpBtn = document.getElementById('dbBatchCatBtn');
+      var bcpPanel = document.getElementById('dbBatchCatPanel');
+      var bcpSel = document.getElementById('dbBatchCatSel');
+      var bcpTarget = document.getElementById('dbCatTargetSel');
+      var bcpApply = document.getElementById('dbBatchCatApply');
+      var bcpCancel = document.getElementById('dbBatchCatCancel');
+      var bcpStatus = document.getElementById('dbBatchCatStatus');
+
+      if (bcpBtn) bcpBtn.addEventListener('click', function() {
+        if (bcpPanel.style.display === 'none' || !bcpPanel.style.display) {
+          bcpPanel.style.display = 'flex';
+          // Populate target categories
+          var catOpts = '<option value="">选择分类</option>';
+          CATS.forEach(function(c2) { catOpts += '<option value="' + esc(c2) + '">' + esc(c2) + '</option>'; });
+          if (bcpTarget) bcpTarget.innerHTML = catOpts;
+          // Populate batch selector from current dbBatchFilter options
+          if (bcpSel) {
+            var bf2 = document.getElementById('dbBatchFilter');
+            var opts = '<option value="">选择批次</option>';
+            if (bf2) {
+              var bfOpts = bf2.querySelectorAll('option');
+              bfOpts.forEach(function(o) { if (o.value) opts += '<option value="' + esc(o.value) + '">' + esc(o.textContent) + '</option>'; });
+            }
+            bcpSel.innerHTML = opts;
+          }
+          if (bcpStatus) bcpStatus.style.display = 'none';
+        } else {
+          bcpPanel.style.display = 'none';
+        }
+      });
+
+      if (bcpCancel) bcpCancel.addEventListener('click', function() { bcpPanel.style.display = 'none'; });
+
+      if (bcpApply) bcpApply.addEventListener('click', function() {
+        var batch = bcpSel ? bcpSel.value : '';
+        var cat = bcpTarget ? bcpTarget.value : '';
+        if (!batch || !cat) { alert('请选择批次和目标分类'); return; }
+        if (bcpStatus) { bcpStatus.style.display = 'inline'; bcpStatus.textContent = '⏳ 更新中...'; bcpStatus.style.color = '#f57c00'; }
+        fetch('/api/dialer/customers/batch-category', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ batch_label: batch, category: cat })
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+          if (d.success) {
+            if (bcpStatus) { bcpStatus.textContent = '已更新 ' + d.updated + ' 条'; bcpStatus.style.color = '#07c160'; }
+            bcpPanel.style.display = 'none';
+            dbFetch(); // refresh
+          } else {
+            if (bcpStatus) { bcpStatus.textContent = '失败: ' + (d.error || '未知'); bcpStatus.style.color = '#e74c3c'; }
+          }
+        })
+        .catch(function(err) {
+          if (bcpStatus) { bcpStatus.textContent = '网络错误'; bcpStatus.style.color = '#e74c3c'; }
+        });
+      });
     }
 
     function initNoteModal() {

@@ -1337,7 +1337,67 @@ export default {
       }
     }
 
-    // 2d. 更新单个客户分类标签
+    // 2d. 批量更新某个批次的客户分类
+    if (path === '/api/dialer/customers/batch-category' && request.method === 'POST') {
+      try {
+        const body = await request.json();
+        const { batch_label, category } = body;
+        if (!batch_label || !category) {
+          return new Response(JSON.stringify({ success: false, error: '缺少 batch_label 或 category' }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+
+        const supabaseUrl = env.SUPABASE_URL;
+        const supabaseKey = env.SUPABASE_KEY;
+        const hdrs = {
+          'Content-Type': 'application/json',
+          'apikey': supabaseKey,
+          'Authorization': 'Bearer ' + supabaseKey
+        };
+
+        // Fetch all mobiles for this batch
+        var allMobiles = [];
+        var offset = 0;
+        var pageSize = 1000;
+        while (true) {
+          var qUrl = supabaseUrl + '/rest/v1/customers?select=mobile&batch_label=eq.' + encodeURIComponent(batch_label) + '&limit=' + pageSize + '&offset=' + offset;
+          var pageResp = await fetch(qUrl, { headers: hdrs });
+          if (!pageResp.ok) break;
+          var page = await pageResp.json();
+          if (!Array.isArray(page) || page.length === 0) break;
+          allMobiles.push.apply(allMobiles, page.map(function(r) { return r.mobile; }));
+          if (page.length < pageSize) break;
+          offset += pageSize;
+        }
+
+        // PATCH each one
+        var updated = 0;
+        for (var i = 0; i < allMobiles.length; i++) {
+          var patchResp = await fetch(
+            supabaseUrl + '/rest/v1/customers?mobile=eq.' + encodeURIComponent(allMobiles[i]),
+            {
+              method: 'PATCH',
+              headers: Object.assign({}, hdrs, { 'Prefer': 'return=minimal' }),
+              body: JSON.stringify({ category: category })
+            }
+          );
+          if (patchResp.ok) updated++;
+        }
+
+        return new Response(JSON.stringify({ success: true, updated: updated }), {
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ success: false, error: e.message }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+    }
+
+    // 2e. 更新单个客户分类标签
     if (path === '/api/dialer/customers' && request.method === 'PATCH') {
       try {
         const body = await request.json();

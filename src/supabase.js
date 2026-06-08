@@ -388,6 +388,51 @@ export function createSupabaseClient(env) {
     return { count: count };
   }
 
+  /**
+   * Batch update category for all customers with a given batch_label.
+   * Uses a simpler approach: fetch all matching mobiles first, then PATCH each.
+   */
+  async function batchUpdateCategory(batchLabel, category) {
+    if (!baseUrl || !key) throw new Error('Supabase not configured');
+    if (!batchLabel || !category) throw new Error('batch_label and category required');
+
+    // Fetch all matching mobiles (pagination loop)
+    var allMobiles = [];
+    var offset = 0;
+    var pageSize = 1000;
+    while (true) {
+      var url2 = baseUrl + '/rest/v1/customers?select=mobile&batch_label=eq.' + encodeURIComponent(batchLabel) + '&limit=' + pageSize + '&offset=' + offset;
+      var pageResp = await fetch(url2, { headers: headers() });
+      if (!pageResp.ok) {
+        var text = await pageResp.text();
+        throw new Error('Batch query failed [' + pageResp.status + ']: ' + text);
+      }
+      var page = await pageResp.json();
+      if (!Array.isArray(page) || page.length === 0) break;
+      allMobiles.push.apply(allMobiles, page.map(function(r) { return r.mobile; }));
+      if (page.length < pageSize) break;
+      offset += pageSize;
+    }
+
+    if (allMobiles.length === 0) return { count: 0 };
+
+    // PATCH each one
+    var updated = 0;
+    for (var i = 0; i < allMobiles.length; i++) {
+      var patchResp = await fetch(
+        baseUrl + '/rest/v1/customers?mobile=eq.' + encodeURIComponent(allMobiles[i]),
+        {
+          method: 'PATCH',
+          headers: Object.assign({}, headers(), { 'Prefer': 'return=minimal' }),
+          body: JSON.stringify({ category: category })
+        }
+      );
+      if (patchResp.ok) updated++;
+    }
+
+    return { count: updated };
+  }
+
   return {
     upsertCompanies: upsertCompanies,
     getAllCompanies: getAllCompanies,
@@ -400,7 +445,8 @@ export function createSupabaseClient(env) {
     searchKnowledge: searchKnowledge,
     upsertCustomers: upsertCustomers,
     getAllCustomers: getAllCustomers,
-    updateCustomer: updateCustomer
+    updateCustomer: updateCustomer,
+    batchUpdateCategory: batchUpdateCategory
   };
 
   /**
