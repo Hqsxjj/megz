@@ -5,6 +5,33 @@ import { DIALER_HTML } from './dialer_html.js';
 import { createSupabaseClient } from './supabase.js';
 import { WeComCrypt } from './wecom_crypt.js';
 
+// ====== Gemini API Concurrency Limiter ======
+// Gemini free tier / shared keys often have strict RPM/TPM limits.
+// This semaphore caps concurrent vision API calls to avoid 429 errors.
+const MAX_CONCURRENT_GEMINI = 3;
+let geminiActiveRequests = 0;
+const geminiWaitQueue = [];
+
+function geminiAcquire() {
+  return new Promise(function(resolve) {
+    if (geminiActiveRequests < MAX_CONCURRENT_GEMINI) {
+      geminiActiveRequests++;
+      resolve();
+    } else {
+      geminiWaitQueue.push(resolve);
+    }
+  });
+}
+
+function geminiRelease() {
+  geminiActiveRequests--;
+  if (geminiWaitQueue.length > 0) {
+    const next = geminiWaitQueue.shift();
+    geminiActiveRequests++;
+    next();
+  }
+}
+
 async function getAllKVKeys(env, prefix) {
   let keys = [];
   let cursor = undefined;
@@ -1282,15 +1309,17 @@ export default {
       }
     }
 
-    // 2c. 查询 Supabase 客户数据（分页+搜索）
+    // 2c. 查询 Supabase 客户数据（分页+搜索+排序）
     if (path === '/api/dialer/customers' && request.method === 'GET') {
       try {
         const url = new URL(request.url);
         const page = parseInt(url.searchParams.get('page') || '1');
         const pageSize = parseInt(url.searchParams.get('pageSize') || '50');
         const search = url.searchParams.get('search') || '';
+        const sortBy = url.searchParams.get('sortBy') || '';
+        const sortDir = url.searchParams.get('sortDir') || 'asc';
         const sb = createSupabaseClient(env);
-        const result = await sb.getAllCustomers(page, pageSize, search);
+        const result = await sb.getAllCustomers(page, pageSize, search, sortBy, sortDir);
         return new Response(JSON.stringify(result), {
           headers: {
             'Content-Type': 'application/json; charset=UTF-8',
@@ -7078,33 +7107,40 @@ const rid=Math.floor(Math.random()*1000);
           });
         }
 
-        const aiResp = await fetch(url, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer ' + apiKey
-          },
-          body: JSON.stringify({
-            model: model,
-            messages: [{
-              role: 'user',
-              content: [
-                {
-                  type: 'text',
-                  text: ocrMode === 'bulk'
-                    ? '完整转录这张图片中的所有文字。逐行输出，保留原始排版。\n\n只输出JSON：{"rawText":"全部文字"}'
-                    : '你是一个OCR助手。请识别这张客户信息截图，提取以下字段：\n\n- name: 客户姓名（2-4个汉字）\n- phone: 电话号码（11位数字手机号）\n- company: 工作单位/公司名称\n- fund: 公积金信息\n- note: 备注/沟通记录\n\n如某字段无法识别则为空字符串。\n\n输出纯JSON（禁止markdown代码块）：\n{"name":"姓名","phone":"13800138000","company":"单位名","fund":"","note":"备注内容"}'
-                },
-                {
-                  type: 'image_url',
-                  image_url: { url: imageBase64 }
-                }
-              ]
-            }],
-            temperature: 0,
-            max_tokens: 8192
-          })
-        });
+        // Wait for concurrency slot before calling Gemini
+        await geminiAcquire();
+        let aiResp;
+        try {
+          aiResp = await fetch(url, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer ' + apiKey
+            },
+            body: JSON.stringify({
+              model: model,
+              messages: [{
+                role: 'user',
+                content: [
+                  {
+                    type: 'text',
+                    text: ocrMode === 'bulk'
+                      ? '完整转录这张图片中的所有文字。逐行输出，保留原始排版。\n\n只输出JSON：{"rawText":"全部文字"}'
+                      : '你是一个OCR助手。请识别这张客户信息截图，提取以下字段：\n\n- name: 客户姓名（2-4个汉字）\n- phone: 电话号码（11位数字手机号）\n- company: 工作单位/公司名称\n- fund: 公积金信息\n- note: 备注/沟通记录\n\n如某字段无法识别则为空字符串。\n\n输出纯JSON（禁止markdown代码块）：\n{"name":"姓名","phone":"13800138000","company":"单位名","fund":"","note":"备注内容"}'
+                  },
+                  {
+                    type: 'image_url',
+                    image_url: { url: imageBase64 }
+                  }
+                ]
+              }],
+              temperature: 0,
+              max_tokens: 8192
+            })
+          });
+        } finally {
+          geminiRelease();
+        }
 
         if (!aiResp.ok) {
           const errText = await aiResp.text();

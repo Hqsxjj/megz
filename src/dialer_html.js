@@ -784,104 +784,136 @@ export const DIALER_HTML = `<!DOCTYPE html>
     }
     /* ====== Customer Database Dashboard ====== */
     .db-overlay {
-      position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 99999;
+      position: fixed; inset: 0; background: #fff; z-index: 99999;
       display: none; align-items: center; justify-content: center;
       -webkit-overflow-scrolling: touch;
     }
     .db-overlay.active { display: flex; }
     .db-panel {
-      background: #fff; border-radius: 16px; width: 98vw; max-width: 1300px;
-      height: 95vh; max-height: 95vh; display: flex; flex-direction: column; overflow: hidden;
-      box-shadow: 0 20px 80px rgba(0,0,0,0.35);
+      background: #fff; border-radius: 0; width: 100vw; max-width: 100vw;
+      height: 100vh; max-height: 100vh; display: flex; flex-direction: column; overflow: hidden;
+      box-shadow: none;
     }
-    body.dark-mode .db-panel { background: #1a1a1a; }
-    /* Header */
+    body.dark-mode .db-panel { background: #1c1c1c; }
+    /* Header — compact Excel-style */
     .db-header {
       display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
-      padding: 14px 24px; border-bottom: 1px solid #e5e5e5;
-      background: linear-gradient(135deg, #f8faff 0%, #f0fdf5 100%);
+      padding: 6px 16px; border-bottom: 1px solid #d0d0d0;
+      background: #f5f5f5;
     }
-    body.dark-mode .db-header { background: linear-gradient(135deg, #1a1a2e 0%, #0d2818 100%); border-color: #333; }
-    .db-title { font-size: 1.1rem; font-weight: 900; color: #1a1a1a; }
-    body.dark-mode .db-title { color: #eee; }
+    body.dark-mode .db-header { background: #252525; border-color: #444; }
+    .db-title { font-size: 0.95rem; font-weight: 800; color: #333; }
+    body.dark-mode .db-title { color: #ddd; }
     .db-close {
-      width: 36px; height: 36px; border: none; background: rgba(0,0,0,0.06); border-radius: 50%;
-      font-size: 1.2rem; cursor: pointer; color: #666; display: flex; align-items: center; justify-content: center;
+      width: 32px; height: 32px; border: none; background: rgba(0,0,0,0.06); border-radius: 4px;
+      font-size: 1rem; cursor: pointer; color: #666; display: flex; align-items: center; justify-content: center;
     }
-    .db-close:hover { background: rgba(0,0,0,0.12); }
-    /* Stats */
+    .db-close:hover { background: #e81123; color: #fff; }
+    /* Stats — compact horizontal bar */
     .db-stats {
-      display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px;
-      padding: 14px 24px; flex-shrink: 0; border-bottom: 1px solid #eee;
+      display: flex; gap: 20px; padding: 4px 16px; flex-shrink: 0; border-bottom: 1px solid #e0e0e0;
+      align-items: center; flex-wrap: wrap; font-size: 12px;
     }
-    body.dark-mode .db-stats { border-color: #333; }
+    body.dark-mode .db-stats { border-color: #3a3a3a; }
     .db-stat-card {
-      text-align: center; padding: 12px 8px; border-radius: 12px;
-      border: 1px solid #e8e8e8; background: #fafafa;
+      display: flex; align-items: center; gap: 4px;
+      padding: 2px 0; background: none; border: none; text-align: left;
     }
-    body.dark-mode .db-stat-card { background: #252525; border-color: #333; }
-    .db-stat-num { font-size: 1.6rem; font-weight: 900; color: #1a1a1a; line-height: 1.2; }
-    body.dark-mode .db-stat-num { color: #eee; }
-    .db-stat-label { font-size: 0.68rem; color: #888; margin-top: 2px; }
+    body.dark-mode .db-stat-card { background: none; border: none; }
+    .db-stat-num { font-size: 14px; font-weight: 800; color: #333; line-height: 1; }
+    body.dark-mode .db-stat-num { color: #ddd; }
+    .db-stat-label { font-size: 11px; color: #999; }
     .db-stat-card.c1 .db-stat-num { color: #4a6cf7; } .db-stat-card.c2 .db-stat-num { color: #07c160; }
     .db-stat-card.c3 .db-stat-num { color: #e67e22; } .db-stat-card.c4 .db-stat-num { color: #9b59b6; }
     .db-stat-card.c5 .db-stat-num { color: #e74c3c; }
-    /* Category chips */
+    /* Category chips — compact bar */
     .db-cat-bar {
-      display: flex; gap: 6px; padding: 8px 24px; flex-wrap: wrap; align-items: center; flex-shrink: 0;
-      border-bottom: 1px solid #eee; min-height: 40px;
+      display: flex; gap: 4px; padding: 3px 16px; flex-wrap: wrap; align-items: center; flex-shrink: 0;
+      border-bottom: 1px solid #e0e0e0; min-height: 28px;
     }
-    body.dark-mode .db-cat-bar { border-color: #333; }
+    body.dark-mode .db-cat-bar { border-color: #3a3a3a; }
     .db-cat-chip {
-      display: inline-flex; align-items: center; gap: 4px; padding: 4px 12px;
-      border-radius: 20px; font-size: 0.7rem; font-weight: 700; cursor: pointer;
+      display: inline-flex; align-items: center; gap: 3px; padding: 2px 8px;
+      border-radius: 10px; font-size: 11px; font-weight: 700; cursor: pointer;
       border: 1px solid transparent; white-space: nowrap; user-select: none;
     }
     .db-cat-chip:hover { filter: brightness(0.95); }
-    /* Toolbar */
+    /* Toolbar — compact single row */
     .db-toolbar {
-      display: flex; gap: 10px; padding: 10px 24px; align-items: center; flex-shrink: 0;
-      border-bottom: 1px solid #eee; flex-wrap: wrap;
+      display: flex; gap: 8px; padding: 4px 16px; align-items: center; flex-shrink: 0;
+      border-bottom: 1px solid #e0e0e0; flex-wrap: wrap; min-height: 36px;
     }
-    body.dark-mode .db-toolbar { border-color: #333; }
+    body.dark-mode .db-toolbar { border-color: #3a3a3a; }
     .db-search {
-      flex: 1; min-width: 180px; height: 36px; padding: 0 14px;
-      border: 1px solid #ddd; border-radius: 20px; font-size: 0.82rem;
-      outline: none; background: #f9f9f9; color: #333;
+      flex: 1; min-width: 160px; height: 28px; padding: 0 10px;
+      border: 1px solid #ccc; border-radius: 3px; font-size: 12px;
+      outline: none; background: #fff; color: #333;
     }
-    .db-search:focus { border-color: #4a6cf7; background: #fff; }
-    body.dark-mode .db-search { background: #2a2a2a; border-color: #444; color: #eee; }
-    body.dark-mode .db-search:focus { background: #333; }
+    .db-search:focus { border-color: #4a6cf7; }
+    body.dark-mode .db-search { background: #2a2a2a; border-color: #555; color: #eee; }
+    body.dark-mode .db-search:focus { border-color: #4a6cf7; }
     .db-filter {
-      height: 36px; padding: 0 12px; border: 1px solid #ddd; border-radius: 20px;
-      font-size: 0.74rem; background: #f9f9f9; color: #555; outline: none; cursor: pointer; min-width: 90px;
+      height: 28px; padding: 0 8px; border: 1px solid #ccc; border-radius: 3px;
+      font-size: 12px; background: #fff; color: #555; outline: none; cursor: pointer; min-width: 80px;
     }
-    body.dark-mode .db-filter { background: #2a2a2a; border-color: #444; color: #ccc; }
-    /* Table */
+    body.dark-mode .db-filter { background: #2a2a2a; border-color: #555; color: #ccc; }
+    /* ====== Spreadsheet-Style Table ====== */
     .db-table-wrap { flex: 1; overflow: auto; -webkit-overflow-scrolling: touch; }
-    .db-table { width: 100%; border-collapse: collapse; min-width: 700px; }
+    .db-table {
+      width: 100%; border-collapse: collapse; min-width: 800px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    }
     .db-table thead th {
-      position: sticky; top: 0; z-index: 2;
-      background: #f5f5f5; padding: 10px 14px; text-align: left;
-      font-weight: 800; color: #666; border-bottom: 2px solid #ddd;
-      white-space: nowrap; font-size: 0.7rem; letter-spacing: 0.3px;
+      position: sticky; top: 0; z-index: 3;
+      background: #f0f0f0; padding: 7px 10px; text-align: left;
+      font-weight: 700; color: #444; border: 1px solid #d0d0d0;
+      border-top: none; border-bottom: 2px solid #c0c0c0;
+      white-space: nowrap; font-size: 12px; letter-spacing: 0.2px;
+      cursor: pointer; user-select: none; -webkit-user-select: none;
     }
-    body.dark-mode .db-table thead th { background: #252525; border-color: #444; color: #aaa; }
+    .db-table thead th:hover { background: #e4e4e4; }
+    .db-table thead th .sort-arrow { font-size: 10px; margin-left: 3px; opacity: 0.35; }
+    .db-table thead th.sorted .sort-arrow { opacity: 1; color: #4a6cf7; }
+    .db-table thead th.col-rowno {
+      cursor: default; text-align: center; width: 44px; min-width: 44px;
+      background: #e8e8e8; color: #888;
+    }
+    .db-table thead th.col-rowno:hover { background: #e8e8e8; }
+    body.dark-mode .db-table thead th {
+      background: #2a2a2a; border-color: #444; color: #ccc; border-bottom-color: #555;
+    }
+    body.dark-mode .db-table thead th:hover { background: #333; }
+    body.dark-mode .db-table thead th.col-rowno { background: #222; color: #777; }
+    body.dark-mode .db-table thead th.col-rowno:hover { background: #222; }
+    /* Table cells */
     .db-table td {
-      padding: 10px 14px; border-bottom: 1px solid #f0f0f0; color: #333;
-      max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.8rem;
+      padding: 5px 10px; border: 1px solid #e0e0e0; color: #333;
+      max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      font-size: 13px; line-height: 1.5;
     }
-    body.dark-mode .db-table td { color: #ddd; border-color: #2a2a2a; }
-    .db-table tbody tr:hover td { background: rgba(74,108,247,0.03); }
-    body.dark-mode .db-table tbody tr:hover td { background: rgba(74,108,247,0.08); }
+    .db-table td.col-rowno {
+      text-align: center; background: #f5f5f5; color: #aaa; font-size: 11px;
+      cursor: default; user-select: none; -webkit-user-select: none;
+      width: 44px; min-width: 44px;
+    }
+    .db-table tbody tr:nth-child(even) td { background: #f8f9fa; }
+    .db-table tbody tr:nth-child(even) td.col-rowno { background: #ececec; }
+    .db-table tbody tr:hover td { background: rgba(74,108,247,0.06) !important; }
+    .db-table tbody tr:hover td.col-rowno { background: rgba(74,108,247,0.1) !important; }
+    body.dark-mode .db-table td { color: #ddd; border-color: #3a3a3a; }
+    body.dark-mode .db-table td.col-rowno { background: #1e1e1e; color: #666; }
+    body.dark-mode .db-table tbody tr:nth-child(even) td { background: #232323; }
+    body.dark-mode .db-table tbody tr:nth-child(even) td.col-rowno { background: #1c1c1c; }
+    body.dark-mode .db-table tbody tr:hover td { background: rgba(74,108,247,0.12) !important; }
+    body.dark-mode .db-table tbody tr:hover td.col-rowno { background: rgba(74,108,247,0.16) !important; }
     .db-empty { text-align: center; padding: 80px 20px; color: #999; font-size: 0.9rem; }
     .db-loading { text-align: center; padding: 60px 20px; color: #999; }
-    /* Category tags */
+    /* Category tags — compact */
     .cust-cat-tag {
-      display: inline-block; padding: 3px 10px; border-radius: 12px;
-      font-size: 0.7rem; font-weight: 700; cursor: pointer;
+      display: inline-block; padding: 2px 8px; border-radius: 10px;
+      font-size: 11px; font-weight: 700; cursor: pointer;
       background: #f0f0f0; color: #888; border: 1px dashed #ccc;
-      max-width: 85px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      max-width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
     .cust-cat-tag.set { border-style: solid; }
     .cust-cat-tag:hover { filter: brightness(0.9); }
@@ -893,42 +925,43 @@ export const DIALER_HTML = `<!DOCTYPE html>
     .cust-cat-tag.cat-老客户 { background:#e0f7fa;color:#006064;border-color:#80deea; }
     .cust-cat-tag.cat-同行 { background:#fff8e1;color:#f57f17;border-color:#fff176; }
     .cust-cat-tag.cat-其他 { background:#eceff1;color:#455a64;border-color:#b0bec5; }
-    .cust-cat-edit-wrap { display: inline-flex; gap: 3px; align-items: center; }
-    .cust-cat-select, .cust-cat-input { font-size: 0.68rem; padding: 2px 6px; border-radius: 4px; border: 1px solid #4a6cf7; outline: none; }
-    .cust-cat-input { width: 72px; }
-    .cust-cat-save, .cust-cat-cancel { font-size: 0.65rem; padding: 2px 8px; border-radius: 4px; cursor: pointer; border: none; font-weight: 700; }
+    .cust-cat-edit-wrap { display: inline-flex; gap: 2px; align-items: center; }
+    .cust-cat-select, .cust-cat-input { font-size: 11px; padding: 1px 4px; border-radius: 3px; border: 1px solid #4a6cf7; outline: none; }
+    .cust-cat-input { width: 60px; }
+    .cust-cat-save, .cust-cat-cancel { font-size: 10px; padding: 1px 6px; border-radius: 3px; cursor: pointer; border: none; font-weight: 700; }
     .cust-cat-save { background: #07c160; color: #fff; }
     .cust-cat-cancel { background: #eee; color: #666; }
-    /* Pager */
+    /* Pager — Excel status-bar style */
     .db-pager {
       display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
-      padding: 12px 24px; border-top: 1px solid #eee; font-size: 0.74rem; gap: 8px; flex-wrap: wrap;
+      padding: 4px 16px; border-top: 1px solid #d0d0d0; font-size: 12px; gap: 8px; flex-wrap: wrap;
+      background: #f5f5f5;
     }
-    body.dark-mode .db-pager { border-color: #333; }
+    body.dark-mode .db-pager { border-color: #3a3a3a; background: #252525; }
     .db-pager button {
-      background: #f5f5f5; border: 1px solid #ddd; padding: 6px 16px;
-      border-radius: 8px; cursor: pointer; font-weight: 700; font-size: 0.74rem; color: #333;
+      background: #fff; border: 1px solid #ccc; padding: 3px 12px;
+      border-radius: 3px; cursor: pointer; font-weight: 600; font-size: 12px; color: #333;
     }
-    body.dark-mode .db-pager button { background: #2a2a2a; border-color: #444; color: #ccc; }
+    body.dark-mode .db-pager button { background: #333; border-color: #555; color: #ccc; }
     .db-pager button:disabled { opacity: 0.3; cursor: default; }
     .db-pager select {
-      height: 32px; border: 1px solid #ddd; border-radius: 8px; font-size: 0.7rem;
-      padding: 0 6px; background: #fff; color: #333;
+      height: 26px; border: 1px solid #ccc; border-radius: 3px; font-size: 12px;
+      padding: 0 4px; background: #fff; color: #333;
     }
-    body.dark-mode .db-pager select { background: #2a2a2a; border-color: #444; color: #ccc; }
+    body.dark-mode .db-pager select { background: #333; border-color: #555; color: #ccc; }
     /* Mobile responsive */
     @media (max-width: 768px) {
       .db-panel { width: 100vw; height: 100vh; max-height: 100vh; border-radius: 0; }
-      .db-stats { grid-template-columns: repeat(3, 1fr); gap: 6px; padding: 8px 12px; }
-      .db-stat-card { padding: 8px 4px; }
-      .db-stat-num { font-size: 1.2rem; }
-      .db-header { padding: 10px 14px; }
-      .db-toolbar { padding: 8px 12px; gap: 6px; }
-      .db-search { min-width: 100px; height: 32px; font-size: 0.76rem; }
-      .db-filter { height: 32px; font-size: 0.7rem; padding: 0 8px; }
-      .db-table td, .db-table thead th { padding: 8px 10px; font-size: 0.72rem; }
-      .db-pager { padding: 8px 12px; }
-      .db-cat-bar { padding: 6px 12px; }
+      .db-stats { gap: 10px; padding: 4px 10px; }
+      .db-stat-num { font-size: 12px; }
+      .db-header { padding: 4px 10px; }
+      .db-toolbar { padding: 4px 10px; gap: 4px; }
+      .db-search { min-width: 100px; height: 26px; font-size: 11px; }
+      .db-filter { height: 26px; font-size: 11px; padding: 0 6px; }
+      .db-table td, .db-table thead th { padding: 3px 5px; font-size: 11px; }
+      .db-table td.col-rowno, .db-table thead th.col-rowno { width: 28px; min-width: 28px; font-size: 10px; }
+      .db-pager { padding: 4px 10px; }
+      .db-cat-bar { padding: 3px 10px; }
     }
   </style>
 </head>
@@ -1313,14 +1346,16 @@ export const DIALER_HTML = `<!DOCTYPE html>
     <div class="db-table-wrap">
       <table class="db-table">
         <thead><tr>
-          <th style="width:90px;">分类标签</th>
-          <th style="width:70px;">姓名</th>
-          <th style="width:120px;">电话</th>
-          <th style="min-width:140px;">公司</th>
-          <th style="width:110px;">批次</th>
-          <th style="width:90px;">入库时间</th>
+          <th class="col-rowno" data-sort="">#</th>
+          <th data-sort="category" style="width:90px;">分类标签 <span class="sort-arrow">▲</span></th>
+          <th data-sort="name" style="width:72px;">姓名 <span class="sort-arrow">▲</span></th>
+          <th data-sort="mobile" style="width:120px;">电话 <span class="sort-arrow">▲</span></th>
+          <th data-sort="company_name" style="min-width:160px;">公司 <span class="sort-arrow">▲</span></th>
+          <th data-sort="note" style="width:80px;">备注/金额 <span class="sort-arrow">▲</span></th>
+          <th data-sort="batch_label" style="width:110px;">批次 <span class="sort-arrow">▲</span></th>
+          <th data-sort="created_at" style="width:100px;">入库时间 <span class="sort-arrow">▲</span></th>
         </tr></thead>
-        <tbody id="dbTbody"><tr><td colspan="6" class="db-loading">⏳ 加载中...</td></tr></tbody>
+        <tbody id="dbTbody"><tr><td colspan="8" class="db-loading">⏳ 加载中...</td></tr></tbody>
       </table>
       <div class="db-empty" id="dbEmpty" style="display:none;"><div style="font-size:2.5rem;margin-bottom:12px;">📭</div><div>暂无客户数据</div><div style="font-size:0.72rem;color:#aaa;margin-top:4px;">导入客户或检查 Supabase 连接</div></div>
     </div>
@@ -4250,7 +4285,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
     // ====== Customer Data Viewer (Supabase) ======
     var custViewerPage = 1;
     // ====== Customer Database Dashboard v2 ======
-    var DB = { page: 1, total: 0, pageSize: 50, timer: null };
+    var DB = { page: 1, total: 0, pageSize: 50, timer: null, sortBy: '', sortDir: 'asc' };
     var CATS = ['潜在客户','意向客户','已成交','无效号码','待跟进','老客户','同行','其他'];
     var CAT_COLORS = {
       '潜在客户':'background:#e3f2fd;color:#1565c0;border-color:#90caf9','意向客户':'background:#fff3e0;color:#e65100;border-color:#ffcc80',
@@ -4265,7 +4300,8 @@ export const DIALER_HTML = `<!DOCTYPE html>
       var q = s ? s.value : '';
       var url = '/api/dialer/customers?page=' + DB.page + '&pageSize=' + DB.pageSize;
       if (q) url += '&search=' + encodeURIComponent(q);
-      document.getElementById('dbTbody').innerHTML = '<tr><td colspan="6" class="db-loading">⏳ 加载中...</td></tr>';
+      if (DB.sortBy) url += '&sortBy=' + encodeURIComponent(DB.sortBy) + '&sortDir=' + DB.sortDir;
+      document.getElementById('dbTbody').innerHTML = '<tr><td colspan="8" class="db-loading">⏳ 加载中...</td></tr>';
       fetch(url).then(function(r){return r.json();}).then(function(res){
         var data = res.data || [];
         var cf = document.getElementById('dbCatFilter'); if (cf && cf.value) data = data.filter(function(c){return c.category === cf.value;});
@@ -4274,7 +4310,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
         dbTable(data); dbPager(); dbStats(data); dbFilters(data);
         document.getElementById('dbTotal').textContent = '共 ' + DB.total + ' 条';
       }).catch(function(err){
-        document.getElementById('dbTbody').innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;color:#e74c3c;">⚠ 加载失败: ' + esc(err.message) + '</td></tr>';
+        document.getElementById('dbTbody').innerHTML = '<tr><td colspan="8" style="text-align:center;padding:40px;color:#e74c3c;">⚠ 加载失败: ' + esc(err.message) + '</td></tr>';
       });
     }
 
@@ -4303,18 +4339,28 @@ export const DIALER_HTML = `<!DOCTYPE html>
       var tb=document.getElementById('dbTbody'), em=document.getElementById('dbEmpty');
       if (!data||data.length===0){ tb.innerHTML=''; em.style.display='block'; return; }
       em.style.display='none'; var h='';
+      var rowBase = (DB.page - 1) * DB.pageSize;
       for (var i=0;i<data.length;i++){
         var c=data[i], cat=c.category||'', cc2=cat?' set cat-'+esc(cat):'';
+        var noteVal = c.note || '';
+        // Try to parse note as amount (number formatting)
+        var noteDisplay = noteVal ? esc(noteVal) : '-';
+        var noteStyle = '';
+        if (noteVal && /^\d+(\.\d+)?$/.test(noteVal.trim())) {
+          noteStyle = 'text-align:right;font-family:monospace;';
+        }
         h+='<tr data-mobile="'+esc(c.mobile||'')+'">'+
+          '<td class="col-rowno">'+(rowBase+i+1)+'</td>'+
           '<td><span class="cust-cat-tag'+cc2+'" data-m="'+esc(c.mobile)+'" data-c="'+esc(cat)+'">'+esc(cat||'点击分类')+'</span></td>'+
           '<td>'+esc(c.name||'-')+'</td>'+
-          '<td style="font-family:monospace;font-size:0.8rem;">'+esc(c.mobile||'-')+'</td>'+
+          '<td style="font-family:monospace;">'+esc(c.mobile||'-')+'</td>'+
           '<td>'+esc(c.company_name||'-')+'</td>'+
-          '<td>'+(c.batch_label?'<span style="background:rgba(74,108,247,0.1);color:#4a6cf7;padding:2px 8px;border-radius:4px;font-size:0.7rem;">'+esc(c.batch_label)+'</span>':'-')+'</td>'+
-          '<td style="font-size:0.7rem;color:#999;">'+(c.created_at?esc(c.created_at.slice(0,10)):'-')+'</td>'+
+          '<td style="'+noteStyle+'">'+noteDisplay+'</td>'+
+          '<td>'+(c.batch_label?'<span style="background:rgba(74,108,247,0.1);color:#4a6cf7;padding:2px 8px;border-radius:4px;font-size:12px;">'+esc(c.batch_label)+'</span>':'-')+'</td>'+
+          '<td style="font-size:12px;color:#888;">'+(c.created_at?esc(c.created_at.slice(0,10)):'-')+'</td>'+
         '</tr>';
       }
-      tb.innerHTML=h; dbWireCats();
+      tb.innerHTML=h; dbWireCats(); dbWireSortHeaders();
     }
 
     function dbPager(){
@@ -4351,6 +4397,36 @@ export const DIALER_HTML = `<!DOCTYPE html>
       sv.onclick=function(e){e.stopPropagation();save();};
       cn.onclick=function(e){e.stopPropagation();tag.innerHTML=oldH;tag.className=oldC;dbWireCats();};
       setTimeout(function(){inp.focus();},50);
+    }
+
+    function dbSort(col){
+      if (DB.sortBy === col) {
+        DB.sortDir = DB.sortDir === 'asc' ? 'desc' : 'asc';
+      } else {
+        DB.sortBy = col; DB.sortDir = 'asc';
+      }
+      DB.page = 1; dbFetch();
+    }
+    function dbWireSortHeaders(){
+      var ths = document.querySelectorAll('#dbOverlay .db-table thead th[data-sort]');
+      for (var i = 0; i < ths.length; i++) {
+        (function(th){
+          var col = th.getAttribute('data-sort');
+          if (!col) return;
+          th.onclick = function(){ dbSort(col); };
+          // Update sort arrow
+          var arrow = th.querySelector('.sort-arrow');
+          if (arrow) {
+            if (DB.sortBy === col) {
+              arrow.textContent = DB.sortDir === 'asc' ? '▲' : '▼';
+              th.classList.add('sorted');
+            } else {
+              arrow.textContent = '▲';
+              th.classList.remove('sorted');
+            }
+          }
+        })(ths[i]);
+      }
     }
 
     function openDBDashboard(){

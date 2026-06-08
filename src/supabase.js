@@ -255,7 +255,7 @@ export function createSupabaseClient(env) {
   /**
    * Get all customers with pagination and optional search.
    */
-  async function getAllCustomers(page, pageSize, search) {
+  async function getAllCustomers(page, pageSize, search, sortBy, sortDir) {
     if (!baseUrl || !key) return { data: [], total: 0, page: page || 1, pageSize: pageSize || 50 };
 
     try {
@@ -267,6 +267,16 @@ export function createSupabaseClient(env) {
       var baseSearch = '';
       if (search) {
         baseSearch = '&or=(name.ilike.%25' + encodeURIComponent(search) + '%25,mobile.ilike.%25' + encodeURIComponent(search) + '%25,company_name.ilike.%25' + encodeURIComponent(search) + '%25)';
+      }
+
+      // Build sort clause
+      var orderClause = '&order=created_at.desc'; // default
+      if (sortBy) {
+        var dir = (sortDir === 'asc' ? 'asc' : 'desc');
+        orderClause = '&order=' + encodeURIComponent(sortBy) + '.' + dir;
+        if (sortBy !== 'created_at') {
+          orderClause += ',created_at.desc'; // secondary sort
+        }
       }
 
       var headersWithCount = Object.assign({}, headers(), {
@@ -285,7 +295,7 @@ export function createSupabaseClient(env) {
       var data = null;
 
       for (var ci = 0; ci < colSets.length; ci++) {
-        var url2 = baseUrl + '/rest/v1/customers?select=' + colSets[ci] + '&order=created_at.desc' + baseSearch;
+        var url2 = baseUrl + '/rest/v1/customers?select=' + colSets[ci] + orderClause + baseSearch;
         resp = await fetch(url2, { headers: headersWithCount });
         if (resp.ok) {
           data = await resp.json();
