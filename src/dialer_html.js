@@ -2821,35 +2821,24 @@ export const DIALER_HTML = `<!DOCTYPE html>
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ image: e.target.result, mode: 'bulk' })
           })
-          .then(function(r) { return r.json(); })
+          .then(function(r) {
+            return r.text().then(function(t) {
+              try { var d = JSON.parse(t); return d; } catch(e) {
+                throw new Error('服务器异常 (' + r.status + '): ' + t.substring(0, 100));
+              }
+            });
+          })
           .then(function(result) {
             if (document.getElementById('aiLog4')) { document.getElementById('aiLog4').innerHTML = '✅ AI 识别完成'; document.getElementById('aiLog4').style.opacity = '1'; }
-            // Primary: structured contacts from AI
             var contacts = [];
             if (result.contacts && result.contacts.length > 0) {
-              result.contacts.forEach(function(c) {
-                if (c.phone || c.name) {
-                  contacts.push({
-                    name: c.name || '',
-                    phone: c.phone || '',
-                    company: c.company || '',
-                    note: c.note || ''
-                  });
-                }
-              });
+              result.contacts.forEach(function(c) { if (c.phone) contacts.push({ name: c.name || '', phone: c.phone, company: c.company || '', note: c.note || '' }); });
+            } else if (result.name || result.phone) {
+              contacts.push({ name: result.name || '', phone: result.phone || '', company: result.company || '', note: result.note || result.fund || '' });
             }
-            // Fallback: parse rawText for phone numbers
-            var allText = result.rawText || '';
-            if (allText) {
-              var parsed = parsePhoneContactsFromRawText(allText);
-              parsed.forEach(function(p) {
-                if (p.phone && !contacts.find(function(x) { return x.phone === p.phone; })) {
-                  contacts.push(p);
-                }
-              });
-            }
-            if (contacts.length === 0) {
-              alert('AI 识别完成但未提取到联系人。\n\nAI 返回的原始文本 (前300字):\n' + (result.rawText || '(空)').substring(0, 300) + '\n\n请截图这段文字发给开发者排查。');
+            if (result.rawText || result.note) {
+              var extra = parsePhoneContactsFromRawText(result.rawText || result.note || '');
+              extra.forEach(function(ec) { if (!contacts.find(function(c) { return c.phone === ec.phone; })) contacts.push(ec); });
             }
             renderAIUnstructuredReport(file.name, contacts);
           })
