@@ -163,6 +163,115 @@ async function sendWebhookMarkdown(env, target, baseHeader, items, itemFormatter
   }
 }
 
+async function doWebSearch(env, query) {
+  const provider = await env.DATA_KV.get('config:search_provider') || 'duckduckgo';
+  const apiKey = await env.DATA_KV.get('config:search_api_key') || '';
+
+  // Tavily Search API (requires API key)
+  if (provider === 'tavily' && apiKey) {
+    try {
+      const resp = await fetch('https://api.tavily.com/search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ api_key: apiKey, query: query, search_depth: 'basic', max_results: 5, include_answer: false })
+      });
+      if (!resp.ok) throw new Error('Tavily HTTP ' + resp.status);
+      const data = await resp.json();
+      if (data.results && data.results.length > 0) {
+        return data.results.slice(0, 5).map(r => ({
+          title: r.title || '',
+          url: r.url || '',
+          snippet: r.content || ''
+        }));
+      }
+      return [];
+    } catch (e) {
+      console.error('[WebSearch Tavily Error]:', e.message);
+      return [];
+    }
+  }
+
+  // Brave Search API
+  if (provider === 'brave' && apiKey) {
+    try {
+      const resp = await fetch(`https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=5`, {
+        headers: { 'Accept': 'application/json', 'Accept-Encoding': 'gzip', 'X-Subscription-Token': apiKey }
+      });
+      if (!resp.ok) throw new Error('Brave HTTP ' + resp.status);
+      const data = await resp.json();
+      if (data.web && data.web.results) {
+        return data.web.results.slice(0, 5).map(r => ({
+          title: r.title || '',
+          url: r.url || '',
+          snippet: r.description || ''
+        }));
+      }
+      return [];
+    } catch (e) {
+      console.error('[WebSearch Brave Error]:', e.message);
+      return [];
+    }
+  }
+
+  // Default: DuckDuckGo Lite (free, no API key needed)
+  try {
+    const resp = await fetch(`https://lite.duckduckgo.com/lite/?q=${encodeURIComponent(query)}`, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; MegzBot/1.0)' }
+    });
+    if (!resp.ok) throw new Error('DuckDuckGo HTTP ' + resp.status);
+    const html = await resp.text();
+
+    // Parse DuckDuckGo Lite HTML results
+    const results = [];
+    // Pattern: each result is a <tr> with link, followed by <tr> with snippet
+    const linkRe = /<a\s+(?:[^>]*\s)?href="([^"]*)"[^>]*>([^<]*)<\/a>/gi;
+    const snippetRe = /<td\s+class="result-snippet"[^>]*>([^<]*(?:<(?!\/td>)[^<]*<\/[^>]*>)?[^<]*)<\/td>/gi;
+
+    // More robust: split by <tr> and parse
+    const rows = html.split(/<tr[^>]*>/i);
+    let currentLink = null, currentUrl = null;
+    for (const row of rows) {
+      const linkMatch = row.match(/<a\s+(?:[^>]*\s)?href="(https?:\/\/[^"]*)"[^>]*>([\s\S]*?)<\/a>/i);
+      if (linkMatch) {
+        currentUrl = linkMatch[1];
+        currentLink = linkMatch[2].replace(/<[^>]*>/g, '').trim();
+        if (currentLink && currentUrl && !currentUrl.includes('duckduckgo.com')) {
+          // Push placeholder, snippet fills in next
+        }
+      }
+      const snippetMatch = row.match(/<td\s+class="result-snippet"[^>]*>([\s\S]*?)<\/td>/i);
+      if (snippetMatch && currentLink && currentUrl) {
+        const snippet = snippetMatch[1].replace(/<[^>]*>/g, '').trim();
+        if (snippet && !results.find(r => r.url === currentUrl)) {
+          results.push({ title: currentLink, url: currentUrl, snippet: snippet });
+          currentLink = null; currentUrl = null;
+        }
+      }
+    }
+
+    if (results.length > 0) return results.slice(0, 5);
+
+    // Fallback: DuckDuckGo Instant Answer API
+    const fallbackResp = await fetch(`https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1`);
+    const fbData = await fallbackResp.json();
+    const fbResults = [];
+    if (fbData.AbstractText) {
+      fbResults.push({ title: fbData.Heading || query, url: fbData.AbstractURL || '', snippet: fbData.AbstractText });
+    }
+    if (fbData.RelatedTopics) {
+      for (const t of fbData.RelatedTopics.slice(0, 4)) {
+        if (t.Text) {
+          fbResults.push({ title: t.FirstURL ? t.Text.split(' - ')[0] : query, url: t.FirstURL || '', snippet: t.Text });
+        }
+      }
+    }
+    return fbResults.slice(0, 5);
+  } catch (e) {
+    console.error('[WebSearch DuckDuckGo Error]:', e.message);
+    return [];
+  }
+}
+
 async function callAIChat(env, messages, temperature = 0.5, apiKeyOverride = '') {
   const provider = await env.DATA_KV.get('config:ai_provider') || 'deepseek';
   const apiKey = apiKeyOverride || await env.DATA_KV.get('config:ai_api_key') || await env.DATA_KV.get('config:deepseek_api_key') || env.AI_API_KEY || env.DEEPSEEK_API_KEY;
@@ -354,6 +463,23 @@ async function callAIChatWithTools(env, messages, temperature = 0.5, fromUser = 
             }
           },
           required: ["source_type", "content"]
+        }
+      }
+    },
+    {
+      type: "function",
+      function: {
+        name: "web_search",
+        description: "联网搜索最新资讯、新闻、行业动态、政策等实时信息。用于获取知识截止日期之后的新闻事件、最新政策法规、市场行情、行业趋势等需要最新信息才能回答的问题。返回搜索结果标题、URL 和摘要。",
+        parameters: {
+          type: "object",
+          properties: {
+            query: {
+              type: "string",
+              description: "搜索关键词或问题（如 2026年最新房贷利率政策、近期金融行业新闻 等）"
+            }
+          },
+          required: ["query"]
         }
       }
     }
@@ -730,7 +856,18 @@ async function callAIChatWithTools(env, messages, temperature = 0.5, fromUser = 
           data.learns.unshift(newItem);
           await env.DATA_KV.put(`work:${todayDate}`, JSON.stringify(data));
 
-          resultData = { success: true, data: newItem, message: `已成功保存学习内容“${parsedResult.title}”并同步至锁屏展示！` };
+          resultData = { success: true, data: newItem, message: `已成功保存学习内容”${parsedResult.title}”并同步至锁屏展示！` };
+        } else if (functionName === 'web_search') {
+          const searchResults = await doWebSearch(env, functionArgs.query);
+          if (searchResults.length > 0) {
+            resultData = {
+              query: functionArgs.query,
+              results: searchResults.map(r => `${r.title}\n  URL: ${r.url}\n  摘要: ${r.snippet}`).join('\n\n'),
+              raw: searchResults
+            };
+          } else {
+            resultData = { query: functionArgs.query, results: '未找到相关搜索结果，请尝试更换搜索关键词。' };
+          }
         } else {
           resultData = { error: `Unknown tool: ${functionName}` };
         }
@@ -1355,6 +1492,10 @@ export default {
       data.aiApiKey = await env.DATA_KV.get('config:ai_api_key') || '';
       data.aiApiBase = await env.DATA_KV.get('config:ai_api_base') || '';
       data.aiModel = await env.DATA_KV.get('config:ai_model') || '';
+      data.searchProvider = await env.DATA_KV.get('config:search_provider') || '';
+      data.searchApiKey = await env.DATA_KV.get('config:search_api_key') || '';
+      data.momentsWebhookUrl = await env.DATA_KV.get('config:moments_webhook_url') || '';
+      data.momentsEnabled = await env.DATA_KV.get('config:moments_enabled') || 'true';
       // Inject goals
       data.goals = JSON.parse(await env.DATA_KV.get('config:goals') || '{}');
       return new Response(JSON.stringify(data), {
@@ -1368,7 +1509,7 @@ export default {
       const items = Array.isArray(body) ? body : [body];
       let hasError = false;
       for (const item of items) {
-        const { date, wechatCount, intentCount, revisitCount, visitCount, paymentCount, clients, todayTodos, tomorrowTodos, tempClients, scripts, learns, todoLog, webhookUrl, deepseekApiKey, wecomCorpId, wecomToken, wecomAesKey, aiProvider, aiApiKey, aiApiBase, aiModel, _ts } = item;
+        const { date, wechatCount, intentCount, revisitCount, visitCount, paymentCount, clients, todayTodos, tomorrowTodos, tempClients, scripts, learns, todoLog, webhookUrl, deepseekApiKey, wecomCorpId, wecomToken, wecomAesKey, aiProvider, aiApiKey, aiApiBase, aiModel, searchProvider, searchApiKey, momentsWebhookUrl, momentsEnabled, _ts } = item;
         if (!date) { hasError = true; continue; }
         
         // If a non-empty Webhook URL is supplied, persist it globally
@@ -1398,6 +1539,18 @@ export default {
         }
         if (aiModel !== undefined) {
           await env.DATA_KV.put('config:ai_model', aiModel);
+        }
+        if (searchProvider !== undefined) {
+          await env.DATA_KV.put('config:search_provider', searchProvider);
+        }
+        if (searchApiKey !== undefined) {
+          await env.DATA_KV.put('config:search_api_key', searchApiKey);
+        }
+        if (momentsWebhookUrl !== undefined) {
+          await env.DATA_KV.put('config:moments_webhook_url', momentsWebhookUrl);
+        }
+        if (momentsEnabled !== undefined) {
+          await env.DATA_KV.put('config:moments_enabled', momentsEnabled ? 'true' : 'false');
         }
 
         // 读取云端现有数据
@@ -1435,6 +1588,10 @@ export default {
           aiApiKey: aiApiKey !== undefined ? aiApiKey : (existing.aiApiKey || ''),
           aiApiBase: aiApiBase !== undefined ? aiApiBase : (existing.aiApiBase || ''),
           aiModel: aiModel !== undefined ? aiModel : (existing.aiModel || ''),
+          searchProvider: searchProvider !== undefined ? searchProvider : (existing.searchProvider || ''),
+          searchApiKey: searchApiKey !== undefined ? searchApiKey : (existing.searchApiKey || ''),
+          momentsWebhookUrl: momentsWebhookUrl !== undefined ? momentsWebhookUrl : (existing.momentsWebhookUrl || ''),
+          momentsEnabled: momentsEnabled !== undefined ? momentsEnabled : (existing.momentsEnabled || 'true'),
           lastLoadDate: date,
           lastModified: new Date().toISOString(),
           _ts: _ts || Date.now()
@@ -1591,6 +1748,14 @@ export default {
           break;
         case 'setWecomApiProxy':
           await env.DATA_KV.put('config:wecom_api_proxy', body.wecomApiProxy || '');
+          break;
+        case 'setSearchConfig':
+          if (body.searchProvider !== undefined) await env.DATA_KV.put('config:search_provider', body.searchProvider || '');
+          if (body.searchApiKey !== undefined) await env.DATA_KV.put('config:search_api_key', body.searchApiKey || '');
+          break;
+        case 'setMomentsConfig':
+          if (body.momentsWebhookUrl !== undefined) await env.DATA_KV.put('config:moments_webhook_url', body.momentsWebhookUrl || '');
+          if (body.momentsEnabled !== undefined) await env.DATA_KV.put('config:moments_enabled', body.momentsEnabled ? 'true' : 'false');
           break;
         case 'setAiConfig':
           if (body.aiProvider !== undefined) await env.DATA_KV.put('config:ai_provider', body.aiProvider || '');
@@ -2952,6 +3117,43 @@ export default {
         </div>
       </details>
 
+      <details style="margin-top:10px; border:1px dashed var(--card-border); border-radius:var(--radius-xs); padding:8px; background:rgba(120,120,120,0.02);">
+        <summary style="font-size:0.75rem; color:var(--text-soft); cursor:pointer; font-weight:700; outline:none; user-select:none;">🔍 AI 联网搜索配置</summary>
+        <div style="display:flex; flex-direction:column; gap:6px; margin-top:8px;">
+          <div style="display:flex; align-items:center; gap:6px;">
+            <span style="font-size:0.65rem; color:var(--text-soft); width:50px; font-weight:700;">搜索引擎:</span>
+            <select id="searchProviderSelect" class="input-simple" style="flex:1; font-size:0.7rem; height:28px; padding:0 4px; font-weight:700; background:var(--btn-bg); border-color:var(--card-border); color:var(--text-main);">
+              <option value="duckduckgo">DuckDuckGo (免费)</option>
+              <option value="tavily">Tavily Search</option>
+              <option value="brave">Brave Search</option>
+            </select>
+          </div>
+          <input type="password" class="input-simple" id="searchApiKeyInput" placeholder="搜索 API Key (DuckDuckGo 无需填写)" style="font-size:0.7rem; height:28px; padding:0 8px;">
+          <button id="saveSearchConfigBtn" class="btn-add" style="font-size:0.7rem; height:28px; margin:0; background:linear-gradient(135deg,#667eea,#764ba2); color:white; border:none; width:100%; font-weight:700;">💾 保存搜索配置</button>
+          <div style="font-size:0.6rem; color:var(--text-light); line-height:1.4; margin-top:2px;">
+            配置后，AI 助手可联网搜索最新资讯、政策、行业动态等实时信息。默认使用 DuckDuckGo（免费无需 API Key），也可配置 Tavily 或 Brave Search 获得更好的搜索结果。
+          </div>
+        </div>
+      </details>
+
+      <details style="margin-top:10px; border:1px dashed var(--card-border); border-radius:var(--radius-xs); padding:8px; background:rgba(120,120,120,0.02);">
+        <summary style="font-size:0.75rem; color:var(--text-soft); cursor:pointer; font-weight:700; outline:none; user-select:none;">📱 朋友圈文案定时推送</summary>
+        <div style="display:flex; flex-direction:column; gap:6px; margin-top:8px;">
+          <div style="display:flex; align-items:center; gap:6px;">
+            <label style="font-size:0.7rem; color:var(--text-main); font-weight:700; display:flex; align-items:center; gap:4px; cursor:pointer;">
+              <input type="checkbox" id="momentsEnabledCheck" checked style="width:16px; height:16px;"> 启用每日定时推送
+            </label>
+          </div>
+          <input type="text" class="input-simple" id="momentsWebhookUrlInput" placeholder="朋友圈推送专用 Webhook URL（留空使用上方通用地址）" style="font-size:0.7rem; height:28px; padding:0 8px;">
+          <button id="saveMomentsConfigBtn" class="btn-add" style="font-size:0.7rem; height:28px; margin:0; background:linear-gradient(135deg,#f093fb,#f5576c); color:white; border:none; width:100%; font-weight:700;">💾 保存推送配置</button>
+          <div style="font-size:0.6rem; color:var(--text-light); line-height:1.4; margin-top:2px;">
+            ⏰ 每天早上 <strong>8:00 (北京时间)</strong> 自动生成 <strong>3 条</strong> 适合朋友圈发布的营销文案，并通过企业微信 Webhook 推送到指定群聊。<br>
+            文案由 AI 结合当日最新行业资讯生成，风格多样（专业干货、情感共鸣、轻松互动）。<br>
+            ⚠️ 需要已配置 AI 大模型 API Key 才能正常生成文案，否则仅发送提醒。
+          </div>
+        </div>
+      </details>
+
       <div id="exportStatus" style="font-size:0.75rem;text-align:center;min-height:20px;"></div>
     </div>
   </div>
@@ -3887,6 +4089,10 @@ export default {
       if(data.aiApiKey!==undefined)localStorage.setItem('ai_api_key',data.aiApiKey);
       if(data.aiApiBase!==undefined)localStorage.setItem('ai_api_base',data.aiApiBase);
       if(data.aiModel!==undefined)localStorage.setItem('ai_model',data.aiModel);
+      if(data.searchProvider!==undefined)localStorage.setItem('search_provider',data.searchProvider);
+      if(data.searchApiKey!==undefined)localStorage.setItem('search_api_key',data.searchApiKey);
+      if(data.momentsWebhookUrl!==undefined)localStorage.setItem('moments_webhook_url',data.momentsWebhookUrl);
+      if(data.momentsEnabled!==undefined)localStorage.setItem('moments_enabled',data.momentsEnabled);
       localStorage.setItem(LOCAL_TS_K,data._ts);
       refreshAll();
       addSyncLog('✅ 拉取并合并云端最新数据完成');
@@ -3932,6 +4138,10 @@ export default {
     if(data.aiApiKey!==undefined)localStorage.setItem('ai_api_key',data.aiApiKey);
     if(data.aiApiBase!==undefined)localStorage.setItem('ai_api_base',data.aiApiBase);
     if(data.aiModel!==undefined)localStorage.setItem('ai_model',data.aiModel);
+    if(data.searchProvider!==undefined)localStorage.setItem('search_provider',data.searchProvider);
+    if(data.searchApiKey!==undefined)localStorage.setItem('search_api_key',data.searchApiKey);
+    if(data.momentsWebhookUrl!==undefined)localStorage.setItem('moments_webhook_url',data.momentsWebhookUrl);
+    if(data.momentsEnabled!==undefined)localStorage.setItem('moments_enabled',data.momentsEnabled);
     if(data.lastLoadDate)localStorage.setItem(LAST_LOAD_DATE_K,data.lastLoadDate);
     localStorage.setItem(LOCAL_TS_K,data._ts||Date.now());
     return true;
@@ -4916,6 +5126,14 @@ const rid=Math.floor(Math.random()*1000);
       document.getElementById('siriKeyInput').value=localStorage.getItem('siri_key')||'siri_default_123';
       document.getElementById('siriApiUrlDisplay').innerText = window.location.origin + '/api/siri?key=' + (localStorage.getItem('siri_key')||'siri_default_123');
 
+      // Load search config
+      document.getElementById('searchProviderSelect').value = localStorage.getItem('search_provider') || 'duckduckgo';
+      document.getElementById('searchApiKeyInput').value = localStorage.getItem('search_api_key') || '';
+
+      // Load moments config
+      document.getElementById('momentsEnabledCheck').checked = localStorage.getItem('moments_enabled') !== 'false';
+      document.getElementById('momentsWebhookUrlInput').value = localStorage.getItem('moments_webhook_url') || '';
+
       document.getElementById('exportModal').classList.add('active');
     });
     document.getElementById('closeExportModalBtn').addEventListener('click',()=>document.getElementById('exportModal').classList.remove('active'));
@@ -5058,6 +5276,37 @@ const rid=Math.floor(Math.random()*1000);
     document.getElementById('downloadSiriShortcutBtn').addEventListener('click', () => {
       const siriKey = document.getElementById('siriKeyInput').value.trim() || 'siri_default_123';
       window.open(window.location.origin + '/api/siri/download?key=' + encodeURIComponent(siriKey), '_blank');
+    });
+
+    // Save search config
+    document.getElementById('saveSearchConfigBtn').addEventListener('click', async () => {
+      const provider = document.getElementById('searchProviderSelect').value;
+      const apiKey = document.getElementById('searchApiKeyInput').value.trim();
+      localStorage.setItem('search_provider', provider);
+      localStorage.setItem('search_api_key', apiKey);
+      try {
+        await syncOp('setSearchConfig', { searchProvider: provider, searchApiKey: apiKey });
+        document.getElementById('exportStatus').innerText = '✅ 搜索配置已保存！AI 现在可以联网搜索了。';
+      } catch (e) {
+        document.getElementById('exportStatus').innerText = '❌ 保存失败: ' + e.message;
+      }
+    });
+
+    // Save moments config
+    document.getElementById('saveMomentsConfigBtn').addEventListener('click', async () => {
+      const enabled = document.getElementById('momentsEnabledCheck').checked;
+      const webhookUrl = document.getElementById('momentsWebhookUrlInput').value.trim();
+      localStorage.setItem('moments_enabled', enabled ? 'true' : 'false');
+      localStorage.setItem('moments_webhook_url', webhookUrl);
+      try {
+        await syncOp('setMomentsConfig', { momentsEnabled: enabled, momentsWebhookUrl: webhookUrl });
+        const msg = enabled
+          ? '✅ 朋友圈定时推送已启用！每天早 8:00 自动发送 3 条文案到企业微信。'
+          : '⏸️ 朋友圈定时推送已停用。';
+        document.getElementById('exportStatus').innerText = msg;
+      } catch (e) {
+        document.getElementById('exportStatus').innerText = '❌ 保存失败: ' + e.message;
+      }
     });
 
     async function doExport(type){
@@ -6455,5 +6704,255 @@ const rid=Math.floor(Math.random()*1000);
     return new Response(HTML, {
       headers: { 'Content-Type': 'text/html; charset=UTF-8' }
     });
+  },
+
+  // Cron 定时任务：每天早上 8:00 (北京时间，UTC+8) 自动生成 3 条朋友圈文案并推送到企业微信
+  async scheduled(event, env, ctx) {
+    // cron: 0 0 * * * (midnight UTC = 8:00 AM Beijing)
+    const bjTime = new Date(Date.now() + 8 * 3600000);
+    const dateStr = bjTime.toISOString().split('T')[0];
+    const timeStr = bjTime.toISOString().replace('T', ' ').substring(0, 19);
+
+    console.log(`[Cron] 定时任务触发 - 北京时间: ${timeStr}`);
+
+    // 检查是否启用朋友圈定时推送
+    const momentsEnabled = await env.DATA_KV.get('config:moments_enabled');
+    if (momentsEnabled === 'false') {
+      console.log('[Cron] 朋友圈定时推送已停用，跳过。');
+      return;
+    }
+
+    // 获取目标 Webhook URL
+    const momentsWebhookUrl = await env.DATA_KV.get('config:moments_webhook_url');
+    if (!momentsWebhookUrl || !momentsWebhookUrl.trim()) {
+      // 回退到通用 webhook URL
+      const fallbackUrl = await env.DATA_KV.get('config:webhook_url');
+      if (!fallbackUrl || !fallbackUrl.trim()) {
+        console.log('[Cron] 未配置朋友圈推送 Webhook URL，跳过。');
+        return;
+      }
+    }
+
+    const targetUrl = (momentsWebhookUrl && momentsWebhookUrl.trim()) ? momentsWebhookUrl.trim() : (await env.DATA_KV.get('config:webhook_url') || '').trim();
+    if (!targetUrl) {
+      console.log('[Cron] 无有效的推送目标 URL，跳过。');
+      return;
+    }
+
+    // SSRF 防御：仅允许企业微信官方域名
+    if (!targetUrl.startsWith('https://qyapi.weixin.qq.com/')) {
+      console.log('[Cron] 非企业微信官方域名，拒绝发送。');
+      return;
+    }
+
+    // 检查 AI API Key
+    const apiKey = await env.DATA_KV.get('config:ai_api_key') || await env.DATA_KV.get('config:deepseek_api_key') || env.AI_API_KEY || env.DEEPSEEK_API_KEY;
+    if (!apiKey) {
+      console.log('[Cron] 未配置 AI API Key，无法生成朋友圈文案。');
+      // 发送一条简单的提醒到 Webhook
+      try {
+        await fetch(targetUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            msgtype: 'markdown',
+            markdown: { content: `## ⏰ 朋友圈定时推送提醒\n\n> 日期: <font color="info">${dateStr}</font>\n> 状态: <font color="warning">未配置 AI API Key</font>\n\n请登录 [Megz 管理后台](${env.WORKER_HOST || ''}) 配置 AI 大模型 API Key 以自动生成朋友圈文案。` }
+          })
+        });
+      } catch (e) {
+        console.error('[Cron] 发送提醒失败:', e.message);
+      }
+      return;
+    }
+
+    try {
+      // 步骤 1: 联网搜索最新资讯
+      let searchContext = '';
+      const searchQueries = [
+        '2026年最新贷款政策 房贷利率 LPR',
+        '近期金融行业热点新闻 银行政策',
+        '贷款中介 朋友圈文案 营销技巧'
+      ];
+
+      for (const sq of searchQueries) {
+        try {
+          const results = await doWebSearch(env, sq);
+          if (results.length > 0) {
+            searchContext += `\n### 搜索主题: ${sq}\n`;
+            results.forEach((r, i) => {
+              searchContext += `${i + 1}. **${r.title}**\n   ${r.snippet}\n`;
+            });
+          }
+        } catch (e) {
+          console.error(`[Cron] WebSearch "${sq}" 失败:`, e.message);
+        }
+      }
+
+      // 步骤 2: 调用 AI 生成 3 条朋友圈文案
+      const prompt = searchContext
+        ? `你是一位资深的贷款销售顾问兼社交媒体营销专家。请根据以下最新行业资讯，撰写 3 条适合发布到微信朋友圈的营销文案。
+
+## 最新行业资讯参考
+${searchContext}
+
+## 文案要求
+1. 3 条文案风格各异（如：专业干货型、情感共鸣型、轻松互动型）
+2. 每条 100-200 字，适合朋友圈阅读
+3. 内容与贷款/金融/银行业务相关，体现专业度
+4. 适当使用 Emoji 增加亲和力
+5. 避免硬广告感，以提供价值为主
+6. 可以穿插客户成功案例故事（匿名化处理）
+
+## 输出格式
+请严格按以下 JSON 格式输出（只输出 JSON，不要包裹代码块）：
+
+{
+  "date": "${dateStr}",
+  "posts": [
+    {"type": "风格标签", "content": "朋友圈文案内容"},
+    {"type": "风格标签", "content": "朋友圈文案内容"},
+    {"type": "风格标签", "content": "朋友圈文案内容"}
+  ]
+}`
+        : `你是一位资深的贷款销售顾问兼社交媒体营销专家。请撰写 3 条适合发布到微信朋友圈的营销文案。
+
+## 文案要求
+1. 3 条文案风格各异（如：专业干货型、情感共鸣型、轻松互动型）
+2. 每条 100-200 字，适合朋友圈阅读
+3. 内容与贷款/金融/银行业务相关，体现专业度
+4. 适当使用 Emoji 增加亲和力
+5. 避免硬广告感，以提供价值为主
+
+## 输出格式
+请严格按以下 JSON 格式输出（只输出 JSON，不要包裹代码块）：
+
+{
+  "date": "${dateStr}",
+  "posts": [
+    {"type": "风格标签", "content": "朋友圈文案内容"},
+    {"type": "风格标签", "content": "朋友圈文案内容"},
+    {"type": "风格标签", "content": "朋友圈文案内容"}
+  ]
+}`;
+
+      const aiResp = await callAIChat(env, [
+        { role: 'system', content: '你是一个专业的金融营销内容创作助手。请只输出 JSON 格式的结果，不要包裹 markdown 代码块，不要多余的解释。' },
+        { role: 'user', content: prompt }
+      ], 0.8);
+
+      let aiContent = aiResp.choices[0].message.content.trim();
+      if (aiContent.startsWith('```')) {
+        aiContent = aiContent.replace(/^```json\s*/i, '').replace(/```$/, '').trim();
+      }
+
+      let parsed;
+      try {
+        parsed = JSON.parse(aiContent);
+      } catch (parseErr) {
+        // 尝试从文本中提取 JSON
+        const jsonMatch = aiContent.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          parsed = JSON.parse(jsonMatch[0]);
+        } else {
+          throw new Error('无法解析 AI 返回的 JSON: ' + aiContent.substring(0, 200));
+        }
+      }
+
+      const posts = parsed.posts || [];
+      if (posts.length === 0) {
+        throw new Error('AI 未生成任何朋友圈文案');
+      }
+
+      // 步骤 3: 拼接 Markdown 并发送到企业微信 Webhook
+      let markdown = `## 📱 今日朋友圈文案精选\n`;
+      markdown += `> 日期: <font color="info">${dateStr}</font>\n`;
+      markdown += `> 生成时间: <font color="comment">${timeStr.substring(11, 16)}</font>\n`;
+      markdown += `> 共 <font color="warning">${posts.length} 条</font>文案\n\n`;
+      markdown += `---\n\n`;
+
+      posts.forEach((post, i) => {
+        const typeEmoji = post.type.includes('专业') || post.type.includes('干货') ? '📊' :
+                         post.type.includes('情感') || post.type.includes('共鸣') ? '💬' :
+                         post.type.includes('互动') || post.type.includes('轻松') ? '🎯' : '📝';
+        markdown += `### ${typeEmoji} 第${i + 1}条 · ${post.type}\n`;
+        markdown += `${post.content}\n\n`;
+        if (i < posts.length - 1) {
+          markdown += `---\n\n`;
+        }
+      });
+
+      markdown += `\n> 🤖 由 AI 自动生成 · 每日 8:00 定时推送`;
+
+      // 企业微信 Markdown 消息有 4096 字节限制，分条发送
+      const encoder = new TextEncoder();
+      const MAX_BYTES = 4000;
+
+      if (encoder.encode(markdown).length <= MAX_BYTES) {
+        // 单条发送
+        const resp = await fetch(targetUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ msgtype: 'markdown', markdown: { content: markdown } })
+        });
+        if (!resp.ok) throw new Error('Webhook 发送失败 HTTP ' + resp.status);
+        const respBody = await resp.json();
+        if (respBody.errcode !== 0) throw new Error(`企业微信错误 [${respBody.errcode}]: ${respBody.errmsg || '未知'}`);
+        console.log(`[Cron] 朋友圈文案已成功发送 (单条, ${encoder.encode(markdown).length} 字节)`);
+      } else {
+        // 分条发送
+        let part = 1;
+        let currentText = `## 📱 今日朋友圈文案精选 (${part})\n> 日期: ${dateStr}\n\n`;
+        let currentBytes = encoder.encode(currentText).length;
+
+        for (let i = 0; i < posts.length; i++) {
+          const post = posts[i];
+          const typeEmoji = post.type.includes('专业') || post.type.includes('干货') ? '📊' :
+                           post.type.includes('情感') || post.type.includes('共鸣') ? '💬' :
+                           post.type.includes('互动') || post.type.includes('轻松') ? '🎯' : '📝';
+          const postText = `### ${typeEmoji} 第${i + 1}条 · ${post.type}\n${post.content}\n\n---\n\n`;
+          const postBytes = encoder.encode(postText).length;
+
+          if (currentBytes + postBytes > MAX_BYTES) {
+            const resp = await fetch(targetUrl, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ msgtype: 'markdown', markdown: { content: currentText } })
+            });
+            if (!resp.ok) throw new Error(`Webhook 分条 ${part} 发送失败 HTTP ${resp.status}`);
+            part++;
+            currentText = `## 📱 今日朋友圈文案精选 (续${part})\n\n`;
+            currentBytes = encoder.encode(currentText).length;
+          }
+          currentText += postText;
+          currentBytes += postBytes;
+        }
+
+        if (currentText.trim().length > 0) {
+          currentText += `\n> 🤖 由 AI 自动生成 · 每日 8:00 定时推送`;
+          const resp = await fetch(targetUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ msgtype: 'markdown', markdown: { content: currentText } })
+          });
+          if (!resp.ok) throw new Error(`Webhook 末条发送失败 HTTP ${resp.status}`);
+        }
+        console.log(`[Cron] 朋友圈文案已分 ${part} 条发送完成`);
+      }
+    } catch (err) {
+      console.error('[Cron] 朋友圈推送失败:', err.message);
+      // 发送错误通知
+      try {
+        await fetch(targetUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            msgtype: 'text',
+            text: { content: `⚠️ 朋友圈定时推送失败\n日期: ${dateStr}\n错误: ${err.message}\n请检查 AI 配置和 Webhook 连接。` }
+          })
+        });
+      } catch (e) {
+        console.error('[Cron] 连错误通知都发不出:', e.message);
+      }
+    }
   }
 };
