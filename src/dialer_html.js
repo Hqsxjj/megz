@@ -2897,22 +2897,20 @@
               document.getElementById('aiLog3').innerHTML = '⚠️ AI 云端识别失败: ' + err.message;
               document.getElementById('aiLog3').style.opacity = '1';
             }
-            document.getElementById('aiScanStatus').innerHTML = '⚠️ 云端识别失败，切换本地引擎...';
-            // Fallback to Tesseract
-            runTesseractOCR(file);
+            document.getElementById('aiScanStatus').innerHTML = '⚠️ 云端识别失败';
+            alert('AI 云端识别失败：' + (err.message || err) + '\n\n请复制此错误信息。');
+            resetAIImporterUI();
           });
         };
         reader.onerror = function() {
-          runTesseractOCR(file);
+          alert('图片读取失败，请重试。');
+          resetAIImporterUI();
         };
         reader.readAsDataURL(file);
       } else {
-        // ====== 未配置 API Key，使用本地 Tesseract ======
-        if (document.getElementById('aiLog1')) {
-          document.getElementById('aiLog1').innerHTML = '💡 提示: 配置 AI API Key 可启用高精度云端视觉识别';
-          document.getElementById('aiLog1').style.opacity = '1';
-        }
-        runTesseractOCR(file);
+        // 未配置 API Key
+        alert('未配置 AI Vision API Key。\n请在网页端 → 导出配置 → 「👁️ Gemini Vision 图片识别」中填入 Gemini API Key。');
+        resetAIImporterUI();
       }
     }
 
