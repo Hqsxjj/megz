@@ -1,4 +1,4 @@
-export const DIALER_HTML = `<!DOCTYPE html>
+﻿export const DIALER_HTML = `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
@@ -2892,11 +2892,12 @@ export const DIALER_HTML = `<!DOCTYPE html>
             }, 400);
           })
           .catch(function(err) {
-            console.error('[AI Vision OCR] 失败，回退到本地 Tesseract:', err.message);
+            console.error('[AI Vision OCR] 失败:', err.message);
             if (document.getElementById('aiLog3')) {
-              document.getElementById('aiLog3').innerHTML = '⚠️ AI 云端识别失败: ' + err.message + '，切换本地引擎...';
+              document.getElementById('aiLog3').innerHTML = '⚠️ AI 云端识别失败: ' + err.message;
               document.getElementById('aiLog3').style.opacity = '1';
             }
+            document.getElementById('aiScanStatus').innerHTML = '⚠️ 云端识别失败，切换本地引擎...';
             // Fallback to Tesseract
             runTesseractOCR(file);
           });
@@ -2930,11 +2931,11 @@ export const DIALER_HTML = `<!DOCTYPE html>
             document.getElementById('aiLog3').style.opacity = '1';
           }
 
-          Tesseract.createWorker({
+          var _wp = Tesseract.createWorker({
             langPath: window.location.origin + '/tessdata',
             logger: function(m) {
-              if (m.status === 'recognizing text') {
-                var pct = Math.round(m.progress * 100);
+              if (m && m.status === 'recognizing text') {
+                var pct = Math.round((m.progress || 0) * 100);
                 document.getElementById('aiScanStatus').innerHTML = '📸 本地 OCR: ' + pct + '%';
                 if (document.getElementById('aiLog4')) {
                   document.getElementById('aiLog4').innerHTML = '⚡ 进度: ' + pct + '%';
@@ -2942,7 +2943,9 @@ export const DIALER_HTML = `<!DOCTYPE html>
                 }
               }
             }
-          }).then(function(worker) {
+          });
+          if (!_wp || typeof _wp.then !== 'function') throw new Error('Tesseract引擎初始化异常');
+          return _wp.then(function(worker) {
             return worker.load()
               .then(function() { return worker.loadLanguage('chi_sim+eng'); })
               .then(function() { return worker.initialize('chi_sim+eng'); })
