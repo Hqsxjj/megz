@@ -2848,6 +2848,9 @@ export const DIALER_HTML = `<!DOCTYPE html>
                 }
               });
             }
+            if (contacts.length === 0) {
+              alert('AI 识别完成但未提取到联系人。\n\nAI 返回的原始文本 (前300字):\n' + (result.rawText || '(空)').substring(0, 300) + '\n\n请截图这段文字发给开发者排查。');
+            }
             renderAIUnstructuredReport(file.name, contacts);
           })
           .catch(function(err) {
