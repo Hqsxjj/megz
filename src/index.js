@@ -7413,6 +7413,65 @@ const rid=Math.floor(Math.random()*1000);
   }
 };
 
+// 从财联社电报接口抓取最新财经/股市快讯
+async function fetchClsTelegraph() {
+  const endpoints = [
+    'https://www.cls.cn/nodeapi/telegraphlist?app=1&os=3&sv=8.4.0&rn=20',
+    'https://www.cls.cn/v1/telegraph/list?app=1&os=3&sv=8.4.0&rn=20',
+    'https://www.cls.cn/nodeapi/telegraphlist?rn=20'
+  ];
+
+  for (const url of endpoints) {
+    try {
+      const resp = await fetch(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15',
+          'Accept': 'application/json, text/plain, */*',
+          'Referer': 'https://www.cls.cn/telegraph'
+        }
+      });
+
+      if (!resp.ok) continue;
+
+      const data = await resp.json();
+
+      // 检查是否成功（errno=0 表示成功）
+      if (data.errno && data.errno !== 0) {
+        console.log(`[Telegraph] ${url} 返回错误: errno=${data.errno} msg=${data.msg}`);
+        continue;
+      }
+
+      // 尝试多种数据格式解析
+      let items = [];
+      if (data.data && data.data.roll_data) {
+        items = data.data.roll_data;
+      } else if (data.data && Array.isArray(data.data)) {
+        items = data.data;
+      } else if (data.list && Array.isArray(data.list)) {
+        items = data.list;
+      } else if (Array.isArray(data)) {
+        items = data;
+      }
+
+      if (items.length > 0) {
+        console.log(`[Telegraph] 成功从 ${url} 获取 ${items.length} 条电报`);
+        return items.map(item => ({
+          title: item.title || item.brief || '',
+          content: item.brief || item.content || item.title || '',
+          ctime: item.ctime || item.display_time || '',
+          type: (item.title || '').includes('股') || (item.brief || '').includes('A股') ? '股市热点' : '财经电报'
+        }));
+      }
+    } catch (e) {
+      console.log(`[Telegraph] ${url} 请求失败:`, e.message);
+      continue;
+    }
+  }
+
+  console.log('[Telegraph] 所有接口均失败，回退到 AI 生成');
+  return [];
+}
+
 // 朋友圈文案推送核心逻辑（Cron 和手动 API 共用）
 async function doMomentsPush(env, logPrefix) {
   const bjTime = new Date(Date.now() + 8 * 3600000);
@@ -7492,6 +7551,19 @@ async function doMomentsPush(env, logPrefix) {
       }
     }
 
+    // 步骤 1.5: 从财联社电报接口抓取真实财经/股市快讯
+    const telegraphItems = await fetchClsTelegraph();
+    if (telegraphItems.length > 0) {
+      const financeItems = telegraphItems.filter(t => t.type === '财经电报').slice(0, 8);
+      const stockItems = telegraphItems.filter(t => t.type === '股市热点').slice(0, 8);
+      if (financeItems.length > 0 || stockItems.length > 0) {
+        searchContext += '\n### 财联社实时电报（请优先使用以下真实资讯生成财经电报和股市热点）\n';
+        financeItems.forEach((t, i) => { searchContext += `[财经${i+1}] ${t.title} ${t.content}\n`; });
+        stockItems.forEach((t, i) => { searchContext += `[股市${i+1}] ${t.title} ${t.content}\n`; });
+        console.log(`${logPrefix} 已注入 ${financeItems.length} 条财经 + ${stockItems.length} 条股市实时电报`);
+      }
+    }
+
     // 步骤 2: 调用 AI 生成 30 条朋友圈文案（励志生活5+热点5+财经5+股市5+贷款回访5+日常招呼5）
     const prompt = searchContext
       ? `你是一位朋友圈文案创作高手，在金融行业工作。请根据今日热点和资讯，撰写 30 条适合发微信朋友圈的文案。
@@ -7514,14 +7586,14 @@ ${searchContext}
 - **禁止出现"评论区见""点赞告诉你""私信我"等诱导互动话术**
 
 ### 第11-15条 · 财经电报类
-- 简明扼要播报当日重要财经资讯（政策、数据、行业动态、公司新闻等）
+- **优先使用上方"财联社实时电报"中的真实资讯**，提炼成40-60字的朋友圈文案
+- 如果上方没有实时电报数据，则根据搜索到的财经新闻自行编写
 - 像财经快讯风格，信息密度高，一句话讲清楚一件事
-- 每条 40-60 字
 
 ### 第16-20条 · 股市热点类
-- 聚焦当日A股/港股市场热点板块、涨停个股、资金动向等
-- 客观陈述市场表现，带一句简短点评
-- 每条 40-60 字，像炒股群里的快讯风格
+- **优先使用上方"财联社实时电报"中的真实资讯**，提炼成40-60字的朋友圈文案
+- 如果上方没有实时电报数据，则根据搜索到的股市行情自行编写
+- 像炒股群里的快讯风格，客观陈述带一句简短点评
 
 ### 第21-25条 · 贷款回访类
 - 贷款客户微信回访的打招呼用语，用于微信上联系老客户
