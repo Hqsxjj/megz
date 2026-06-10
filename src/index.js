@@ -7266,7 +7266,7 @@ const rid=Math.floor(Math.random()*1000);
           var extractedContacts = [];
 
           var lines = rawText.split(/\r?\n/);
-          lines.forEach(function(line) {
+          lines.forEach(function(line, lineIdx) {
             line = line.trim();
             if (!line) return;
             var phones = line.match(phoneRe);
@@ -7307,6 +7307,26 @@ const rid=Math.floor(Math.random()*1000);
                 note = nums ? nums.join(' ') : '';
                 if (note && company.indexOf(note) === 0) {
                   company = company.substring(note.length).trim();
+                }
+
+                // Vertical layout fallback
+                if (!name && (before.trim().length + after.trim().length <= 4)) {
+                  if (lineIdx > 0) {
+                    var prevLine = lines[lineIdx - 1].trim();
+                    if (prevLine && !prevLine.match(phoneRe) && prevLine.length <= 8) {
+                      if (!/电话|手机|号码|备注|意向|跟进|记录|挂断|接通|已接通|未接通|无效|全部|已拨|总数|待拨/i.test(prevLine)) {
+                        name = prevLine.replace(/^[新旧]\s*/, '');
+                      }
+                    }
+                  }
+                  if (lineIdx < lines.length - 1) {
+                    var nextLine = lines[lineIdx + 1].trim();
+                    if (nextLine && !nextLine.match(phoneRe)) {
+                      if (!/电话|手机|号码|备注|意向|跟进|记录|挂断|接通|已接通|未接通|无效|全部|已拨|总数|待拨/i.test(nextLine)) {
+                        company = nextLine;
+                      }
+                    }
+                  }
                 }
               }
 
