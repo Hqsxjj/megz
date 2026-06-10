@@ -927,7 +927,8 @@ export default {
       path === '/api/calendar' ||
       path === '/api/stats' ||
       path === '/api/all-clients' ||
-      path === '/api/export'
+      path === '/api/export' ||
+      path === '/api/moments-push'
     );
     if (needsKV && !env.DATA_KV) {
       return new Response(JSON.stringify({ error: 'DATA_KV binding is missing or not configured.' }), {
@@ -2549,6 +2550,7 @@ export default {
     .todo-add-btn { background: var(--accent-wechat); }
     .btn-add:hover, .todo-add-btn:hover { opacity: 0.92; transform: translateY(-1px); }
     .btn-add:active, .todo-add-btn:active { transform: translateY(0); }
+    .btn-add:disabled, .todo-add-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
     .time-input-compact { flex: 0 0 92px !important; min-width: 92px !important; padding: 0 6px !important; text-align: center; }
     .client-scroll { max-height: 220px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
     .client-row { background: var(--btn-bg); border-radius: var(--radius-sm); padding: 10px 14px; display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem; border: 0.5px solid var(--card-border); font-weight: 600; }
@@ -3270,9 +3272,10 @@ export default {
           </div>
           <input type="text" class="input-simple" id="momentsWebhookUrlInput" placeholder="朋友圈推送专用 Webhook URL（留空使用上方通用地址）" style="font-size:0.7rem; height:28px; padding:0 8px;">
           <button id="saveMomentsConfigBtn" class="btn-add" style="font-size:0.7rem; height:28px; margin:0; background:linear-gradient(135deg,#f093fb,#f5576c); color:white; border:none; width:100%; font-weight:700;">💾 保存推送配置</button>
+          <button id="manualPushBtn" class="btn-add" style="font-size:0.7rem; height:28px; margin:0; background:linear-gradient(135deg,#667eea,#764ba2); color:white; border:none; width:100%; font-weight:700;">🚀 手动立即发送</button>
           <div style="font-size:0.6rem; color:var(--text-light); line-height:1.4; margin-top:2px;">
-            ⏰ 每天早上 <strong>8:00 (北京时间)</strong> 自动生成 <strong>3 条</strong> 适合朋友圈发布的营销文案，并通过企业微信 Webhook 推送到指定群聊。<br>
-            文案由 AI 结合当日最新行业资讯生成，风格多样（专业干货、情感共鸣、轻松互动）。<br>
+            ⏰ 每天早上 <strong>8:00 (北京时间)</strong> 自动生成 <strong>30 条</strong>朋友圈文案（励志生活·社会热点·财经电报·股市热点·贷款回访·日常招呼各5条），并通过企业微信 Webhook 推送到指定群聊。<br>
+            文案由 AI 结合当日最新资讯生成，涵盖40-60字长文案和25字内短招呼语，风格多样（励志、热点、财经、股市、回访、招呼）。<br>
             ⚠️ 需要已配置 AI 大模型 API Key 才能正常生成文案，否则仅发送提醒。
           </div>
         </div>
@@ -5484,12 +5487,34 @@ const rid=Math.floor(Math.random()*1000);
       try {
         await syncOp('setMomentsConfig', { momentsEnabled: enabled, momentsWebhookUrl: webhookUrl });
         const msg = enabled
-          ? '✅ 朋友圈定时推送已启用！每天早 8:00 自动发送 3 条文案到企业微信。'
+          ? '✅ 朋友圈定时推送已启用！每天早 8:00 自动发送 30 条文案（励志生活·热点·财经·股市·回访·招呼各5条）到企业微信。'
           : '⏸️ 朋友圈定时推送已停用。';
         document.getElementById('exportStatus').innerText = msg;
       } catch (e) {
         document.getElementById('exportStatus').innerText = '❌ 保存失败: ' + e.message;
       }
+    });
+
+    // Manual push button
+    document.getElementById('manualPushBtn').addEventListener('click', async () => {
+      const btn = document.getElementById('manualPushBtn');
+      const statusEl = document.getElementById('exportStatus');
+      btn.disabled = true;
+      btn.textContent = '⏳ 正在生成文案...';
+      statusEl.innerText = '⏳ 正在联网搜索并生成 30 条文案，预计需要 30-60 秒...';
+      try {
+        const resp = await fetch('/api/moments-push', { method: 'POST' });
+        const result = await resp.json();
+        if (result.success) {
+          statusEl.innerText = '✅ 手动发送成功！已推送 ' + result.posts.length + ' 条文案到企业微信。';
+        } else {
+          statusEl.innerText = '❌ 发送失败: ' + result.message;
+        }
+      } catch (e) {
+        statusEl.innerText = '❌ 请求失败: ' + e.message;
+      }
+      btn.disabled = false;
+      btn.textContent = '🚀 手动立即发送';
     });
 
     async function doExport(type){
@@ -7361,56 +7386,70 @@ const rid=Math.floor(Math.random()*1000);
       }
     }
 
+    // 手动触发朋友圈文案推送
+    if (path === '/api/moments-push' && request.method === 'POST') {
+      try {
+        const result = await doMomentsPush(env, '[API]');
+        return new Response(JSON.stringify(result), {
+          headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ success: false, message: e.message }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+    }
+
     // 返回 HTML 页面
     return new Response(HTML, {
       headers: { 'Content-Type': 'text/html; charset=UTF-8' }
     });
   },
 
-  // Cron 定时任务：每天早上 8:00 (北京时间，UTC+8) 自动生成 3 条朋友圈文案并推送到企业微信
+  // Cron 定时任务：每天早上 8:00 (北京时间，UTC+8) 自动生成 30 条朋友圈文案（励志生活·热点·财经电报·股市热点·贷款回访·日常招呼各5条）并推送到企业微信
   async scheduled(event, env, ctx) {
-    // cron: 0 0 * * * (midnight UTC = 8:00 AM Beijing)
-    const bjTime = new Date(Date.now() + 8 * 3600000);
-    const dateStr = bjTime.toISOString().split('T')[0];
-    const timeStr = bjTime.toISOString().replace('T', ' ').substring(0, 19);
+    await doMomentsPush(env, '[Cron]');
+  }
+};
 
-    console.log(`[Cron] 定时任务触发 - 北京时间: ${timeStr}`);
+// 朋友圈文案推送核心逻辑（Cron 和手动 API 共用）
+async function doMomentsPush(env, logPrefix) {
+  const bjTime = new Date(Date.now() + 8 * 3600000);
+  const dateStr = bjTime.toISOString().split('T')[0];
+  const timeStr = bjTime.toISOString().replace('T', ' ').substring(0, 19);
 
-    // 检查是否启用朋友圈定时推送
+  console.log(`${logPrefix} 朋友圈推送触发 - 北京时间: ${timeStr}`);
+
+  // 检查是否启用朋友圈定时推送（手动调用跳过此检查）
+  if (logPrefix === '[Cron]') {
     const momentsEnabled = await env.DATA_KV.get('config:moments_enabled');
     if (momentsEnabled === 'false') {
-      console.log('[Cron] 朋友圈定时推送已停用，跳过。');
-      return;
+      console.log(`${logPrefix} 朋友圈定时推送已停用，跳过。`);
+      return { success: false, message: '朋友圈定时推送已停用' };
     }
+  }
 
-    // 获取目标 Webhook URL
-    const momentsWebhookUrl = await env.DATA_KV.get('config:moments_webhook_url');
-    if (!momentsWebhookUrl || !momentsWebhookUrl.trim()) {
-      // 回退到通用 webhook URL
-      const fallbackUrl = await env.DATA_KV.get('config:webhook_url');
-      if (!fallbackUrl || !fallbackUrl.trim()) {
-        console.log('[Cron] 未配置朋友圈推送 Webhook URL，跳过。');
-        return;
-      }
-    }
+  // 获取目标 Webhook URL
+  const momentsWebhookUrl = await env.DATA_KV.get('config:moments_webhook_url');
+  const fallbackUrl = await env.DATA_KV.get('config:webhook_url');
+  const targetUrl = (momentsWebhookUrl && momentsWebhookUrl.trim()) ? momentsWebhookUrl.trim() : (fallbackUrl || '').trim();
+  if (!targetUrl) {
+    console.log(`${logPrefix} 未配置 Webhook URL，跳过。`);
+    return { success: false, message: '未配置 Webhook URL，请先在设置中配置企业微信 Webhook 地址' };
+  }
 
-    const targetUrl = (momentsWebhookUrl && momentsWebhookUrl.trim()) ? momentsWebhookUrl.trim() : (await env.DATA_KV.get('config:webhook_url') || '').trim();
-    if (!targetUrl) {
-      console.log('[Cron] 无有效的推送目标 URL，跳过。');
-      return;
-    }
+  // SSRF 防御：仅允许企业微信官方域名
+  if (!targetUrl.startsWith('https://qyapi.weixin.qq.com/')) {
+    console.log(`${logPrefix} 非企业微信官方域名，拒绝发送。`);
+    return { success: false, message: 'Webhook URL 非企业微信官方域名' };
+  }
 
-    // SSRF 防御：仅允许企业微信官方域名
-    if (!targetUrl.startsWith('https://qyapi.weixin.qq.com/')) {
-      console.log('[Cron] 非企业微信官方域名，拒绝发送。');
-      return;
-    }
-
-    // 检查 AI API Key
-    const apiKey = await env.DATA_KV.get('config:ai_api_key') || await env.DATA_KV.get('config:deepseek_api_key') || env.AI_API_KEY || env.DEEPSEEK_API_KEY;
-    if (!apiKey) {
-      console.log('[Cron] 未配置 AI API Key，无法生成朋友圈文案。');
-      // 发送一条简单的提醒到 Webhook
+  // 检查 AI API Key
+  const apiKey = await env.DATA_KV.get('config:ai_api_key') || await env.DATA_KV.get('config:deepseek_api_key') || env.AI_API_KEY || env.DEEPSEEK_API_KEY;
+  if (!apiKey) {
+    console.log(`${logPrefix} 未配置 AI API Key，无法生成朋友圈文案。`);
+    if (logPrefix === '[Cron]') {
       try {
         await fetch(targetUrl, {
           method: 'POST',
@@ -7421,49 +7460,90 @@ const rid=Math.floor(Math.random()*1000);
           })
         });
       } catch (e) {
-        console.error('[Cron] 发送提醒失败:', e.message);
+        console.error(`${logPrefix} 发送提醒失败:`, e.message);
       }
-      return;
+    }
+    return { success: false, message: '未配置 AI API Key，请在设置中配置 AI 大模型 API Key' };
+  }
+
+  try {
+    // 步骤 1: 联网搜索今日热点和生活资讯
+    let searchContext = '';
+    const searchQueries = [
+      '2026年6月今日热点新闻 头条',
+      '今日热门话题 社会热点 民生',
+      '2026年6月生活趋势 励志 成长 健康',
+      '今日财经新闻 经济数据 政策 行业动态',
+      '今日股市行情 A股 热点板块 涨停',
+      '2026年6月投资理财 基金 市场趋势'
+    ];
+
+    for (const sq of searchQueries) {
+      try {
+        const results = await doWebSearch(env, sq);
+        if (results.length > 0) {
+          searchContext += `\n### 搜索主题: ${sq}\n`;
+          results.forEach((r, i) => {
+            searchContext += `${i + 1}. **${r.title}**\n   ${r.snippet}\n`;
+          });
+        }
+      } catch (e) {
+        console.error(`${logPrefix} WebSearch "${sq}" 失败:`, e.message);
+      }
     }
 
-    try {
-      // 步骤 1: 联网搜索今日热点和生活资讯
-      let searchContext = '';
-      const searchQueries = [
-        '2026年6月今日热点新闻 头条',
-        '今日热门话题 社会热点 民生',
-        '2026年6月生活趋势 美食 旅行 健康'
-      ];
-
-      for (const sq of searchQueries) {
-        try {
-          const results = await doWebSearch(env, sq);
-          if (results.length > 0) {
-            searchContext += `\n### 搜索主题: ${sq}\n`;
-            results.forEach((r, i) => {
-              searchContext += `${i + 1}. **${r.title}**\n   ${r.snippet}\n`;
-            });
-          }
-        } catch (e) {
-          console.error(`[Cron] WebSearch "${sq}" 失败:`, e.message);
-        }
-      }
-
-      // 步骤 2: 调用 AI 生成 3 条朋友圈文案
-      const prompt = searchContext
-        ? `你是一位朋友圈文案创作高手，在金融行业工作。请根据今日热点和资讯，撰写 3 条适合发微信朋友圈的文案。
+    // 步骤 2: 调用 AI 生成 30 条朋友圈文案（励志生活5+热点5+财经5+股市5+贷款回访5+日常招呼5）
+    const prompt = searchContext
+      ? `你是一位朋友圈文案创作高手，在金融行业工作。请根据今日热点和资讯，撰写 30 条适合发微信朋友圈的文案。
 
 ## 今日热点参考
 ${searchContext}
 
-## 文案要求
-1. **第1条 - 今日热点型**: 结合当天发生的热门事件/新闻，发表你的观点或感悟，展现你对时事的关注和思考
-2. **第2条 - 生活分享型**: 分享日常生活点滴（美食、运动、旅行、读书、亲子、宠物等），温暖真实，有生活气息
-3. **第3条 - 轻松互动型**: 轻松有趣的内容，可以是段子、冷知识、提问互动，引发好友评论
-4. 每条 80-180 字，适合朋友圈碎片化阅读
-5. 语气自然口语化，像真人发的而不是营销号
-6. 适当使用 Emoji 增加活力
-7. **不要硬推销贷款产品**，最多在热点型那条顺带提一句职业相关感悟
+## 文案要求（按类别输出 30 条）
+
+### 第1-5条 · 励志生活类
+- 分享积极向上的生活感悟、成长心得、自律习惯、运动健康等
+- 温暖治愈，给人力量和希望，展现正能量
+- 每条 40-60 字
+- **禁止出现"评论区见""点赞告诉你""私信我"等诱导互动话术**
+
+### 第6-10条 · 社会热点类
+- 结合当天热门事件/新闻发表观点或感悟
+- 展现独立思考和对时事的关注，有态度不偏激
+- 每条 40-60 字
+- **禁止出现"评论区见""点赞告诉你""私信我"等诱导互动话术**
+
+### 第11-15条 · 财经电报类
+- 简明扼要播报当日重要财经资讯（政策、数据、行业动态、公司新闻等）
+- 像财经快讯风格，信息密度高，一句话讲清楚一件事
+- 每条 40-60 字
+
+### 第16-20条 · 股市热点类
+- 聚焦当日A股/港股市场热点板块、涨停个股、资金动向等
+- 客观陈述市场表现，带一句简短点评
+- 每条 40-60 字，像炒股群里的快讯风格
+
+### 第21-25条 · 贷款回访类
+- 贷款客户微信回访的打招呼用语，用于微信上联系老客户
+- 语气亲切自然，像朋友问候，不要像推销
+- **每条不超过 25 个字**，简短精炼，适合微信开场白
+- 可以包含关怀问候、节日祝福、温馨提醒等元素
+- 不要直接问"要不要贷款""需要资金吗"等硬推销话术
+- 示例风格："最近生意怎么样，有空出来喝茶~"
+
+### 第26-30条 · 日常招呼类
+- 微信日常打招呼用语，用于和朋友/客户破冰聊天
+- 轻松随意，像熟人之间的问候
+- **每条不超过 25 个字**，简短口语化
+- 可以结合天气、节日、日常趣事等话题
+- 示例风格："今天这天气太适合摸鱼了哈哈"
+
+## 通用要求
+- 第1-20条**字数严格控制在 40-60 字**，第21-30条**字数不超过 25 字**
+- 语气自然口语化，像真人发的而不是营销号
+- 适当使用 Emoji 增加活力（1-2个即可，不要过多）
+- **禁止使用"评论区见""评论区聊""点赞告诉你""私信""转发"等营销话术**
+- 不要硬推销产品，可以偶尔在热点类提及金融行业视角
 
 ## 输出格式
 请严格按以下 JSON 格式输出（只输出 JSON，不要包裹代码块）：
@@ -7471,21 +7551,85 @@ ${searchContext}
 {
   "date": "${dateStr}",
   "posts": [
-    {"type": "风格标签", "content": "朋友圈文案内容"},
-    {"type": "风格标签", "content": "朋友圈文案内容"},
-    {"type": "风格标签", "content": "朋友圈文案内容"}
+    {"type": "励志生活", "content": "文案内容"},
+    {"type": "励志生活", "content": "文案内容"},
+    {"type": "励志生活", "content": "文案内容"},
+    {"type": "励志生活", "content": "文案内容"},
+    {"type": "励志生活", "content": "文案内容"},
+    {"type": "社会热点", "content": "文案内容"},
+    {"type": "社会热点", "content": "文案内容"},
+    {"type": "社会热点", "content": "文案内容"},
+    {"type": "社会热点", "content": "文案内容"},
+    {"type": "社会热点", "content": "文案内容"},
+    {"type": "财经电报", "content": "文案内容"},
+    {"type": "财经电报", "content": "文案内容"},
+    {"type": "财经电报", "content": "文案内容"},
+    {"type": "财经电报", "content": "文案内容"},
+    {"type": "财经电报", "content": "文案内容"},
+    {"type": "股市热点", "content": "文案内容"},
+    {"type": "股市热点", "content": "文案内容"},
+    {"type": "股市热点", "content": "文案内容"},
+    {"type": "股市热点", "content": "文案内容"},
+    {"type": "股市热点", "content": "文案内容"},
+    {"type": "贷款回访", "content": "文案内容"},
+    {"type": "贷款回访", "content": "文案内容"},
+    {"type": "贷款回访", "content": "文案内容"},
+    {"type": "贷款回访", "content": "文案内容"},
+    {"type": "贷款回访", "content": "文案内容"},
+    {"type": "日常招呼", "content": "文案内容"},
+    {"type": "日常招呼", "content": "文案内容"},
+    {"type": "日常招呼", "content": "文案内容"},
+    {"type": "日常招呼", "content": "文案内容"},
+    {"type": "日常招呼", "content": "文案内容"}
   ]
 }`
-        : `你是一位朋友圈文案创作高手，在金融行业工作。请撰写 3 条适合发微信朋友圈的文案（今天是 ${dateStr}）。
+      : `你是一位朋友圈文案创作高手，在金融行业工作。请撰写 30 条适合发微信朋友圈的文案（今天是 ${dateStr}）。
 
-## 文案要求
-1. **第1条 - 生活感悟型**: 分享日常生活中的小确幸或感悟（美食、运动、旅行、读书等），温暖真实
-2. **第2条 - 热点观点型**: 对社会现象或身边事的思考点评，展现独立思考
-3. **第3条 - 轻松互动型**: 轻松有趣，可以是段子、冷知识、提问互动，引发好友评论
-4. 每条 80-180 字，适合朋友圈碎片化阅读
-5. 语气自然口语化，像真人发的而不是营销号
-6. 适当使用 Emoji 增加活力
-7. **不要硬推销产品**，可以偶尔提及金融/贷款行业的工作日常，但以生活为主
+## 文案要求（按类别输出 30 条）
+
+### 第1-5条 · 励志生活类
+- 分享积极向上的生活感悟、成长心得、自律习惯、运动健康等
+- 温暖治愈，给人力量和希望，展现正能量
+- 每条 40-60 字
+- **禁止出现"评论区见""点赞告诉你""私信我"等诱导互动话术**
+
+### 第6-10条 · 社会热点类
+- 对社会现象或身边事的思考点评，展现独立思考
+- 有态度不偏激，能引发好友共鸣
+- 每条 40-60 字
+- **禁止出现"评论区见""点赞告诉你""私信我"等诱导互动话术**
+
+### 第11-15条 · 财经电报类
+- 简明扼要播报当日重要财经资讯（政策、数据、行业动态等）
+- 像财经快讯风格，信息密度高，一句话讲清楚一件事
+- 每条 40-60 字
+
+### 第16-20条 · 股市热点类
+- 聚焦当日市场热点板块、资金动向、投资心得等
+- 客观陈述，带一句简短点评
+- 每条 40-60 字，像炒股群里的快讯风格
+
+### 第21-25条 · 贷款回访类
+- 贷款客户微信回访的打招呼用语，用于微信上联系老客户
+- 语气亲切自然，像朋友问候，不要像推销
+- **每条不超过 25 个字**，简短精炼，适合微信开场白
+- 可以包含关怀问候、节日祝福、温馨提醒等元素
+- 不要直接问"要不要贷款""需要资金吗"等硬推销话术
+- 示例风格："最近生意怎么样，有空出来喝茶~"
+
+### 第26-30条 · 日常招呼类
+- 微信日常打招呼用语，用于和朋友/客户破冰聊天
+- 轻松随意，像熟人之间的问候
+- **每条不超过 25 个字**，简短口语化
+- 可以结合天气、节日、日常趣事等话题
+- 示例风格："今天这天气太适合摸鱼了哈哈"
+
+## 通用要求
+- 第1-20条**字数严格控制在 40-60 字**，第21-30条**字数不超过 25 字**
+- 语气自然口语化，像真人发的而不是营销号
+- 适当使用 Emoji 增加活力（1-2个即可，不要过多）
+- **禁止使用"评论区见""评论区聊""点赞告诉你""私信""转发"等营销话术**
+- 不要硬推销产品，可以偶尔提及金融/贷款行业的工作日常，但以生活为主
 
 ## 输出格式
 请严格按以下 JSON 格式输出（只输出 JSON，不要包裹代码块）：
@@ -7493,132 +7637,162 @@ ${searchContext}
 {
   "date": "${dateStr}",
   "posts": [
-    {"type": "风格标签", "content": "朋友圈文案内容"},
-    {"type": "风格标签", "content": "朋友圈文案内容"},
-    {"type": "风格标签", "content": "朋友圈文案内容"}
+    {"type": "励志生活", "content": "文案内容"},
+    {"type": "励志生活", "content": "文案内容"},
+    {"type": "励志生活", "content": "文案内容"},
+    {"type": "励志生活", "content": "文案内容"},
+    {"type": "励志生活", "content": "文案内容"},
+    {"type": "社会热点", "content": "文案内容"},
+    {"type": "社会热点", "content": "文案内容"},
+    {"type": "社会热点", "content": "文案内容"},
+    {"type": "社会热点", "content": "文案内容"},
+    {"type": "社会热点", "content": "文案内容"},
+    {"type": "财经电报", "content": "文案内容"},
+    {"type": "财经电报", "content": "文案内容"},
+    {"type": "财经电报", "content": "文案内容"},
+    {"type": "财经电报", "content": "文案内容"},
+    {"type": "财经电报", "content": "文案内容"},
+    {"type": "股市热点", "content": "文案内容"},
+    {"type": "股市热点", "content": "文案内容"},
+    {"type": "股市热点", "content": "文案内容"},
+    {"type": "股市热点", "content": "文案内容"},
+    {"type": "股市热点", "content": "文案内容"},
+    {"type": "贷款回访", "content": "文案内容"},
+    {"type": "贷款回访", "content": "文案内容"},
+    {"type": "贷款回访", "content": "文案内容"},
+    {"type": "贷款回访", "content": "文案内容"},
+    {"type": "贷款回访", "content": "文案内容"},
+    {"type": "日常招呼", "content": "文案内容"},
+    {"type": "日常招呼", "content": "文案内容"},
+    {"type": "日常招呼", "content": "文案内容"},
+    {"type": "日常招呼", "content": "文案内容"},
+    {"type": "日常招呼", "content": "文案内容"}
   ]
 }`;
 
-      const aiResp = await callAIChat(env, [
-        { role: 'system', content: '你是一个专业的金融营销内容创作助手。请只输出 JSON 格式的结果，不要包裹 markdown 代码块，不要多余的解释。' },
-        { role: 'user', content: prompt }
-      ], 0.8);
+    const aiResp = await callAIChat(env, [
+      { role: 'system', content: '你是一个专业的朋友圈文案创作助手，擅长励志生活感悟、热点评论、财经快讯、股市解读、客户回访和日常招呼。请只输出 JSON 格式的结果，不要包裹 markdown 代码块，不要多余的解释。第1-20条40-60字，第21-30条不超过25字，禁止使用"评论区见"等营销话术。' },
+      { role: 'user', content: prompt }
+    ], 0.8);
 
-      let aiContent = aiResp.choices[0].message.content.trim();
-      if (aiContent.startsWith('```')) {
-        aiContent = aiContent.replace(/^```json\s*/i, '').replace(/```$/, '').trim();
-      }
+    let aiContent = aiResp.choices[0].message.content.trim();
+    if (aiContent.startsWith('```')) {
+      aiContent = aiContent.replace(/^```json\s*/i, '').replace(/```$/, '').trim();
+    }
 
-      let parsed;
-      try {
-        parsed = JSON.parse(aiContent);
-      } catch (parseErr) {
-        // 尝试从文本中提取 JSON
-        const jsonMatch = aiContent.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          parsed = JSON.parse(jsonMatch[0]);
-        } else {
-          throw new Error('无法解析 AI 返回的 JSON: ' + aiContent.substring(0, 200));
-        }
-      }
-
-      const posts = parsed.posts || [];
-      if (posts.length === 0) {
-        throw new Error('AI 未生成任何朋友圈文案');
-      }
-
-      // 步骤 3: 拼接 Markdown 并发送到企业微信 Webhook
-      let markdown = `## 📱 今日朋友圈文案精选\n`;
-      markdown += `> 日期: <font color="info">${dateStr}</font>\n`;
-      markdown += `> 生成时间: <font color="comment">${timeStr.substring(11, 16)}</font>\n`;
-      markdown += `> 共 <font color="warning">${posts.length} 条</font>文案\n\n`;
-      markdown += `---\n\n`;
-
-      posts.forEach((post, i) => {
-        const typeEmoji = post.type.includes('热点') ? '🔥' :
-                         post.type.includes('生活') ? '🌿' :
-                         post.type.includes('互动') || post.type.includes('轻松') ? '💬' :
-                         post.type.includes('感悟') ? '✨' : '📝';
-        markdown += `### ${typeEmoji} 第${i + 1}条 · ${post.type}\n`;
-        markdown += `${post.content}\n\n`;
-        if (i < posts.length - 1) {
-          markdown += `---\n\n`;
-        }
-      });
-
-      markdown += `\n> 🤖 由 AI 自动生成 · 每日 8:00 定时推送`;
-
-      // 企业微信 Markdown 消息有 4096 字节限制，分条发送
-      const encoder = new TextEncoder();
-      const MAX_BYTES = 4000;
-
-      if (encoder.encode(markdown).length <= MAX_BYTES) {
-        // 单条发送
-        const resp = await fetch(targetUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ msgtype: 'markdown', markdown: { content: markdown } })
-        });
-        if (!resp.ok) throw new Error('Webhook 发送失败 HTTP ' + resp.status);
-        const respBody = await resp.json();
-        if (respBody.errcode !== 0) throw new Error(`企业微信错误 [${respBody.errcode}]: ${respBody.errmsg || '未知'}`);
-        console.log(`[Cron] 朋友圈文案已成功发送 (单条, ${encoder.encode(markdown).length} 字节)`);
+    let parsed;
+    try {
+      parsed = JSON.parse(aiContent);
+    } catch (parseErr) {
+      const jsonMatch = aiContent.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        parsed = JSON.parse(jsonMatch[0]);
       } else {
-        // 分条发送
-        let part = 1;
-        let currentText = `## 📱 今日朋友圈文案精选 (${part})\n> 日期: ${dateStr}\n\n`;
-        let currentBytes = encoder.encode(currentText).length;
+        throw new Error('无法解析 AI 返回的 JSON: ' + aiContent.substring(0, 200));
+      }
+    }
 
-        for (let i = 0; i < posts.length; i++) {
-          const post = posts[i];
-          const typeEmoji = post.type.includes('热点') ? '🔥' :
-                           post.type.includes('生活') ? '🌿' :
-                           post.type.includes('互动') || post.type.includes('轻松') ? '💬' :
-                           post.type.includes('感悟') ? '✨' : '📝';
-          const postText = `### ${typeEmoji} 第${i + 1}条 · ${post.type}\n${post.content}\n\n---\n\n`;
-          const postBytes = encoder.encode(postText).length;
+    const posts = parsed.posts || [];
+    if (posts.length === 0) {
+      throw new Error('AI 未生成任何朋友圈文案');
+    }
 
-          if (currentBytes + postBytes > MAX_BYTES) {
-            const resp = await fetch(targetUrl, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ msgtype: 'markdown', markdown: { content: currentText } })
-            });
-            if (!resp.ok) throw new Error(`Webhook 分条 ${part} 发送失败 HTTP ${resp.status}`);
-            part++;
-            currentText = `## 📱 今日朋友圈文案精选 (续${part})\n\n`;
-            currentBytes = encoder.encode(currentText).length;
-          }
-          currentText += postText;
-          currentBytes += postBytes;
-        }
+    // 步骤 3: 拼接 Markdown 并发送到企业微信 Webhook
+    let markdown = `## 📱 今日朋友圈文案精选\n`;
+    markdown += `> 日期: <font color="info">${dateStr}</font>\n`;
+    markdown += `> 生成时间: <font color="comment">${timeStr.substring(11, 16)}</font>\n`;
+    markdown += `> 共 <font color="warning">${posts.length} 条</font>文案\n\n`;
+    markdown += `---\n\n`;
 
-        if (currentText.trim().length > 0) {
-          currentText += `\n> 🤖 由 AI 自动生成 · 每日 8:00 定时推送`;
+    posts.forEach((post, i) => {
+      const typeEmoji = post.type.includes('励志') ? '🌱' :
+                       post.type.includes('热点') ? '🔥' :
+                       post.type.includes('财经') || post.type.includes('电报') ? '📊' :
+                       post.type.includes('股市') ? '📈' :
+                       post.type.includes('回访') ? '🤝' :
+                       post.type.includes('招呼') ? '👋' : '📝';
+      markdown += `### ${typeEmoji} 第${i + 1}条 · ${post.type}\n`;
+      markdown += `${post.content}\n\n`;
+      if (i < posts.length - 1) {
+        markdown += `---\n\n`;
+      }
+    });
+
+    const tagLine = logPrefix === '[Cron]' ? '\n> 🤖 由 AI 自动生成 · 每日 8:00 定时推送' : '\n> 🚀 手动触发 · AI 自动生成';
+    markdown += tagLine;
+
+    // 企业微信 Markdown 消息有 4096 字节限制，分条发送
+    const encoder = new TextEncoder();
+    const MAX_BYTES = 4000;
+
+    if (encoder.encode(markdown).length <= MAX_BYTES) {
+      const resp = await fetch(targetUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ msgtype: 'markdown', markdown: { content: markdown } })
+      });
+      if (!resp.ok) throw new Error('Webhook 发送失败 HTTP ' + resp.status);
+      const respBody = await resp.json();
+      if (respBody.errcode !== 0) throw new Error(`企业微信错误 [${respBody.errcode}]: ${respBody.errmsg || '未知'}`);
+      console.log(`${logPrefix} 朋友圈文案已成功发送 (单条, ${encoder.encode(markdown).length} 字节)`);
+    } else {
+      let part = 1;
+      let currentText = `## 📱 今日朋友圈文案精选 (${part})\n> 日期: ${dateStr}\n\n`;
+      let currentBytes = encoder.encode(currentText).length;
+
+      for (let i = 0; i < posts.length; i++) {
+        const post = posts[i];
+        const typeEmoji = post.type.includes('励志') ? '🌱' :
+                         post.type.includes('热点') ? '🔥' :
+                         post.type.includes('财经') || post.type.includes('电报') ? '📊' :
+                         post.type.includes('股市') ? '📈' :
+                         post.type.includes('回访') ? '🤝' :
+                         post.type.includes('招呼') ? '👋' : '📝';
+        const postText = `### ${typeEmoji} 第${i + 1}条 · ${post.type}\n${post.content}\n\n---\n\n`;
+        const postBytes = encoder.encode(postText).length;
+
+        if (currentBytes + postBytes > MAX_BYTES) {
           const resp = await fetch(targetUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ msgtype: 'markdown', markdown: { content: currentText } })
           });
-          if (!resp.ok) throw new Error(`Webhook 末条发送失败 HTTP ${resp.status}`);
+          if (!resp.ok) throw new Error(`Webhook 分条 ${part} 发送失败 HTTP ${resp.status}`);
+          part++;
+          currentText = `## 📱 今日朋友圈文案精选 (续${part})\n\n`;
+          currentBytes = encoder.encode(currentText).length;
         }
-        console.log(`[Cron] 朋友圈文案已分 ${part} 条发送完成`);
+        currentText += postText;
+        currentBytes += postBytes;
       }
-    } catch (err) {
-      console.error('[Cron] 朋友圈推送失败:', err.message);
-      // 发送错误通知
-      try {
-        await fetch(targetUrl, {
+
+      if (currentText.trim().length > 0) {
+        currentText += tagLine;
+        const resp = await fetch(targetUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            msgtype: 'text',
-            text: { content: `⚠️ 朋友圈定时推送失败\n日期: ${dateStr}\n错误: ${err.message}\n请检查 AI 配置和 Webhook 连接。` }
-          })
+          body: JSON.stringify({ msgtype: 'markdown', markdown: { content: currentText } })
         });
-      } catch (e) {
-        console.error('[Cron] 连错误通知都发不出:', e.message);
+        if (!resp.ok) throw new Error(`Webhook 末条发送失败 HTTP ${resp.status}`);
       }
+      console.log(`${logPrefix} 朋友圈文案已分 ${part} 条发送完成`);
     }
+
+    return { success: true, posts, message: `已成功生成并发送 ${posts.length} 条文案` };
+  } catch (err) {
+    console.error(`${logPrefix} 朋友圈推送失败:`, err.message);
+    try {
+      await fetch(targetUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          msgtype: 'text',
+          text: { content: `⚠️ 朋友圈推送失败\n日期: ${dateStr}\n错误: ${err.message}\n请检查 AI 配置和 Webhook 连接。` }
+        })
+      });
+    } catch (e) {
+      console.error(`${logPrefix} 连错误通知都发不出:`, e.message);
+    }
+    return { success: false, message: err.message };
   }
-};
+}
