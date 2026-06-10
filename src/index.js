@@ -3275,7 +3275,7 @@ export default {
           <button id="manualPushBtn" class="btn-add" style="font-size:0.7rem; height:28px; margin:0; background:linear-gradient(135deg,#667eea,#764ba2); color:white; border:none; width:100%; font-weight:700;">🚀 手动立即发送</button>
           <div style="font-size:0.6rem; color:var(--text-light); line-height:1.4; margin-top:2px;">
             ⏰ 每天早上 <strong>8:00 (北京时间)</strong> 自动生成 <strong>30 条</strong>朋友圈文案（励志生活·社会热点·财经电报·股市热点·贷款回访·日常招呼各5条），并通过企业微信 Webhook 推送到指定群聊。<br>
-            文案由 AI 结合当日最新资讯生成，涵盖40-60字长文案和25字内短招呼语，风格多样（励志、热点、财经、股市、回访、招呼）。<br>
+            文案由 AI 结合新浪财经实时快讯和搜索引擎最新资讯自动生成，涵盖40-60字长文案和25字内短招呼语，风格多样（励志、热点、财经、股市、回访、招呼）。<br>
             ⚠️ 需要已配置 AI 大模型 API Key 才能正常生成文案，否则仅发送提醒。
           </div>
         </div>
@@ -7413,75 +7413,91 @@ const rid=Math.floor(Math.random()*1000);
   }
 };
 
-// 从财联社电报接口抓取最新财经/股市快讯
-async function fetchClsTelegraph() {
-  const endpoints = [
-    'https://www.cls.cn/nodeapi/telegraphList?app=CailianpressWeb&os=web&refresh_type=1&rn=50&sv=8.4.6',
-    'https://www.cls.cn/v1/telegraph/list?app=CailianpressWeb&os=web&refresh_type=1&rn=50&sv=8.4.6'
+// 从新浪财经等接口抓取最新财经/股市快讯（财联社 API 已失效，改用新浪财经）
+// 返回 { items: [...], source: 'sina'|'search' } — source 标记数据来源
+async function fetchFinancialNews(env) {
+  // 新浪财经实时新闻 API（lid=2509 为股市频道，lid=2517 为财经要闻）
+  const sinaEndpoints = [
+    { url: 'https://feed.mix.sina.com.cn/api/roll/get?pageid=153&lid=2509&num=30&versionNumber=1.2.4', channel: '股市' },
+    { url: 'https://feed.mix.sina.com.cn/api/roll/get?pageid=153&lid=2517&num=30&versionNumber=1.2.4', channel: '财经' }
   ];
 
-  for (const url of endpoints) {
+  const allItems = [];
+  const todayBeijing = new Date(Date.now() + 8 * 3600000);
+  const todayStr = todayBeijing.toISOString().split('T')[0]; // YYYY-MM-DD 北京时间
+  const yesterdayBeijing = new Date(todayBeijing.getTime() - 24 * 3600000);
+  const yesterdayStr = yesterdayBeijing.toISOString().split('T')[0];
+
+  for (const { url, channel } of sinaEndpoints) {
     try {
       const resp = await fetch(url, {
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36',
           'Accept': 'application/json, text/plain, */*',
-          'Referer': 'https://www.cls.cn/'
+          'Referer': 'https://finance.sina.com.cn/'
         }
       });
 
       if (!resp.ok) {
-        console.log(`[Telegraph] ${url} HTTP ${resp.status}`);
-        continue;
-      }
-
-      const contentType = resp.headers.get('content-type') || '';
-      if (!contentType.includes('application/json')) {
-        console.log(`[Telegraph] ${url} 返回非 JSON (${contentType})，跳过`);
+        console.log(`[FinNews] 新浪${channel} HTTP ${resp.status}`);
         continue;
       }
 
       const data = await resp.json();
-
-      // 检查是否成功（errno=0 或 code=0 表示成功，无errno字段也继续尝试）
-      if ((data.errno && data.errno !== 0) || (data.code && data.code !== 0)) {
-        console.log(`[Telegraph] ${url} 返回错误: errno=${data.errno} code=${data.code} msg=${data.msg||data.message}`);
+      if (!data.result || !data.result.data || !Array.isArray(data.result.data)) {
+        console.log(`[FinNews] 新浪${channel} 返回数据格式异常`);
         continue;
       }
 
-      // 尝试多种数据格式解析
-      let items = [];
-      if (data.data && data.data.roll_data) {
-        items = data.data.roll_data;
-      } else if (data.data && data.data.list) {
-        items = data.data.list;
-      } else if (data.data && Array.isArray(data.data)) {
-        items = data.data;
-      } else if (data.list && Array.isArray(data.list)) {
-        items = data.list;
-      } else if (data.roll_data && Array.isArray(data.roll_data)) {
-        items = data.roll_data;
-      } else if (Array.isArray(data)) {
-        items = data;
-      }
+      const rawItems = data.result.data;
+      console.log(`[FinNews] 新浪${channel} 获取到 ${rawItems.length} 条`);
 
-      if (items.length > 0) {
-        console.log(`[Telegraph] 成功从 ${url} 获取 ${items.length} 条电报`);
-        return items.map(item => ({
-          title: item.title || item.brief || '',
-          content: item.brief || item.content || item.title || '',
-          ctime: item.ctime || item.display_time || '',
-          type: /(?:股|A股|港股|涨停|跌停|大盘|指数|创业板|科创板|北交|ETF|基金|板块|牛市|熊市|券商|ipo)/i.test(item.title || item.brief || '') ? '股市热点' : '财经电报'
-        }));
+      for (const item of rawItems) {
+        // ctime 是 Unix 秒级时间戳，转换为北京时间日期过滤
+        const itemTime = new Date((item.ctime || 0) * 1000);
+        const itemDateStr = itemTime.toISOString().split('T')[0];
+        // 只保留今天的和昨天的（容错：北京时间早8点推送时可能还没多少当天新闻）
+        if (itemDateStr !== todayStr && itemDateStr !== yesterdayStr) {
+          continue; // 跳过超过 1 天的旧闻
+        }
+
+        const title = item.title || '';
+        const content = item.intro || item.summary || '';
+        // 分类：根据频道来源和标题关键词判断
+        let type = '财经电报';
+        if (channel === '股市' || /(?:股|A股|港股|涨停|跌停|大盘|指数|创业板|科创板|北交|ETF|板块|牛市|熊市|券商|ipo|分红|回购|涨幅|跌幅|市值)/i.test(title + content)) {
+          type = '股市热点';
+        }
+
+        allItems.push({
+          title: title,
+          content: content,
+          ctime: item.ctime || '',
+          dateStr: itemDateStr,
+          channel: channel,
+          type: type
+        });
       }
     } catch (e) {
-      console.log(`[Telegraph] ${url} 请求失败:`, e.message);
-      continue;
+      console.log(`[FinNews] 新浪${channel} 请求失败:`, e.message);
     }
   }
 
-  console.log('[Telegraph] 所有接口均失败，回退到 AI 生成');
-  return [];
+  if (allItems.length > 0) {
+    // 去重（按标题去重）
+    const seen = new Set();
+    const unique = allItems.filter(item => {
+      const key = item.title.substring(0, 30);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    console.log(`[FinNews] 去重后共 ${unique.length} 条（今天 ${unique.filter(i=>i.dateStr===todayStr).length} 条，昨天 ${unique.filter(i=>i.dateStr===yesterdayStr).length} 条）`);
+    return { items: unique, source: 'sina' };
+  }
+
+  console.log('[FinNews] 新浪财经接口未获取到数据，将依赖搜索引擎结果');
+  return { items: [], source: 'search' };
 }
 
 // 朋友圈文案推送核心逻辑（Cron 和手动 API 共用）
@@ -7538,15 +7554,20 @@ async function doMomentsPush(env, logPrefix) {
   }
 
   try {
-    // 步骤 1: 联网搜索今日热点和生活资讯
+    // 步骤 1: 联网搜索今日热点和生活资讯（动态生成当天日期，确保搜索结果最新）
     let searchContext = '';
+    const bjYear = bjTime.getFullYear();
+    const bjMonth = bjTime.getMonth() + 1;
+    const bjDay = bjTime.getDate();
+    const dateStrCN = `${bjYear}年${bjMonth}月${bjDay}日`;
+    const dateStrShort = `${bjYear}年${bjMonth}月`;
     const searchQueries = [
-      '2026年6月今日热点新闻 头条',
-      '今日热门话题 社会热点 民生',
-      '2026年6月生活趋势 励志 成长 健康',
-      '今日财经新闻 经济数据 政策 行业动态',
-      '今日股市行情 A股 热点板块 涨停',
-      '2026年6月投资理财 基金 市场趋势'
+      `${dateStrCN} 今日热点新闻 头条`,
+      `${dateStrCN} 热门话题 社会热点 民生`,
+      `${dateStrShort} 生活趋势 励志 成长 健康`,
+      `${dateStrCN} 财经新闻 经济数据 政策 行业动态`,
+      `${dateStrCN} 股市行情 A股 热点板块 涨停`,
+      `${dateStrShort} 投资理财 基金 市场趋势`
     ];
 
     for (const sq of searchQueries) {
@@ -7563,17 +7584,24 @@ async function doMomentsPush(env, logPrefix) {
       }
     }
 
-    // 步骤 1.5: 从财联社电报接口抓取真实财经/股市快讯
-    const telegraphItems = await fetchClsTelegraph();
-    if (telegraphItems.length > 0) {
-      const financeItems = telegraphItems.filter(t => t.type === '财经电报').slice(0, 8);
-      const stockItems = telegraphItems.filter(t => t.type === '股市热点').slice(0, 8);
+    // 步骤 1.5: 从新浪财经实时接口抓取今日真实财经/股市快讯（财联社 API 已失效，改用新浪财经）
+    let telegraphSource = 'search'; // 'sina' | 'search' — 用于标记数据来源
+    const finNews = await fetchFinancialNews(env);
+    if (finNews.items.length > 0) {
+      telegraphSource = finNews.source;
+      const financeItems = finNews.items.filter(t => t.type === '财经电报').slice(0, 8);
+      const stockItems = finNews.items.filter(t => t.type === '股市热点').slice(0, 8);
+      // 标记哪些是今天的数据
+      const todayCount = finNews.items.filter(i => i.dateStr === dateStr).length;
+      const yesterdayCount = finNews.items.filter(i => i.dateStr !== dateStr).length;
       if (financeItems.length > 0 || stockItems.length > 0) {
-        searchContext += '\n### 财联社实时电报（请优先使用以下真实资讯生成财经电报和股市热点）\n';
+        searchContext += `\n### 新浪财经实时快讯（请优先使用以下真实资讯生成财经电报和股市热点；今日${todayCount}条，昨日${yesterdayCount}条）\n`;
         financeItems.forEach((t, i) => { searchContext += `[财经${i+1}] ${t.title} ${t.content}\n`; });
         stockItems.forEach((t, i) => { searchContext += `[股市${i+1}] ${t.title} ${t.content}\n`; });
-        console.log(`${logPrefix} 已注入 ${financeItems.length} 条财经 + ${stockItems.length} 条股市实时电报`);
+        console.log(`${logPrefix} 已注入 ${financeItems.length} 条财经 + ${stockItems.length} 条股市实时快讯（来源: 新浪财经）`);
       }
+    } else {
+      console.log(`${logPrefix} 新浪财经未获取到今日数据，财经/股市文案将基于搜索引擎结果生成`);
     }
 
     // 步骤 2: 调用 AI 生成 30 条朋友圈文案（励志生活5+热点5+财经5+股市5+贷款回访5+日常招呼5）
@@ -7598,13 +7626,13 @@ ${searchContext}
 - **禁止出现"评论区见""点赞告诉你""私信我"等诱导互动话术**
 
 ### 第11-15条 · 财经电报类
-- **优先使用上方"财联社实时电报"中的真实资讯**，提炼成40-60字的朋友圈文案
-- 如果上方没有实时电报数据，则根据搜索到的财经新闻自行编写
+- **优先使用上方"新浪财经实时快讯"中的真实资讯**，提炼成40-60字的朋友圈文案
+- 如果上方没有实时快讯数据，则根据搜索到的财经新闻自行编写
 - 像财经快讯风格，信息密度高，一句话讲清楚一件事
 
 ### 第16-20条 · 股市热点类
-- **优先使用上方"财联社实时电报"中的真实资讯**，提炼成40-60字的朋友圈文案
-- 如果上方没有实时电报数据，则根据搜索到的股市行情自行编写
+- **优先使用上方"新浪财经实时快讯"中的真实资讯**，提炼成40-60字的朋友圈文案
+- 如果上方没有实时快讯数据，则根据搜索到的股市行情自行编写
 - 像炒股群里的快讯风格，客观陈述带一句简短点评
 
 ### 第21-25条 · 贷款回访类
@@ -7796,7 +7824,12 @@ ${searchContext}
     let markdown = `## 📱 今日朋友圈文案精选\n`;
     markdown += `> 日期: <font color="info">${dateStr}</font>\n`;
     markdown += `> 生成时间: <font color="comment">${timeStr.substring(11, 16)}</font>\n`;
-    markdown += `> 共 <font color="warning">${posts.length} 条</font>文案\n\n`;
+    markdown += `> 共 <font color="warning">${posts.length} 条</font>文案\n`;
+    markdown += `> 数据源: <font color="comment">${telegraphSource === 'sina' ? '新浪财经实时快讯 + 搜索引擎' : '搜索引擎'}</font>\n`;
+    if (telegraphSource === 'search') {
+      markdown += `> <font color="warning">⚠️ 今日未获取到实时财经快讯数据，财经/股市文案基于搜索引擎结果生成，请核实</font>\n`;
+    }
+    markdown += `\n`;
 
     typeGroups.forEach(group => {
       const groupPosts = posts.filter(p => p.type === group.type);
