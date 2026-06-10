@@ -1399,6 +1399,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
         <button id="syncUseCloudBtn" class="btn-modal btn-secondary" style="width:100%;">拉取云端，覆写本地</button>
         <button id="syncCancelBtn" class="btn-modal btn-neutral" style="width:100%;">稍后处理 (保持离线)</button>
       </div>
+    </div>
   </div>
 
   <!-- Note Details Modal -->
