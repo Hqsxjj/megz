@@ -7140,6 +7140,8 @@ const rid=Math.floor(Math.random()*1000);
           });
         }
 
+        console.log('[OCR] Received imageBase64, length:', imageBase64.length, 'prefix:', imageBase64.substring(0, 50));
+
         // OCR 必须使用支持图片的模型（Gemini / GPT-4V 等）
         const visionApiKey = await env.DATA_KV.get('config:vision_api_key') || '';
         const visionApiBase = await env.DATA_KV.get('config:vision_api_base') || 'https://generativelanguage.googleapis.com/v1beta/openai/';
@@ -7196,33 +7198,62 @@ const rid=Math.floor(Math.random()*1000);
         await geminiAcquire();
         let aiResp;
         try {
-          aiResp = await fetch(url, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'Bearer ' + apiKey
-            },
-            body: JSON.stringify({
-              model: model,
-              messages: [{
-                role: 'user',
-                content: [
-                  {
-                    type: 'text',
-                    text: ocrMode === 'bulk'
-                      ? '完整转录这张图片中的所有文字。逐行输出，保留原始排版。\n\n只输出JSON：{"rawText":"全部文字"}'
-                      : '你是一个OCR助手。请识别这张客户信息截图，提取以下字段：\n\n- name: 客户姓名（2-4个汉字）\n- phone: 电话号码（11位数字手机号）\n- company: 工作单位/公司名称\n- fund: 公积金信息\n- note: 备注/沟通记录\n\n如某字段无法识别则为空字符串。\n\n输出纯JSON（禁止markdown代码块）：\n{"name":"姓名","phone":"13800138000","company":"单位名","fund":"","note":"备注内容"}'
-                  },
-                  {
-                    type: 'image_url',
-                    image_url: { url: imageBase64 }
-                  }
-                ]
-              }],
-              temperature: 0,
-              max_tokens: 8192
-            })
-          });
+          var maxRetries = 3;
+          var retryDelay = 1500;
+          for (var attempt = 1; attempt <= maxRetries; attempt++) {
+            aiResp = await fetch(url, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + apiKey
+              },
+              body: JSON.stringify({
+                model: model,
+                messages: [{
+                  role: 'user',
+                  content: [
+                    {
+                      type: 'text',
+                      text: ocrMode === 'bulk'
+                        ? '请识别这张图片中的所有联系人信息，提取出姓名、电话（11位手机号）、工作单位/公司名称、备注/其他信息。图片通常是一个表格或文本列表。\n\n输出纯JSON格式（不要用markdown代码块）：\n{\n  "contacts": [\n    {"name": "姓名", "phone": "13800138000", "company": "公司名/工作单位", "note": "备注内容"}\n  ],\n  "rawText": "这里写图片里的完整逐行文字转录，保留原始排版"\n}'
+                        : '你是一个OCR助手。请识别这张客户信息截图，提取以下字段：\n\n- name: 客户姓名（2-4个汉字）\n- phone: 电话号码（11位数字手机号）\n- company: 工作单位/公司名称\n- fund: 公积金信息\n- note: 备注/沟通记录\n\n如某字段无法识别则为空字符串。\n\n输出纯JSON（禁止markdown代码块）：\n{"name":"姓名","phone":"13800138000","company":"单位名","fund":"","note":"备注内容"}'
+                    },
+                    {
+                      type: 'image_url',
+                      image_url: { url: imageBase64 }
+                    }
+                  ]
+                }],
+                temperature: 0,
+                max_tokens: 8192
+              })
+            });
+
+            if (aiResp.ok) {
+              break;
+            }
+
+            var shouldRetry = false;
+            if (aiResp.status === 503 || aiResp.status === 504 || aiResp.status === 429 || aiResp.status === 502) {
+              shouldRetry = true;
+            } else if (aiResp.status === 400) {
+              var respClone = aiResp.clone();
+              try {
+                var errText = await respClone.text();
+                if (errText.includes('503') || errText.includes('UNAVAILABLE') || errText.includes('high demand') || errText.includes('temporary')) {
+                  shouldRetry = true;
+                }
+              } catch (e) {}
+            }
+
+            if (shouldRetry && attempt < maxRetries) {
+              console.warn(`[OCR] Gemini API returned status ${aiResp.status} (temporary load), retrying ${attempt}/${maxRetries} in ${retryDelay}ms...`);
+              await new Promise(function(resolve) { setTimeout(resolve, retryDelay); });
+              retryDelay *= 2;
+            } else {
+              break;
+            }
+          }
         } finally {
           geminiRelease();
         }
@@ -7260,7 +7291,28 @@ const rid=Math.floor(Math.random()*1000);
 
         if (ocrMode === 'bulk') {
           var rawText = parsed.rawText || '';
-          // Server-side phone number extraction from rawText
+          if (parsed.contacts && parsed.contacts.length > 0) {
+            var cleanedContacts = parsed.contacts.filter(function(c) { return c && c.phone; }).map(function(c) {
+              return {
+                name: (c.name || '').replace(/^[新旧]\s*/, '').trim(),
+                phone: (c.phone || '').replace(/\s+/g, '').trim(),
+                company: (c.company || '').trim(),
+                note: (c.note || '').trim()
+              };
+            });
+            if (cleanedContacts.length > 0) {
+              return new Response(JSON.stringify({
+                contacts: cleanedContacts,
+                rawText: rawText,
+                name: cleanedContacts[0].name,
+                phone: cleanedContacts[0].phone
+              }), {
+                headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+              });
+            }
+          }
+
+          // Server-side phone number extraction fallback from rawText
           var phoneRe = /1[3-9]\d{9}/g;
           var seenPhones = {};
           var extractedContacts = [];

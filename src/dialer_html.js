@@ -2886,11 +2886,129 @@ export const DIALER_HTML = `<!DOCTYPE html>
                       }
                       setTimeout(function() {
                         var contacts = parsePhoneContactsFromRawText(extractedText);
-                        renderAIUnstructuredReport(file.name, contacts);
+                        if (contacts.length > 0) {
+                          renderAIUnstructuredReport(file.name, contacts);
+                        } else {
+                          handleScannedPdfOCR(pdf, file.name);
+                        }
                       }, 800);
                     }
                   });
                 });
+              }
+
+              function handleScannedPdfOCR(pdf, fileName) {
+                var maxPages = pdf.numPages;
+                var allContacts = [];
+                
+                if (document.getElementById('aiScanStatus')) {
+                  document.getElementById('aiScanStatus').innerHTML = '🤖 检测为扫描版 PDF，正切换为 AI 视觉 OCR...';
+                }
+                if (document.getElementById('aiLog3')) {
+                  document.getElementById('aiLog3').innerHTML = '⏳ 正在通过 Canvas 渲染多模态图像...';
+                }
+                if (document.getElementById('aiLog4')) {
+                  document.getElementById('aiLog4').innerHTML = '⏳ 准备识别第 1/' + maxPages + ' 页...';
+                  document.getElementById('aiLog4').style.opacity = '1';
+                }
+
+                var canvas = document.createElement('canvas');
+                var ctx = canvas.getContext('2d');
+
+                function processPageOCR(pageNumber) {
+                  if (pageNumber > maxPages) {
+                    if (document.getElementById('aiScanStatus')) {
+                      document.getElementById('aiScanStatus').innerHTML = '✅ 扫描版 PDF 识别完成';
+                    }
+                    if (document.getElementById('aiLog4')) {
+                      document.getElementById('aiLog4').innerHTML = '🎉 共识别到 ' + allContacts.length + ' 个联系人';
+                    }
+                    setTimeout(function() {
+                      renderAIUnstructuredReport(fileName, allContacts);
+                    }, 800);
+                    return;
+                  }
+
+                  if (document.getElementById('aiLog4')) {
+                    document.getElementById('aiLog4').innerHTML = '⏳ 正在通过 AI 识别第 ' + pageNumber + '/' + maxPages + ' 页...';
+                  }
+
+                  pdf.getPage(pageNumber).then(function(page) {
+                    var viewport = page.getViewport({ scale: 1.5 });
+                    canvas.width = viewport.width;
+                    canvas.height = viewport.height;
+
+                    var renderContext = {
+                      canvasContext: ctx,
+                      viewport: viewport
+                    };
+
+                    page.render(renderContext).promise.then(function() {
+                      var imgData = canvas.toDataURL('image/jpeg', 0.75);
+
+                      fetch('/api/ocr', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ image: imgData, mode: 'bulk' })
+                      })
+                      .then(function(r) {
+                        return r.text().then(function(t) {
+                          try {
+                            var d = JSON.parse(t);
+                            return d;
+                          } catch(e) {
+                            throw new Error('服务器异常 (' + r.status + '): ' + t.substring(0, 100));
+                          }
+                        });
+                      })
+                      .then(function(result) {
+                        var pageContacts = [];
+                        if (result.contacts && result.contacts.length > 0) {
+                          result.contacts.forEach(function(c) {
+                            if (c.phone) {
+                              pageContacts.push({
+                                name: c.name || '',
+                                phone: c.phone,
+                                company: c.company || '',
+                                note: c.note || ''
+                              });
+                            }
+                          });
+                        } else if (result.name || result.phone) {
+                          pageContacts.push({
+                            name: result.name || '',
+                            phone: result.phone || '',
+                            company: result.company || '',
+                            note: result.note || result.fund || ''
+                          });
+                        }
+                        if (result.rawText || result.note) {
+                          var extra = parsePhoneContactsFromRawText(result.rawText || result.note || '');
+                          extra.forEach(function(ec) {
+                            if (!pageContacts.find(function(c) { return c.phone === ec.phone; })) {
+                              pageContacts.push(ec);
+                            }
+                          });
+                        }
+
+                        allContacts = allContacts.concat(pageContacts);
+                        processPageOCR(pageNumber + 1);
+                      })
+                      .catch(function(err) {
+                        console.error('Page ' + pageNumber + ' OCR failed:', err.message);
+                        if (document.getElementById('aiLog3')) {
+                          document.getElementById('aiLog3').innerHTML = '⚠️ 第 ' + pageNumber + ' 页识别失败: ' + err.message + '，尝试下一页...';
+                        }
+                        processPageOCR(pageNumber + 1);
+                      });
+                    });
+                  }).catch(function(err) {
+                    console.error('Page ' + pageNumber + ' render failed:', err.message);
+                    processPageOCR(pageNumber + 1);
+                  });
+                }
+
+                processPageOCR(1);
               }
               
               loadPageText(1).catch(function(err) {
