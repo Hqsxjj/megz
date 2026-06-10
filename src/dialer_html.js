@@ -5410,6 +5410,36 @@ export const DIALER_HTML = `<!DOCTYPE html>
       });
     }
 
+  function initHeaderMenu() {
+      var menuBtn = document.getElementById('headerMenuBtn');
+      var dropdown = document.getElementById('headerDropdown');
+      
+      if (menuBtn && dropdown) {
+        menuBtn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          if (dropdown.style.display === 'none' || !dropdown.style.display) {
+            dropdown.style.display = 'flex';
+          } else {
+            dropdown.style.display = 'none';
+          }
+        });
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(e) {
+          if (!menuBtn.contains(e.target) && !dropdown.contains(e.target)) {
+            dropdown.style.display = 'none';
+          }
+        });
+
+        // Also close dropdown when selecting any option inside it
+        dropdown.querySelectorAll('.dropdown-item').forEach(function(item) {
+          item.addEventListener('click', function() {
+            dropdown.style.display = 'none';
+          });
+        });
+      }
+    }
+
     function initNoteModal() {
       var modal = document.getElementById('noteModal');
       var closeBtn = document.getElementById('closeNoteModalBtn');
