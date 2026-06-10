@@ -757,6 +757,12 @@ export const DIALER_HTML = `<!DOCTYPE html>
         padding: 0 10px;
         font-size: 0.72rem;
       }
+      #custViewerBtn2,
+      #custViewerBtn,
+      #toggleCopyLimitBtn,
+      .copy-limit-sub {
+        display: none !important;
+      }
     }
 
     /* Whitelist match badges */
@@ -1434,6 +1440,8 @@ export const DIALER_HTML = `<!DOCTYPE html>
       document.body.classList.add('android');
     }
 
+    var isMobileDevice = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+
     // LocalStorage Keys
     var CLIENTS_K = 'standalone_dialer_clients';
     var DARK_K = 'standalone_dialer_dark';
@@ -1512,6 +1520,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
 
     // Returns {allowed: bool, message: string}
     function checkCopyLimit() {
+      if (isMobileDevice) return { allowed: true, message: '' };
       // If copy limit feature is disabled, always allow
       if (copyLimitEnabled === false) return { allowed: true, message: '' };
 
@@ -3461,52 +3470,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
       var end = Math.min(start + pageSize, total);
       var sliced = sorted.slice(start, end);
 
-      // Build CRM Table
-      var tableHtml = '<table class="crm-table"><thead><tr>' +
-        '<th class="col-no">#</th>' +
-        '<th class="col-status">状态</th>' +
-        '<th class="col-name">姓名</th>' +
-        '<th class="col-phone">电话</th>' +
-        '<th class="col-company">公司</th>' +
-        '<th class="col-note">备注/金额</th>' +
-        '<th class="col-batch">批次</th>' +
-        '<th class="col-action">操作</th>' +
-      '</tr></thead><tbody>';
-
-      tableHtml += sliced.map(function(c, idx) {
-        var rowNo = (currentPage - 1) * pageSize + idx + 1;
-
-        var badgeHtml = '<span style="font-size:11px;padding:1px 6px;border-radius:3px;background:#f0f0f0;color:#888;">待拨</span>';
-        var rowClass = '';
-        if (c.dialedStatus === 'success') {
-          badgeHtml = '<span style="font-size:11px;padding:1px 6px;border-radius:3px;background:rgba(7,193,96,0.12);color:#07c160;">已拨</span>';
-          rowClass = ' row-dialed';
-        } else if (c.dialedStatus === 'failed') {
-          badgeHtml = '<span style="font-size:11px;padding:1px 6px;border-radius:3px;background:rgba(231,76,60,0.1);color:#e74c3c;">未通</span>';
-          rowClass = ' row-dialed';
-        }
-
-        var wlBadge = '';
-        if (c.company) {
-          var matchedWl = matchWhitelistCompany(c.company);
-          if (matchedWl) {
-            wlBadge = ' <span style="font-size:10px;background:rgba(7,193,96,0.1);color:#07c160;padding:0 4px;border-radius:2px;">' + esc(matchedWl.bank_name || '白名单') + '</span>';
-          }
-        }
-
-        return '<tr class="' + rowClass + '" data-idx="' + idx + '">' +
-          '<td class="col-no">' + rowNo + '</td>' +
-          '<td class="col-status">' + badgeHtml + '</td>' +
-          '<td class="col-name"><span class="crm-copy-btn" data-copy="' + esc(c.name||'') + '" title="点击复制">' + esc(c.name||'-') + '</span></td>' +
-          '<td class="col-phone"><span class="crm-copy-btn" data-copy="' + esc(c.phone||'') + '" title="点击复制">' + esc(c.phone||'-') + '</span></td>' +
-          '<td class="col-company"><span class="crm-copy-btn" data-copy="' + esc(c.company||'') + '">' + esc(c.company||'-') + '</span>' + wlBadge + '</td>' +
-          '<td class="col-note">' + esc(c.note||'-') + '</td>' +
-          '<td class="col-batch">' + '<span style="font-size:11px;background:rgba(74,108,247,0.08);color:#4a6cf7;padding:1px 6px;border-radius:3px;">' + (c.batch_label || (c.created_at ? c.created_at.slice(5,16).replace('T',' ') : '-')) + '</span>' + '</td>' +
-          '<td class="col-action"><a href="tel:' + esc(c.phone) + '" style="display:inline-block;padding:3px 10px;background:linear-gradient(135deg,#07c160,#06ad56);color:#fff;border-radius:4px;text-decoration:none;font-size:12px;font-weight:700;">拨打</a></td>' +
-        '</tr>';
-      }).join('');
-
-      tableHtml += '</tbody></table>';
+      // Calculate Pagination HTML first so it can be shared by both mobile and desktop views
       var pagHtml = '';
       if (totalPages > 1) {
         pagHtml += '<div class="pagination-bar" style="display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 8px; margin-top: 18px; padding: 12px 0; border-top: 1px dashed var(--border-light); width: 100%;">';
@@ -3550,77 +3514,273 @@ export const DIALER_HTML = `<!DOCTYPE html>
         pagHtml += '</div>';
       }
 
-      container.innerHTML = tableHtml + pagHtml;
+      if (isMobileDevice) {
+        // Mobile View: Render Cards (resembling older versions)
+        var cardsHtml = sliced.map(function(c) {
+          var i = importedClients.indexOf(c);
 
-      // Wire up CRM table copy buttons
-      container.querySelectorAll('.crm-copy-btn').forEach(function(btn) {
-        btn.addEventListener('click', function() {
-          var text = this.dataset.copy;
-          if (!text) return;
-          navigator.clipboard.writeText(text).then(function() {
-            // Brief flash
-            var orig = btn.style.color;
-            btn.style.color = '#07c160';
-            setTimeout(function() { btn.style.color = orig; }, 600);
-          }).catch(function() {});
+          var badgeHtml = '<span class="xls-dial-badge xls-dial-badge-todo">待拨打</span>';
+          var cardClass = 'xls-dial-card';
+          if (c.dialedStatus === 'success') {
+            badgeHtml = '<span class="xls-dial-badge xls-dial-badge-success">已接通 (' + (c.duration || '00:00') + ')</span>';
+            cardClass += ' dialed';
+            if (c.phone) {
+              badgeHtml += ' <button class="rec-play-btn" data-phone="' + esc(c.phone) + '" title="播放通话录音" style="font-size:0.6rem;padding:1px 6px;border:1px solid #07c160;background:rgba(7,193,96,0.08);color:#07c160;border-radius:3px;cursor:pointer;font-weight:700;margin-left:4px;" onclick="event.stopPropagation();var p=this.dataset.phone;var a=document.createElement(\x27audio\x27);a.controls=true;a.style.width=\x27100%\x27;a.style.height=\x2728px\x27;a.style.marginTop=\x274px\x27;var w=this.nextElementSibling;if(w&&w.classList.contains(\x27rec-audio-wrap\x27)){w.remove();return;}var d=document.createElement(\x27div\x27);d.className=\x27rec-audio-wrap\x27;d.style.width=\x27100%\x27;d.appendChild(a);this.parentElement.appendChild(d);a.src=\x27/api/local-recording?phone=\x27+encodeURIComponent(p);a.play().catch(function(){});">▶ 录音</button>';
+            }
+          } else if (c.dialedStatus === 'failed') {
+            badgeHtml = '<span class="xls-dial-badge xls-dial-badge-failed">未接通</span>';
+            cardClass += ' dialed';
+            if (c.phone) {
+              badgeHtml += ' <button class="rec-play-btn" data-phone="' + esc(c.phone) + '" title="播放通话录音" style="font-size:0.6rem;padding:1px 6px;border:1px solid #e67e22;background:rgba(245,124,0,0.08);color:#e67e22;border-radius:3px;cursor:pointer;font-weight:700;margin-left:4px;" onclick="event.stopPropagation();var p=this.dataset.phone;var a=document.createElement(\x27audio\x27);a.controls=true;a.style.width=\x27100%\x27;a.style.height=\x2728px\x27;a.style.marginTop=\x274px\x27;var w=this.nextElementSibling;if(w&&w.classList.contains(\x27rec-audio-wrap\x27)){w.remove();return;}var d=document.createElement(\x27div\x27);d.className=\x27rec-audio-wrap\x27;d.style.width=\x27100%\x27;d.appendChild(a);this.parentElement.appendChild(d);a.src=\x27/api/local-recording?phone=\x27+encodeURIComponent(p);a.play().catch(function(){});">▶ 录音</button>';
+            }
+          }
+
+          var phoneClass = c.copied ? 'client-phone-btn copied' : 'client-phone-btn';
+
+          return '<div class="' + cardClass + '" id="xdc_' + i + '">' +
+            '<div class="client-card-top">' +
+              '<div class="client-card-primary" style="display: flex; align-items: center; width: 100%; gap: 6px;">' +
+                '<span class="client-card-name-btn" data-name="' + esc(c.name) + '" data-idx="' + i + '" title="点击复制姓名" style="flex: 0 0 62px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block;">' + esc(c.name) + '</span>' +
+                '<span class="client-card-phone-wrap" style="flex: 0 0 110px; display: inline-flex; align-items: center;">' +
+                  '<span class="' + phoneClass + '" data-phone="' + esc(c.phone) + '" data-idx="' + i + '" title="点击复制号码" style="font-size: 0.82rem;">' + esc(c.phone) + '</span>' +
+                '</span>' +
+                '<div style="margin-left: auto; display: inline-flex; align-items: center; justify-content: flex-end; flex-shrink: 0;">' +
+                  badgeHtml +
+                '</div>' +
+              '</div>' +
+            '</div>' +
+            '<div class="client-card-tags" style="margin-top: 2px;">' +
+              (c.company ? '<span class="client-card-tag client-card-tag-company" data-company="' + esc(c.company) + '" data-idx="' + i + '" title="点击复制单位名称">' + esc(c.company) + '</span>' : '') +
+              (c.batch_label ? '<span class="client-card-tag" style="background:rgba(74,108,247,0.08);color:#4a6cf7;font-weight:700;" title="导入批次">🏷 ' + esc(c.batch_label) + '</span>' : '') +
+              (function() {
+                if (!c.company) return '';
+                var matchedWl = matchWhitelistCompany(c.company);
+                if (matchedWl) {
+                  var bank = matchedWl.bank_name || '建行建易贷';
+                  return '<span class="client-card-tag xls-dial-badge-whitelist">' + esc(bank) + '</span>';
+                }
+                return '';
+              })() +
+            '</div>' +
+            (c.note ? 
+              '<div class="client-card-body" style="margin-top: 4px;">' +
+                '<div class="client-card-content-block follow-up" style="background:rgba(74,108,247,0.03); border-left:3px solid #4a6cf7; padding: 6px 8px; border-radius: 0 var(--radius-xs) var(--radius-xs) 0;">' +
+                  '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px;">' +
+                    '<span class="client-card-label" style="color:#4a6cf7; font-weight:800; font-size:0.65rem;">资料备注</span>' +
+                    '<span class="client-card-tag-note" data-note="' + esc(c.note) + '" style="font-size:0.6rem; color:#4a6cf7; cursor:pointer; text-decoration:underline;">[放大查看]</span>' +
+                  '</div>' +
+                  '<span class="client-card-text" style="color:var(--text-soft); white-space:pre-wrap; display:block; margin-top:2px;">' + esc(c.note) + '</span>' +
+                '</div>' +
+              '</div>' : '') +
+            (c.callNote ? 
+              '<div class="client-card-body" style="margin-top: 4px;">' +
+                '<div class="client-card-content-block follow-up">' +
+                  '<span class="client-card-label">通话小记</span>' +
+                  '<span class="client-card-text" style="color:var(--accent-wechat);">' + esc(c.callNote) + '</span>' +
+                '</div>' +
+              '</div>' : '') +
+            (typeof AndroidDialer !== 'undefined' && AndroidDialer.hasRecording(c.phone) ? 
+              '<div class="client-card-body" style="margin-top: 4px;">' +
+                '<div class="client-card-content-block" style="background:rgba(9,187,7,0.03); border-left:3px solid var(--accent-wechat); padding: 6px 8px; border-radius: 0 var(--radius-xs) var(--radius-xs) 0;">' +
+                  '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px;">' +
+                    '<span class="client-card-label" style="color:var(--accent-wechat); font-weight:800; font-size:0.65rem;">通话录音</span>' +
+                    '<span style="font-size:0.6rem; color:var(--accent-wechat); font-weight:bold;">[本地录音就绪]</span>' +
+                  '</div>' +
+                  '<audio src="/api/local-recording?phone=' + encodeURIComponent(c.phone) + '" controls style="width: 100%; height: 32px; outline: none; margin-top: 4px; display: block;"></audio>' +
+                '</div>' +
+              '</div>' : '') +
+            '<div class="client-card-actions">' +
+              '<a href="tel:' + esc(c.phone) + '" class="btn-primary xls-card-dial-btn" data-idx="' + i + '" style="font-size:0.75rem;padding:2px 12px;height:28px;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;">拨打</a>' +
+            '</div>' +
+          '</div>';
+        }).join('');
+
+        container.innerHTML = cardsHtml + pagHtml;
+
+        // Wire up card phone click copy
+        container.querySelectorAll('.client-phone-btn').forEach(function(b) {
+          b.addEventListener('click', function(e) {
+            e.stopPropagation();
+            var phone = b.dataset.phone;
+            var idx = parseInt(b.dataset.idx);
+
+            // 手机端直接复制，提示已复制，不限频不跳转微信
+            copyTextToClipboard(phone);
+            var oldText = b.textContent;
+            if (oldText === '已复制') return;
+            b.textContent = '已复制';
+            var oldColor = b.style.color;
+            b.style.color = 'var(--accent-wechat)';
+            var client = importedClients[idx];
+            if (client) {
+              client.copied = true;
+              saveState();
+            }
+            b.classList.add('copied');
+            setTimeout(function() {
+              b.textContent = phone;
+              b.style.color = oldColor;
+            }, 1000);
+          });
         });
-      });
 
-      // Wire up pagination click handlers
-      if (totalPages > 1) {
-        var prevBtn = document.getElementById('pagPrevBtn');
-        if (prevBtn && currentPage > 1) {
-          prevBtn.addEventListener('click', function() {
-            currentPage--;
-            renderDialCards();
-            window.scrollTo({ top: 0, behavior: 'smooth' });
+        // Wire up name click copy
+        container.querySelectorAll('.client-card-name-btn').forEach(function(b) {
+          b.addEventListener('click', function(e) {
+            e.stopPropagation();
+            var name = b.dataset.name;
+            var idx = parseInt(b.dataset.idx);
+            copyTextToClipboard(name);
+            
+            var oldText = b.textContent;
+            if (oldText === '已复制') return;
+            b.textContent = '已复制';
+            var oldColor = b.style.color;
+            b.style.color = 'var(--accent-wechat)';
+            
+            var client = importedClients[idx];
+            if (client) {
+              client.copied = true;
+              saveState();
+            }
+
+            var card = document.getElementById('xdc_' + idx);
+            if (card) {
+              var phoneBtn = card.querySelector('.client-phone-btn');
+              if (phoneBtn) {
+                phoneBtn.classList.add('copied');
+              }
+            }
+
+            setTimeout(function() {
+              b.textContent = name;
+              b.style.color = oldColor;
+            }, 1000);
           });
-        }
-        
-        var nextBtn = document.getElementById('pagNextBtn');
-        if (nextBtn && currentPage < totalPages) {
-          nextBtn.addEventListener('click', function() {
-            currentPage++;
-            renderDialCards();
-            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+
+        // Wire up company click copy
+        container.querySelectorAll('.client-card-tag-company').forEach(function(b) {
+          b.addEventListener('click', function(e) {
+            e.stopPropagation();
+            var company = b.dataset.company;
+            copyTextToClipboard(company);
+            
+            var oldText = b.textContent;
+            if (oldText === '已复制') return;
+            b.textContent = '已复制';
+            var oldColor = b.style.color;
+            b.style.color = 'var(--accent-wechat)';
+            
+            setTimeout(function() {
+              b.textContent = company;
+              b.style.color = oldColor;
+            }, 1000);
           });
-        }
-        
-        document.querySelectorAll('.pag-num-btn').forEach(function(btn) {
-          btn.addEventListener('click', function() {
-            var targetPage = parseInt(this.dataset.page, 10);
-            if (targetPage !== currentPage) {
-              currentPage = targetPage;
-              renderDialCards();
-              window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+
+        // Wire up card tag note click modal
+        container.querySelectorAll('.client-card-tag-note').forEach(function(b) {
+          b.addEventListener('click', function(e) {
+            e.stopPropagation();
+            var note = b.dataset.note || '(空)';
+            var content = document.getElementById('noteModalContent');
+            if (content) {
+              content.textContent = note;
+            }
+            var modal = document.getElementById('noteModal');
+            if (modal) {
+              modal.classList.add('active');
             }
           });
         });
 
-        var pSizeSel = document.getElementById('pageSizeSel');
-        if (pSizeSel) {
-          pSizeSel.addEventListener('change', function() {
-            pageSize = parseInt(this.value, 10);
-            currentPage = 1;
-            renderDialCards();
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-          });
-        }
-      }
-
-      // Wire up table dial buttons with call assistant
-      container.querySelectorAll('.col-action a').forEach(function(btn, idx) {
-        btn.addEventListener('click', function(e) {
-          // Let the tel: link work natively
-          var client = sliced[idx];
-          if (client) {
+        // Wire up call button
+        container.querySelectorAll('.xls-card-dial-btn').forEach(function(btn) {
+          btn.addEventListener('click', function(e) {
+            var idx = parseInt(this.dataset.idx);
+            // Delay opening the modal by 200ms to allow Safari to natively trigger the tel: anchor navigation first
             setTimeout(function() {
-              startCallAssistant(importedClients.indexOf(client));
-            }, 300);
-          }
+              startCallAssistant(idx);
+            }, 200);
+          });
         });
-      });
-    }
+      } else {
+        // Desktop View: Render CRM Table
+        var tableHtml = '<table class="crm-table"><thead><tr>' +
+          '<th class="col-no">#</th>' +
+          '<th class="col-status">状态</th>' +
+          '<th class="col-name">姓名</th>' +
+          '<th class="col-phone">电话</th>' +
+          '<th class="col-company">公司</th>' +
+          '<th class="col-note">备注/金额</th>' +
+          '<th class="col-batch">批次</th>' +
+          '<th class="col-action">操作</th>' +
+        '</tr></thead><tbody>';
+
+        tableHtml += sliced.map(function(c, idx) {
+          var rowNo = (currentPage - 1) * pageSize + idx + 1;
+
+          var badgeHtml = '<span style="font-size:11px;padding:1px 6px;border-radius:3px;background:#f0f0f0;color:#888;">待拨</span>';
+          var rowClass = '';
+          if (c.dialedStatus === 'success') {
+            badgeHtml = '<span style="font-size:11px;padding:1px 6px;border-radius:3px;background:rgba(7,193,96,0.12);color:#07c160;">已拨</span>';
+            rowClass = ' row-dialed';
+          } else if (c.dialedStatus === 'failed') {
+            badgeHtml = '<span style="font-size:11px;padding:1px 6px;border-radius:3px;background:rgba(231,76,60,0.1);color:#e74c3c;">未通</span>';
+            rowClass = ' row-dialed';
+          }
+
+          var wlBadge = '';
+          if (c.company) {
+            var matchedWl = matchWhitelistCompany(c.company);
+            if (matchedWl) {
+              wlBadge = ' <span style="font-size:10px;background:rgba(7,193,96,0.1);color:#07c160;padding:0 4px;border-radius:2px;">' + esc(matchedWl.bank_name || '白名单') + '</span>';
+            }
+          }
+
+          return '<tr class="' + rowClass + '" data-idx="' + idx + '">' +
+            '<td class="col-no">' + rowNo + '</td>' +
+            '<td class="col-status">' + badgeHtml + '</td>' +
+            '<td class="col-name"><span class="crm-copy-btn" data-copy="' + esc(c.name||'') + '" title="点击复制">' + esc(c.name||'-') + '</span></td>' +
+            '<td class="col-phone"><span class="crm-copy-btn" data-copy="' + esc(c.phone||'') + '" title="点击复制">' + esc(c.phone||'-') + '</span></td>' +
+            '<td class="col-company"><span class="crm-copy-btn" data-copy="' + esc(c.company||'') + '">' + esc(c.company||'-') + '</span>' + wlBadge + '</td>' +
+            '<td class="col-note">' + esc(c.note||'-') + '</td>' +
+            '<td class="col-batch">' + '<span style="font-size:11px;background:rgba(74,108,247,0.08);color:#4a6cf7;padding:1px 6px;border-radius:3px;">' + (c.batch_label || (c.created_at ? c.created_at.slice(5,16).replace('T',' ') : '-')) + '</span>' + '</td>' +
+            '<td class="col-action"><a href="tel:' + esc(c.phone) + '" style="display:inline-block;padding:3px 10px;background:linear-gradient(135deg,#07c160,#06ad56);color:#fff;border-radius:4px;text-decoration:none;font-size:12px;font-weight:700;">拨打</a></td>' +
+          '</tr>';
+        }).join('');
+
+        tableHtml += '</tbody></table>';
+        container.innerHTML = tableHtml + pagHtml;
+
+        // Wire up CRM table copy buttons
+        container.querySelectorAll('.crm-copy-btn').forEach(function(btn) {
+          btn.addEventListener('click', function() {
+            var text = this.dataset.copy;
+            if (!text) return;
+            navigator.clipboard.writeText(text).then(function() {
+              // Brief flash
+              var orig = btn.style.color;
+              btn.style.color = '#07c160';
+              setTimeout(function() { btn.style.color = orig; }, 600);
+            }).catch(function() {});
+          });
+        });
+
+        // Wire up table dial buttons with call assistant
+        container.querySelectorAll('.col-action a').forEach(function(btn, idx) {
+          btn.addEventListener('click', function(e) {
+            // Let the tel: link work natively
+            var client = sliced[idx];
+            if (client) {
+              setTimeout(function() {
+                startCallAssistant(importedClients.indexOf(client));
+              }, 300);
+            }
+          });
+        });
+      }
 
     // Call Assistant Controls
     var selectedCallStatus = 'success';
