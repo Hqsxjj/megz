@@ -1,4 +1,4 @@
-﻿// 每日工作 - Cloudflare Worker 版本
+// 每日工作 - Cloudflare Worker 版本
 // 部署后绑定 DATA_KV 即可使用
 
 import { DIALER_HTML } from './dialer_html.js';
@@ -7305,6 +7305,9 @@ const rid=Math.floor(Math.random()*1000);
                 company = after.replace(/[\d.]+[\d\s]*$/g, '').replace(/\s*(新增跟进|已拨|正常号|空号|停机|无法接通).*$/, '').trim();
                 var nums = after.match(/[\d.]+/g);
                 note = nums ? nums.join(' ') : '';
+                if (note && company.indexOf(note) === 0) {
+                  company = company.substring(note.length).trim();
+                }
               }
 
               extractedContacts.push({ name: name, phone: phone, company: company, note: note });
