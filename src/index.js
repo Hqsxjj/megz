@@ -7416,28 +7416,36 @@ const rid=Math.floor(Math.random()*1000);
 // 从财联社电报接口抓取最新财经/股市快讯
 async function fetchClsTelegraph() {
   const endpoints = [
-    'https://www.cls.cn/nodeapi/telegraphlist?app=1&os=3&sv=8.4.0&rn=20',
-    'https://www.cls.cn/v1/telegraph/list?app=1&os=3&sv=8.4.0&rn=20',
-    'https://www.cls.cn/nodeapi/telegraphlist?rn=20'
+    'https://www.cls.cn/nodeapi/telegraphList?app=CailianpressWeb&os=web&refresh_type=1&rn=50&sv=8.4.6',
+    'https://www.cls.cn/v1/telegraph/list?app=CailianpressWeb&os=web&refresh_type=1&rn=50&sv=8.4.6'
   ];
 
   for (const url of endpoints) {
     try {
       const resp = await fetch(url, {
         headers: {
-          'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36',
           'Accept': 'application/json, text/plain, */*',
-          'Referer': 'https://www.cls.cn/telegraph'
+          'Referer': 'https://www.cls.cn/'
         }
       });
 
-      if (!resp.ok) continue;
+      if (!resp.ok) {
+        console.log(`[Telegraph] ${url} HTTP ${resp.status}`);
+        continue;
+      }
+
+      const contentType = resp.headers.get('content-type') || '';
+      if (!contentType.includes('application/json')) {
+        console.log(`[Telegraph] ${url} 返回非 JSON (${contentType})，跳过`);
+        continue;
+      }
 
       const data = await resp.json();
 
-      // 检查是否成功（errno=0 表示成功）
-      if (data.errno && data.errno !== 0) {
-        console.log(`[Telegraph] ${url} 返回错误: errno=${data.errno} msg=${data.msg}`);
+      // 检查是否成功（errno=0 或 code=0 表示成功，无errno字段也继续尝试）
+      if ((data.errno && data.errno !== 0) || (data.code && data.code !== 0)) {
+        console.log(`[Telegraph] ${url} 返回错误: errno=${data.errno} code=${data.code} msg=${data.msg||data.message}`);
         continue;
       }
 
@@ -7445,10 +7453,14 @@ async function fetchClsTelegraph() {
       let items = [];
       if (data.data && data.data.roll_data) {
         items = data.data.roll_data;
+      } else if (data.data && data.data.list) {
+        items = data.data.list;
       } else if (data.data && Array.isArray(data.data)) {
         items = data.data;
       } else if (data.list && Array.isArray(data.list)) {
         items = data.list;
+      } else if (data.roll_data && Array.isArray(data.roll_data)) {
+        items = data.roll_data;
       } else if (Array.isArray(data)) {
         items = data;
       }
@@ -7459,7 +7471,7 @@ async function fetchClsTelegraph() {
           title: item.title || item.brief || '',
           content: item.brief || item.content || item.title || '',
           ctime: item.ctime || item.display_time || '',
-          type: (item.title || '').includes('股') || (item.brief || '').includes('A股') ? '股市热点' : '财经电报'
+          type: /(?:股|A股|港股|涨停|跌停|大盘|指数|创业板|科创板|北交|ETF|基金|板块|牛市|熊市|券商|ipo)/i.test(item.title || item.brief || '') ? '股市热点' : '财经电报'
         }));
       }
     } catch (e) {
