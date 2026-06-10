@@ -7697,24 +7697,32 @@ ${searchContext}
       throw new Error('AI 未生成任何朋友圈文案');
     }
 
-    // 步骤 3: 拼接 Markdown 并发送到企业微信 Webhook
+    // 步骤 3: 拼接 Markdown 按类型分组，取消序号，虚线分割
+    const typeGroups = [
+      { type: '励志生活', emoji: '🌱' },
+      { type: '社会热点', emoji: '🔥' },
+      { type: '财经电报', emoji: '📊' },
+      { type: '股市热点', emoji: '📈' },
+      { type: '贷款回访', emoji: '🤝' },
+      { type: '日常招呼', emoji: '👋' }
+    ];
+
     let markdown = `## 📱 今日朋友圈文案精选\n`;
     markdown += `> 日期: <font color="info">${dateStr}</font>\n`;
     markdown += `> 生成时间: <font color="comment">${timeStr.substring(11, 16)}</font>\n`;
     markdown += `> 共 <font color="warning">${posts.length} 条</font>文案\n\n`;
-    markdown += `---\n\n`;
 
-    posts.forEach((post, i) => {
-      const typeEmoji = post.type.includes('励志') ? '🌱' :
-                       post.type.includes('热点') ? '🔥' :
-                       post.type.includes('财经') || post.type.includes('电报') ? '📊' :
-                       post.type.includes('股市') ? '📈' :
-                       post.type.includes('回访') ? '🤝' :
-                       post.type.includes('招呼') ? '👋' : '📝';
-      markdown += `### ${typeEmoji} 第${i + 1}条 · ${post.type}\n`;
-      markdown += `${post.content}\n\n`;
-      if (i < posts.length - 1) {
-        markdown += `---\n\n`;
+    typeGroups.forEach(group => {
+      const groupPosts = posts.filter(p => p.type === group.type);
+      if (groupPosts.length > 0) {
+        markdown += `## ${group.emoji} ${group.type}\n\n`;
+        groupPosts.forEach((post, j) => {
+          markdown += `${post.content}\n`;
+          if (j < groupPosts.length - 1) {
+            markdown += `\n---\n\n`;
+          }
+        });
+        markdown += `\n\n`;
       }
     });
 
@@ -7739,6 +7747,7 @@ ${searchContext}
       let part = 1;
       let currentText = `## 📱 今日朋友圈文案精选 (${part})\n> 日期: ${dateStr}\n\n`;
       let currentBytes = encoder.encode(currentText).length;
+      let lastType = '';
 
       for (let i = 0; i < posts.length; i++) {
         const post = posts[i];
@@ -7748,7 +7757,22 @@ ${searchContext}
                          post.type.includes('股市') ? '📈' :
                          post.type.includes('回访') ? '🤝' :
                          post.type.includes('招呼') ? '👋' : '📝';
-        const postText = `### ${typeEmoji} 第${i + 1}条 · ${post.type}\n${post.content}\n\n---\n\n`;
+
+        // 类型切换时加上类型标题
+        let postText = '';
+        if (post.type !== lastType) {
+          postText += `## ${typeEmoji} ${post.type}\n\n`;
+          lastType = post.type;
+        }
+        postText += `${post.content}\n`;
+        // 同类型内用虚线分割
+        const nextPost = (i + 1 < posts.length) ? posts[i + 1] : null;
+        if (nextPost && nextPost.type === post.type) {
+          postText += `\n---\n\n`;
+        } else if (nextPost) {
+          postText += `\n\n`;
+        }
+
         const postBytes = encoder.encode(postText).length;
 
         if (currentBytes + postBytes > MAX_BYTES) {
@@ -7761,6 +7785,8 @@ ${searchContext}
           part++;
           currentText = `## 📱 今日朋友圈文案精选 (续${part})\n\n`;
           currentBytes = encoder.encode(currentText).length;
+          // 续条需要重新加类型标题
+          postText = `## ${typeEmoji} ${post.type}\n\n${post.content}\n`;
         }
         currentText += postText;
         currentBytes += postBytes;
