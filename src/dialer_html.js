@@ -3781,6 +3781,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
           });
         });
       }
+    }
 
     // Call Assistant Controls
     var selectedCallStatus = 'success';
