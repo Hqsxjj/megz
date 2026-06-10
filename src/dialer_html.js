@@ -4462,6 +4462,113 @@ export const DIALER_HTML = `<!DOCTYPE html>
           localStorage.setItem('dialer_rotation', String(rotationCount));
         });
       }
+
+      if (xlsFile) {
+        xlsFile.addEventListener('change', function(e) {
+          var file = e.target.files[0];
+          if (file) handleFileImportDispatch(file);
+          e.target.value = '';
+        });
+      }
+
+      if (vcfFile) {
+        vcfFile.addEventListener('change', function(e) {
+          var file = e.target.files[0];
+          if (file) handleFileImportDispatch(file);
+          e.target.value = '';
+        });
+      }
+
+      var imgFile = document.getElementById('imgFileInput');
+      if (imgFile) {
+        imgFile.addEventListener('change', function(e) {
+          var file = e.target.files[0];
+          if (file) handleFileImportDispatch(file);
+          e.target.value = '';
+        });
+      }
+
+      // Drag & Drop
+      if (dropZone) {
+        dropZone.addEventListener('dragover', function(e) {
+          e.preventDefault();
+          dropZone.classList.add('dragover');
+        });
+        dropZone.addEventListener('dragleave', function() {
+          dropZone.classList.remove('dragover');
+        });
+        dropZone.addEventListener('drop', function(e) {
+          e.preventDefault();
+          dropZone.classList.remove('dragover');
+          var file = e.dataTransfer.files[0];
+          if (file) handleFileImportDispatch(file);
+        });
+      }
+    }
+
+    // Clear and Export Data
+    function initDataActions() {
+      var clearBtn = document.getElementById('clearBtn');
+      var exportBtn = document.getElementById('exportBtn');
+      var closeExport = document.getElementById('closeExportBtn');
+      var copyExport = document.getElementById('copyExportBtn');
+      var exportModal = document.getElementById('exportModal');
+      var exportArea = document.getElementById('exportTextarea');
+
+      if (clearBtn) {
+        clearBtn.addEventListener('click', function() {
+          if (confirm('确认清空当前导入的客户和所有的拨号记录吗？')) {
+            importedClients = [];
+            saveState();
+            updateDashboardVisibility(false);
+            var statusEl = document.getElementById('importStatus');
+            if (statusEl) statusEl.innerText = '';
+            renderDialCards();
+          }
+        });
+      }
+
+      if (exportBtn) {
+        exportBtn.addEventListener('click', function() {
+          if (importedClients.length === 0) return;
+          
+          var lines = ['姓名,电话,单位,状态,时长,沟通小记'];
+          importedClients.forEach(function(c) {
+            var statusStr = '待拨打';
+            if (c.dialedStatus === 'success') statusStr = '已接通';
+            else if (c.dialedStatus === 'failed') statusStr = '未接通';
+
+            lines.push(
+              '"' + c.name + '",' +
+              '"' + c.phone + '",' +
+              '"' + (c.company || '') + '",' +
+              '"' + statusStr + '",' +
+              '"' + (c.duration || '') + '",' +
+              '"' + (c.callNote || '') + '"'
+            );
+          });
+
+          if (exportArea) exportArea.value = lines.join('\\n');
+          if (exportModal) exportModal.classList.add('active');
+        });
+      }
+
+      if (closeExport && exportModal) {
+        closeExport.addEventListener('click', function() {
+          exportModal.classList.remove('active');
+        });
+      }
+
+      if (copyExport && exportArea) {
+        copyExport.addEventListener('click', function() {
+          exportArea.select();
+          document.execCommand('copy');
+          copyExport.textContent = '✅ 已成功复制！';
+          setTimeout(function() {
+            copyExport.textContent = '复制记录到剪贴板';
+          }, 1500);
+        });
+      }
     }
 
     // ====== Customer Data Viewer (Supabase CRM) ======
