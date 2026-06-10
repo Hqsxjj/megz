@@ -4656,7 +4656,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
           '<td>' +
             '<div class="crm-phone-cell">' +
               esc(c.mobile || '-') +
-              '<button class="crm-btn-call" title="点击呼叫 / 复制" onclick="copyTextToClipboard(\'' + esc(c.mobile) + '\');showCopyLimitToast(\'已复制: ' + esc(c.mobile) + '\');">📞</button>' +
+              '<button class="crm-btn-call" title="点击呼叫 / 复制" onclick="copyTextToClipboard(' + '\\'' + esc(c.mobile) + '\\'' + ');showCopyLimitToast(' + '\\'' + '已复制: ' + esc(c.mobile) + '\\'' + ');">📞</button>' +
             '</div>' +
           '</td>' +
           '<td style="white-space: normal; max-width: 300px; word-break: break-all;">' + noteDisplay + '</td>' +
