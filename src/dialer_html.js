@@ -1185,7 +1185,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
             
             <div class="import-buttons" style="margin-top: 6px; display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; width: 100%;">
               <label class="btn-primary" for="xlsFileInput" id="xlsSelectBtn" style="cursor:pointer; display:inline-flex; align-items:center; justify-content:center; padding: 8px 16px; font-size: 0.76rem; flex: 1; min-width: 130px; text-align: center;">📂 导入表格 / 文档</label>
-              <label class="btn-primary" for="imgFileInput" id="imgSelectBtn" style="cursor:pointer; display:inline-flex; align-items:center; justify-content:center; padding: 8px 16px; font-size: 0.76rem; flex: 1; min-width: 130px; text-align: center; background: var(--revisit-gradient) !important; color: white;">📸 智能图片 OCR</label>
+              <label class="btn-primary" for="imgFileInput" id="imgSelectBtn" style="cursor:pointer; display:inline-flex; align-items:center; justify-content:center; padding: 8px 16px; font-size: 0.76rem; flex: 1; min-width: 130px; text-align: center; background: var(--revisit-gradient) !important; color: white;">📸 智能图片 OCR (可多选)</label>
               <label class="btn-secondary" for="vcfFileInput" id="vcfSelectBtn" style="cursor:pointer; display:inline-flex; align-items:center; justify-content:center; padding: 8px 16px; font-size: 0.76rem; flex: 1; min-width: 130px; text-align: center;">👤 导入 VCF 通录</label>
               <button class="btn-secondary" id="textImportBtn" style="cursor:pointer; display:inline-flex; align-items:center; justify-content:center; padding: 8px 16px; font-size: 0.76rem; flex: 1; min-width: 130px; text-align: center; background: linear-gradient(135deg,#667eea,#764ba2); color:white; border:none; font-weight:700;" onclick="document.getElementById('textImportPanel').style.display='flex';document.getElementById('textImportArea').value='';document.getElementById('textImportArea').focus();">📝 粘贴文本识别</button>
             </div>
@@ -1197,7 +1197,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
               </div>
             </div>
             <input type="file" id="xlsFileInput" accept=".xls,.xlsx,.csv,.docx,.pdf,.txt" style="display:none;">
-            <input type="file" id="imgFileInput" accept="image/*" style="display:none;">
+            <input type="file" id="imgFileInput" accept="image/*" multiple style="display:none;">
             <input type="file" id="vcfFileInput" accept=".vcf,.vcard" style="display:none;">
             <div style="display: flex; gap: 6px; align-items: center; margin-top: 6px; width: 100%;">
               <span style="font-size: 0.68rem; color: var(--text-soft); font-weight: 800; white-space: nowrap;">🏷️ 批次标签</span>
@@ -2213,6 +2213,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
     var tempUnstructuredContacts = [];
 
     function resetAIImporterUI() {
+      multiImageAborted = true;
       document.getElementById('aiImportInit').style.display = 'flex';
       document.getElementById('aiImportScanning').style.display = 'none';
       document.getElementById('aiImportReport').style.display = 'none';
@@ -4294,6 +4295,249 @@ export const DIALER_HTML = `<!DOCTYPE html>
       });
     }
 
+    // ====== Multi-Image Queue OCR ======
+    var multiImageQueue = [];
+    var multiImageResults = [];
+    var multiImageAborted = false;
+
+    function handleMultiImageOCR(files) {
+      multiImageQueue = files;
+      multiImageResults = [];
+      multiImageAborted = false;
+      var total = files.length;
+
+      var ocrEngine = 'local';
+      var ocrEngineRadio = document.querySelector('input[name="ocrEngine"]:checked');
+      if (ocrEngineRadio) ocrEngine = ocrEngineRadio.value;
+
+      // Set up scanning UI directly (skip showAIScanningUI timeouts to avoid progress overwrite)
+      document.getElementById('aiImportInit').style.display = 'none';
+      document.getElementById('aiImportReport').style.display = 'none';
+      document.getElementById('aiImportScanning').style.display = 'flex';
+      document.getElementById('aiLaserLine').style.display = 'block';
+      document.getElementById('aiScanStatus').innerHTML = '🖼️ 多图排队识别 · 共 ' + total + ' 张';
+      document.getElementById('aiLog1').innerHTML = '📋 队列就绪，准备逐张识别...'; document.getElementById('aiLog1').style.opacity = '1';
+      document.getElementById('aiLog2').innerHTML = '⏳ 等待处理第 1/' + total + ' 张...'; document.getElementById('aiLog2').style.opacity = '1';
+      document.getElementById('aiLog3').innerHTML = '🔧 引擎: ' + (ocrEngine === 'ai' ? '云端 AI (Gemini)' : '本地离线 (Wasm)'); document.getElementById('aiLog3').style.opacity = '0.8';
+      document.getElementById('aiLog4').innerHTML = '⚡ 进度: 0/' + total; document.getElementById('aiLog4').style.opacity = '0.8';
+
+      processNextInQueue(0);
+    }
+
+    function processNextInQueue(index) {
+      if (multiImageAborted) return;
+      if (index >= multiImageQueue.length) {
+        finishMultiImageOCR();
+        return;
+      }
+
+      var file = multiImageQueue[index];
+      var total = multiImageQueue.length;
+      var current = index + 1;
+
+      if (document.getElementById('aiScanStatus')) {
+        document.getElementById('aiScanStatus').innerHTML = '🖼️ 正在识别 第 ' + current + '/' + total + ' 张: ' + esc(file.name);
+      }
+      if (document.getElementById('aiLog2')) {
+        document.getElementById('aiLog2').innerHTML = '⏳ 处理中: ' + esc(file.name) + ' (' + current + '/' + total + ')';
+        document.getElementById('aiLog2').style.opacity = '1';
+      }
+      if (document.getElementById('aiLog4')) {
+        document.getElementById('aiLog4').innerHTML = '⚡ 进度: ' + current + '/' + total;
+        document.getElementById('aiLog4').style.opacity = '1';
+      }
+
+      var ocrEngine = 'local';
+      var ocrEngineRadio = document.querySelector('input[name="ocrEngine"]:checked');
+      if (ocrEngineRadio) ocrEngine = ocrEngineRadio.value;
+
+      if (ocrEngine === 'ai') {
+        processSingleImageAI(file, function(err, contacts) {
+          if (err) {
+            if (document.getElementById('aiLog3')) {
+              document.getElementById('aiLog3').innerHTML = '⚠️ ' + esc(file.name) + ' 失败: ' + err.message + '，继续下一张...';
+              document.getElementById('aiLog3').style.opacity = '1';
+            }
+          } else {
+            if (document.getElementById('aiLog3')) {
+              document.getElementById('aiLog3').innerHTML = '✅ ' + esc(file.name) + ' 识别完成 (' + contacts.length + ' 个联系人)';
+              document.getElementById('aiLog3').style.opacity = '1';
+            }
+            multiImageResults = multiImageResults.concat(contacts);
+          }
+          processNextInQueue(index + 1);
+        });
+      } else {
+        processSingleImageLocal(file, function(err, contacts) {
+          if (err) {
+            if (document.getElementById('aiLog3')) {
+              document.getElementById('aiLog3').innerHTML = '⚠️ ' + esc(file.name) + ' 本地识别失败: ' + err.message + '，继续下一张...';
+              document.getElementById('aiLog3').style.opacity = '1';
+            }
+          } else {
+            if (document.getElementById('aiLog3')) {
+              document.getElementById('aiLog3').innerHTML = '✅ ' + esc(file.name) + ' 本地识别完成 (' + contacts.length + ' 个联系人)';
+              document.getElementById('aiLog3').style.opacity = '1';
+            }
+            multiImageResults = multiImageResults.concat(contacts);
+          }
+          processNextInQueue(index + 1);
+        });
+      }
+    }
+
+    function processSingleImageAI(file, callback) {
+      var visionKey = (localStorage.getItem('vision_api_key') || '').trim();
+      var aiKey = visionKey || (localStorage.getItem('ai_api_key') || localStorage.getItem('deepseek_api_key') || '').trim();
+
+      if (!aiKey) {
+        callback(new Error('未配置 AI Key'), []);
+        return;
+      }
+
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        fetch('/api/ocr', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ image: e.target.result, mode: 'bulk' })
+        })
+        .then(function(r) {
+          return r.text().then(function(t) {
+            try { var d = JSON.parse(t); return d; } catch(err) {
+              throw new Error('服务器异常 (' + r.status + '): ' + t.substring(0, 100));
+            }
+          });
+        })
+        .then(function(result) {
+          var contacts = [];
+          if (result.contacts && result.contacts.length > 0) {
+            result.contacts.forEach(function(c) { if (c.phone) contacts.push({ name: c.name || '', phone: c.phone, company: c.company || '', note: c.note || '' }); });
+          } else if (result.name || result.phone) {
+            contacts.push({ name: result.name || '', phone: result.phone || '', company: result.company || '', note: result.note || result.fund || '' });
+          }
+          if (result.rawText || result.note) {
+            var extra = parsePhoneContactsFromRawText(result.rawText || result.note || '');
+            extra.forEach(function(ec) { if (!contacts.find(function(c) { return c.phone === ec.phone; })) contacts.push(ec); });
+          }
+          callback(null, contacts);
+        })
+        .catch(function(err) {
+          callback(err, []);
+        });
+      };
+      reader.onerror = function() {
+        callback(new Error('文件读取失败'), []);
+      };
+      reader.readAsDataURL(file);
+    }
+
+    var _tesseractWorker = null;
+    var _tesseractReady = false;
+
+    function getTesseractWorker(callback) {
+      if (_tesseractWorker && _tesseractReady) {
+        callback(null, _tesseractWorker);
+        return;
+      }
+      if (_tesseractWorker && !_tesseractReady) {
+        // Worker is being initialized, poll
+        var start = Date.now();
+        var check = setInterval(function() {
+          if (_tesseractReady) {
+            clearInterval(check);
+            callback(null, _tesseractWorker);
+          } else if (Date.now() - start > 30000) {
+            clearInterval(check);
+            callback(new Error('Tesseract worker init timeout'), null);
+          }
+        }, 200);
+        return;
+      }
+
+      if (typeof Tesseract === 'undefined') {
+        loadScript('https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.1.1/tesseract.min.js')
+          .then(function() { createAndInitWorker(callback); })
+          .catch(function(err) { callback(err, null); });
+      } else {
+        createAndInitWorker(callback);
+      }
+    }
+
+    function createAndInitWorker(callback) {
+      Tesseract.createWorker({
+        langPath: window.location.origin + '/tessdata'
+      }).then(function(worker) {
+        _tesseractWorker = worker;
+        return Promise.resolve(worker.load())
+          .then(function() { return Promise.resolve(worker.loadLanguage('chi_sim+eng')); })
+          .then(function() { return Promise.resolve(worker.initialize('chi_sim+eng')); })
+          .then(function() {
+            _tesseractReady = true;
+            callback(null, worker);
+          });
+      }).catch(function(err) {
+        _tesseractWorker = null;
+        callback(err, null);
+      });
+    }
+
+    function processSingleImageLocal(file, callback) {
+      getTesseractWorker(function(err, worker) {
+        if (err) { callback(err, []); return; }
+        worker.recognize(file).then(function(result) {
+          var text = result.data.text;
+          var contacts = parsePhoneContactsFromRawText(text);
+          callback(null, contacts);
+        }).catch(function(recogErr) {
+          // Worker might be stale, reset and retry once
+          _tesseractWorker = null;
+          _tesseractReady = false;
+          getTesseractWorker(function(err2, worker2) {
+            if (err2) { callback(recogErr, []); return; }
+            worker2.recognize(file).then(function(result2) {
+              var text2 = result2.data.text;
+              var contacts2 = parsePhoneContactsFromRawText(text2);
+              callback(null, contacts2);
+            }).catch(function(e2) { callback(e2, []); });
+          });
+        });
+      });
+    }
+
+    function doTesseractLocal(file, callback) {
+      processSingleImageLocal(file, callback);
+    }
+
+    function finishMultiImageOCR() {
+      var total = multiImageQueue.length;
+      if (document.getElementById('aiScanStatus')) {
+        document.getElementById('aiScanStatus').innerHTML = '✅ 多图排队识别完成 · 共 ' + total + ' 张图片';
+      }
+      if (document.getElementById('aiLog2')) {
+        document.getElementById('aiLog2').innerHTML = '🎉 全部处理完毕';
+        document.getElementById('aiLog2').style.opacity = '1';
+      }
+      if (document.getElementById('aiLog4')) {
+        document.getElementById('aiLog4').innerHTML = '📊 合计识别: ' + multiImageResults.length + ' 个联系人';
+        document.getElementById('aiLog4').style.opacity = '1';
+      }
+
+      // Deduplicate by phone
+      var seenPhones = {};
+      var deduped = [];
+      multiImageResults.forEach(function(c) {
+        if (!seenPhones[c.phone]) {
+          seenPhones[c.phone] = true;
+          deduped.push(c);
+        }
+      });
+
+      setTimeout(function() {
+        renderAIUnstructuredReport(multiImageQueue.length + ' 张图片', deduped);
+      }, 600);
+    }
+
     function handleImageOCR(file) {
       var ocrEngine = 'local';
       var ocrEngineRadio = document.querySelector('input[name="ocrEngine"]:checked');
@@ -5644,8 +5888,13 @@ export const DIALER_HTML = `<!DOCTYPE html>
       var imgFile = document.getElementById('imgFileInput');
       if (imgFile) {
         imgFile.addEventListener('change', function(e) {
-          var file = e.target.files[0];
-          if (file) handleFileImportDispatch(file);
+          var files = Array.from(e.target.files || []);
+          if (files.length === 0) { e.target.value = ''; return; }
+          if (files.length === 1) {
+            handleFileImportDispatch(files[0]);
+          } else {
+            handleMultiImageOCR(files);
+          }
           e.target.value = '';
         });
       }
@@ -5662,8 +5911,18 @@ export const DIALER_HTML = `<!DOCTYPE html>
         dropZone.addEventListener('drop', function(e) {
           e.preventDefault();
           dropZone.classList.remove('dragover');
-          var file = e.dataTransfer.files[0];
-          if (file) handleFileImportDispatch(file);
+          var files = Array.from(e.dataTransfer.files || []);
+          if (files.length === 0) return;
+          // If multiple image files dropped, queue them all
+          var imgFiles = files.filter(function(f) { return /\.(jpg|jpeg|png|bmp|webp)$/i.test(f.name); });
+          if (imgFiles.length > 1) {
+            handleMultiImageOCR(imgFiles);
+          } else if (files.length === 1) {
+            handleFileImportDispatch(files[0]);
+          } else {
+            // Mixed files - only one non-image file - dispatch it
+            handleFileImportDispatch(files[0]);
+          }
         });
       }
 
