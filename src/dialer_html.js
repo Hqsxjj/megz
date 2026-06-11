@@ -5028,18 +5028,17 @@ export const DIALER_HTML = `<!DOCTYPE html>
 
         container.innerHTML = cardsHtml + pagHtml;
 
-        // Wire up card phone click copy
+        // Wire up card phone click copy + WeChat jump
         container.querySelectorAll('.client-phone-btn').forEach(function(b) {
           b.addEventListener('click', function(e) {
             e.stopPropagation();
             var phone = b.dataset.phone;
             var idx = parseInt(b.dataset.idx);
 
-            // 手机端直接复制，提示已复制，不限频不跳转微信
             copyTextToClipboard(phone);
             var oldText = b.textContent;
-            if (oldText === '已复制') return;
-            b.textContent = '已复制';
+            if (oldText === '已复制，正在打开微信...') return;
+            b.textContent = '已复制，正在打开微信...';
             var oldColor = b.style.color;
             b.style.color = 'var(--accent-wechat)';
             var client = importedClients[idx];
@@ -5048,10 +5047,15 @@ export const DIALER_HTML = `<!DOCTYPE html>
               saveState();
             }
             b.classList.add('copied');
+
+            setTimeout(function() {
+              jumpToWechat();
+            }, 100);
+
             setTimeout(function() {
               b.textContent = phone;
               b.style.color = oldColor;
-            }, 1000);
+            }, 1500);
           });
         });
 
