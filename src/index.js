@@ -1466,6 +1466,49 @@ export default {
       }
     }
 
+    // 2g. 存量客户一键迁移至公海客户
+    if (path === '/api/dialer/customers/migrate-to-public' && request.method === 'POST') {
+      try {
+        const supabaseUrl = env.SUPABASE_URL;
+        const supabaseKey = env.SUPABASE_KEY;
+        if (!supabaseUrl || !supabaseKey) {
+          throw new Error('Supabase URL or Key is not configured');
+        }
+        const hdrs = {
+          'Content-Type': 'application/json',
+          'apikey': supabaseKey,
+          'Authorization': 'Bearer ' + supabaseKey
+        };
+        // Update all customers where category is null or not equal to '公海客户'
+        const patchResp = await fetch(
+          supabaseUrl + '/rest/v1/customers?or=(category.is.null,category.not.eq.%E5%85%AC%E6%B5%B7%E5%AE%A2%E6%88%B7)',
+          {
+            method: 'PATCH',
+            headers: hdrs,
+            body: JSON.stringify({ category: '公海客户' })
+          }
+        );
+        if (!patchResp.ok) {
+          const errMsg = await patchResp.text();
+          throw new Error('Supabase bulk update failed: ' + errMsg);
+        }
+        return new Response(JSON.stringify({ success: true, message: '存量客户已全部迁移至公海' }), {
+          headers: {
+            'Content-Type': 'application/json; charset=UTF-8',
+            'Access-Control-Allow-Origin': '*'
+          }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ success: false, error: e.message }), {
+          status: 500,
+          headers: {
+            'Content-Type': 'application/json; charset=UTF-8',
+            'Access-Control-Allow-Origin': '*'
+          }
+        });
+      }
+    }
+
     // 2e. 调试：查看 Supabase 表结构
     if (path === '/api/debug/schema' && request.method === 'GET') {
       try {

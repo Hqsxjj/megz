@@ -365,7 +365,7 @@ export function createSupabaseClient(env) {
         mobile: (c.mobile || c.phone || '').trim(),
         company_name: (c.company || c.company_name || '').trim(),
         note: noteVal,
-        category: (c.category || '').trim(),
+        category: (c.category || '').trim() || '公海客户',
         fund: (c.fund || '').trim(),
         batch_label: (c.batch_label || '').trim()
       };
