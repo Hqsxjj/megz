@@ -1167,6 +1167,19 @@ export const DIALER_HTML = `<!DOCTYPE html>
             <span style="font-size: 0.88rem; color: var(--text-main); font-weight: 900; letter-spacing: 0.5px;">BH-AI 智能双引擎导入助手</span>
             <span style="font-size: 0.7rem; color: var(--text-light); max-width: 320px; line-height: 1.4; margin-top: -4px;">搭载启发式文字密度与特征识别算法，自动检测表头、过滤噪音，100% 本地隐私安全。</span>
             
+            <!-- OCR Mode Switcher -->
+            <div style="display: flex; gap: 14px; align-items: center; margin-top: 4px; background: var(--btn-bg); padding: 5px 12px; border-radius: var(--radius-xs); border: 1px solid var(--card-border); margin-bottom: 2px;">
+              <span style="font-size: 0.65rem; color: var(--text-soft); font-weight: 800;">图片/PDF 识别引擎:</span>
+              <label style="font-size: 0.65rem; font-weight: 800; color: var(--text-main); cursor: pointer; display: flex; align-items: center; gap: 4px;">
+                <input type="radio" name="ocrEngine" value="local" checked style="cursor: pointer; transform: scale(0.95);">
+                💻 本地免费 (Wasm)
+              </label>
+              <label style="font-size: 0.65rem; font-weight: 800; color: var(--text-main); cursor: pointer; display: flex; align-items: center; gap: 4px;">
+                <input type="radio" name="ocrEngine" value="ai" style="cursor: pointer; transform: scale(0.95);">
+                🤖 云端 AI (Gemini)
+              </label>
+            </div>
+            
             <div class="import-buttons" style="margin-top: 6px; display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; width: 100%;">
               <label class="btn-primary" for="xlsFileInput" id="xlsSelectBtn" style="cursor:pointer; display:inline-flex; align-items:center; justify-content:center; padding: 8px 16px; font-size: 0.76rem; flex: 1; min-width: 130px; text-align: center;">📂 导入表格 / 文档</label>
               <label class="btn-primary" for="imgFileInput" id="imgSelectBtn" style="cursor:pointer; display:inline-flex; align-items:center; justify-content:center; padding: 8px 16px; font-size: 0.76rem; flex: 1; min-width: 130px; text-align: center; background: var(--revisit-gradient) !important; color: white;">📸 智能图片 OCR</label>
@@ -1176,7 +1189,8 @@ export const DIALER_HTML = `<!DOCTYPE html>
             <div id="textImportPanel" style="display:none; flex-direction:column; gap:6px; width:100%; margin-top:6px;">
               <textarea id="textImportArea" placeholder="在此粘贴文本，如：张三 13800138000 腾讯科技 备注" style="width:100%; height:120px; padding:8px; font-size:0.72rem; border:1px solid var(--card-border); border-radius:var(--radius-xs); background:var(--card-bg); color:var(--text-main); resize:vertical; outline:none; font-family:monospace;"></textarea>
               <div style="display:flex; gap:6px;">
-                <button class="btn-primary" style="flex:1; padding:6px; font-size:0.72rem; background:var(--wechat-gradient); color:white; border:none; border-radius:var(--radius-xs); font-weight:700;" onclick="var t=document.getElementById('textImportArea').value.trim();if(!t){alert('请先粘贴文本');return;}var btn=this;btn.textContent='识别中...';btn.disabled=true;fetch('/api/ocr/text',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({rawText:t})}).then(function(r){return r.json()}).then(function(d){btn.textContent='识别提取';btn.disabled=false;if(d.contacts&&d.contacts.length>0){document.getElementById('textImportPanel').style.display='none';window.renderAIUnstructuredReport('文本粘贴识别',d.contacts)}else{alert('未识别到联系人，请确认文本包含11位手机号')}}).catch(function(e){btn.textContent='识别提取';btn.disabled=false;alert('识别失败: '+e.message)})">🔍 智能识别提取</button>
+                <button class="btn-primary" style="flex:1.2; padding:6px; font-size:0.72rem; background:var(--wechat-gradient) !important; color:white; border:none; border-radius:var(--radius-xs); font-weight:700;" onclick="var t=document.getElementById('textImportArea').value.trim();if(!t){alert('请先粘贴文本');return;}var contacts=window.parsePhoneContactsFromRawText(t);if(contacts&&contacts.length>0){document.getElementById('textImportPanel').style.display='none';window.renderAIUnstructuredReport('本地文本提取',contacts);}else{alert('本地算法未识别到联系人，请确认文本中包含11位手机号，或者使用右侧的云端 AI 解析。');}">💻 本地快速解析</button>
+                <button class="btn-primary" style="flex:1; padding:6px; font-size:0.72rem; background:linear-gradient(135deg,#667eea,#764ba2) !important; color:white; border:none; border-radius:var(--radius-xs); font-weight:700;" onclick="var t=document.getElementById('textImportArea').value.trim();if(!t){alert('请先粘贴文本');return;}var btn=this;btn.textContent='云端解析中...';btn.disabled=true;fetch('/api/ocr/text',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({rawText:t})}).then(function(r){return r.json()}).then(function(d){btn.textContent='🤖 云端 AI 解析';btn.disabled=false;if(d.contacts&&d.contacts.length>0){document.getElementById('textImportPanel').style.display='none';window.renderAIUnstructuredReport('云端文本解析',d.contacts)}else{alert('云端 AI 未识别到联系人，请确认文本包含有效手机号')}}).catch(function(e){btn.textContent='🤖 云端 AI 解析';btn.disabled=false;alert('云端识别失败: '+e.message)})">🤖 云端 AI 解析</button>
                 <button class="btn-secondary" style="padding:6px 12px; font-size:0.72rem; background:var(--btn-bg); color:var(--text-soft); border:1px solid var(--card-border); border-radius:var(--radius-xs);" onclick="document.getElementById('textImportPanel').style.display='none';">取消</button>
               </div>
             </div>
@@ -1198,6 +1212,41 @@ export const DIALER_HTML = `<!DOCTYPE html>
               <div id="aiLog2" style="opacity: 0.4;">[ ] 正在评估特征维度...</div>
               <div id="aiLog3" style="opacity: 0.4;">[ ] 正在过滤杂质与噪音...</div>
               <div id="aiLog4" style="opacity: 0.4;">[ ] 正在匹配智能映射...</div>
+            </div>
+          </div>
+
+          <!-- 4. LOCAL OCR SLICING CONFIG STATE -->
+          <div id="localOcrConfigPanel" style="display: none; flex-direction: column; align-items: center; gap: 10px; width: 100%; padding: 10px 0;">
+            <span style="font-size: 0.8rem; font-weight: 900; color: var(--text-main);">📸 本地离线识别 - 栏目切分微调</span>
+            <span style="font-size: 0.65rem; color: var(--text-light); text-align: center; max-width: 300px; margin-top: -6px;">请调整边界线，确保手机号列、姓名列被虚线分离开，以达到 100% 识别精准度。</span>
+            
+            <div style="position: relative; border: 1px solid var(--card-border); border-radius: var(--radius-xs); background: #eee; overflow: hidden; display: flex; justify-content: center; align-items: center; max-height: 180px; width: 100%; max-width: 360px;">
+              <canvas id="ocrPreviewCanvas" style="max-height: 180px; max-width: 100%; object-fit: contain;"></canvas>
+            </div>
+            
+            <!-- Sliders -->
+            <div style="display: flex; flex-direction: column; gap: 4px; width: 100%; max-width: 320px;">
+              <div style="display: flex; justify-content: space-between; font-size: 0.65rem; color: var(--text-soft); font-weight: 800;">
+                <span>左侧边界线: <strong id="valSplit1">25%</strong></span>
+                <span>右侧边界线: <strong id="valSplit2">60%</strong></span>
+              </div>
+              <input type="range" id="sliderSplit1" min="5" max="95" value="25" style="width: 100%; cursor: pointer; height: 4px;">
+              <input type="range" id="sliderSplit2" min="5" max="95" value="60" style="width: 100%; cursor: pointer; height: 4px;">
+            </div>
+
+            <!-- Column Order Preset -->
+            <div style="display: flex; gap: 8px; align-items: center; width: 100%; max-width: 320px;">
+              <span style="font-size: 0.65rem; color: var(--text-soft); font-weight: 800; white-space: nowrap;">栏目顺序:</span>
+              <select id="ocrColumnOrder" style="flex: 1; height: 26px; font-size: 0.68rem; border-radius: var(--radius-xs); border: 1px solid var(--card-border); background: var(--btn-bg); color: var(--text-main); font-weight: 700; outline: none;">
+                <option value="name_phone_other">左:姓名 | 中:电话 | 右:单位或备注</option>
+                <option value="phone_name_other">左:电话 | 中:姓名 | 右:单位或备注</option>
+                <option value="name_other_phone">左:姓名 | 中:单位或备注 | 右:电话</option>
+              </select>
+            </div>
+
+            <div style="display: flex; gap: 10px; width: 100%; max-width: 320px; margin-top: 4px;">
+              <button id="btnStartLocalOcr" class="btn-primary" style="flex: 1; padding: 6px; font-size: 0.75rem; background: var(--wechat-gradient) !important; color: white;">⚡ 开始本地识别</button>
+              <button id="btnCancelLocalOcr" class="btn-secondary" style="padding: 6px 14px; font-size: 0.75rem;">取消</button>
             </div>
           </div>
 
@@ -1461,6 +1510,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
 
   <!-- SheetJS CDN -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.1.1/tesseract.min.js"></script>
 
 <!-- Customer Database Dashboard (v2) -->
 <!-- Customer Database Dashboard (v2) -->
@@ -3058,19 +3108,28 @@ export const DIALER_HTML = `<!DOCTYPE html>
               }
 
               function handleScannedPdfOCR(pdf, fileName) {
-                var maxPages = pdf.numPages;
-                var allContacts = [];
-                
-                if (document.getElementById('aiScanStatus')) {
-                  document.getElementById('aiScanStatus').innerHTML = '🤖 检测为扫描版 PDF，正切换为 AI 视觉 OCR...';
+                var ocrEngine = 'local';
+                var ocrEngineRadio = document.querySelector('input[name="ocrEngine"]:checked');
+                if (ocrEngineRadio) {
+                  ocrEngine = ocrEngineRadio.value;
                 }
-                if (document.getElementById('aiLog3')) {
-                  document.getElementById('aiLog3').innerHTML = '⏳ 正在通过 Canvas 渲染多模态图像...';
-                }
-                if (document.getElementById('aiLog4')) {
-                  document.getElementById('aiLog4').innerHTML = '⏳ 准备识别第 1/' + maxPages + ' 页...';
-                  document.getElementById('aiLog4').style.opacity = '1';
-                }
+
+                if (ocrEngine === 'local') {
+                  runLocalScannedPdfSlicingOCR(pdf, fileName);
+                } else {
+                  var maxPages = pdf.numPages;
+                  var allContacts = [];
+                  
+                  if (document.getElementById('aiScanStatus')) {
+                    document.getElementById('aiScanStatus').innerHTML = '🤖 检测为扫描版 PDF，正切换为 AI 视觉 OCR...';
+                  }
+                  if (document.getElementById('aiLog3')) {
+                    document.getElementById('aiLog3').innerHTML = '⏳ 正在通过 Canvas 渲染多模态图像...';
+                  }
+                  if (document.getElementById('aiLog4')) {
+                    document.getElementById('aiLog4').innerHTML = '⏳ 准备识别第 1/' + maxPages + ' 页...';
+                    document.getElementById('aiLog4').style.opacity = '1';
+                  }
 
                 var canvas = document.createElement('canvas');
                 var ctx = canvas.getContext('2d');
@@ -3169,6 +3228,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
                 }
 
                 processPageOCR(1);
+                }
               }
               
               loadPageText(1).catch(function(err) {
@@ -3189,62 +3249,521 @@ export const DIALER_HTML = `<!DOCTYPE html>
         });
     }
 
-    function handleImageOCR(file) {
-      showAIScanningUI(file.name);
+    // ====== Local Wasm OCR Slicing & Preprocessing Helper Methods ======
+    var tempOcrFile = null;
+    var tempOcrPdf = null;
+    var tempOcrFileName = '';
+    var tempOcrImgDataUrl = '';
+    var ocrPreviewImage = new Image();
 
-      // Check if AI Vision Key configured — try cloud API first
-      var visionKey = (localStorage.getItem('vision_api_key') || '').trim();
-      var aiKey = visionKey || (localStorage.getItem('ai_api_key') || localStorage.getItem('deepseek_api_key') || '').trim();
+    function showOcrSlicingPreview(imgDataUrl) {
+      var configPanel = document.getElementById('localOcrConfigPanel');
+      var initPanel = document.getElementById('aiImportInit');
+      var scanPanel = document.getElementById('aiImportScanning');
+      var reportPanel = document.getElementById('aiImportReport');
+      
+      if (initPanel) initPanel.style.display = 'none';
+      if (scanPanel) scanPanel.style.display = 'none';
+      if (reportPanel) reportPanel.style.display = 'none';
+      if (configPanel) configPanel.style.display = 'flex';
+      
+      ocrPreviewImage.src = imgDataUrl;
+      ocrPreviewImage.onload = function() {
+        drawOcrSlicingPreviewLines();
+      };
+    }
 
-      if (aiKey) {
-        document.getElementById('aiScanStatus').innerHTML = '🤖 AI 云端视觉识别中...';
-        if (document.getElementById('aiLog1')) { document.getElementById('aiLog1').innerHTML = '⏳ 图片发送至 AI 视觉模型...'; document.getElementById('aiLog1').style.opacity = '1'; }
-        if (document.getElementById('aiLog2')) { document.getElementById('aiLog2').innerHTML = '🧠 Gemini 多模态识别引擎'; document.getElementById('aiLog2').style.opacity = '1'; }
+    function drawOcrSlicingPreviewLines() {
+      var canvas = document.getElementById('ocrPreviewCanvas');
+      if (!canvas || !ocrPreviewImage.src) return;
+      var ctx = canvas.getContext('2d');
+      
+      var split1 = parseInt(document.getElementById('sliderSplit1').value);
+      var split2 = parseInt(document.getElementById('sliderSplit2').value);
+      var order = document.getElementById('ocrColumnOrder').value;
+      
+      // Update values text
+      document.getElementById('valSplit1').textContent = split1 + '%';
+      document.getElementById('valSplit2').textContent = split2 + '%';
+      
+      // Set canvas dimensions to match image aspect ratio
+      canvas.width = ocrPreviewImage.naturalWidth;
+      canvas.height = ocrPreviewImage.naturalHeight;
+      
+      ctx.drawImage(ocrPreviewImage, 0, 0);
+      
+      // Draw vertical line 1 (Dashed Red)
+      var x1 = canvas.width * (split1 / 100);
+      ctx.beginPath();
+      ctx.setLineDash([6, 6]);
+      ctx.strokeStyle = '#e74c3c';
+      ctx.lineWidth = Math.max(2, canvas.width / 150);
+      ctx.moveTo(x1, 0);
+      ctx.lineTo(x1, canvas.height);
+      ctx.stroke();
+      
+      // Draw vertical line 2 (Dashed Green)
+      var x2 = canvas.width * (split2 / 100);
+      ctx.beginPath();
+      ctx.setLineDash([6, 6]);
+      ctx.strokeStyle = '#2ecc71';
+      ctx.lineWidth = Math.max(2, canvas.width / 150);
+      ctx.moveTo(x2, 0);
+      ctx.lineTo(x2, canvas.height);
+      ctx.stroke();
+      
+      // Draw labels between columns
+      ctx.font = 'bold ' + Math.max(12, canvas.height / 20) + 'px sans-serif';
+      ctx.textAlign = 'center';
+      
+      var col1Text = '姓名', col2Text = '电话', col3Text = '单位/备注';
+      if (order === 'phone_name_other') {
+        col1Text = '电话'; col2Text = '姓名'; col3Text = '单位/备注';
+      } else if (order === 'name_other_phone') {
+        col1Text = '姓名'; col2Text = '单位/备注'; col3Text = '电话';
+      }
+      
+      ctx.fillStyle = 'rgba(231, 76, 60, 0.7)';
+      ctx.fillText(col1Text, x1 / 2, canvas.height / 2);
+      
+      ctx.fillStyle = 'rgba(46, 204, 113, 0.7)';
+      ctx.fillText(col2Text, x1 + (x2 - x1) / 2, canvas.height / 2);
+      
+      ctx.fillStyle = 'rgba(52, 152, 219, 0.7)';
+      ctx.fillText(col3Text, x2 + (canvas.width - x2) / 2, canvas.height / 2);
+    }
 
-        var reader = new FileReader();
-        reader.onload = function(e) {
-          if (document.getElementById('aiLog3')) { document.getElementById('aiLog3').innerHTML = '📸 图片编码完成，等待返回...'; document.getElementById('aiLog3').style.opacity = '1'; }
-          fetch('/api/ocr', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ image: e.target.result, mode: 'bulk' })
-          })
-          .then(function(r) {
-            return r.text().then(function(t) {
-              try { var d = JSON.parse(t); return d; } catch(e) {
-                throw new Error('服务器异常 (' + r.status + '): ' + t.substring(0, 100));
-              }
-            });
-          })
-          .then(function(result) {
-            if (document.getElementById('aiLog4')) { document.getElementById('aiLog4').innerHTML = '✅ AI 识别完成'; document.getElementById('aiLog4').style.opacity = '1'; }
-            var contacts = [];
-            if (result.contacts && result.contacts.length > 0) {
-              result.contacts.forEach(function(c) { if (c.phone) contacts.push({ name: c.name || '', phone: c.phone, company: c.company || '', note: c.note || '' }); });
-            } else if (result.name || result.phone) {
-              contacts.push({ name: result.name || '', phone: result.phone || '', company: result.company || '', note: result.note || result.fund || '' });
+    function startLocalOcrProcessing() {
+      var configPanel = document.getElementById('localOcrConfigPanel');
+      if (configPanel) configPanel.style.display = 'none';
+      
+      showAIScanningUI(tempOcrFileName);
+      document.getElementById('aiScanStatus').innerHTML = '📸 正在加载本地 Wasm 神经网络...';
+      if (document.getElementById('aiLog1')) {
+        document.getElementById('aiLog1').innerHTML = '⏳ 正在拉取 tesseract.js 识别引擎...';
+        document.getElementById('aiLog1').style.opacity = '1';
+      }
+      
+      loadScript('https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.1.1/tesseract.min.js')
+        .then(function() {
+          if (document.getElementById('aiLog1')) document.getElementById('aiLog1').innerHTML = '✅ Wasm 视觉解析库就绪';
+          
+          if (tempOcrPdf) {
+            processLocalPdfOCR(tempOcrPdf);
+          } else {
+            processLocalImageOCR();
+          }
+        })
+        .catch(function(err) {
+          alert('OCR 引擎加载失败: ' + err.message);
+          resetAIImporterUI();
+        });
+    }
+
+    function processLocalImageOCR() {
+      var img = new Image();
+      img.src = tempOcrImgDataUrl;
+      img.onload = function() {
+        if (document.getElementById('aiLog2')) {
+          document.getElementById('aiLog2').innerHTML = '⏳ 正在进行列拆片预处理...';
+          document.getElementById('aiLog2').style.opacity = '1';
+        }
+        
+        var split1 = parseInt(document.getElementById('sliderSplit1').value) / 100;
+        var split2 = parseInt(document.getElementById('sliderSplit2').value) / 100;
+        var order = document.getElementById('ocrColumnOrder').value;
+        
+        var slices = sliceAndPreprocess(img, split1, split2, order);
+        
+        if (document.getElementById('aiLog2')) document.getElementById('aiLog2').innerHTML = '✅ 图像二值化与 2x 缩放完成';
+        if (document.getElementById('aiLog3')) {
+          document.getElementById('aiLog3').innerHTML = '⏳ 正在初始化中英文语言模型包...';
+          document.getElementById('aiLog3').style.opacity = '1';
+        }
+        
+        runTesseractOnSlices(slices)
+          .then(function(contacts) {
+            if (document.getElementById('aiLog4')) {
+              document.getElementById('aiLog4').innerHTML = '🎉 本地识别成功，共 ' + contacts.length + ' 人';
+              document.getElementById('aiLog4').style.opacity = '1';
             }
-            if (result.rawText || result.note) {
-              var extra = parsePhoneContactsFromRawText(result.rawText || result.note || '');
-              extra.forEach(function(ec) { if (!contacts.find(function(c) { return c.phone === ec.phone; })) contacts.push(ec); });
-            }
-            // 显示识别报告 — 用户检查标签后手动确认导入
-            renderAIUnstructuredReport(file.name, contacts);
+            setTimeout(function() {
+              renderAIUnstructuredReport(tempOcrFileName, contacts);
+            }, 800);
           })
           .catch(function(err) {
-            console.error('AI Vision failed, fallback to Tesseract:', err.message);
-            if (document.getElementById('aiLog3')) { document.getElementById('aiLog3').innerHTML = '⚠️ 云端失败: ' + err.message + '，切换本地引擎...'; document.getElementById('aiLog3').style.opacity = '1'; }
-            runTesseractOCR(file);
+            alert('本地识别失败: ' + err.message);
+            resetAIImporterUI();
           });
-        };
-        reader.onerror = function() { runTesseractOCR(file); };
-        reader.readAsDataURL(file);
-        return;
+      };
+    }
+
+    function processLocalPdfOCR(pdf) {
+      var maxPages = pdf.numPages;
+      var allContacts = [];
+      
+      var split1 = parseInt(document.getElementById('sliderSplit1').value) / 100;
+      var split2 = parseInt(document.getElementById('sliderSplit2').value) / 100;
+      var order = document.getElementById('ocrColumnOrder').value;
+      
+      var canvas = document.createElement('canvas');
+      var ctx = canvas.getContext('2d');
+      
+      function processPage(pageNumber) {
+        if (pageNumber > maxPages) {
+          if (document.getElementById('aiScanStatus')) {
+            document.getElementById('aiScanStatus').innerHTML = '✅ 本地 PDF 识别完成';
+          }
+          if (document.getElementById('aiLog4')) {
+            document.getElementById('aiLog4').innerHTML = '🎉 共识别到 ' + allContacts.length + ' 个联系人';
+          }
+          setTimeout(function() {
+            renderAIUnstructuredReport(tempOcrFileName, allContacts);
+          }, 800);
+          return;
+        }
+        
+        document.getElementById('aiScanStatus').innerHTML = '📄 本地 Wasm 识别第 ' + pageNumber + '/' + maxPages + ' 页...';
+        if (document.getElementById('aiLog4')) {
+          document.getElementById('aiLog4').innerHTML = '⏳ 正在识别第 ' + pageNumber + ' 页...';
+          document.getElementById('aiLog4').style.opacity = '1';
+        }
+        
+        pdf.getPage(pageNumber).then(function(page) {
+          var viewport = page.getViewport({ scale: 1.5 });
+          canvas.width = viewport.width;
+          canvas.height = viewport.height;
+          
+          page.render({
+            canvasContext: ctx,
+            viewport: viewport
+          }).promise.then(function() {
+            var img = new Image();
+            img.src = canvas.toDataURL('image/jpeg', 0.95);
+            img.onload = function() {
+              var slices = sliceAndPreprocess(img, split1, split2, order);
+              runTesseractOnSlices(slices)
+                .then(function(pageContacts) {
+                  allContacts = allContacts.concat(pageContacts);
+                  processPage(pageNumber + 1);
+                })
+                .catch(function(err) {
+                  console.error('Page ' + pageNumber + ' local OCR failed:', err);
+                  processPage(pageNumber + 1);
+                });
+            };
+          });
+        });
+      }
+      
+      if (document.getElementById('aiLog3')) {
+        document.getElementById('aiLog3').innerHTML = '✅ 初始化本地识别队列成功';
+        document.getElementById('aiLog3').style.opacity = '1';
+      }
+      
+      processPage(1);
+    }
+
+    function sliceAndPreprocess(img, split1, split2, order) {
+      var w = img.naturalWidth;
+      var h = img.naturalHeight;
+      
+      var x1 = w * split1;
+      var x2 = w * split2;
+      
+      var col1 = { startX: 0, width: x1 };
+      var col2 = { startX: x1, width: x2 - x1 };
+      var col3 = { startX: x2, width: w - x2 };
+      
+      var sliceTypes = ['name', 'phone', 'other'];
+      if (order === 'phone_name_other') {
+        sliceTypes = ['phone', 'name', 'other'];
+      } else if (order === 'name_other_phone') {
+        sliceTypes = ['name', 'other', 'phone'];
+      }
+      
+      var results = [];
+      [col1, col2, col3].forEach(function(col, idx) {
+        var type = sliceTypes[idx];
+        
+        var canvas = document.createElement('canvas');
+        var ctx = canvas.getContext('2d');
+        
+        canvas.width = col.width * 2;
+        canvas.height = h * 2;
+        
+        ctx.drawImage(img, col.startX, 0, col.width, h, 0, 0, canvas.width, canvas.height);
+        
+        var imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        var data = imgData.data;
+        // 1. Calculate grayscale histogram
+        var histogram = new Array(256).fill(0);
+        var totalPixels = data.length / 4;
+        for (var i = 0; i < data.length; i += 4) {
+          var r = data[i];
+          var g = data[i+1];
+          var b = data[i+2];
+          var val = Math.round(0.299 * r + 0.587 * g + 0.114 * b);
+          histogram[val]++;
+        }
+        
+        // 2. Otsu's Thresholding algorithm to calculate dynamic optimal threshold
+        var sum = 0;
+        for (var i = 0; i < 256; i++) sum += i * histogram[i];
+        var sumB = 0;
+        var wB = 0;
+        var wF = 0;
+        var varMax = 0;
+        var threshold = 140; // Default fallback
+        for (var t = 0; t < 256; t++) {
+          wB += histogram[t];
+          if (wB === 0) continue;
+          wF = totalPixels - wB;
+          if (wF === 0) break;
+          sumB += t * histogram[t];
+          var mB = sumB / wB;
+          var mF = (sum - sumB) / wF;
+          var varBetween = wB * wF * (mB - mF) * (mB - mF);
+          if (varBetween > varMax) {
+            varMax = varBetween;
+            threshold = t;
+          }
+        }
+        
+        // 3. Apply Otsu binarization
+        for (var i = 0; i < data.length; i += 4) {
+          var r = data[i];
+          var g = data[i+1];
+          var b = data[i+2];
+          var v = 0.299 * r + 0.587 * g + 0.114 * b;
+          var finalVal = v < threshold ? 0 : 255;
+          data[i] = finalVal;
+          data[i+1] = finalVal;
+          data[i+2] = finalVal;
+        }
+        ctx.putImageData(imgData, 0, 0);
+        
+        results.push({
+          type: type,
+          dataUrl: canvas.toDataURL('image/jpeg', 0.95)
+        });
+      });
+      
+      return results;
+    }
+
+    function runTesseractOnSlices(slices) {
+      return Tesseract.createWorker({
+        langPath: window.location.origin + '/tessdata',
+        logger: function(m) {
+          if (m.status === 'recognizing text') {
+            var pct = Math.round(m.progress * 100);
+            document.getElementById('aiScanStatus').innerHTML = '📸 本地 OCR 进行中: ' + pct + '%';
+          } else if (m.status === 'loading chi_sim.traineddata' || m.status === 'loading eng.traineddata') {
+            var loadPct = m.progress ? ' (' + Math.round(m.progress * 100) + '%)' : '';
+            document.getElementById('aiScanStatus').innerHTML = '🧠 正在载入语言模型包' + loadPct + '...';
+          }
+        }
+      }).then(function(worker) {
+        var workerObj = worker;
+        
+        return Promise.resolve(worker.load())
+          .then(function() { return Promise.resolve(worker.loadLanguage('chi_sim+eng')); })
+          .then(function() { return Promise.resolve(worker.initialize('chi_sim+eng')); })
+          .then(function() {
+            var results = {};
+            
+            function recognizeNext(idx) {
+              if (idx >= slices.length) {
+                return Promise.resolve(results);
+              }
+              var slice = slices[idx];
+              
+              var params = {
+                tessedit_pageseg_mode: '4' // Force single column vertical layout mode for column slices
+              };
+              if (slice.type === 'phone') {
+                params.tessedit_char_whitelist = '0123456789- ';
+              } else {
+                params.tessedit_char_whitelist = '';
+              }
+              
+              document.getElementById('aiScanStatus').innerHTML = '🔍 正在识别列: ' + (slice.type === 'name' ? '姓名' : (slice.type === 'phone' ? '电话' : '单位/备注')) + '...';
+              
+              return Promise.resolve(workerObj.setParameters(params))
+                .then(function() { return Promise.resolve(workerObj.recognize(slice.dataUrl)); })
+                .then(function(ocrRes) {
+                  results[slice.type] = ocrRes.data.lines.map(function(line) {
+                    return {
+                      text: line.text,
+                      yCenter: (line.bbox.y0 + line.bbox.y1) / 4
+                    };
+                  });
+                  return recognizeNext(idx + 1);
+                });
+            }
+            
+            return recognizeNext(0);
+          })
+          .then(function(ocrData) {
+            try { workerObj.terminate(); } catch(e) {}
+            
+            var names = ocrData.name || [];
+            var phones = ocrData.phone || [];
+            var notes = ocrData.other || [];
+            
+            var contacts = [];
+            phones.forEach(function(pItem) {
+              var phoneText = pItem.text.replace(/\s+/g, '').trim();
+              var phoneMatch = phoneText.match(/1[3-9]\d{9}/);
+              if (!phoneMatch) return;
+              var cleanPhone = phoneMatch[0];
+              
+              var bestName = '';
+              var minNameDist = 99999;
+              names.forEach(function(nItem) {
+                var dist = Math.abs(nItem.yCenter - pItem.yCenter);
+                if (dist < minNameDist && dist < 50) {
+                  minNameDist = dist;
+                  bestName = nItem.text.trim();
+                }
+              });
+              
+              var bestNote = '';
+              var minNoteDist = 99999;
+              notes.forEach(function(ntItem) {
+                var dist = Math.abs(ntItem.yCenter - pItem.yCenter);
+                if (dist < minNoteDist && dist < 50) {
+                  minNoteDist = dist;
+                  bestNote = ntItem.text.trim();
+                }
+              });
+              
+              bestName = bestName.replace(/^[新旧]\s*/, '').replace(/[^\u4e00-\u9fa5a-zA-Z]/g, '').trim();
+              bestNote = bestNote.replace(/^[|丨\s:]+/, '').replace(/[|丨\s:]+$/, '').trim();
+              
+              var companyName = '';
+              if (bestNote.length > 4 && (bestNote.includes('公司') || bestNote.includes('集团') || bestNote.includes('厂') || bestNote.includes('行') || bestNote.includes('店') || bestNote.includes('局'))) {
+                companyName = bestNote;
+                bestNote = '';
+              }
+              
+              contacts.push({
+                name: bestName || '客户-' + cleanPhone.substring(cleanPhone.length - 4),
+                phone: cleanPhone,
+                company: companyName,
+                note: bestNote
+              });
+            });
+            
+            return contacts;
+          })
+          .catch(function(err) {
+            try { workerObj.terminate(); } catch(e) {}
+            throw err;
+          });
+      });
+    }
+
+    function runLocalScannedPdfSlicingOCR(pdf, fileName) {
+      tempOcrFile = null;
+      tempOcrPdf = pdf;
+      tempOcrFileName = fileName;
+      
+      pdf.getPage(1).then(function(page) {
+        var canvas = document.createElement('canvas');
+        var ctx = canvas.getContext('2d');
+        var viewport = page.getViewport({ scale: 1.5 });
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        
+        page.render({
+          canvasContext: ctx,
+          viewport: viewport
+        }).promise.then(function() {
+          tempOcrImgDataUrl = canvas.toDataURL('image/jpeg', 0.95);
+          showOcrSlicingPreview(tempOcrImgDataUrl);
+        });
+      });
+    }
+
+    function handleImageOCR(file) {
+      var ocrEngine = 'local';
+      var ocrEngineRadio = document.querySelector('input[name="ocrEngine"]:checked');
+      if (ocrEngineRadio) {
+        ocrEngine = ocrEngineRadio.value;
       }
 
-      // No AI key — use local Tesseract
-      runTesseractOCR(file);
+      if (ocrEngine === 'local') {
+        runLocalTableSlicingOCR(file);
+      } else {
+        showAIScanningUI(file.name);
+        
+        var visionKey = (localStorage.getItem('vision_api_key') || '').trim();
+        var aiKey = visionKey || (localStorage.getItem('ai_api_key') || localStorage.getItem('deepseek_api_key') || '').trim();
+
+        if (aiKey) {
+          document.getElementById('aiScanStatus').innerHTML = '🤖 AI 云端视觉识别中...';
+          if (document.getElementById('aiLog1')) { document.getElementById('aiLog1').innerHTML = '⏳ 图片发送至 AI 视觉模型...'; document.getElementById('aiLog1').style.opacity = '1'; }
+          if (document.getElementById('aiLog2')) { document.getElementById('aiLog2').innerHTML = '🧠 Gemini 多模态识别引擎'; document.getElementById('aiLog2').style.opacity = '1'; }
+
+          var reader = new FileReader();
+          reader.onload = function(e) {
+            if (document.getElementById('aiLog3')) { document.getElementById('aiLog3').innerHTML = '📸 图片编码完成，等待返回...'; document.getElementById('aiLog3').style.opacity = '1'; }
+            fetch('/api/ocr', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ image: e.target.result, mode: 'bulk' })
+            })
+            .then(function(r) {
+              return r.text().then(function(t) {
+                try { var d = JSON.parse(t); return d; } catch(e) {
+                  throw new Error('服务器异常 (' + r.status + '): ' + t.substring(0, 100));
+                }
+              });
+            })
+            .then(function(result) {
+              if (document.getElementById('aiLog4')) { document.getElementById('aiLog4').innerHTML = '✅ AI 识别完成'; document.getElementById('aiLog4').style.opacity = '1'; }
+              var contacts = [];
+              if (result.contacts && result.contacts.length > 0) {
+                result.contacts.forEach(function(c) { if (c.phone) contacts.push({ name: c.name || '', phone: c.phone, company: c.company || '', note: c.note || '' }); });
+              } else if (result.name || result.phone) {
+                contacts.push({ name: result.name || '', phone: result.phone || '', company: result.company || '', note: result.note || result.fund || '' });
+              }
+              if (result.rawText || result.note) {
+                var extra = parsePhoneContactsFromRawText(result.rawText || result.note || '');
+                extra.forEach(function(ec) { if (!contacts.find(function(c) { return c.phone === ec.phone; })) contacts.push(ec); });
+              }
+              renderAIUnstructuredReport(file.name, contacts);
+            })
+            .catch(function(err) {
+              console.error('AI Vision failed, fallback to Local:', err.message);
+              if (document.getElementById('aiLog3')) { document.getElementById('aiLog3').innerHTML = '⚠️ 云端失败: ' + err.message + '，切换本地引擎...'; document.getElementById('aiLog3').style.opacity = '1'; }
+              runLocalTableSlicingOCR(file);
+            });
+          };
+          reader.onerror = function() { runLocalTableSlicingOCR(file); };
+          reader.readAsDataURL(file);
+        } else {
+          runLocalTableSlicingOCR(file);
+        }
+      }
     }
+
+    function runLocalTableSlicingOCR(file) {
+      tempOcrFile = file;
+      tempOcrPdf = null;
+      tempOcrFileName = file.name;
+      
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        tempOcrImgDataUrl = e.target.result;
+        showOcrSlicingPreview(tempOcrImgDataUrl);
+      };
+      reader.readAsDataURL(file);
+    }
+
+
 
     function runTesseractOCR(file) {
       document.getElementById('aiScanStatus').innerHTML = '⚙️ AI 正在载入视觉 OCR 引擎...';
@@ -4505,6 +5024,38 @@ export const DIALER_HTML = `<!DOCTYPE html>
           if (file) handleFileImportDispatch(file);
         });
       }
+
+      // Local OCR Slicing Config Bindings
+      var slider1 = document.getElementById('sliderSplit1');
+      var slider2 = document.getElementById('sliderSplit2');
+      var orderSelect = document.getElementById('ocrColumnOrder');
+      if (slider1 && slider2) {
+        slider1.oninput = function() {
+          var s1 = parseInt(slider1.value);
+          var s2 = parseInt(slider2.value);
+          if (s1 >= s2) {
+            slider1.value = s2 - 2;
+          }
+          drawOcrSlicingPreviewLines();
+        };
+        slider2.oninput = function() {
+          var s1 = parseInt(slider1.value);
+          var s2 = parseInt(slider2.value);
+          if (s2 <= s1) {
+            slider2.value = s1 + 2;
+          }
+          drawOcrSlicingPreviewLines();
+        };
+      }
+      if (orderSelect) {
+        orderSelect.onchange = drawOcrSlicingPreviewLines;
+      }
+      
+      var btnStart = document.getElementById('btnStartLocalOcr');
+      if (btnStart) btnStart.onclick = startLocalOcrProcessing;
+      
+      var btnCancel = document.getElementById('btnCancelLocalOcr');
+      if (btnCancel) btnCancel.onclick = resetAIImporterUI;
     }
 
     // Clear and Export Data
