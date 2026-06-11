@@ -3391,13 +3391,13 @@ export const DIALER_HTML = `<!DOCTYPE html>
                 renderAIUnstructuredReport(tempOcrFileName, contacts);
               }, 800);
             } else {
-              // Local OCR failed to find any contacts! Fall back to cloud AI!
-              runCloudImageOCR(tempOcrFile);
+              // Local Tesseract failed! Try PaddleOCR deep learning, then cloud AI
+              runPaddleOCRImageFallback(tempOcrFile);
             }
           })
           .catch(function(err) {
-            console.error('Local OCR failed, fallback to cloud:', err);
-            runCloudImageOCR(tempOcrFile);
+            console.error('Local Tesseract failed, trying PaddleOCR:', err);
+            runPaddleOCRImageFallback(tempOcrFile);
           });
       };
     }
@@ -3426,8 +3426,8 @@ export const DIALER_HTML = `<!DOCTYPE html>
               renderAIUnstructuredReport(tempOcrFileName, allContacts);
             }, 800);
           } else {
-            // Local scanned PDF OCR failed to find any contacts! Fall back to cloud!
-            runCloudPdfOCR(pdf, tempOcrFileName);
+            // Local Tesseract failed! Try PaddleOCR deep learning, then cloud AI
+            runPaddleOCRPdfFallback(pdf, tempOcrFileName);
           }
           return;
         }
@@ -3658,6 +3658,225 @@ export const DIALER_HTML = `<!DOCTYPE html>
       processPageOCR(1);
     }
 
+    // ====== PaddleOCR ONNX 深度学习引擎 (延迟加载) ======
+    var _paddleOCR = { recSession: null, dict: null, ready: false, loading: false };
+
+    function loadPaddleOCREngine() {
+      if (_paddleOCR.ready) return Promise.resolve(true);
+      if (_paddleOCR.loading) return new Promise(function(resolve) {
+        var chk = setInterval(function() { if (!_paddleOCR.loading) { clearInterval(chk); resolve(_paddleOCR.ready); } }, 200);
+      });
+      _paddleOCR.loading = true;
+
+      var recModelUrl = localStorage.getItem('paddleocr_rec_model') || 'https://huggingface.co/nicball/PaddleOCR-v4-ONNX/resolve/main/ch_PP-OCRv4_rec_infer.onnx';
+      var dictUrl = localStorage.getItem('paddleocr_dict') || 'https://raw.githubusercontent.com/PaddlePaddle/PaddleOCR/main/ppocr/utils/ppocr_keys_v1.txt';
+
+      var loadOrt = window.ort ? Promise.resolve() : loadScript('https://cdn.jsdelivr.net/npm/onnxruntime-web@1.21.0/dist/ort.min.js');
+
+      return loadOrt.then(function() {
+        if (document.getElementById('aiLog2')) {
+          document.getElementById('aiLog2').innerHTML = '⏳ 正在下载 PaddleOCR 深度学习模型...';
+          document.getElementById('aiLog2').style.opacity = '1';
+        }
+        return Promise.all([
+          ort.InferenceSession.create(recModelUrl, { executionProviders: ['wasm'] }),
+          fetch(dictUrl).then(function(r) { return r.text(); })
+        ]);
+      }).then(function(results) {
+        _paddleOCR.recSession = results[0];
+        _paddleOCR.dict = results[1].split('\n').filter(Boolean);
+        _paddleOCR.ready = true;
+        _paddleOCR.loading = false;
+        console.log('[PaddleOCR] Model loaded, dict size:', _paddleOCR.dict.length);
+        return true;
+      }).catch(function(err) {
+        console.error('[PaddleOCR] Load failed:', err);
+        _paddleOCR.loading = false;
+        return false;
+      });
+    }
+
+    // 水平投影法检测文本行
+    function paddleOCRFindLines(canvasEl) {
+      var w = canvasEl.width, h = canvasEl.height;
+      var ctx2 = canvasEl.getContext('2d');
+      var imgD = ctx2.getImageData(0, 0, w, h);
+      var d = imgD.data;
+      var proj = new Array(h).fill(0);
+      for (var y = 0; y < h; y++) {
+        for (var x = 0; x < w; x++) {
+          var idx = (y * w + x) * 4;
+          var gray = 0.299 * d[idx] + 0.587 * d[idx+1] + 0.114 * d[idx+2];
+          if (gray < 180) proj[y]++;
+        }
+      }
+      var thresh = w * 0.01;
+      var lines = [], inLine = false, start = 0;
+      for (var y = 0; y < h; y++) {
+        if (proj[y] > thresh && !inLine) { inLine = true; start = y; }
+        else if ((proj[y] <= thresh || y === h - 1) && inLine) {
+          inLine = false;
+          var end = y === h - 1 ? y + 1 : y;
+          if (end - start > 8) lines.push({ y: Math.max(0, start - 2), h: Math.min(end - start + 4, h - start) });
+        }
+      }
+      return lines;
+    }
+
+    // PaddleOCR 单行识别
+    function paddleOCRRecLine(canvasEl, line) {
+      var tH = 48;
+      var scale = tH / line.h;
+      var tW = Math.max(Math.round(canvasEl.width * scale), 48);
+      tW = Math.ceil(tW / 32) * 32;
+
+      var lc = document.createElement('canvas');
+      var lctx = lc.getContext('2d');
+      lc.width = tW; lc.height = tH;
+      lctx.fillStyle = '#fff';
+      lctx.fillRect(0, 0, tW, tH);
+      lctx.drawImage(canvasEl, 0, line.y, canvasEl.width, line.h, 0, 0, Math.round(canvasEl.width * scale), tH);
+
+      var pixels = lctx.getImageData(0, 0, tW, tH).data;
+      var t = new Float32Array(3 * tH * tW);
+      for (var i = 0; i < tH * tW; i++) {
+        t[i] = (pixels[i*4] / 255.0 - 0.5) / 0.5;
+        t[tH * tW + i] = (pixels[i*4+1] / 255.0 - 0.5) / 0.5;
+        t[2 * tH * tW + i] = (pixels[i*4+2] / 255.0 - 0.5) / 0.5;
+      }
+
+      var inputName = _paddleOCR.recSession.inputNames[0];
+      var tensor = new ort.Tensor('float32', t, [1, 3, tH, tW]);
+      var feeds = {};
+      feeds[inputName] = tensor;
+
+      return _paddleOCR.recSession.run(feeds).then(function(output) {
+        var outKey = Object.keys(output)[0];
+        var outData = output[outKey];
+        var dims = outData.dims;
+        var raw = outData.data;
+        var seqLen = dims[1], numChars = dims[2];
+        var text = '', lastIdx = 0;
+        for (var s = 0; s < seqLen; s++) {
+          var maxIdx = 0, maxVal = raw[s * numChars];
+          for (var c = 1; c < numChars; c++) {
+            if (raw[s * numChars + c] > maxVal) { maxVal = raw[s * numChars + c]; maxIdx = c; }
+          }
+          if (maxIdx !== 0 && maxIdx !== lastIdx && maxIdx - 1 < _paddleOCR.dict.length) {
+            text += _paddleOCR.dict[maxIdx - 1];
+          }
+          lastIdx = maxIdx;
+        }
+        return text;
+      });
+    }
+
+    // 对整个 canvas 执行 PaddleOCR 识别
+    function runPaddleOCROnCanvas(canvasEl) {
+      var lines = paddleOCRFindLines(canvasEl);
+      if (lines.length === 0) return Promise.resolve('');
+      var allText = [];
+      function processNext(idx) {
+        if (idx >= lines.length) return Promise.resolve(allText.join('\n'));
+        return paddleOCRRecLine(canvasEl, lines[idx])
+          .then(function(text) { if (text.trim()) allText.push(text.trim()); return processNext(idx + 1); })
+          .catch(function() { return processNext(idx + 1); });
+      }
+      return processNext(0);
+    }
+
+    // PaddleOCR 图片回退
+    function runPaddleOCRImageFallback(file) {
+      if (!file) { runCloudImageOCR(file); return; }
+      if (document.getElementById('aiScanStatus')) {
+        document.getElementById('aiScanStatus').innerHTML = '🧠 正在启动 PaddleOCR 深度学习识别...';
+      }
+      if (document.getElementById('aiLog2')) {
+        document.getElementById('aiLog2').innerHTML = '⏳ 加载 PaddleOCR ONNX 引擎...';
+        document.getElementById('aiLog2').style.opacity = '1';
+      }
+      loadPaddleOCREngine().then(function(loaded) {
+        if (!loaded) {
+          if (document.getElementById('aiLog2')) document.getElementById('aiLog2').innerHTML = '⚠️ PaddleOCR 不可用，切换云端 AI...';
+          runCloudImageOCR(file);
+          return;
+        }
+        if (document.getElementById('aiLog3')) {
+          document.getElementById('aiLog3').innerHTML = '✅ PaddleOCR 模型加载成功';
+          document.getElementById('aiLog3').style.opacity = '1';
+        }
+        var reader = new FileReader();
+        reader.onload = function(e) {
+          var img = new Image();
+          img.onload = function() {
+            var cvs = document.createElement('canvas');
+            cvs.width = img.naturalWidth;
+            cvs.height = img.naturalHeight;
+            var cctx = cvs.getContext('2d');
+            cctx.drawImage(img, 0, 0);
+            if (document.getElementById('aiScanStatus')) document.getElementById('aiScanStatus').innerHTML = '📸 PaddleOCR 深度识别中...';
+            runPaddleOCROnCanvas(cvs).then(function(ocrText) {
+              if (document.getElementById('aiLog4')) {
+                document.getElementById('aiLog4').innerHTML = '✅ PaddleOCR 识别完成';
+                document.getElementById('aiLog4').style.opacity = '1';
+              }
+              var contacts = parsePhoneContactsFromRawText(ocrText);
+              if (contacts && contacts.length > 0) {
+                setTimeout(function() { renderAIUnstructuredReport(file.name, contacts); }, 500);
+              } else {
+                if (document.getElementById('aiLog4')) document.getElementById('aiLog4').innerHTML = '⚠️ PaddleOCR 未检出号码，切换云端 AI...';
+                runCloudImageOCR(file);
+              }
+            }).catch(function(err) {
+              console.error('[PaddleOCR] Recognition failed:', err);
+              runCloudImageOCR(file);
+            });
+          };
+          img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    // PaddleOCR PDF 回退
+    function runPaddleOCRPdfFallback(pdf, fileName) {
+      if (document.getElementById('aiScanStatus')) {
+        document.getElementById('aiScanStatus').innerHTML = '🧠 正在启动 PaddleOCR 深度学习识别...';
+      }
+      loadPaddleOCREngine().then(function(loaded) {
+        if (!loaded) { runCloudPdfOCR(pdf, fileName); return; }
+        var maxPages = pdf.numPages;
+        var allContacts = [];
+        var cvs = document.createElement('canvas');
+        var cctx = cvs.getContext('2d');
+        function processPage(pageNumber) {
+          if (pageNumber > maxPages) {
+            if (allContacts.length > 0) {
+              if (document.getElementById('aiScanStatus')) document.getElementById('aiScanStatus').innerHTML = '✅ PaddleOCR PDF 识别完成';
+              setTimeout(function() { renderAIUnstructuredReport(fileName, allContacts); }, 500);
+            } else {
+              runCloudPdfOCR(pdf, fileName);
+            }
+            return;
+          }
+          if (document.getElementById('aiScanStatus')) document.getElementById('aiScanStatus').innerHTML = '📄 PaddleOCR 识别第 ' + pageNumber + '/' + maxPages + ' 页...';
+          pdf.getPage(pageNumber).then(function(page) {
+            var viewport = page.getViewport({ scale: 1.5 });
+            cvs.width = viewport.width;
+            cvs.height = viewport.height;
+            page.render({ canvasContext: cctx, viewport: viewport }).promise.then(function() {
+              runPaddleOCROnCanvas(cvs).then(function(ocrText) {
+                var contacts = parsePhoneContactsFromRawText(ocrText);
+                allContacts = allContacts.concat(contacts);
+                processPage(pageNumber + 1);
+              }).catch(function() { processPage(pageNumber + 1); });
+            });
+          }).catch(function() { processPage(pageNumber + 1); });
+        }
+        processPage(1);
+      });
+    }
+
     function sliceAndPreprocess(img, split1, split2, order) {
       var w = img.naturalWidth;
       var h = img.naturalHeight;
@@ -3699,6 +3918,24 @@ export const DIALER_HTML = `<!DOCTYPE html>
           var b = data[i+2];
           var val = Math.round(0.299 * r + 0.587 * g + 0.114 * b);
           histogram[val]++;
+        }
+        
+        // 1.5 Contrast stretching - enhance faded/low-contrast images
+        var cumLow = 0, cumHigh = 0, minG = 0, maxG = 255;
+        for (var ci = 0; ci < 256; ci++) { cumLow += histogram[ci]; if (cumLow >= totalPixels * 0.01) { minG = ci; break; } }
+        for (var ci = 255; ci >= 0; ci--) { cumHigh += histogram[ci]; if (cumHigh >= totalPixels * 0.01) { maxG = ci; break; } }
+        var gRange = maxG - minG;
+        if (gRange > 30 && gRange < 240) {
+          for (var i = 0; i < data.length; i += 4) {
+            for (var c = 0; c < 3; c++) {
+              data[i+c] = Math.max(0, Math.min(255, Math.round(((data[i+c] - minG) / gRange) * 255)));
+            }
+          }
+          histogram = new Array(256).fill(0);
+          for (var i = 0; i < data.length; i += 4) {
+            var rr = data[i], gg = data[i+1], bb = data[i+2];
+            histogram[Math.round(0.299 * rr + 0.587 * gg + 0.114 * bb)]++;
+          }
         }
         
         // 2. Otsu's Thresholding algorithm to calculate dynamic optimal threshold
@@ -3809,6 +4046,8 @@ export const DIALER_HTML = `<!DOCTYPE html>
             var contacts = [];
             phones.forEach(function(pItem) {
               var phoneText = pItem.text.replace(/\s+/g, '').trim();
+              // OCR 数字纠错: 常见字母→数字误识修正
+              phoneText = phoneText.replace(/[OoQD]/g, '0').replace(/[lIi|!]/g, '1').replace(/[Z]/g, '2').replace(/[B]/g, '8').replace(/[S]/g, '5').replace(/[G]/g, '6').replace(/[A]/g, '4').replace(/[T]/g, '7').replace(/[g]/g, '9');
               var phoneMatch = phoneText.match(/1[3-9]\d{9}/);
               if (!phoneMatch) return;
               var cleanPhone = phoneMatch[0];
