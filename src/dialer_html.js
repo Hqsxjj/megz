@@ -1479,6 +1479,24 @@ export const DIALER_HTML = `<!DOCTYPE html>
     </div>
   </div>
 
+  <!-- Custom Columns Management Modal -->
+  <div id="customColumnsModal" class="modal-overlay" style="z-index:4500;">
+    <div class="modal-card" style="max-width: 400px; gap: 12px; text-align: left;">
+      <div style="font-size:0.95rem; font-weight:900; color:var(--text-main); display:flex; justify-content:space-between; align-items:center;">
+        <span>自定义列管理</span>
+        <button id="closeCustomColumnsBtn" style="background:none; border:none; font-size:1.2rem; cursor:pointer; color:var(--text-soft); padding:0;">✕</button>
+      </div>
+      <div style="font-size:0.7rem; color:var(--text-light); font-weight:700; margin-bottom: 4px;">
+        您可以添加或删除 CRM 数据库的自定义数据列。自定义列的值可在 Excel 导入时手动映射关联，或在跟进备注时作为关联字段保存。
+      </div>
+      <div style="display:flex; flex-direction:column; gap:6px; max-height:200px; overflow-y:auto; border: 1px solid var(--card-border); padding: 8px; border-radius: var(--radius-xs); background: var(--btn-bg);" id="customColumnsList"></div>
+      <div style="display:flex; gap:6px; margin-top:8px;">
+        <input type="text" id="newCustomColInput" placeholder="输入新列名，如：微信号" style="flex:1; height:32px; padding:0 8px; font-size:0.75rem; border:1px solid var(--card-border); border-radius:4px; font-weight:bold; outline:none; background:var(--card-bg); color:var(--text-main);">
+        <button id="addCustomColBtn" class="btn-primary" style="padding:0 14px; height:32px; font-size:0.75rem;">添加列</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Whitelist Management Modal -->
   <div id="whitelistModal" class="modal-overlay">
     <div class="modal-card" style="max-width: 480px; gap: 12px;">
@@ -1592,6 +1610,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
       <button class="crm-tool-btn" id="crmAddHelperBtn">🤝 添加协助人</button>
       <button class="crm-tool-btn" id="crmRemoveHelperBtn">🚫 取消协助人</button>
       <button class="crm-tool-btn" id="dbBatchCatBtn" title="更多批量分类">🏷 批量分类</button>
+      <button class="crm-tool-btn blue" id="crmManageColsBtn" title="管理自定义列">⚙️ 自定义列</button>
     </div>
 
     <!-- Batch category mini-panel -->
@@ -1619,7 +1638,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
     <div class="db-table-wrap">
       <table class="crm-table">
         <thead>
-          <tr>
+          <tr id="dbHeaderRow">
             <th style="width: 40px; text-align: center; cursor: default;"><input type="checkbox" id="crmSelectAll"></th>
             <th data-sort="name" style="width: 140px;">客户名称 <span class="sort-arrow">▲</span></th>
             <th data-sort="mobile" style="width: 160px;">联系号码 <span class="sort-arrow">▲</span></th>
@@ -2023,10 +2042,11 @@ export const DIALER_HTML = `<!DOCTYPE html>
       if (!customers || customers.length === 0) return;
       var label = batchLabel || ('导入-' + new Date().toISOString().slice(0, 16).replace('T', ' '));
       setSyncStatus('online-unsynced', '正在上传到云端数据库...');
+      var payload = serializeCustomersForSupabase(customers);
       fetch('/api/dialer/upload-customers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ customers: customers, batch_label: label })
+        body: JSON.stringify({ customers: payload, batch_label: label })
       })
       .then(function(res) { return res.json(); })
       .then(function(data) {
@@ -2082,10 +2102,11 @@ export const DIALER_HTML = `<!DOCTYPE html>
           var chosenBatch = batches.length === 1 ? batches[0] : (batches.length > 1 ? batches.join(',') : defaultBatch);
           
           setSyncStatus('online-unsynced', '正在上传到云端数据库...');
+          var payload = serializeCustomersForSupabase(importedClients);
           fetch('/api/dialer/upload-customers', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ customers: importedClients, batch_label: chosenBatch })
+            body: JSON.stringify({ customers: payload, batch_label: chosenBatch })
           })
           .then(function(res) { return res.json(); })
           .then(function(data) {
@@ -2474,10 +2495,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
       document.getElementById('pillNote').style.color = detected.noteIdx !== -1 ? '#f57c00' : 'var(--text-light)';
       document.getElementById('pillNote').innerHTML = '备注 ➔ ' + (detected.noteIdx !== -1 ? headersList[detected.noteIdx].label : '无');
 
-      populateMappingSelect('aiSelName', headersList, detected.nameIdx);
-      populateMappingSelect('aiSelPhone', headersList, detected.phoneIdx);
-      populateMappingSelect('aiSelCompany', headersList, detected.companyIdx, true);
-      populateMappingSelect('aiSelNote', headersList, detected.noteIdx, true);
+      renderImportMappingControls(headersList, detected);
 
       var conf = 90;
       if (detected.nameIdx !== -1 && detected.phoneIdx !== -1) conf = detected.headerRowIdx !== -1 ? 98.5 : 92.0;
@@ -2497,7 +2515,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
     }
 
     function populateMappingSelect(selId, headers, selectedIdx, hasNone) {
-      var select = document.getElementById(selId);
+      var select = typeof selId === 'string' ? document.getElementById(selId) : selId;
       if (!select) return;
       select.innerHTML = '';
       if (hasNone) {
@@ -2521,6 +2539,29 @@ export const DIALER_HTML = `<!DOCTYPE html>
       var phoneCol = parseInt(document.getElementById('aiSelPhone').value);
       var compCol = parseInt(document.getElementById('aiSelCompany').value);
       var noteCol = parseInt(document.getElementById('aiSelNote').value);
+      
+      var customMappings = [];
+      var customSelects = document.querySelectorAll('#aiAdjustControls .aiSelCustom');
+      customSelects.forEach(function(sel) {
+        var colName = sel.getAttribute('data-col');
+        var colIdx = parseInt(sel.value);
+        if (colIdx !== -1) {
+          customMappings.push({ name: colName, idx: colIdx });
+        }
+      });
+
+      var tableHead = document.querySelector('#aiPreviewTable thead');
+      if (tableHead) {
+        var headHtml = '<tr style="border-bottom: 1px solid var(--card-border); font-weight: 800; color: var(--text-soft); background: rgba(0,0,0,0.01);">' +
+          '<th style="padding: 4px 8px;">姓名</th>' +
+          '<th style="padding: 4px 8px;">电话</th>' +
+          '<th style="padding: 4px 8px;">公司</th>';
+        customMappings.forEach(function(m) {
+          headHtml += '<th style="padding: 4px 8px;">' + esc(m.name) + '</th>';
+        });
+        headHtml += '</tr>';
+        tableHead.innerHTML = headHtml;
+      }
 
       var tableBody = document.querySelector('#aiPreviewTable tbody');
       if (!tableBody) return;
@@ -2545,17 +2586,25 @@ export const DIALER_HTML = `<!DOCTYPE html>
         var nameVal = nameCol !== -1 ? String(row[nameCol] || '').trim() : '客户';
         var compVal = compCol !== -1 ? String(row[compCol] || '').trim() : '';
 
+        var customTds = '';
+        customMappings.forEach(function(m) {
+          var val = String(row[m.idx] || '').trim();
+          customTds += '<td style="padding: 6px 8px; color: var(--text-soft);">' + esc(val || '(空)') + '</td>';
+        });
+
         var tr = document.createElement('tr');
         tr.style.borderBottom = '0.5px solid var(--card-border)';
         tr.innerHTML = '<td style="padding: 6px 8px; font-weight: 800; color: var(--text-main);">' + esc(nameVal || '未知姓名') + '</td>' +
                        '<td style="padding: 6px 8px; font-family: monospace; color: var(--accent-wechat); font-weight: 800;">' + esc(phoneVal) + '</td>' +
-                       '<td style="padding: 6px 8px; color: var(--text-soft);">' + esc(compVal || '(空)') + '</td>';
+                       '<td style="padding: 6px 8px; color: var(--text-soft);">' + esc(compVal || '(空)') + '</td>' +
+                       customTds;
         tableBody.appendChild(tr);
         previewCount++;
       }
 
+      var colspanVal = 3 + customMappings.length;
       if (previewCount === 0) {
-        tableBody.innerHTML = '<tr><td colspan="3" style="padding: 12px; text-align: center; color: var(--text-light);">当前列映射无法提取有效客户电话号码，请手动调整电话数据列。</td></tr>';
+        tableBody.innerHTML = '<tr><td colspan="' + colspanVal + '" style="padding: 12px; text-align: center; color: var(--text-light);">当前列映射无法提取有效客户电话号码，请手动调整电话数据列。</td></tr>';
       }
 
       var totalImportCount = calculateParsedCount(nameCol, phoneCol, compCol, noteCol);
@@ -2600,6 +2649,16 @@ export const DIALER_HTML = `<!DOCTYPE html>
         startRow = tempImportDetected.headerRowIdx + 1;
       }
 
+      var customMappings = [];
+      var customSelects = document.querySelectorAll('#aiAdjustControls .aiSelCustom');
+      customSelects.forEach(function(sel) {
+        var colName = sel.getAttribute('data-col');
+        var colIdx = parseInt(sel.value);
+        if (colIdx !== -1) {
+          customMappings.push({ name: colName, idx: colIdx });
+        }
+      });
+
       var parsedCustomers = [];
       var phoneSet = new Set();
 
@@ -2621,12 +2680,24 @@ export const DIALER_HTML = `<!DOCTYPE html>
           noteVal = '';
         }
 
+        var customObj = {};
+        customMappings.forEach(function(m) {
+          var val = String(row[m.idx] || '').trim();
+          if (val) {
+            customObj[m.name] = val;
+          }
+        });
+        var finalNote = noteVal;
+        if (Object.keys(customObj).length > 0) {
+          finalNote = JSON.stringify({ note: noteVal, custom: customObj });
+        }
+
         parsedCustomers.push({
           name: nameVal || '未知姓名',
           phone: phoneVal,
           mobile: phoneVal,
           company: companyVal,
-          note: noteVal,
+          note: finalNote,
           fund: fundVal,
           dialedStatus: 'todo',
           duration: '',
@@ -4893,6 +4964,17 @@ export const DIALER_HTML = `<!DOCTYPE html>
               (c.batch_label ? '<span class="client-card-tag" style="background:rgba(74,108,247,0.08);color:#4a6cf7;font-weight:700;" title="导入批次">🏷 ' + esc(c.batch_label) + '</span>' : '') +
               (c.fund ? '<span class="client-card-tag crm-fund-tag" style="background:rgba(255,152,0,0.08);color:#f57c00;font-weight:700;" title="公积金">💰 公积金: ' + esc(c.fund) + '</span>' : '') +
               (function() {
+                var customHtml = '';
+                if (c.custom && typeof c.custom === 'object') {
+                  for (var key in c.custom) {
+                    if (c.custom.hasOwnProperty(key) && c.custom[key]) {
+                      customHtml += '<span class="client-card-tag" style="background:rgba(0,188,212,0.08);color:#0097a7;font-weight:700;" title="' + esc(key) + '">' + esc(key) + ': ' + esc(c.custom[key]) + '</span>';
+                    }
+                  }
+                }
+                return customHtml;
+              })() +
+              (function() {
                 if (!c.company) return '';
                 var matchedWl = matchWhitelistCompany(c.company);
                 if (matchedWl) {
@@ -5681,9 +5763,313 @@ export const DIALER_HTML = `<!DOCTYPE html>
       activeTab: 'all', // all, 意向客户, 线索池, 公海客户
       activeShortcut: 'all', // all, today, never, 3days
       selectedIds: {}, // 选中的 ID 字典
-      allData: [] // 缓存在前端的数据，方便高精度过滤与本地计算
+      allData: [], // 缓存在前端的数据，方便高精度过滤与本地计算
+      customColumns: (function() {
+        try {
+          var saved = localStorage.getItem('crm_custom_columns');
+          return saved ? JSON.parse(saved) : [];
+        } catch(e) { return []; }
+      })()
     };
     var CATS = ['潜在客户','意向客户','已成交','无效号码','待跟进','老客户','同行','其他','公海客户'];
+
+    function parseCustomerNote(c) {
+      var noteStr = (c.note || '').trim();
+      var parsed = { note: noteStr, custom: {} };
+      if (!noteStr) return parsed;
+      if (noteStr.indexOf('{') === 0) {
+        var braceCount = 0;
+        var jsonEndIdx = -1;
+        for (var i = 0; i < noteStr.length; i++) {
+          if (noteStr[i] === '{') braceCount++;
+          else if (noteStr[i] === '}') {
+            braceCount--;
+            if (braceCount === 0) {
+              jsonEndIdx = i;
+              break;
+            }
+          }
+        }
+        if (jsonEndIdx !== -1) {
+          var jsonPart = noteStr.slice(0, jsonEndIdx + 1);
+          var textPart = noteStr.slice(jsonEndIdx + 1).trim();
+          try {
+            var obj = JSON.parse(jsonPart);
+            if (obj && typeof obj === 'object') {
+              var baseNote = obj.note !== undefined ? obj.note : '';
+              parsed.custom = obj.custom || {};
+              if (textPart) {
+                parsed.note = baseNote ? baseNote + '\n' + textPart : textPart;
+              } else {
+                parsed.note = baseNote;
+              }
+              return parsed;
+            }
+          } catch (e) {}
+        }
+      }
+      return parsed;
+    }
+
+    function serializeCustomersForSupabase(customers) {
+      return customers.map(function(c) {
+        var copy = Object.assign({}, c);
+        var parsed = { note: copy.note || '', custom: copy.custom || {} };
+        if (Object.keys(parsed.custom).length > 0) {
+          copy.note = JSON.stringify({ note: parsed.note, custom: parsed.custom });
+        } else {
+          copy.note = parsed.note;
+        }
+        copy.mobile = copy.mobile || copy.phone;
+        return copy;
+      });
+    }
+
+    function renderCRMHeaders() {
+      var headerRow = document.getElementById('dbHeaderRow');
+      if (!headerRow) return;
+      var html = '<th style="width: 40px; text-align: center; cursor: default;"><input type="checkbox" id="crmSelectAll"></th>' +
+        '<th data-sort="name" style="width: 140px; cursor: pointer;">客户名称 <span class="sort-arrow">▲</span></th>' +
+        '<th data-sort="mobile" style="width: 160px; cursor: pointer;">联系号码 <span class="sort-arrow">▲</span></th>' +
+        '<th data-sort="note" style="min-width: 120px; cursor: pointer;">备注 <span class="sort-arrow">▲</span></th>';
+      var customCols = DB.customColumns || [];
+      customCols.forEach(function(col) {
+        html += '<th data-sort="custom_' + esc(col) + '" style="min-width: 100px; cursor: pointer;">' + esc(col) + ' <span class="sort-arrow">▲</span></th>';
+      });
+      html += '<th data-sort="company_name" style="min-width: 200px; cursor: pointer;">单位 <span class="sort-arrow">▲</span></th>' +
+        '<th style="width: 100px; cursor: default;">操作</th>';
+      headerRow.innerHTML = html;
+      dbWireSortHeaders();
+      var selectAllCb = document.getElementById('crmSelectAll');
+      if (selectAllCb) {
+        selectAllCb.onchange = function() {
+          var cbs = document.querySelectorAll('#dbTbody .crm-row-select');
+          var checked = selectAllCb.checked;
+          cbs.forEach(function(cb) {
+            cb.checked = checked;
+            var m = cb.getAttribute('data-mobile');
+            var tr = cb.closest('tr');
+            if (checked) {
+              DB.selectedIds[m] = true;
+              if (tr) tr.classList.add('selected');
+            } else {
+              delete DB.selectedIds[m];
+              if (tr) tr.classList.remove('selected');
+            }
+          });
+        };
+      }
+    }
+
+    function renderCustomColumnsList() {
+      var container = document.getElementById('customColumnsList');
+      if (!container) return;
+      var cols = DB.customColumns || [];
+      if (cols.length === 0) {
+        container.innerHTML = '<div style="font-size:0.72rem; color:var(--text-light); text-align:center; padding:10px;">暂无自定义列，可在下方输入添加。</div>';
+        return;
+      }
+      var html = '';
+      cols.forEach(function(col, idx) {
+        html += '<div style="display:flex; justify-content:space-between; align-items:center; background:var(--card-bg); padding:6px 8px; border-radius:4px; border:1px solid var(--card-border); font-size:0.75rem; font-weight:bold;">' +
+          '<span>' + esc(col) + '</span>' +
+          '<button class="delete-custom-col-btn" data-idx="' + idx + '" style="background:none; border:none; color:#e74c3c; cursor:pointer; font-weight:bold; font-size:0.9rem; padding:0 4px;">🗑️</button>' +
+          '</div>';
+      });
+      container.innerHTML = html;
+      container.querySelectorAll('.delete-custom-col-btn').forEach(function(btn) {
+        btn.onclick = function() {
+          var idx = parseInt(btn.getAttribute('data-idx'));
+          var colName = DB.customColumns[idx];
+          if (confirm('确认删除自定义列「' + colName + '」吗？(注意：删除列仅隐藏前端显示，已存入备注中的数据不会丢失)')) {
+            DB.customColumns.splice(idx, 1);
+            localStorage.setItem('crm_custom_columns', JSON.stringify(DB.customColumns));
+            renderCustomColumnsList();
+            renderCRMHeaders();
+            dbTable(crmFilterData(DB.allData));
+          }
+        };
+      });
+    }
+
+    function initCustomColumnsHandlers() {
+      var manageBtn = document.getElementById('crmManageColsBtn');
+      var modal = document.getElementById('customColumnsModal');
+      var closeBtn = document.getElementById('closeCustomColumnsBtn');
+      var addBtn = document.getElementById('addCustomColBtn');
+      var input = document.getElementById('newCustomColInput');
+      if (manageBtn && modal) {
+        manageBtn.onclick = function() {
+          renderCustomColumnsList();
+          modal.classList.add('active');
+        };
+      }
+      if (closeBtn && modal) {
+        closeBtn.onclick = function() {
+          modal.classList.remove('active');
+        };
+      }
+      if (addBtn && input) {
+        addBtn.onclick = function() {
+          var val = input.value.trim();
+          if (!val) return;
+          if (val.length > 20) { alert('列名过长，请保持在20字以内'); return; }
+          if (['name', 'mobile', 'phone', 'company', 'company_name', 'note', 'fund', 'category', 'batch_label', 'created_at', 'id'].indexOf(val.toLowerCase()) !== -1) {
+            alert('该列名是系统保留字段，不能作为自定义列名');
+            return;
+          }
+          if (DB.customColumns.indexOf(val) !== -1) {
+            alert('该列名已存在');
+            return;
+          }
+          DB.customColumns.push(val);
+          localStorage.setItem('crm_custom_columns', JSON.stringify(DB.customColumns));
+          input.value = '';
+          renderCustomColumnsList();
+          renderCRMHeaders();
+          dbTable(crmFilterData(DB.allData));
+        };
+        input.addEventListener('keypress', function(e) {
+          if (e.key === 'Enter') addBtn.click();
+        });
+      }
+    }
+
+    function renderImportMappingControls(headersList, detected) {
+      var container = document.getElementById('aiAdjustControls');
+      if (!container) return;
+      var html = '<div style="display: flex; flex-direction: column; gap: 2px;">' +
+        '<label style="font-size: 0.6rem; color: var(--text-light); font-weight: 800;">姓名数据列</label>' +
+        '<select id="aiSelName" style="height: 24px; font-size: 0.65rem; outline: none; border: 1px solid var(--card-border); border-radius: 4px; font-weight: 800; color: var(--text-soft); background: var(--btn-bg);"></select>' +
+        '</div>' +
+        '<div style="display: flex; flex-direction: column; gap: 2px;">' +
+        '<label style="font-size: 0.6rem; color: var(--text-light); font-weight: 800;">电话数据列</label>' +
+        '<select id="aiSelPhone" style="height: 24px; font-size: 0.65rem; outline: none; border: 1px solid var(--card-border); border-radius: 4px; font-weight: 800; color: var(--text-soft); background: var(--btn-bg);"></select>' +
+        '</div>' +
+        '<div style="display: flex; flex-direction: column; gap: 2px;">' +
+        '<label style="font-size: 0.6rem; color: var(--text-light); font-weight: 800;">公司数据列 (可选)</label>' +
+        '<select id="aiSelCompany" style="height: 24px; font-size: 0.65rem; outline: none; border: 1px solid var(--card-border); border-radius: 4px; font-weight: 800; color: var(--text-soft); background: var(--btn-bg);"></select>' +
+        '</div>' +
+        '<div style="display: flex; flex-direction: column; gap: 2px;">' +
+        '<label style="font-size: 0.6rem; color: var(--text-light); font-weight: 800;">备注数据列 (可选)</label>' +
+        '<select id="aiSelNote" style="height: 24px; font-size: 0.65rem; outline: none; border: 1px solid var(--card-border); border-radius: 4px; font-weight: 800; color: var(--text-soft); background: var(--btn-bg);"></select>' +
+        '</div>';
+      var customCols = DB.customColumns || [];
+      customCols.forEach(function(col) {
+        html += '<div style="display: flex; flex-direction: column; gap: 2px;">' +
+          '<label style="font-size: 0.6rem; color: var(--text-light); font-weight: 800;">' + esc(col) + ' 数据列 (可选)</label>' +
+          '<select class="aiSelCustom" data-col="' + esc(col) + '" style="height: 24px; font-size: 0.65rem; outline: none; border: 1px solid var(--card-border); border-radius: 4px; font-weight: 800; color: var(--text-soft); background: var(--btn-bg);"></select>' +
+          '</div>';
+      });
+      container.innerHTML = html;
+      populateMappingSelect('aiSelName', headersList, detected.nameIdx);
+      populateMappingSelect('aiSelPhone', headersList, detected.phoneIdx);
+      populateMappingSelect('aiSelCompany', headersList, detected.companyIdx, true);
+      populateMappingSelect('aiSelNote', headersList, detected.noteIdx, true);
+      var customSelects = container.querySelectorAll('.aiSelCustom');
+      customSelects.forEach(function(sel) {
+        var colName = sel.getAttribute('data-col');
+        var matchedIdx = -1;
+        for (var h = 0; h < headersList.length; h++) {
+          if (headersList[h] && headersList[h].label.toLowerCase() === colName.toLowerCase()) {
+            matchedIdx = headersList[h].idx;
+            break;
+          }
+        }
+        populateMappingSelect(sel, headersList, matchedIdx, true);
+        sel.addEventListener('change', updateAIPreviewTable);
+      });
+      document.getElementById('aiSelName').addEventListener('change', updateAIPreviewTable);
+      document.getElementById('aiSelPhone').addEventListener('change', updateAIPreviewTable);
+      document.getElementById('aiSelCompany').addEventListener('change', updateAIPreviewTable);
+      document.getElementById('aiSelNote').addEventListener('change', updateAIPreviewTable);
+    }
+
+    // CRM 数据复合过滤器 (AND 关系)
+    function crmFilterData(data) {
+      var filtered = (data || []).slice();
+      
+      // 1. 快捷按钮筛选 (activeShortcut)
+      if (DB.activeShortcut && DB.activeShortcut !== 'all') {
+        if (DB.activeShortcut === 'today') {
+          var todayStr = new Date().toISOString().slice(0, 10);
+          filtered = filtered.filter(function(c) {
+            return c.created_at && c.created_at.slice(0, 10) === todayStr;
+          });
+        } else if (DB.activeShortcut === 'never') {
+          filtered = filtered.filter(function(c) {
+            return (!c.note || c.note.trim() === '') && (!c.fund || c.fund.trim() === '');
+          });
+        } else if (DB.activeShortcut === '3days') {
+          var threeDaysAgo = Date.now() - 3 * 24 * 60 * 60 * 1000;
+          filtered = filtered.filter(function(c) {
+            return c.created_at && new Date(c.created_at).getTime() < threeDaysAgo;
+          });
+        }
+      }
+
+      // 2. 多维度搜索表单筛选 (AND 关系)
+      var nameF = document.getElementById('dbNameSearch') ? document.getElementById('dbNameSearch').value.trim().toLowerCase() : '';
+      var phoneF = document.getElementById('dbPhoneSearch') ? document.getElementById('dbPhoneSearch').value.trim().toLowerCase() : '';
+      var noteF = document.getElementById('dbNoteSearch') ? document.getElementById('dbNoteSearch').value.trim().toLowerCase() : '';
+
+      if (nameF) {
+        filtered = filtered.filter(function(c) { return (c.name || '').toLowerCase().includes(nameF); });
+      }
+      if (phoneF) {
+        filtered = filtered.filter(function(c) { return (c.mobile || '').toLowerCase().includes(phoneF); });
+      }
+      if (noteF) {
+        filtered = filtered.filter(function(c) {
+          var noteVal = (c.note || '').toLowerCase();
+          var fundVal = (c.fund || '').toLowerCase();
+          var customVal = '';
+          var parsed = parseCustomerNote(c);
+          for (var key in parsed.custom) {
+            if (parsed.custom.hasOwnProperty(key)) {
+              customVal += ' ' + String(parsed.custom[key]).toLowerCase();
+            }
+          }
+          return noteVal.includes(noteF) || fundVal.includes(noteF) || customVal.includes(noteF);
+        });
+      }
+
+      // 3. 排序 (Sort)
+      if (DB.sortBy) {
+        var isDesc = DB.sortDir === 'desc';
+        filtered.sort(function(a, b) {
+          var valA = '';
+          var valB = '';
+          if (DB.sortBy.indexOf('custom_') === 0) {
+            var col = DB.sortBy.slice(7);
+            var parsedA = parseCustomerNote(a);
+            var parsedB = parseCustomerNote(b);
+            valA = parsedA.custom[col] || '';
+            valB = parsedB.custom[col] || '';
+          } else if (DB.sortBy === 'created_at') {
+            valA = a.created_at || '';
+            valB = b.created_at || '';
+          } else if (DB.sortBy === 'category') {
+            valA = a.category || '';
+            valB = b.category || '';
+          } else {
+            valA = a[DB.sortBy] || '';
+            valB = b[DB.sortBy] || '';
+          }
+          var strA = String(valA).trim();
+          var strB = String(valB).trim();
+          var numA = parseFloat(strA);
+          var numB = parseFloat(strB);
+          if (!isNaN(numA) && !isNaN(numB)) {
+            return isDesc ? numB - numA : numA - numB;
+          }
+          var cmp = strA.localeCompare(strB, 'zh-CN', { numeric: true, sensitivity: 'base' });
+          return isDesc ? -cmp : cmp;
+        });
+      }
+
+      return filtered;
+    }
 
     function dbFetch() {
       var searchInput = document.getElementById('dbSearch');
@@ -5838,16 +6224,25 @@ export const DIALER_HTML = `<!DOCTYPE html>
         var avatarBg = avatarColors[colorIdx];
         var avatarHtml = '<span class="crm-avatar" style="background:' + avatarBg + ';">' + esc(firstChar) + '</span>';
         
+        var parsed = parseCustomerNote(c);
+        var realNote = parsed.note;
         var noteDisplay = '';
         if (c.fund) {
           noteDisplay = '<div style="display:flex; flex-direction:column; gap:4px; align-items:flex-start;">' +
             '<span class="crm-fund-tag" style="background:rgba(255,152,0,0.12); color:#e65100; font-weight:900; font-size:11px; padding:2px 6px; border-radius:4px; display:inline-flex; align-items:center; border: 1px solid rgba(255,152,0,0.25);">💰 公积金: ' + esc(c.fund) + '</span>' +
-            (c.note ? '<span style="color:var(--text-soft); font-weight:normal;">' + esc(c.note) + '</span>' : '') +
+            (realNote ? '<span style="color:var(--text-soft); font-weight:normal;">' + esc(realNote) + '</span>' : '') +
             '</div>';
         } else {
-          noteDisplay = c.note ? esc(c.note) : '-';
+          noteDisplay = realNote ? esc(realNote) : '-';
         }
         
+        var customTds = '';
+        var customCols = DB.customColumns || [];
+        customCols.forEach(function(col) {
+          var val = parsed.custom[col] || '-';
+          customTds += '<td style="white-space: normal; min-width: 100px; word-break: break-all;">' + esc(val) + '</td>';
+        });
+
         h += '<tr' + isTrSelected + ' data-mobile="' + esc(c.mobile || '') + '">' +
           '<td style="text-align: center; cursor: default;"><input type="checkbox" class="crm-row-select" data-mobile="' + esc(c.mobile) + '" data-name="' + esc(c.name || '') + '"' + isChecked + '></td>' +
           '<td>' +
@@ -5866,9 +6261,10 @@ export const DIALER_HTML = `<!DOCTYPE html>
             '</div>' +
           '</td>' +
           '<td style="white-space: normal; max-width: 300px; word-break: break-all;">' + noteDisplay + '</td>' +
+          customTds +
           '<td style="white-space: normal;">' + esc(c.company_name || '-') + '</td>' +
           '<td style="cursor: default;">' +
-            '<a class="crm-action-link crm-btn-followup" data-mobile="' + esc(c.mobile) + '" data-note="' + esc(c.note || '') + '">新增跟进</a>' +
+            '<a class="crm-action-link crm-btn-followup" data-mobile="' + esc(c.mobile) + '" data-note="' + esc(realNote || '') + '">新增跟进</a>' +
           '</td>' +
         '</tr>';
       }
@@ -5925,12 +6321,41 @@ export const DIALER_HTML = `<!DOCTYPE html>
           
           btn.textContent = '⏳..';
           
+          var clientObj = DB.allData.find(function(c) { return c.mobile === mobile; });
+          var rawNoteStr = clientObj ? (clientObj.note || '') : '';
+          var parsed = { note: oldNote, custom: {} };
+          if (rawNoteStr.trim().indexOf('{') === 0) {
+            try {
+              var braceCount = 0;
+              var jsonEndIdx = -1;
+              for (var i = 0; i < rawNoteStr.length; i++) {
+                if (rawNoteStr[i] === '{') braceCount++;
+                else if (rawNoteStr[i] === '}') {
+                  braceCount--;
+                  if (braceCount === 0) { jsonEndIdx = i; break; }
+                }
+              }
+              if (jsonEndIdx !== -1) {
+                var jsonPart = rawNoteStr.slice(0, jsonEndIdx + 1);
+                var obj = JSON.parse(jsonPart);
+                if (obj && typeof obj === 'object') {
+                  parsed.custom = obj.custom || {};
+                }
+              }
+            } catch (err) {}
+          }
+          
+          var notePayload = newNote;
+          if (Object.keys(parsed.custom).length > 0) {
+            notePayload = JSON.stringify({ note: newNote, custom: parsed.custom });
+          }
+          
           fetch('/api/dialer/customers', {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               mobile: mobile,
-              fields: { note: newNote }
+              fields: { note: notePayload }
             })
           })
           .then(function(r) { return r.json(); })
@@ -6039,6 +6464,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
       var si=document.getElementById('dbSearch'); if(si)si.value='';
       var cf=document.getElementById('dbCatFilter'); if(cf)cf.value='';
       var bf=document.getElementById('dbBatchFilter'); if(bf)bf.value='';
+      renderCRMHeaders();
       
       var nameInp = document.getElementById('dbNameSearch');
       var phoneInp = document.getElementById('dbPhoneSearch');
@@ -6254,12 +6680,14 @@ export const DIALER_HTML = `<!DOCTYPE html>
             if (clientData) {
               var exists = importedClients.some(function(ic) { return (ic.mobile || ic.phone) === m; });
               if (!exists) {
+                var parsed = parseCustomerNote(clientData);
                 importedClients.push({
                   name: clientData.name || '未知',
                   phone: clientData.mobile,
                   mobile: clientData.mobile,
                   company: clientData.company_name || '',
-                  note: clientData.note || '',
+                  note: parsed.note,
+                  custom: parsed.custom,
                   fund: clientData.fund || '',
                   category: clientData.category || '',
                   batch_label: clientData.batch_label || ''
@@ -6334,12 +6762,14 @@ export const DIALER_HTML = `<!DOCTYPE html>
                 if (!m) return;
                 var exists = importedClients.some(function(ic) { return (ic.mobile || ic.phone) === m; });
                 if (!exists) {
+                  var parsed = parseCustomerNote(c);
                   importedClients.push({
                     name: c.name || '未知',
                     phone: c.mobile,
                     mobile: c.mobile,
                     company: c.company_name || '',
-                    note: c.note || '',
+                    note: parsed.note,
+                    custom: parsed.custom,
                     fund: c.fund || '',
                     category: c.category || '',
                     batch_label: c.batch_label || ''
@@ -6995,6 +7425,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
     safeInit('initSyncHandlers', initSyncHandlers);
     safeInit('initHeaderMenu', initHeaderMenu);
     safeInit('initNoteModal', initNoteModal);
+    safeInit('initCustomColumnsHandlers', initCustomColumnsHandlers);
     safeInit('initWhitelist', initWhitelist);
     safeInit('initAIImporter', initAIImporter);
     safeInit('loadPersistedState', loadPersistedState);
