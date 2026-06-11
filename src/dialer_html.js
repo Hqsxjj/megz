@@ -3684,7 +3684,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
         ]);
       }).then(function(results) {
         _paddleOCR.recSession = results[0];
-        _paddleOCR.dict = results[1].split('\n').filter(Boolean);
+        _paddleOCR.dict = results[1].split('\\n').filter(Boolean);
         _paddleOCR.ready = true;
         _paddleOCR.loading = false;
         console.log('[PaddleOCR] Model loaded, dict size:', _paddleOCR.dict.length);
@@ -3777,7 +3777,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
       if (lines.length === 0) return Promise.resolve('');
       var allText = [];
       function processNext(idx) {
-        if (idx >= lines.length) return Promise.resolve(allText.join('\n'));
+        if (idx >= lines.length) return Promise.resolve(allText.join('\\n'));
         return paddleOCRRecLine(canvasEl, lines[idx])
           .then(function(text) { if (text.trim()) allText.push(text.trim()); return processNext(idx + 1); })
           .catch(function() { return processNext(idx + 1); });
