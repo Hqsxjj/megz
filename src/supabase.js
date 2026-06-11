@@ -370,12 +370,24 @@ export function createSupabaseClient(env) {
       return r.mobile.length > 0;
     });
 
-    if (rows.length === 0) return { count: 0 };
+    // Deduplicate by mobile to avoid "ON CONFLICT DO UPDATE command cannot affect row a second time"
+    var uniqueMap = {};
+    var uniqueRows = [];
+    rows.forEach(function(row) {
+      uniqueMap[row.mobile] = row;
+    });
+    for (var m in uniqueMap) {
+      if (uniqueMap.hasOwnProperty(m)) {
+        uniqueRows.push(uniqueMap[m]);
+      }
+    }
+
+    if (uniqueRows.length === 0) return { count: 0 };
 
     let count = 0;
     const batchSize = 500;
-    for (let i = 0; i < rows.length; i += batchSize) {
-      const chunk = rows.slice(i, i + batchSize);
+    for (let i = 0; i < uniqueRows.length; i += batchSize) {
+      const chunk = uniqueRows.slice(i, i + batchSize);
       const resp = await fetch(baseUrl + '/rest/v1/customers?on_conflict=mobile', {
         method: 'POST',
         headers: Object.assign({}, headers(), {
