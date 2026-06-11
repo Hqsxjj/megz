@@ -1355,6 +1355,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
           <option value="no">非白名单</option>
         </select>
         <button id="whitelistCheckBtn" title="对照白名单检查客户单位" style="height:28px; padding:0 8px; font-size:0.65rem; border:1px solid var(--accent-wechat); background:var(--accent-wechat-bg); color:var(--accent-wechat); border-radius:var(--radius-xs); cursor:pointer; font-weight:800; outline:none; white-space:nowrap; flex-shrink:0;">☑ 白名单</button>
+        <button id="dbSyncBtn" title="将本地修改与呼叫进度同步上传到 Supabase 数据库" style="height:28px; padding:0 8px; font-size:0.65rem; border:1px solid #4a6cf7; background:rgba(74,108,247,0.08); color:#4a6cf7; border-radius:var(--radius-xs); cursor:pointer; font-weight:800; outline:none; white-space:nowrap; flex-shrink:0;">📤 同步到数据库</button>
         <div class="filter-group" style="flex-shrink: 0;">
           <button class="filter-tab active" data-filter="all">全部</button>
           <button class="filter-tab" data-filter="todo">待拨打</button>
@@ -1570,6 +1571,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
     <div class="crm-toolbar">
       <button class="crm-tool-btn green" id="crmAddCustBtn">➕ 添加客户</button>
       <button class="crm-tool-btn orange" id="crmAddToDialBtn">📞 添加到待拨打</button>
+      <button class="crm-tool-btn orange" id="crmPullFilteredBtn" title="将当前分类和批次下的所有客户一键拉取到待拨打列表">📥 按分类一键拉取</button>
       <button class="crm-tool-btn blue" id="crmMoveIntentBtn">👤 转入意向客户</button>
       <button class="crm-tool-btn" id="crmMovePublicBtn">🌐 转入公海</button>
       <button class="crm-tool-btn" id="crmAddHelperBtn">🤝 添加协助人</button>
@@ -2041,6 +2043,57 @@ export const DIALER_HTML = `<!DOCTYPE html>
         badge.addEventListener('click', function() {
           syncWithCloud();
         });
+      }
+
+      var syncBtn = document.getElementById('dbSyncBtn');
+      if (syncBtn) {
+        syncBtn.onclick = function() {
+          if (!importedClients || importedClients.length === 0) {
+            alert('当前拨号盘中没有客户数据需要同步！');
+            return;
+          }
+          if (!confirm('确认将当前拨号盘中的 ' + importedClients.length + ' 条客户数据与跟进进度同步上传到 Supabase 数据库吗？(已存在的记录将被覆盖更新)')) return;
+          
+          syncBtn.disabled = true;
+          var originalText = syncBtn.textContent;
+          syncBtn.textContent = '⏳ 同步中...';
+          
+          var defaultBatch = '拨号同步';
+          var batchMap = {};
+          importedClients.forEach(function(c) {
+            if (c.batch_label) batchMap[c.batch_label] = (batchMap[c.batch_label] || 0) + 1;
+          });
+          var batches = Object.keys(batchMap);
+          var chosenBatch = batches.length === 1 ? batches[0] : (batches.length > 1 ? batches.join(',') : defaultBatch);
+          
+          setSyncStatus('online-unsynced', '正在上传到云端数据库...');
+          fetch('/api/dialer/upload-customers', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ customers: importedClients, batch_label: chosenBatch })
+          })
+          .then(function(res) { return res.json(); })
+          .then(function(data) {
+            syncBtn.disabled = false;
+            syncBtn.textContent = originalText;
+            if (data.success) {
+              setSyncStatus('online-synced', '已同步 ' + data.count + ' 条数据');
+              alert('同步成功！共保存 ' + data.count + ' 条客户进度至 Supabase 数据库。');
+              if (document.getElementById('dbOverlay') && document.getElementById('dbOverlay').classList.contains('active')) {
+                dbFetch();
+              }
+            } else {
+              setSyncStatus('online-unsynced', '同步失败');
+              alert('同步失败: ' + (data.error || '未知错误'));
+            }
+          })
+          .catch(function(err) {
+            syncBtn.disabled = false;
+            syncBtn.textContent = originalText;
+            setSyncStatus('online-unsynced', '连接失败');
+            alert('网络连接失败，请检查 Worker 配置或 API 连接！');
+          });
+        };
       }
 
       document.getElementById('syncUseLocalBtn').addEventListener('click', function() {
@@ -5575,8 +5628,21 @@ export const DIALER_HTML = `<!DOCTYPE html>
       var searchInput = document.getElementById('dbSearch');
       var q = searchInput ? searchInput.value.trim() : '';
 
+      var activeTab = DB.activeTab || 'all';
+      var catFilter = document.getElementById('dbCatFilter') ? document.getElementById('dbCatFilter').value : '';
+      var batchFilter = document.getElementById('dbBatchFilter') ? document.getElementById('dbBatchFilter').value : '';
+
+      var category = '';
+      if (activeTab && activeTab !== 'all') {
+        category = activeTab;
+      } else if (catFilter) {
+        category = catFilter;
+      }
+
       var url = '/api/dialer/customers?page=' + DB.page + '&pageSize=' + DB.pageSize;
       if (q) url += '&search=' + encodeURIComponent(q);
+      if (category) url += '&category=' + encodeURIComponent(category);
+      if (batchFilter) url += '&batch_label=' + encodeURIComponent(batchFilter);
       if (DB.sortBy) url += '&sortBy=' + encodeURIComponent(DB.sortBy) + '&sortDir=' + DB.sortDir;
 
       var tbody = document.getElementById('dbTbody');
@@ -5585,6 +5651,10 @@ export const DIALER_HTML = `<!DOCTYPE html>
       fetch(url)
         .then(function(r) { return r.json(); })
         .then(function(res) {
+          if (res.error) {
+            if (tbody) tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;color:#e74c3c;">⚠ Supabase 查询出错: ' + esc(res.error) + '</td></tr>';
+            return;
+          }
           var rawData = res.data || [];
           DB.allData = rawData; // 存入前端缓存
           
@@ -5608,26 +5678,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
     function crmFilterData(data) {
       var filtered = data || [];
       
-      // 1. 页签选项卡筛选 (activeTab)
-      if (DB.activeTab && DB.activeTab !== 'all') {
-        if (DB.activeTab === '线索池') {
-          filtered = filtered.filter(function(c) {
-            var cat = c.category || '';
-            return cat === '待跟进' || cat === '潜在客户' || cat === '' || cat === '未分类';
-          });
-        } else if (DB.activeTab === '公海客户') {
-          filtered = filtered.filter(function(c) {
-            var cat = c.category || '';
-            return cat === '公海客户' || cat === '其他';
-          });
-        } else {
-          filtered = filtered.filter(function(c) {
-            return c.category === DB.activeTab;
-          });
-        }
-      }
-
-      // 2. 快捷按钮筛选 (activeShortcut)
+      // 1. 快捷按钮筛选 (activeShortcut)
       if (DB.activeShortcut && DB.activeShortcut !== 'all') {
         if (DB.activeShortcut === 'today') {
           var todayStr = new Date().toISOString().slice(0, 10);
@@ -5646,16 +5697,11 @@ export const DIALER_HTML = `<!DOCTYPE html>
         }
       }
 
-      // 3. 多维度搜索表单筛选 (AND 关系)
-      var labelF = document.getElementById('dbCatFilter') ? document.getElementById('dbCatFilter').value : '';
+      // 2. 多维度搜索表单筛选 (AND 关系)
       var nameF = document.getElementById('dbNameSearch') ? document.getElementById('dbNameSearch').value.trim().toLowerCase() : '';
       var phoneF = document.getElementById('dbPhoneSearch') ? document.getElementById('dbPhoneSearch').value.trim().toLowerCase() : '';
       var noteF = document.getElementById('dbNoteSearch') ? document.getElementById('dbNoteSearch').value.trim().toLowerCase() : '';
-      var batchF = document.getElementById('dbBatchFilter') ? document.getElementById('dbBatchFilter').value : '';
 
-      if (labelF) {
-        filtered = filtered.filter(function(c) { return c.category === labelF; });
-      }
       if (nameF) {
         filtered = filtered.filter(function(c) { return (c.name || '').toLowerCase().includes(nameF); });
       }
@@ -5664,9 +5710,6 @@ export const DIALER_HTML = `<!DOCTYPE html>
       }
       if (noteF) {
         filtered = filtered.filter(function(c) { return (c.note || '').toLowerCase().includes(noteF); });
-      }
-      if (batchF) {
-        filtered = filtered.filter(function(c) { return c.batch_label === batchF; });
       }
 
       return filtered;
@@ -6145,6 +6188,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
                   mobile: clientData.mobile,
                   company: clientData.company_name || '',
                   note: clientData.note || '',
+                  category: clientData.category || '',
                   batch_label: clientData.batch_label || ''
                 });
                 addedCount++;
@@ -6163,6 +6207,87 @@ export const DIALER_HTML = `<!DOCTYPE html>
           } else {
             alert('选中的客户已在待拨打列表中');
           }
+        };
+      }
+
+      // Toolbar action: 📥 按分类一键拉取
+      var pullFilteredBtn = document.getElementById('crmPullFilteredBtn');
+      if (pullFilteredBtn) {
+        pullFilteredBtn.onclick = function() {
+          var activeTab = DB.activeTab || 'all';
+          var catFilter = document.getElementById('dbCatFilter') ? document.getElementById('dbCatFilter').value : '';
+          var batchFilter = document.getElementById('dbBatchFilter') ? document.getElementById('dbBatchFilter').value : '';
+          
+          var category = '';
+          if (activeTab && activeTab !== 'all') {
+            category = activeTab;
+          } else if (catFilter) {
+            category = catFilter;
+          }
+          
+          var confirmMsg = '确认从数据库拉取';
+          if (category) confirmMsg += '「' + category + '」分类';
+          if (batchFilter) confirmMsg += '「' + batchFilter + '」批次';
+          if (!category && !batchFilter) confirmMsg += '所有';
+          confirmMsg += '的客户到拨号盘吗？(已存在在拨号盘中的手机号将自动跳过，最大拉取5000条)';
+          
+          if (!confirm(confirmMsg)) return;
+          
+          pullFilteredBtn.disabled = true;
+          pullFilteredBtn.textContent = '⏳ 拉取中...';
+          
+          var pullUrl = '/api/dialer/customers?page=1&pageSize=5000';
+          if (category) pullUrl += '&category=' + encodeURIComponent(category);
+          if (batchFilter) pullUrl += '&batch_label=' + encodeURIComponent(batchFilter);
+          
+          fetch(pullUrl)
+            .then(function(r) { return r.json(); })
+            .then(function(res) {
+              pullFilteredBtn.disabled = false;
+              pullFilteredBtn.textContent = '📥 按分类一键拉取';
+              if (res.error) {
+                alert('拉取失败: ' + res.error);
+                return;
+              }
+              var dbClients = res.data || [];
+              if (dbClients.length === 0) {
+                alert('数据库中没有找到符合当前分类/筛选的客户记录！');
+                return;
+              }
+              
+              var addedCount = 0;
+              dbClients.forEach(function(c) {
+                var m = c.mobile;
+                if (!m) return;
+                var exists = importedClients.some(function(ic) { return ic.mobile === m; });
+                if (!exists) {
+                  importedClients.push({
+                    name: c.name || '未知',
+                    mobile: c.mobile,
+                    company: c.company_name || '',
+                    note: c.note || '',
+                    category: c.category || '',
+                    batch_label: c.batch_label || ''
+                  });
+                  addedCount++;
+                }
+              });
+              
+              if (addedCount > 0) {
+                localStorage.setItem(CLIENTS_K, JSON.stringify(importedClients));
+                renderDialCards();
+                updateDashboardVisibility(true);
+                alert('成功从数据库拉取了 ' + addedCount + ' 个客户到拨号盘列表！');
+                document.getElementById('dbOverlay').classList.remove('active');
+              } else {
+                alert('拉取了 ' + dbClients.length + ' 个客户，但已全部存在在拨号盘列表中！');
+              }
+            })
+            .catch(function(err) {
+              pullFilteredBtn.disabled = false;
+              pullFilteredBtn.textContent = '📥 按分类一键拉取';
+              alert('拉取失败: ' + err.message);
+            });
         };
       }
 

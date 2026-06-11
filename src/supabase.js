@@ -255,7 +255,7 @@ export function createSupabaseClient(env) {
   /**
    * Get all customers with pagination and optional search.
    */
-  async function getAllCustomers(page, pageSize, search, sortBy, sortDir) {
+  async function getAllCustomers(page, pageSize, search, sortBy, sortDir, category, batchLabel) {
     if (!baseUrl || !key) return { data: [], total: 0, page: page || 1, pageSize: pageSize || 50 };
 
     try {
@@ -267,6 +267,20 @@ export function createSupabaseClient(env) {
       var baseSearch = '';
       if (search) {
         baseSearch = '&or=(name.ilike.%25' + encodeURIComponent(search) + '%25,mobile.ilike.%25' + encodeURIComponent(search) + '%25,company_name.ilike.%25' + encodeURIComponent(search) + '%25)';
+      }
+
+      var filterParams = '';
+      if (category) {
+        if (category === '线索池') {
+          filterParams += '&or=(category.eq.待跟进,category.eq.潜在客户,category.is.null,category.eq.,category.eq.未分类)';
+        } else if (category === '公海客户') {
+          filterParams += '&or=(category.eq.公海客户,category.eq.其他)';
+        } else {
+          filterParams += '&category=eq.' + encodeURIComponent(category);
+        }
+      }
+      if (batchLabel) {
+        filterParams += '&batch_label=eq.' + encodeURIComponent(batchLabel);
       }
 
       // Build sort clause
@@ -295,7 +309,7 @@ export function createSupabaseClient(env) {
       var data = null;
 
       for (var ci = 0; ci < colSets.length; ci++) {
-        var url2 = baseUrl + '/rest/v1/customers?select=' + colSets[ci] + orderClause + baseSearch;
+        var url2 = baseUrl + '/rest/v1/customers?select=' + colSets[ci] + orderClause + baseSearch + filterParams;
         resp = await fetch(url2, { headers: headersWithCount });
         if (resp.ok) {
           data = await resp.json();
@@ -337,6 +351,7 @@ export function createSupabaseClient(env) {
         mobile: (c.mobile || c.phone || '').trim(),
         company_name: (c.company || c.company_name || '').trim(),
         note: (c.note || '').trim(),
+        category: (c.category || '').trim(),
         batch_label: (c.batch_label || '').trim()
       };
     }).filter(function(r) {

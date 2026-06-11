@@ -1319,8 +1319,10 @@ export default {
         const search = url.searchParams.get('search') || '';
         const sortBy = url.searchParams.get('sortBy') || '';
         const sortDir = url.searchParams.get('sortDir') || 'asc';
+        const category = url.searchParams.get('category') || '';
+        const batchLabel = url.searchParams.get('batch_label') || '';
         const sb = createSupabaseClient(env);
-        const result = await sb.getAllCustomers(page, pageSize, search, sortBy, sortDir);
+        const result = await sb.getAllCustomers(page, pageSize, search, sortBy, sortDir, category, batchLabel);
         return new Response(JSON.stringify(result), {
           headers: {
             'Content-Type': 'application/json; charset=UTF-8',
