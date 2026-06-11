@@ -955,10 +955,13 @@ export const DIALER_HTML = `<!DOCTYPE html>
     .crm-tool-btn.blue:hover { background: #4a6cf7; color: #fff; }
     .crm-tool-btn.orange { border-color: #ff9800; color: #ff9800; background: rgba(255,152,0,0.03); }
     .crm-tool-btn.orange:hover { background: #ff9800; color: #fff; }
+    .crm-tool-btn.red { border-color: #ef4444; color: #ef4444; background: rgba(239,68,68,0.03); }
+    .crm-tool-btn.red:hover { background: #ef4444; color: #fff; }
     body.dark-mode .crm-tool-btn { background: #0f172a; border-color: #334155; color: #94a3b8; }
     body.dark-mode .crm-tool-btn.green { border-color: #07c160; color: #07c160; }
     body.dark-mode .crm-tool-btn.blue { border-color: #4a6cf7; color: #4a6cf7; }
     body.dark-mode .crm-tool-btn.orange { border-color: #ff9800; color: #ff9800; }
+    body.dark-mode .crm-tool-btn.red { border-color: #ef4444; color: #ef4444; }
     .crm-toolbar-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
 
     /* CRM Status Badges Bar */
@@ -1203,7 +1206,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
             <div style="display: flex; gap: 6px; align-items: center; margin-top: 6px; width: 100%;">
               <span style="font-size: 0.68rem; color: var(--text-soft); font-weight: 800; white-space: nowrap;">🗂️ 默认分类</span>
               <select id="importCategorySelect" style="flex:1; height:28px; padding:0 8px; font-size:0.72rem; border:1px solid var(--card-border); border-radius:var(--radius-xs); background:var(--card-bg); color:var(--text-main); outline:none; cursor:pointer;">
-                <option value="待跟进" selected>待跟进</option>
+                <option value="待跟进">待跟进</option>
                 <option value="潜在客户">潜在客户</option>
                 <option value="意向客户">意向客户</option>
                 <option value="已成交">已成交</option>
@@ -1211,7 +1214,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
                 <option value="老客户">老客户</option>
                 <option value="同行">同行</option>
                 <option value="其他">其他</option>
-                <option value="公海客户">公海客户</option>
+                <option value="公海客户" selected>公海客户</option>
                 <option value="未分类">未分类</option>
               </select>
             </div>
@@ -1605,8 +1608,10 @@ export const DIALER_HTML = `<!DOCTYPE html>
       <button class="crm-tool-btn green" id="crmAddCustBtn">➕ 添加客户</button>
       <button class="crm-tool-btn orange" id="crmAddToDialBtn">📞 添加到待拨打</button>
       <button class="crm-tool-btn orange" id="crmPullFilteredBtn" title="将当前分类和批次下的所有客户一键拉取到待拨打列表">📥 按分类一键拉取</button>
+      <button class="crm-tool-btn blue" id="crmMoveLeadsBtn" title="转入线索池">👤 转入线索池</button>
       <button class="crm-tool-btn blue" id="crmMoveIntentBtn">👤 转入意向客户</button>
       <button class="crm-tool-btn" id="crmMovePublicBtn">🌐 转入公海</button>
+      <button class="crm-tool-btn red" id="crmBatchDeleteBtn" title="删除勾选的客户">🗑️ 批量删除</button>
       <button class="crm-tool-btn" id="crmAddHelperBtn">🤝 添加协助人</button>
       <button class="crm-tool-btn" id="crmRemoveHelperBtn">🚫 取消协助人</button>
       <button class="crm-tool-btn" id="dbBatchCatBtn" title="更多批量分类">🏷 批量分类</button>
@@ -2641,7 +2646,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
       var compCol = parseInt(document.getElementById('aiSelCompany').value);
       var noteCol = parseInt(document.getElementById('aiSelNote').value);
       var batchLabel = (document.getElementById('batchLabelInput').value || '').trim();
-      var defaultCat = document.getElementById('importCategorySelect') ? document.getElementById('importCategorySelect').value : '待跟进';
+      var defaultCat = document.getElementById('importCategorySelect') ? document.getElementById('importCategorySelect').value : '公海客户';
 
       if (phoneCol === -1) {
         alert('请至少为电话选择一列进行导入！');
@@ -2730,7 +2735,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
     function executeAIImportVcf() {
       if (!tempImportData || tempImportData.length === 0) return;
       var batchLabel = (document.getElementById('batchLabelInput').value || '').trim();
-      var defaultCat = document.getElementById('importCategorySelect') ? document.getElementById('importCategorySelect').value : '待跟进';
+      var defaultCat = document.getElementById('importCategorySelect') ? document.getElementById('importCategorySelect').value : '公海客户';
       // Tag each client with the batch label and category
       for (var i = 0; i < tempImportData.length; i++) {
         var c = tempImportData[i];
@@ -4580,7 +4585,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
     function executeAIImportUnstructured() {
       if (!tempUnstructuredContacts || tempUnstructuredContacts.length === 0) return;
       var batchLabel = (document.getElementById('batchLabelInput').value || '').trim();
-      var defaultCat = document.getElementById('importCategorySelect') ? document.getElementById('importCategorySelect').value : '待跟进';
+      var defaultCat = document.getElementById('importCategorySelect') ? document.getElementById('importCategorySelect').value : '公海客户';
       // Tag each client with the batch label and category
       for (var i = 0; i < tempUnstructuredContacts.length; i++) {
         var c = tempUnstructuredContacts[i];
@@ -6852,6 +6857,87 @@ export const DIALER_HTML = `<!DOCTYPE html>
           .then(function() {
             moveIntentBtn.disabled = false;
             moveIntentBtn.textContent = '👤 转入意向客户';
+          });
+        };
+      }
+
+      // Toolbar action: 👤 转入线索池
+      var moveLeadsBtn = document.getElementById('crmMoveLeadsBtn');
+      if (moveLeadsBtn) {
+        moveLeadsBtn.onclick = function() {
+          var mobiles = Object.keys(DB.selectedIds);
+          if (mobiles.length === 0) { alert('请先勾选要转入线索池的数据'); return; }
+          
+          if (!confirm('确认将选中的 ' + mobiles.length + ' 个客户转入「线索池」吗？')) return;
+          
+          moveLeadsBtn.disabled = true;
+          moveLeadsBtn.textContent = '⏳ 处理中...';
+          
+          var promises = mobiles.map(function(m) {
+            return fetch('/api/dialer/customers', {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                mobile: m,
+                fields: { category: '潜在客户' }
+              })
+            }).then(function(r) { return r.json(); });
+          });
+          
+          Promise.all(promises)
+          .then(function(results) {
+            var successCount = results.filter(function(r) { return r && r.success; }).length;
+            alert('操作完成，成功转入线索池 ' + successCount + ' / ' + mobiles.length + ' 条');
+            DB.selectedIds = {};
+            var selectAllCb = document.getElementById('crmSelectAll');
+            if (selectAllCb) selectAllCb.checked = false;
+            dbFetch();
+          })
+          .catch(function(err) {
+            alert('批量转入线索池出错: ' + err.message);
+          })
+          .then(function() {
+            moveLeadsBtn.disabled = false;
+            moveLeadsBtn.textContent = '👤 转入线索池';
+          });
+        };
+      }
+
+      // Toolbar action: 🗑️ 批量删除
+      var batchDeleteBtn = document.getElementById('crmBatchDeleteBtn');
+      if (batchDeleteBtn) {
+        batchDeleteBtn.onclick = function() {
+          var mobiles = Object.keys(DB.selectedIds);
+          if (mobiles.length === 0) { alert('请先勾选需要删除的客户'); return; }
+          
+          if (!confirm('🚨 警告：确认删除选中的 ' + mobiles.length + ' 个客户吗？该操作不可逆，将从数据库彻底移除！')) return;
+          
+          batchDeleteBtn.disabled = true;
+          batchDeleteBtn.textContent = '⏳ 删除中...';
+          
+          fetch('/api/dialer/customers', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ mobiles: mobiles })
+          })
+          .then(function(r) { return r.json(); })
+          .then(function(res) {
+            if (res.success) {
+              alert('成功删除 ' + (res.count || mobiles.length) + ' 个客户！');
+              DB.selectedIds = {};
+              var selectAllCb = document.getElementById('crmSelectAll');
+              if (selectAllCb) selectAllCb.checked = false;
+              dbFetch();
+            } else {
+              alert('删除失败: ' + (res.error || '未知错误'));
+            }
+          })
+          .catch(function(err) {
+            alert('删除出错: ' + err.message);
+          })
+          .then(function() {
+            batchDeleteBtn.disabled = false;
+            batchDeleteBtn.textContent = '🗑️ 批量删除';
           });
         };
       }

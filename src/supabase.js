@@ -505,7 +505,9 @@ export function createSupabaseClient(env) {
     upsertCustomers: upsertCustomers,
     getAllCustomers: getAllCustomers,
     updateCustomer: updateCustomer,
-    batchUpdateCategory: batchUpdateCategory
+    batchUpdateCategory: batchUpdateCategory,
+    deleteCustomer: deleteCustomer,
+    deleteCustomers: deleteCustomers
   };
 
   /**
@@ -532,6 +534,48 @@ export function createSupabaseClient(env) {
 
     const data = await resp.json();
     return data && data[0] ? data[0] : null;
+  }
+
+  async function deleteCustomer(mobile) {
+    if (!baseUrl || !key) throw new Error('Supabase not configured');
+    if (!mobile) throw new Error('mobile is required');
+
+    const resp = await fetch(
+      baseUrl + '/rest/v1/customers?mobile=eq.' + encodeURIComponent(mobile),
+      {
+        method: 'DELETE',
+        headers: headers()
+      }
+    );
+
+    if (!resp.ok) {
+      const text = await resp.text();
+      throw new Error('Supabase delete customer failed [' + resp.status + ']: ' + text);
+    }
+    return true;
+  }
+
+  async function deleteCustomers(mobiles) {
+    if (!baseUrl || !key) throw new Error('Supabase not configured');
+    if (!mobiles || mobiles.length === 0) throw new Error('mobiles are required');
+
+    const chunkSize = 100;
+    for (let i = 0; i < mobiles.length; i += chunkSize) {
+      const chunk = mobiles.slice(i, i + chunkSize);
+      const inClause = chunk.map(function(m) { return encodeURIComponent(m); }).join(',');
+      const resp = await fetch(
+        baseUrl + '/rest/v1/customers?mobile=in.(' + inClause + ')',
+        {
+          method: 'DELETE',
+          headers: headers()
+        }
+      );
+      if (!resp.ok) {
+        const text = await resp.text();
+        throw new Error('Supabase delete customers failed [' + resp.status + ']: ' + text);
+      }
+    }
+    return true;
   }
 }
 

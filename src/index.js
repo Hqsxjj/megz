@@ -1424,6 +1424,48 @@ export default {
       }
     }
 
+    // 2f. 删除客户/批量删除客户
+    if (path === '/api/dialer/customers' && request.method === 'DELETE') {
+      try {
+        const body = await request.json();
+        const { mobile, mobiles } = body;
+        const sb = createSupabaseClient(env);
+        if (mobiles && Array.isArray(mobiles)) {
+          await sb.deleteCustomers(mobiles);
+          return new Response(JSON.stringify({ success: true, count: mobiles.length }), {
+            headers: {
+              'Content-Type': 'application/json; charset=UTF-8',
+              'Access-Control-Allow-Origin': '*'
+            }
+          });
+        } else if (mobile) {
+          await sb.deleteCustomer(mobile);
+          return new Response(JSON.stringify({ success: true }), {
+            headers: {
+              'Content-Type': 'application/json; charset=UTF-8',
+              'Access-Control-Allow-Origin': '*'
+            }
+          });
+        } else {
+          return new Response(JSON.stringify({ success: false, error: '缺少 mobile 或 mobiles 载荷' }), {
+            status: 400,
+            headers: {
+              'Content-Type': 'application/json; charset=UTF-8',
+              'Access-Control-Allow-Origin': '*'
+            }
+          });
+        }
+      } catch (e) {
+        return new Response(JSON.stringify({ success: false, error: e.message }), {
+          status: 500,
+          headers: {
+            'Content-Type': 'application/json; charset=UTF-8',
+            'Access-Control-Allow-Origin': '*'
+          }
+        });
+      }
+    }
+
     // 2e. 调试：查看 Supabase 表结构
     if (path === '/api/debug/schema' && request.method === 'GET') {
       try {
