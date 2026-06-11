@@ -1966,53 +1966,6 @@ export const DIALER_HTML = `<!DOCTYPE html>
       setTimeout(function() {
         syncWithCloud();
       }, 500);
-      // Auto-pull from Supabase to merge records from other devices
-      setTimeout(function() {
-        pullFromSupabaseAndMerge();
-      }, 2000);
-    }
-
-    function pullFromSupabaseAndMerge() {
-      fetch('/api/dialer/customers?page=1&pageSize=5000')
-        .then(function(res) { return res.json(); })
-        .then(function(data) {
-          var cloudCustomers = data.data || [];
-          if (cloudCustomers.length === 0) return;
-          // Build index of local phone numbers
-          var localPhones = {};
-          importedClients.forEach(function(c) {
-            var phone = (c.phone || c.mobile || '').replace(/\D/g, '');
-            if (phone) localPhones[phone] = true;
-          });
-          // Merge records from Supabase not already in local
-          var newRecords = [];
-          cloudCustomers.forEach(function(rc) {
-            var phone = (rc.mobile || '').replace(/\D/g, '');
-            if (phone && !localPhones[phone]) {
-              localPhones[phone] = true;
-              newRecords.push({
-                name: rc.name || '',
-                phone: rc.mobile || '',
-                company: rc.company_name || '',
-                note: rc.note || '',
-                category: rc.category || '',
-                batch_label: rc.batch_label || '',
-                created_at: rc.created_at || '',
-                _source: 'supabase' // mark as pulled from DB
-              });
-            }
-          });
-          if (newRecords.length > 0) {
-            importedClients = importedClients.concat(newRecords);
-            localStorage.setItem(CLIENTS_K, JSON.stringify(importedClients));
-            updateDashboardVisibility(true);
-            renderDialCards();
-            setSyncStatus('online-synced', '已从数据库拉取 ' + newRecords.length + ' 条新记录');
-          }
-        })
-        .catch(function(err) {
-          console.error('Auto-pull from Supabase failed:', err);
-        });
     }
 
     function saveState() {
@@ -2022,17 +1975,6 @@ export const DIALER_HTML = `<!DOCTYPE html>
         console.error('Failed to save state:', err);
       }
       syncWithCloud(true);
-      // Auto-sync to Supabase (debounced 5 seconds)
-      scheduleAutoSyncToSupabase();
-    }
-
-    var _autoSyncTimer = null;
-    function scheduleAutoSyncToSupabase() {
-      if (_autoSyncTimer) clearTimeout(_autoSyncTimer);
-      _autoSyncTimer = setTimeout(function() {
-        if (!importedClients || importedClients.length === 0) return;
-        uploadCustomersToSupabase(importedClients, '自动同步');
-      }, 5000);
     }
 
     // Cloud Sync Logic
