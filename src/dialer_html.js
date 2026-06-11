@@ -1550,6 +1550,22 @@ export const DIALER_HTML = `<!DOCTYPE html>
 
 <!-- Customer Database Dashboard (v2) -->
 <!-- Customer Database Dashboard (v2) -->
+<!-- DB Password Gate -->
+<div class="modal-overlay" id="dbPwdOverlay" style="display:none; z-index:10000; align-items:center; justify-content:center;">
+  <div class="modal-card" style="text-align:center; gap:16px; max-width:340px;">
+    <div style="font-size:1.6rem;">🔐</div>
+    <span style="font-size:0.85rem; font-weight:900; color:var(--text-main);" id="dbPwdTitle">数据库访问密码</span>
+    <span style="font-size:0.65rem; color:var(--text-light);" id="dbPwdHint">请输入6位密码（字母+数字）</span>
+    <input type="password" id="dbPwdInput" maxlength="6" placeholder="6位字母或数字" autocomplete="off" style="width:100%; max-width:220px; height:42px; font-size:1.4rem; text-align:center; letter-spacing:8px; border:2px solid var(--card-border); border-radius:var(--radius-xs); background:var(--card-bg); color:var(--text-main); outline:none; font-family:monospace;">
+    <span id="dbPwdError" style="font-size:0.62rem; color:#e74c3c; display:none; min-height:16px;"></span>
+    <div style="display:flex; gap:8px; width:100%;">
+      <button id="dbPwdCancelBtn" class="btn-modal btn-danger" style="flex:1;">取消</button>
+      <button id="dbPwdConfirmBtn" class="btn-modal btn-success" style="flex:1;">确认</button>
+    </div>
+    <button id="dbPwdResetBtn" style="font-size:0.58rem; color:var(--text-light); background:none; border:none; cursor:pointer; text-decoration:underline; display:none;">重置密码（需验证旧密码）</button>
+  </div>
+</div>
+
 <div class="db-overlay" id="dbOverlay">
   <div class="db-panel">
     <!-- CRM Top Tabs -->
@@ -1950,6 +1966,53 @@ export const DIALER_HTML = `<!DOCTYPE html>
       setTimeout(function() {
         syncWithCloud();
       }, 500);
+      // Auto-pull from Supabase to merge records from other devices
+      setTimeout(function() {
+        pullFromSupabaseAndMerge();
+      }, 2000);
+    }
+
+    function pullFromSupabaseAndMerge() {
+      fetch('/api/dialer/customers?page=1&pageSize=5000')
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+          var cloudCustomers = data.data || [];
+          if (cloudCustomers.length === 0) return;
+          // Build index of local phone numbers
+          var localPhones = {};
+          importedClients.forEach(function(c) {
+            var phone = (c.phone || c.mobile || '').replace(/\D/g, '');
+            if (phone) localPhones[phone] = true;
+          });
+          // Merge records from Supabase not already in local
+          var newRecords = [];
+          cloudCustomers.forEach(function(rc) {
+            var phone = (rc.mobile || '').replace(/\D/g, '');
+            if (phone && !localPhones[phone]) {
+              localPhones[phone] = true;
+              newRecords.push({
+                name: rc.name || '',
+                phone: rc.mobile || '',
+                company: rc.company_name || '',
+                note: rc.note || '',
+                category: rc.category || '',
+                batch_label: rc.batch_label || '',
+                created_at: rc.created_at || '',
+                _source: 'supabase' // mark as pulled from DB
+              });
+            }
+          });
+          if (newRecords.length > 0) {
+            importedClients = importedClients.concat(newRecords);
+            localStorage.setItem(CLIENTS_K, JSON.stringify(importedClients));
+            updateDashboardVisibility(true);
+            renderDialCards();
+            setSyncStatus('online-synced', '已从数据库拉取 ' + newRecords.length + ' 条新记录');
+          }
+        })
+        .catch(function(err) {
+          console.error('Auto-pull from Supabase failed:', err);
+        });
     }
 
     function saveState() {
@@ -1959,6 +2022,17 @@ export const DIALER_HTML = `<!DOCTYPE html>
         console.error('Failed to save state:', err);
       }
       syncWithCloud(true);
+      // Auto-sync to Supabase (debounced 5 seconds)
+      scheduleAutoSyncToSupabase();
+    }
+
+    var _autoSyncTimer = null;
+    function scheduleAutoSyncToSupabase() {
+      if (_autoSyncTimer) clearTimeout(_autoSyncTimer);
+      _autoSyncTimer = setTimeout(function() {
+        if (!importedClients || importedClients.length === 0) return;
+        uploadCustomersToSupabase(importedClients, '自动同步');
+      }, 5000);
     }
 
     // Cloud Sync Logic
@@ -6718,7 +6792,148 @@ export const DIALER_HTML = `<!DOCTYPE html>
       }
     }
 
+    // ====== Database Password Gate ======
+    var DB_PWD_K = 'db_access_pwd_hash';
+    var dbPwdCallback = null;
+    var dbPwdSessionAuthed = false; // Once authenticated this session, don't ask again
+
+    function hashPwd(pwd) {
+      // Simple salted hash for localStorage (not cryptographically secure, but beats plaintext)
+      var salt = 'megz_db_salt_2024';
+      var combined = salt + ':' + pwd;
+      var hash = 0;
+      for (var i = 0; i < combined.length; i++) {
+        var char = combined.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash |= 0;
+      }
+      return 'mz_' + Math.abs(hash).toString(36);
+    }
+
+    function getDbPassword() {
+      return localStorage.getItem(DB_PWD_K) || '';
+    }
+
+    function showDbPasswordGate(callback) {
+      dbPwdCallback = callback;
+      var overlay = document.getElementById('dbPwdOverlay');
+      var input = document.getElementById('dbPwdInput');
+      var title = document.getElementById('dbPwdTitle');
+      var hint = document.getElementById('dbPwdHint');
+      var error = document.getElementById('dbPwdError');
+      var resetBtn = document.getElementById('dbPwdResetBtn');
+      var cancelBtn = document.getElementById('dbPwdCancelBtn');
+      var confirmBtn = document.getElementById('dbPwdConfirmBtn');
+
+      if (!overlay) { callback(); return; }
+
+      var savedHash = getDbPassword();
+      var isFirstTime = !savedHash;
+
+      if (isFirstTime) {
+        title.textContent = '🔐 设置数据库密码';
+        hint.textContent = '请设置6位密码（字母+数字混搭）';
+        resetBtn.style.display = 'none';
+      } else {
+        title.textContent = '🔐 数据库访问密码';
+        hint.textContent = '请输入6位密码';
+        resetBtn.style.display = 'inline-block';
+      }
+
+      input.value = '';
+      error.style.display = 'none';
+      overlay.style.display = 'flex';
+      setTimeout(function() { overlay.classList.add('active'); input.focus(); }, 10);
+
+      function doConfirm() {
+        var pwd = input.value.trim();
+        if (pwd.length !== 6) {
+          error.textContent = '密码必须为6位';
+          error.style.display = 'block';
+          input.focus();
+          return;
+        }
+        if (!/^[a-zA-Z0-9]+$/.test(pwd)) {
+          error.textContent = '密码只能包含字母和数字';
+          error.style.display = 'block';
+          input.focus();
+          return;
+        }
+
+        if (isFirstTime) {
+          // Set password
+          localStorage.setItem(DB_PWD_K, hashPwd(pwd));
+          closeDbPasswordGate();
+          dbPwdCallback && dbPwdCallback();
+          dbPwdCallback = null;
+        } else {
+          // Verify password
+          if (hashPwd(pwd) === savedHash) {
+            closeDbPasswordGate();
+            dbPwdCallback && dbPwdCallback();
+            dbPwdCallback = null;
+          } else {
+            error.textContent = '密码错误，请重试';
+            error.style.display = 'block';
+            input.value = '';
+            input.focus();
+          }
+        }
+      }
+
+      confirmBtn.onclick = doConfirm;
+      input.onkeydown = function(e) {
+        if (e.key === 'Enter') doConfirm();
+      };
+
+      cancelBtn.onclick = function() {
+        closeDbPasswordGate();
+        dbPwdCallback = null;
+      };
+
+      resetBtn.onclick = function() {
+        // Verify old password first, then allow reset
+        if (!confirm('确认要重置数据库密码吗？需要先验证旧密码。')) return;
+        var oldPwd = prompt('请输入旧密码（6位）：');
+        if (!oldPwd || oldPwd.length !== 6) { alert('密码必须为6位！'); return; }
+        if (hashPwd(oldPwd) !== savedHash) { alert('旧密码错误！'); return; }
+        localStorage.removeItem(DB_PWD_K);
+        alert('旧密码已验证，请设置新密码。');
+        // Restart the gate flow to set new password
+        showDbPasswordGate(callback);
+      };
+    }
+
+    function closeDbPasswordGate() {
+      var overlay = document.getElementById('dbPwdOverlay');
+      if (overlay) {
+        overlay.classList.remove('active');
+        setTimeout(function() { overlay.style.display = 'none'; }, 250);
+      }
+    }
+
     function openDBDashboard(){
+      var ov=document.getElementById('dbOverlay'); if(!ov)return;
+      if (dbPwdSessionAuthed) {
+        _openDBDashboardInner();
+        return;
+      }
+      var savedHash = getDbPassword();
+      if (!savedHash) {
+        // First time: must set password
+        showDbPasswordGate(function() {
+          dbPwdSessionAuthed = true;
+          _openDBDashboardInner();
+        });
+        return;
+      }
+      showDbPasswordGate(function() {
+        dbPwdSessionAuthed = true;
+        _openDBDashboardInner();
+      });
+    }
+
+    function _openDBDashboardInner() {
       var ov=document.getElementById('dbOverlay'); if(!ov)return;
       ov.classList.add('active'); DB.page=1;
       var si=document.getElementById('dbSearch'); if(si)si.value='';
