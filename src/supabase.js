@@ -300,6 +300,8 @@ export function createSupabaseClient(env) {
 
       // Try column sets from most to least specific
       var colSets = [
+        'name,mobile,company_name,category,note,fund,batch_label,created_at',
+        'name,mobile,company_name,category,note,fund,created_at',
         'name,mobile,company_name,category,note,batch_label,created_at',
         'name,mobile,company_name,category,note,created_at',
         'name,mobile,company_name,created_at',
@@ -364,6 +366,7 @@ export function createSupabaseClient(env) {
         company_name: (c.company || c.company_name || '').trim(),
         note: noteVal,
         category: (c.category || '').trim(),
+        fund: (c.fund || '').trim(),
         batch_label: (c.batch_label || '').trim()
       };
     }).filter(function(r) {
@@ -398,8 +401,25 @@ export function createSupabaseClient(env) {
 
       if (!resp.ok) {
         const text = await resp.text();
-        // If batch_label column doesn't exist, retry without it
-        if (text.includes('batch_label') && text.includes('column')) {
+        // If fund column doesn't exist, retry without it
+        if (text.includes('fund') && text.includes('column')) {
+          const fallbackRows = chunk.map(function(r) {
+            var copy = Object.assign({}, r);
+            delete copy.fund;
+            return copy;
+          });
+          const fbResp = await fetch(baseUrl + '/rest/v1/customers?on_conflict=mobile', {
+            method: 'POST',
+            headers: Object.assign({}, headers(), {
+              'Prefer': 'resolution=merge-duplicates'
+            }),
+            body: JSON.stringify(fallbackRows)
+          });
+          if (!fbResp.ok) {
+            const fbText = await fbResp.text();
+            throw new Error('Supabase upsert customers fallback failed [' + fbResp.status + ']: ' + fbText);
+          }
+        } else if (text.includes('batch_label') && text.includes('column')) {
           const fallbackRows = chunk.map(function(r) {
             var copy = Object.assign({}, r);
             delete copy.batch_label;

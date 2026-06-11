@@ -1464,6 +1464,109 @@ export default {
       }
     }
 
+    // 2f. 管理员：迁移公公积金并清理测试数据
+    if (path === '/api/admin/migrate-fund' && request.method === 'GET') {
+      try {
+        const supabaseUrl = env.SUPABASE_URL;
+        const supabaseKey = env.SUPABASE_KEY;
+        if (!supabaseUrl || !supabaseKey) {
+          throw new Error('Supabase URL or Key is not configured');
+        }
+        const hdrs = {
+          'Content-Type': 'application/json',
+          'apikey': supabaseKey,
+          'Authorization': 'Bearer ' + supabaseKey
+        };
+
+        // 1. 删除测试数据
+        // 匹配 name 包含 "测试"，或者 batch_label 等于 "测试批次" 或 "重入测试"
+        const delResp = await fetch(
+          supabaseUrl + '/rest/v1/customers?or=name.ilike.%25%E6%B5%8B%E8%AF%95%25,batch_label.eq.%E6%B5%8B%E8%AF%95%E6%89%B9%E6%AC%A1,batch_label.eq.%E9%87%8D%E5%85%A5%E6%B5%8B%E8%AF%95',
+          { method: 'DELETE', headers: hdrs }
+        );
+        let delResult = 'OK';
+        if (!delResp.ok) {
+          delResult = await delResp.text();
+        }
+
+        // 2. 循环拉取所有剩余客户
+        var all = [];
+        var pageNum = 0;
+        var pageSizeNum = 1000;
+        while (true) {
+          var fromVal = pageNum * pageSizeNum;
+          var toVal = fromVal + pageSizeNum - 1;
+          var qResp = await fetch(
+            supabaseUrl + '/rest/v1/customers?select=*',
+            { headers: Object.assign({}, hdrs, { 'Range': fromVal + '-' + toVal }) }
+          );
+          if (!qResp.ok) break;
+          var dataList = await qResp.json();
+          if (!Array.isArray(dataList) || dataList.length === 0) break;
+          all.push.apply(all, dataList);
+          if (dataList.length < pageSizeNum) break;
+          pageNum++;
+        }
+
+        // 3. 筛选并执行公积金数据迁移（更新 fund 并且清理备注里的纯数字）
+        let migratedCount = 0;
+        let updatePromises = [];
+        for (var i = 0; i < all.length; i++) {
+          var c = all[i];
+          var noteVal = (c.note || '').trim();
+          // 匹配 4 位数或 5 位数纯数字作为公积金（如 19580, 8450）
+          var match = noteVal.match(/\b\d{4,5}\b/);
+          if (match) {
+            var fundVal = match[0];
+            var newNote = noteVal.replace(fundVal, '').trim();
+            // 如果备注剔除数字后只剩标点或空白，直接置空
+            if (/^[，。,.\-\s]*$/.test(newNote)) {
+              newNote = '';
+            }
+
+            migratedCount++;
+            const updateFields = { fund: fundVal, note: newNote };
+            
+            // 发送 PATCH 请求更新每一条记录
+            updatePromises.push((async (mob, fields) => {
+              try {
+                const patchResp = await fetch(
+                  supabaseUrl + '/rest/v1/customers?mobile=eq.' + encodeURIComponent(mob),
+                  {
+                    method: 'PATCH',
+                    headers: Object.assign({}, hdrs, { 'Prefer': 'return=minimal' }),
+                    body: JSON.stringify(fields)
+                  }
+                );
+                return patchResp.ok;
+              } catch(errPatch) {
+                return false;
+              }
+            })(c.mobile, updateFields));
+          }
+        }
+
+        const results = await Promise.all(updatePromises);
+        const successCount = results.filter(Boolean).length;
+
+        return new Response(JSON.stringify({
+          success: true,
+          deleted_test_data: delResult,
+          total_customers_found: all.length,
+          matching_note_records: migratedCount,
+          successfully_migrated: successCount
+        }), {
+          headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
+        });
+
+      } catch (e) {
+        return new Response(JSON.stringify({ error: e.message }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+    }
+
     // 3. 代理 SheetJS 资源以加快文件解析加载
     if (path === '/xlsx.full.min.js') {
       return fetch('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js');

@@ -2615,12 +2615,19 @@ export const DIALER_HTML = `<!DOCTYPE html>
         var companyVal = compCol !== -1 ? String(row[compCol] || '').trim() : '';
         var noteVal = noteCol !== -1 ? String(row[noteCol] || '').trim() : '';
 
+        var fundVal = '';
+        if (/^\d{4,5}$/.test(noteVal)) {
+          fundVal = noteVal;
+          noteVal = '';
+        }
+
         parsedCustomers.push({
           name: nameVal || '未知姓名',
           phone: phoneVal,
           mobile: phoneVal,
           company: companyVal,
           note: noteVal,
+          fund: fundVal,
           dialedStatus: 'todo',
           duration: '',
           callNote: '',
@@ -2656,6 +2663,10 @@ export const DIALER_HTML = `<!DOCTYPE html>
         c.category = defaultCat;
         c.mobile = c.mobile || c.phone;
         c.phone = c.phone || c.mobile;
+        if (!c.fund && /^\d{4,5}$/.test((c.note || '').trim())) {
+          c.fund = c.note.trim();
+          c.note = '';
+        }
       }
       importedClients = tempImportData;
       saveState();
@@ -2941,11 +2952,18 @@ export const DIALER_HTML = `<!DOCTYPE html>
             }
           }
           
+          var finalNote = noteParts.join(' ');
+          var fund = '';
+          if (/^\d{4,5}$/.test(finalNote)) {
+            fund = finalNote;
+            finalNote = '';
+          }
           results.push({
             name: name,
             phone: phoneStr,
             company: company,
-            note: noteParts.join(' ')
+            note: finalNote,
+            fund: fund
           });
         }
       }
@@ -4495,6 +4513,10 @@ export const DIALER_HTML = `<!DOCTYPE html>
         c.category = defaultCat;
         c.mobile = c.mobile || c.phone;
         c.phone = c.phone || c.mobile;
+        if (!c.fund && /^\d{4,5}$/.test((c.note || '').trim())) {
+          c.fund = c.note.trim();
+          c.note = '';
+        }
       }
       importedClients = tempUnstructuredContacts;
       saveState();
@@ -4622,7 +4644,12 @@ export const DIALER_HTML = `<!DOCTYPE html>
               if (!phone) continue;
               if (phoneSet.has(phone)) break;
               phoneSet.add(phone);
-              list.push({ name: name || '未知姓名', phone: phone, company: company, note: note, dialedStatus: 'todo', duration: '', callNote: '' });
+              var fundVal = '';
+              if (/^\d{4,5}$/.test(note)) {
+                fundVal = note;
+                note = '';
+              }
+              list.push({ name: name || '未知姓名', phone: phone, company: company, note: note, fund: fundVal, dialedStatus: 'todo', duration: '', callNote: '' });
               break;
             }
           }
@@ -4864,6 +4891,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
             '<div class="client-card-tags" style="margin-top: 2px;">' +
               (c.company ? '<span class="client-card-tag client-card-tag-company" data-company="' + esc(c.company) + '" data-idx="' + i + '" title="点击复制单位名称">' + esc(c.company) + '</span>' : '') +
               (c.batch_label ? '<span class="client-card-tag" style="background:rgba(74,108,247,0.08);color:#4a6cf7;font-weight:700;" title="导入批次">🏷 ' + esc(c.batch_label) + '</span>' : '') +
+              (c.fund ? '<span class="client-card-tag crm-fund-tag" style="background:rgba(255,152,0,0.08);color:#f57c00;font-weight:700;" title="公积金">💰 公积金: ' + esc(c.fund) + '</span>' : '') +
               (function() {
                 if (!c.company) return '';
                 var matchedWl = matchWhitelistCompany(c.company);
@@ -5720,7 +5748,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
           });
         } else if (DB.activeShortcut === 'never') {
           filtered = filtered.filter(function(c) {
-            return !c.note || c.note.trim() === '';
+            return (!c.note || c.note.trim() === '') && (!c.fund || c.fund.trim() === '');
           });
         } else if (DB.activeShortcut === '3days') {
           var threeDaysAgo = Date.now() - 3 * 24 * 60 * 60 * 1000;
@@ -5742,7 +5770,9 @@ export const DIALER_HTML = `<!DOCTYPE html>
         filtered = filtered.filter(function(c) { return (c.mobile || '').toLowerCase().includes(phoneF); });
       }
       if (noteF) {
-        filtered = filtered.filter(function(c) { return (c.note || '').toLowerCase().includes(noteF); });
+        filtered = filtered.filter(function(c) {
+          return (c.note || '').toLowerCase().includes(noteF) || (c.fund || '').toLowerCase().includes(noteF);
+        });
       }
 
       return filtered;
@@ -5808,7 +5838,15 @@ export const DIALER_HTML = `<!DOCTYPE html>
         var avatarBg = avatarColors[colorIdx];
         var avatarHtml = '<span class="crm-avatar" style="background:' + avatarBg + ';">' + esc(firstChar) + '</span>';
         
-        var noteDisplay = c.note ? esc(c.note) : '-';
+        var noteDisplay = '';
+        if (c.fund) {
+          noteDisplay = '<div style="display:flex; flex-direction:column; gap:4px; align-items:flex-start;">' +
+            '<span class="crm-fund-tag" style="background:rgba(255,152,0,0.12); color:#e65100; font-weight:900; font-size:11px; padding:2px 6px; border-radius:4px; display:inline-flex; align-items:center; border: 1px solid rgba(255,152,0,0.25);">💰 公积金: ' + esc(c.fund) + '</span>' +
+            (c.note ? '<span style="color:var(--text-soft); font-weight:normal;">' + esc(c.note) + '</span>' : '') +
+            '</div>';
+        } else {
+          noteDisplay = c.note ? esc(c.note) : '-';
+        }
         
         h += '<tr' + isTrSelected + ' data-mobile="' + esc(c.mobile || '') + '">' +
           '<td style="text-align: center; cursor: default;"><input type="checkbox" class="crm-row-select" data-mobile="' + esc(c.mobile) + '" data-name="' + esc(c.name || '') + '"' + isChecked + '></td>' +
@@ -6222,6 +6260,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
                   mobile: clientData.mobile,
                   company: clientData.company_name || '',
                   note: clientData.note || '',
+                  fund: clientData.fund || '',
                   category: clientData.category || '',
                   batch_label: clientData.batch_label || ''
                 });
@@ -6301,6 +6340,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
                     mobile: c.mobile,
                     company: c.company_name || '',
                     note: c.note || '',
+                    fund: c.fund || '',
                     category: c.category || '',
                     batch_label: c.batch_label || ''
                   });
