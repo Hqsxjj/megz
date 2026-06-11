@@ -1467,7 +1467,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
   </div>
 
   <!-- Note Details Modal -->
-  <div id="noteModal" class="modal-overlay" style="z-index:4500;">
+  <div id="noteModal" class="modal-overlay" style="z-index:100005;">
     <div class="modal-card" style="text-align:left; gap:12px;">
       <div style="font-size:0.95rem; font-weight:900; color:var(--text-main); display:flex; justify-content:space-between; align-items:center;">
         <span>客户资料备注</span>
@@ -1480,7 +1480,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
   </div>
 
   <!-- Custom Columns Management Modal -->
-  <div id="customColumnsModal" class="modal-overlay" style="z-index:4500;">
+  <div id="customColumnsModal" class="modal-overlay" style="z-index:100005;">
     <div class="modal-card" style="max-width: 400px; gap: 12px; text-align: left;">
       <div style="font-size:0.95rem; font-weight:900; color:var(--text-main); display:flex; justify-content:space-between; align-items:center;">
         <span>自定义列管理</span>
@@ -1644,11 +1644,13 @@ export const DIALER_HTML = `<!DOCTYPE html>
             <th data-sort="mobile" style="width: 160px;">联系号码 <span class="sort-arrow">▲</span></th>
             <th data-sort="note" style="min-width: 120px;">备注 <span class="sort-arrow">▲</span></th>
             <th data-sort="company_name" style="min-width: 200px;">单位 <span class="sort-arrow">▲</span></th>
+            <th data-sort="category" style="width: 100px;">分类 <span class="sort-arrow">▲</span></th>
+            <th data-sort="created_at" style="width: 150px;">入库时间 <span class="sort-arrow">▲</span></th>
             <th style="width: 100px; cursor: default;">操作</th>
           </tr>
         </thead>
         <tbody id="dbTbody">
-          <tr><td colspan="6" class="db-loading">⏳ 加载中...</td></tr>
+          <tr><td colspan="20" class="db-loading">⏳ 加载中...</td></tr>
         </tbody>
       </table>
       <div class="db-empty" id="dbEmpty" style="display:none;">
@@ -1663,7 +1665,9 @@ export const DIALER_HTML = `<!DOCTYPE html>
       <div class="crm-pager-left" id="dbTotal">共 0 条</div>
       <div class="crm-pager-center">
         <button class="crm-pager-btn" id="dbPrev">‹ 上一页</button>
-        <span id="dbPageInfo" style="font-size: 0.78rem; font-weight: 700; color: #475569;">第 1 页</span>
+        <span id="dbPageInfo" style="font-size: 0.78rem; font-weight: 700; color: #475569; display: inline-flex; align-items: center; gap: 4px;">
+          第 <input type="number" id="dbPageInput" min="1" style="width: 48px; text-align: center; height: 24px; border: 1px solid var(--card-border); border-radius: 4px; font-weight: bold; background: var(--card-bg); color: var(--text-main); outline: none; margin: 0 2px;" value="1"> / <span id="dbPageTotal">1</span> 页
+        </span>
         <button class="crm-pager-btn" id="dbNext">下一页 ›</button>
       </div>
       <div class="crm-pager-right">
@@ -2040,7 +2044,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
     // Upload imported customers to Supabase via Worker proxy
     function uploadCustomersToSupabase(customers, batchLabel) {
       if (!customers || customers.length === 0) return;
-      var label = batchLabel || ('导入-' + new Date().toISOString().slice(0, 16).replace('T', ' '));
+      var label = batchLabel || ('导入-' + new Date().toISOString().slice(0, 19).replace('T', ' '));
       setSyncStatus('online-unsynced', '正在上传到云端数据库...');
       var payload = serializeCustomersForSupabase(customers);
       fetch('/api/dialer/upload-customers', {
@@ -2227,7 +2231,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
       // Reset batch label with fresh default
       var blInput = document.getElementById('batchLabelInput');
       if (blInput) {
-        blInput.value = '导入-' + new Date().toISOString().slice(0, 16).replace('T', ' ');
+        blInput.value = '导入-' + new Date().toISOString().slice(0, 19).replace('T', ' ');
       }
     }
 
@@ -5169,7 +5173,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
             '<td class="col-phone"><span class="crm-copy-btn" data-copy="' + esc(phoneVal) + '" title="点击复制">' + esc(phoneVal || '-') + '</span></td>' +
             '<td class="col-company"><span class="crm-copy-btn" data-copy="' + esc(c.company||'') + '">' + esc(c.company||'-') + '</span>' + wlBadge + '</td>' +
             '<td class="col-note">' + esc(c.note||'-') + '</td>' +
-            '<td class="col-batch">' + '<span style="font-size:11px;background:rgba(74,108,247,0.08);color:#4a6cf7;padding:1px 6px;border-radius:3px;">' + (c.batch_label || (c.created_at ? c.created_at.slice(5,16).replace('T',' ') : '-')) + '</span>' + '</td>' +
+            '<td class="col-batch">' + '<span style="font-size:11px;background:rgba(74,108,247,0.08);color:#4a6cf7;padding:1px 6px;border-radius:3px;">' + (c.batch_label || (c.created_at ? c.created_at.slice(5, 19).replace('T', ' ') : '-')) + '</span>' + '</td>' +
             '<td class="col-action"><a href="tel:' + esc(phoneVal) + '" style="display:inline-block;padding:3px 10px;background:linear-gradient(135deg,#07c160,#06ad56);color:#fff;border-radius:4px;text-decoration:none;font-size:12px;font-weight:700;">拨打</a></td>' +
           '</tr>';
         }).join('');
@@ -5767,7 +5771,8 @@ export const DIALER_HTML = `<!DOCTYPE html>
       customColumns: (function() {
         try {
           var saved = localStorage.getItem('crm_custom_columns');
-          return saved ? JSON.parse(saved) : [];
+          var parsed = saved ? JSON.parse(saved) : [];
+          return Array.isArray(parsed) ? parsed : [];
         } catch(e) { return []; }
       })()
     };
@@ -5837,6 +5842,8 @@ export const DIALER_HTML = `<!DOCTYPE html>
         html += '<th data-sort="custom_' + esc(col) + '" style="min-width: 100px; cursor: pointer;">' + esc(col) + ' <span class="sort-arrow">▲</span></th>';
       });
       html += '<th data-sort="company_name" style="min-width: 200px; cursor: pointer;">单位 <span class="sort-arrow">▲</span></th>' +
+        '<th data-sort="category" style="width: 100px; cursor: pointer;">分类 <span class="sort-arrow">▲</span></th>' +
+        '<th data-sort="created_at" style="width: 150px; cursor: pointer;">入库时间 <span class="sort-arrow">▲</span></th>' +
         '<th style="width: 100px; cursor: default;">操作</th>';
       headerRow.innerHTML = html;
       dbWireSortHeaders();
@@ -6092,14 +6099,15 @@ export const DIALER_HTML = `<!DOCTYPE html>
       if (batchFilter) url += '&batch_label=' + encodeURIComponent(batchFilter);
       if (DB.sortBy) url += '&sortBy=' + encodeURIComponent(DB.sortBy) + '&sortDir=' + DB.sortDir;
 
+      var colCount = 8 + (DB.customColumns || []).length;
       var tbody = document.getElementById('dbTbody');
-      if (tbody) tbody.innerHTML = '<tr><td colspan="6" class="db-loading">⏳ 数据加载中...</td></tr>';
+      if (tbody) tbody.innerHTML = '<tr><td colspan="' + colCount + '" class="db-loading">⏳ 数据加载中...</td></tr>';
       
       fetch(url)
         .then(function(r) { return r.json(); })
         .then(function(res) {
           if (res.error) {
-            if (tbody) tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;color:#e74c3c;">⚠ Supabase 查询出错: ' + esc(res.error) + '</td></tr>';
+            if (tbody) tbody.innerHTML = '<tr><td colspan="' + colCount + '" style="text-align:center;padding:40px;color:#e74c3c;">⚠ Supabase 查询出错: ' + esc(res.error) + '</td></tr>';
             return;
           }
           var rawData = res.data || [];
@@ -6117,7 +6125,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
           if (totalEl) totalEl.textContent = '共 ' + DB.total + ' 条';
         })
         .catch(function(err) {
-          if (tbody) tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;color:#e74c3c;">⚠ 数据加载失败: ' + esc(err.message) + '</td></tr>';
+          if (tbody) tbody.innerHTML = '<tr><td colspan="' + colCount + '" style="text-align:center;padding:40px;color:#e74c3c;">⚠ 数据加载失败: ' + esc(err.message) + '</td></tr>';
         });
     }
 
@@ -6202,6 +6210,24 @@ export const DIALER_HTML = `<!DOCTYPE html>
           customTds += '<td style="white-space: normal; min-width: 100px; word-break: break-all;">' + esc(val) + '</td>';
         });
 
+        var createdAtStr = '';
+        if (c.created_at) {
+          var dt = new Date(c.created_at);
+          if (!isNaN(dt.getTime())) {
+            var y = dt.getFullYear();
+            var m = String(dt.getMonth() + 1).padStart(2, '0');
+            var d = String(dt.getDate()).padStart(2, '0');
+            var hh = String(dt.getHours()).padStart(2, '0');
+            var mm = String(dt.getMinutes()).padStart(2, '0');
+            var ss = String(dt.getSeconds()).padStart(2, '0');
+            createdAtStr = y + '-' + m + '-' + d + ' ' + hh + ':' + mm + ':' + ss;
+          } else {
+            createdAtStr = c.created_at;
+          }
+        } else {
+          createdAtStr = '-';
+        }
+
         h += '<tr' + isTrSelected + ' data-mobile="' + esc(c.mobile || '') + '">' +
           '<td style="text-align: center; cursor: default;"><input type="checkbox" class="crm-row-select" data-mobile="' + esc(c.mobile) + '" data-name="' + esc(c.name || '') + '"' + isChecked + '></td>' +
           '<td>' +
@@ -6222,6 +6248,8 @@ export const DIALER_HTML = `<!DOCTYPE html>
           '<td style="white-space: normal; max-width: 300px; word-break: break-all;">' + noteDisplay + '</td>' +
           customTds +
           '<td style="white-space: normal;">' + esc(c.company_name || '-') + '</td>' +
+          '<td style="white-space: nowrap;">' + esc(cat || '未分类') + '</td>' +
+          '<td style="white-space: nowrap;">' + esc(createdAtStr) + '</td>' +
           '<td style="cursor: default;">' +
             '<a class="crm-action-link crm-btn-followup" data-mobile="' + esc(c.mobile) + '" data-note="' + esc(realNote || '') + '">新增跟进</a>' +
           '</td>' +
@@ -6346,8 +6374,13 @@ export const DIALER_HTML = `<!DOCTYPE html>
 
     function dbPager(filteredData) {
       var tp = Math.max(1, Math.ceil(DB.total / DB.pageSize));
-      var pageInfo = document.getElementById('dbPageInfo');
-      if (pageInfo) pageInfo.textContent = '第 ' + DB.page + ' / ' + tp + ' 页';
+      var pageInput = document.getElementById('dbPageInput');
+      var pageTotal = document.getElementById('dbPageTotal');
+      if (pageInput) {
+        pageInput.value = DB.page;
+        pageInput.max = tp;
+      }
+      if (pageTotal) pageTotal.textContent = tp;
       var p = document.getElementById('dbPrev');
       var n = document.getElementById('dbNext');
       if (p) p.disabled = (DB.page <= 1);
@@ -6457,6 +6490,32 @@ export const DIALER_HTML = `<!DOCTYPE html>
       var ps=document.getElementById('dbPageSize'); if(ps)ps.addEventListener('change',function(){DB.pageSize=parseInt(ps.value);DB.page=1;dbFetch();});
       var pr=document.getElementById('dbPrev'); if(pr)pr.addEventListener('click',function(){if(DB.page>1){DB.page--;dbFetch();}});
       var nx=document.getElementById('dbNext'); if(nx)nx.addEventListener('click',function(){var tp=Math.max(1,Math.ceil(DB.total/DB.pageSize));if(DB.page<tp){DB.page++;dbFetch();}});
+      
+      var pageInput = document.getElementById('dbPageInput');
+      if (pageInput) {
+        var triggerPageChange = function() {
+          var tp = Math.max(1, Math.ceil(DB.total / DB.pageSize));
+          var val = parseInt(pageInput.value);
+          if (isNaN(val) || val < 1) {
+            val = 1;
+          } else if (val > tp) {
+            val = tp;
+          }
+          if (val !== DB.page) {
+            DB.page = val;
+            dbFetch();
+          } else {
+            pageInput.value = DB.page;
+          }
+        };
+        pageInput.addEventListener('change', triggerPageChange);
+        pageInput.addEventListener('keydown', function(e) {
+          if (e.key === 'Enter') {
+            triggerPageChange();
+            pageInput.blur();
+          }
+        });
+      }
       
       // Select all checkbox wiring
       var selectAllCb = document.getElementById('crmSelectAll');
