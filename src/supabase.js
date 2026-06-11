@@ -346,11 +346,23 @@ export function createSupabaseClient(env) {
     if (!Array.isArray(customers) || customers.length === 0) return { count: 0 };
 
     const rows = customers.map(function(c) {
+      var noteVal = (c.note || '').trim();
+      var callNoteVal = (c.callNote || '').trim();
+      if (callNoteVal) {
+        var marker = '[通话小记] ' + callNoteVal;
+        if (!noteVal.includes(marker)) {
+          if (noteVal) {
+            noteVal += '\n' + marker;
+          } else {
+            noteVal = marker;
+          }
+        }
+      }
       return {
         name: (c.name || '').trim() || '未知姓名',
         mobile: (c.mobile || c.phone || '').trim(),
         company_name: (c.company || c.company_name || '').trim(),
-        note: (c.note || '').trim(),
+        note: noteVal,
         category: (c.category || '').trim(),
         batch_label: (c.batch_label || '').trim()
       };

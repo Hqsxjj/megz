@@ -1200,6 +1200,21 @@ export const DIALER_HTML = `<!DOCTYPE html>
               <span style="font-size: 0.68rem; color: var(--text-soft); font-weight: 800; white-space: nowrap;">🏷️ 批次标签</span>
               <input type="text" id="batchLabelInput" placeholder="如: 6月展会名单" value="" style="flex:1; height:28px; padding:0 8px; font-size:0.72rem; border:1px solid var(--card-border); border-radius:var(--radius-xs); background:var(--card-bg); color:var(--text-main); outline:none;">
             </div>
+            <div style="display: flex; gap: 6px; align-items: center; margin-top: 6px; width: 100%;">
+              <span style="font-size: 0.68rem; color: var(--text-soft); font-weight: 800; white-space: nowrap;">🗂️ 默认分类</span>
+              <select id="importCategorySelect" style="flex:1; height:28px; padding:0 8px; font-size:0.72rem; border:1px solid var(--card-border); border-radius:var(--radius-xs); background:var(--card-bg); color:var(--text-main); outline:none; cursor:pointer;">
+                <option value="待跟进" selected>待跟进</option>
+                <option value="潜在客户">潜在客户</option>
+                <option value="意向客户">意向客户</option>
+                <option value="已成交">已成交</option>
+                <option value="无效号码">无效号码</option>
+                <option value="老客户">老客户</option>
+                <option value="同行">同行</option>
+                <option value="其他">其他</option>
+                <option value="公海客户">公海客户</option>
+                <option value="未分类">未分类</option>
+              </select>
+            </div>
           </div>
 
           <!-- 2. SCANNING STATE -->
@@ -2573,6 +2588,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
       var compCol = parseInt(document.getElementById('aiSelCompany').value);
       var noteCol = parseInt(document.getElementById('aiSelNote').value);
       var batchLabel = (document.getElementById('batchLabelInput').value || '').trim();
+      var defaultCat = document.getElementById('importCategorySelect') ? document.getElementById('importCategorySelect').value : '待跟进';
 
       if (phoneCol === -1) {
         alert('请至少为电话选择一列进行导入！');
@@ -2602,11 +2618,13 @@ export const DIALER_HTML = `<!DOCTYPE html>
         parsedCustomers.push({
           name: nameVal || '未知姓名',
           phone: phoneVal,
+          mobile: phoneVal,
           company: companyVal,
           note: noteVal,
           dialedStatus: 'todo',
           duration: '',
           callNote: '',
+          category: defaultCat,
           batch_label: batchLabel
         });
       }
@@ -2630,9 +2648,14 @@ export const DIALER_HTML = `<!DOCTYPE html>
     function executeAIImportVcf() {
       if (!tempImportData || tempImportData.length === 0) return;
       var batchLabel = (document.getElementById('batchLabelInput').value || '').trim();
-      // Tag each client with the batch label
+      var defaultCat = document.getElementById('importCategorySelect') ? document.getElementById('importCategorySelect').value : '待跟进';
+      // Tag each client with the batch label and category
       for (var i = 0; i < tempImportData.length; i++) {
-        tempImportData[i].batch_label = batchLabel;
+        var c = tempImportData[i];
+        c.batch_label = batchLabel;
+        c.category = defaultCat;
+        c.mobile = c.mobile || c.phone;
+        c.phone = c.phone || c.mobile;
       }
       importedClients = tempImportData;
       saveState();
@@ -4464,9 +4487,14 @@ export const DIALER_HTML = `<!DOCTYPE html>
     function executeAIImportUnstructured() {
       if (!tempUnstructuredContacts || tempUnstructuredContacts.length === 0) return;
       var batchLabel = (document.getElementById('batchLabelInput').value || '').trim();
-      // Tag each client with the batch label
+      var defaultCat = document.getElementById('importCategorySelect') ? document.getElementById('importCategorySelect').value : '待跟进';
+      // Tag each client with the batch label and category
       for (var i = 0; i < tempUnstructuredContacts.length; i++) {
-        tempUnstructuredContacts[i].batch_label = batchLabel;
+        var c = tempUnstructuredContacts[i];
+        c.batch_label = batchLabel;
+        c.category = defaultCat;
+        c.mobile = c.mobile || c.phone;
+        c.phone = c.phone || c.mobile;
       }
       importedClients = tempUnstructuredContacts;
       saveState();
@@ -4700,7 +4728,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
             matchQuery = !isCompanyInWhitelist;
           } else {
             matchQuery = c.name.toLowerCase().includes(query) || 
-                         c.phone.toLowerCase().includes(query) || 
+                         (c.phone || c.mobile || '').toLowerCase().includes(query) || 
                          c.company.toLowerCase().includes(query);
           }
         }
@@ -4804,17 +4832,18 @@ export const DIALER_HTML = `<!DOCTYPE html>
 
           var badgeHtml = '<span class="xls-dial-badge xls-dial-badge-todo">待拨打</span>';
           var cardClass = 'xls-dial-card';
+          var phoneVal = c.phone || c.mobile || '';
           if (c.dialedStatus === 'success') {
             badgeHtml = '<span class="xls-dial-badge xls-dial-badge-success">已接通 (' + (c.duration || '00:00') + ')</span>';
             cardClass += ' dialed';
-            if (c.phone) {
-              badgeHtml += ' <button class="rec-play-btn" data-phone="' + esc(c.phone) + '" title="播放通话录音" style="font-size:0.6rem;padding:1px 6px;border:1px solid #07c160;background:rgba(7,193,96,0.08);color:#07c160;border-radius:3px;cursor:pointer;font-weight:700;margin-left:4px;" onclick="event.stopPropagation();var p=this.dataset.phone;var a=document.createElement(\\x27audio\\x27);a.controls=true;a.style.width=\\x27100%\\x27;a.style.height=\\x2728px\\x27;a.style.marginTop=\\x274px\\x27;var w=this.nextElementSibling;if(w&&w.classList.contains(\\x27rec-audio-wrap\\x27)){w.remove();return;}var d=document.createElement(\\x27div\\x27);d.className=\\x27rec-audio-wrap\\x27;d.style.width=\\x27100%\\x27;d.appendChild(a);this.parentElement.appendChild(d);a.src=\\x27/api/local-recording?phone=\\x27+encodeURIComponent(p);a.play().catch(function(){});">▶ 录音</button>';
+            if (phoneVal) {
+              badgeHtml += ' <button class="rec-play-btn" data-phone="' + esc(phoneVal) + '" title="播放通话录音" style="font-size:0.6rem;padding:1px 6px;border:1px solid #07c160;background:rgba(7,193,96,0.08);color:#07c160;border-radius:3px;cursor:pointer;font-weight:700;margin-left:4px;" onclick="event.stopPropagation();var p=this.dataset.phone;var a=document.createElement(\\x27audio\\x27);a.controls=true;a.style.width=\\x27100%\\x27;a.style.height=\\x2728px\\x27;a.style.marginTop=\\x274px\\x27;var w=this.nextElementSibling;if(w&&w.classList.contains(\\x27rec-audio-wrap\\x27)){w.remove();return;}var d=document.createElement(\\x27div\\x27);d.className=\\x27rec-audio-wrap\\x27;d.style.width=\\x27100%\\x27;d.appendChild(a);this.parentElement.appendChild(d);a.src=\\x27/api/local-recording?phone=\\x27+encodeURIComponent(p);a.play().catch(function(){});">▶ 录音</button>';
             }
           } else if (c.dialedStatus === 'failed') {
             badgeHtml = '<span class="xls-dial-badge xls-dial-badge-failed">未接通</span>';
             cardClass += ' dialed';
-            if (c.phone) {
-              badgeHtml += ' <button class="rec-play-btn" data-phone="' + esc(c.phone) + '" title="播放通话录音" style="font-size:0.6rem;padding:1px 6px;border:1px solid #e67e22;background:rgba(245,124,0,0.08);color:#e67e22;border-radius:3px;cursor:pointer;font-weight:700;margin-left:4px;" onclick="event.stopPropagation();var p=this.dataset.phone;var a=document.createElement(\\x27audio\\x27);a.controls=true;a.style.width=\\x27100%\\x27;a.style.height=\\x2728px\\x27;a.style.marginTop=\\x274px\\x27;var w=this.nextElementSibling;if(w&&w.classList.contains(\\x27rec-audio-wrap\\x27)){w.remove();return;}var d=document.createElement(\\x27div\\x27);d.className=\\x27rec-audio-wrap\\x27;d.style.width=\\x27100%\\x27;d.appendChild(a);this.parentElement.appendChild(d);a.src=\\x27/api/local-recording?phone=\\x27+encodeURIComponent(p);a.play().catch(function(){});">▶ 录音</button>';
+            if (phoneVal) {
+              badgeHtml += ' <button class="rec-play-btn" data-phone="' + esc(phoneVal) + '" title="播放通话录音" style="font-size:0.6rem;padding:1px 6px;border:1px solid #e67e22;background:rgba(245,124,0,0.08);color:#e67e22;border-radius:3px;cursor:pointer;font-weight:700;margin-left:4px;" onclick="event.stopPropagation();var p=this.dataset.phone;var a=document.createElement(\\x27audio\\x27);a.controls=true;a.style.width=\\x27100%\\x27;a.style.height=\\x2728px\\x27;a.style.marginTop=\\x274px\\x27;var w=this.nextElementSibling;if(w&&w.classList.contains(\\x27rec-audio-wrap\\x27)){w.remove();return;}var d=document.createElement(\\x27div\\x27);d.className=\\x27rec-audio-wrap\\x27;d.style.width=\\x27100%\\x27;d.appendChild(a);this.parentElement.appendChild(d);a.src=\\x27/api/local-recording?phone=\\x27+encodeURIComponent(p);a.play().catch(function(){});">▶ 录音</button>';
             }
           }
 
@@ -4825,7 +4854,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
               '<div class="client-card-primary" style="display: flex; align-items: center; width: 100%; gap: 6px;">' +
                 '<span class="client-card-name-btn" data-name="' + esc(c.name) + '" data-idx="' + i + '" title="点击复制姓名" style="flex: 0 0 62px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block;">' + esc(c.name) + '</span>' +
                 '<span class="client-card-phone-wrap" style="flex: 0 0 110px; display: inline-flex; align-items: center;">' +
-                  '<span class="' + phoneClass + '" data-phone="' + esc(c.phone) + '" data-idx="' + i + '" title="点击复制号码" style="font-size: 0.82rem;">' + esc(c.phone) + '</span>' +
+                  '<span class="' + phoneClass + '" data-phone="' + esc(phoneVal) + '" data-idx="' + i + '" title="点击复制号码" style="font-size: 0.82rem;">' + esc(phoneVal) + '</span>' +
                 '</span>' +
                 '<div style="margin-left: auto; display: inline-flex; align-items: center; justify-content: flex-end; flex-shrink: 0;">' +
                   badgeHtml +
@@ -4862,18 +4891,18 @@ export const DIALER_HTML = `<!DOCTYPE html>
                   '<span class="client-card-text" style="color:var(--accent-wechat);">' + esc(c.callNote) + '</span>' +
                 '</div>' +
               '</div>' : '') +
-            (typeof AndroidDialer !== 'undefined' && AndroidDialer.hasRecording(c.phone) ? 
+            (typeof AndroidDialer !== 'undefined' && AndroidDialer.hasRecording(phoneVal) ? 
               '<div class="client-card-body" style="margin-top: 4px;">' +
                 '<div class="client-card-content-block" style="background:rgba(9,187,7,0.03); border-left:3px solid var(--accent-wechat); padding: 6px 8px; border-radius: 0 var(--radius-xs) var(--radius-xs) 0;">' +
                   '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px;">' +
                     '<span class="client-card-label" style="color:var(--accent-wechat); font-weight:800; font-size:0.65rem;">通话录音</span>' +
                     '<span style="font-size:0.6rem; color:var(--accent-wechat); font-weight:bold;">[本地录音就绪]</span>' +
                   '</div>' +
-                  '<audio src="/api/local-recording?phone=' + encodeURIComponent(c.phone) + '" controls style="width: 100%; height: 32px; outline: none; margin-top: 4px; display: block;"></audio>' +
+                  '<audio src="/api/local-recording?phone=' + encodeURIComponent(phoneVal) + '" controls style="width: 100%; height: 32px; outline: none; margin-top: 4px; display: block;"></audio>' +
                 '</div>' +
               '</div>' : '') +
             '<div class="client-card-actions">' +
-              '<a href="tel:' + esc(c.phone) + '" class="btn-primary xls-card-dial-btn" data-idx="' + i + '" style="font-size:0.75rem;padding:2px 12px;height:28px;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;">拨打</a>' +
+              '<a href="tel:' + esc(phoneVal) + '" class="btn-primary xls-card-dial-btn" data-idx="' + i + '" style="font-size:0.75rem;padding:2px 12px;height:28px;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;">拨打</a>' +
             '</div>' +
           '</div>';
         }).join('');
@@ -5022,15 +5051,16 @@ export const DIALER_HTML = `<!DOCTYPE html>
             }
           }
 
+          var phoneVal = c.phone || c.mobile || '';
           return '<tr class="' + rowClass + '" data-idx="' + idx + '">' +
             '<td class="col-no">' + rowNo + '</td>' +
             '<td class="col-status">' + badgeHtml + '</td>' +
             '<td class="col-name"><span class="crm-copy-btn" data-copy="' + esc(c.name||'') + '" title="点击复制">' + esc(c.name||'-') + '</span></td>' +
-            '<td class="col-phone"><span class="crm-copy-btn" data-copy="' + esc(c.phone||'') + '" title="点击复制">' + esc(c.phone||'-') + '</span></td>' +
+            '<td class="col-phone"><span class="crm-copy-btn" data-copy="' + esc(phoneVal) + '" title="点击复制">' + esc(phoneVal || '-') + '</span></td>' +
             '<td class="col-company"><span class="crm-copy-btn" data-copy="' + esc(c.company||'') + '">' + esc(c.company||'-') + '</span>' + wlBadge + '</td>' +
             '<td class="col-note">' + esc(c.note||'-') + '</td>' +
             '<td class="col-batch">' + '<span style="font-size:11px;background:rgba(74,108,247,0.08);color:#4a6cf7;padding:1px 6px;border-radius:3px;">' + (c.batch_label || (c.created_at ? c.created_at.slice(5,16).replace('T',' ') : '-')) + '</span>' + '</td>' +
-            '<td class="col-action"><a href="tel:' + esc(c.phone) + '" style="display:inline-block;padding:3px 10px;background:linear-gradient(135deg,#07c160,#06ad56);color:#fff;border-radius:4px;text-decoration:none;font-size:12px;font-weight:700;">拨打</a></td>' +
+            '<td class="col-action"><a href="tel:' + esc(phoneVal) + '" style="display:inline-block;padding:3px 10px;background:linear-gradient(135deg,#07c160,#06ad56);color:#fff;border-radius:4px;text-decoration:none;font-size:12px;font-weight:700;">拨打</a></td>' +
           '</tr>';
         }).join('');
 
@@ -5099,10 +5129,11 @@ export const DIALER_HTML = `<!DOCTYPE html>
 
       currentCallIdx = idx;
 
+      var phoneVal = c.phone || c.mobile || '';
       document.getElementById('callAssistName').innerText = c.name;
       document.getElementById('callAssistNameDisplay').innerText = c.name;
-      document.getElementById('callAssistPhone').innerText = c.phone;
-      document.getElementById('callAssistPhoneDisplay').innerText = c.phone;
+      document.getElementById('callAssistPhone').innerText = phoneVal;
+      document.getElementById('callAssistPhoneDisplay').innerText = phoneVal;
       document.getElementById('callLogNote').value = c.callNote || '';
 
       // Show company info if available
@@ -5135,8 +5166,9 @@ export const DIALER_HTML = `<!DOCTYPE html>
         nameDisp.dataset.name = c.name;
       }
       var phoneDisp = document.getElementById('callAssistPhoneDisplay');
+      var phoneVal = c.phone || c.mobile || '';
       if (phoneDisp) {
-        phoneDisp.dataset.phone = c.phone;
+        phoneDisp.dataset.phone = phoneVal;
         if (c.copied) {
           phoneDisp.classList.add('copied');
         } else {
@@ -5146,16 +5178,16 @@ export const DIALER_HTML = `<!DOCTYPE html>
 
       var dialLink = document.getElementById('callAssistDialLink');
       if (dialLink) {
-        dialLink.href = 'tel:' + c.phone;
+        dialLink.href = 'tel:' + phoneVal;
       }
 
       // Check and render local recording file if available
       var recContainer = document.getElementById('callAssistRecContainer');
       var audioWrapper = document.getElementById('callAssistAudioWrapper');
       if (recContainer && audioWrapper) {
-        var hasRec = (typeof AndroidDialer !== 'undefined' && AndroidDialer.hasRecording(c.phone));
+        var hasRec = (typeof AndroidDialer !== 'undefined' && AndroidDialer.hasRecording(phoneVal));
         if (hasRec) {
-          audioWrapper.innerHTML = '<audio src="/api/local-recording?phone=' + encodeURIComponent(c.phone) + '" controls style="width: 100%; height: 32px; outline: none; margin-top: 4px; display: block;"></audio>';
+          audioWrapper.innerHTML = '<audio src="/api/local-recording?phone=' + encodeURIComponent(phoneVal) + '" controls style="width: 100%; height: 32px; outline: none; margin-top: 4px; display: block;"></audio>';
           recContainer.style.display = 'flex';
         } else {
           audioWrapper.innerHTML = '';
@@ -5195,9 +5227,10 @@ export const DIALER_HTML = `<!DOCTYPE html>
             var recContainer = document.getElementById('callAssistRecContainer');
             var audioWrapper = document.getElementById('callAssistAudioWrapper');
             if (recContainer && audioWrapper) {
-              var hasRec = (typeof AndroidDialer !== 'undefined' && AndroidDialer.hasRecording(c.phone));
+              var phoneVal = c.phone || c.mobile || '';
+              var hasRec = (typeof AndroidDialer !== 'undefined' && AndroidDialer.hasRecording(phoneVal));
               if (hasRec) {
-                audioWrapper.innerHTML = '<audio src="/api/local-recording?phone=' + encodeURIComponent(c.phone) + '" controls style="width: 100%; height: 32px; outline: none; margin-top: 4px; display: block;"></audio>';
+                audioWrapper.innerHTML = '<audio src="/api/local-recording?phone=' + encodeURIComponent(phoneVal) + '" controls style="width: 100%; height: 32px; outline: none; margin-top: 4px; display: block;"></audio>';
                 recContainer.style.display = 'flex';
               }
             }
@@ -6181,10 +6214,11 @@ export const DIALER_HTML = `<!DOCTYPE html>
           selectedMobiles.forEach(function(m) {
             var clientData = DB.allData.find(function(c) { return c.mobile === m; });
             if (clientData) {
-              var exists = importedClients.some(function(ic) { return ic.mobile === m; });
+              var exists = importedClients.some(function(ic) { return (ic.mobile || ic.phone) === m; });
               if (!exists) {
                 importedClients.push({
                   name: clientData.name || '未知',
+                  phone: clientData.mobile,
                   mobile: clientData.mobile,
                   company: clientData.company_name || '',
                   note: clientData.note || '',
@@ -6259,10 +6293,11 @@ export const DIALER_HTML = `<!DOCTYPE html>
               dbClients.forEach(function(c) {
                 var m = c.mobile;
                 if (!m) return;
-                var exists = importedClients.some(function(ic) { return ic.mobile === m; });
+                var exists = importedClients.some(function(ic) { return (ic.mobile || ic.phone) === m; });
                 if (!exists) {
                   importedClients.push({
                     name: c.name || '未知',
+                    phone: c.mobile,
                     mobile: c.mobile,
                     company: c.company_name || '',
                     note: c.note || '',
