@@ -5799,7 +5799,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
               var baseNote = obj.note !== undefined ? obj.note : '';
               parsed.custom = obj.custom || {};
               if (textPart) {
-                parsed.note = baseNote ? baseNote + '\n' + textPart : textPart;
+                parsed.note = baseNote ? baseNote + '\\n' + textPart : textPart;
               } else {
                 parsed.note = baseNote;
               }
@@ -6121,48 +6121,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
         });
     }
 
-    // CRM 数据复合过滤器 (AND 关系)
-    function crmFilterData(data) {
-      var filtered = data || [];
-      
-      // 1. 快捷按钮筛选 (activeShortcut)
-      if (DB.activeShortcut && DB.activeShortcut !== 'all') {
-        if (DB.activeShortcut === 'today') {
-          var todayStr = new Date().toISOString().slice(0, 10);
-          filtered = filtered.filter(function(c) {
-            return c.created_at && c.created_at.slice(0, 10) === todayStr;
-          });
-        } else if (DB.activeShortcut === 'never') {
-          filtered = filtered.filter(function(c) {
-            return (!c.note || c.note.trim() === '') && (!c.fund || c.fund.trim() === '');
-          });
-        } else if (DB.activeShortcut === '3days') {
-          var threeDaysAgo = Date.now() - 3 * 24 * 60 * 60 * 1000;
-          filtered = filtered.filter(function(c) {
-            return c.created_at && new Date(c.created_at).getTime() < threeDaysAgo;
-          });
-        }
-      }
 
-      // 2. 多维度搜索表单筛选 (AND 关系)
-      var nameF = document.getElementById('dbNameSearch') ? document.getElementById('dbNameSearch').value.trim().toLowerCase() : '';
-      var phoneF = document.getElementById('dbPhoneSearch') ? document.getElementById('dbPhoneSearch').value.trim().toLowerCase() : '';
-      var noteF = document.getElementById('dbNoteSearch') ? document.getElementById('dbNoteSearch').value.trim().toLowerCase() : '';
-
-      if (nameF) {
-        filtered = filtered.filter(function(c) { return (c.name || '').toLowerCase().includes(nameF); });
-      }
-      if (phoneF) {
-        filtered = filtered.filter(function(c) { return (c.mobile || '').toLowerCase().includes(phoneF); });
-      }
-      if (noteF) {
-        filtered = filtered.filter(function(c) {
-          return (c.note || '').toLowerCase().includes(noteF) || (c.fund || '').toLowerCase().includes(noteF);
-        });
-      }
-
-      return filtered;
-    }
 
     // 统计状态栏更新
     function crmUpdateBadgeCounts(data) {
