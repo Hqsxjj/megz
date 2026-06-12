@@ -7416,7 +7416,67 @@ const rid=Math.floor(Math.random()*1000);
             line = line.trim();
             if (!line) return;
 
-            // 1. Try to find if there is a JSON object on this line
+            // 1. Try to parse as Markdown table row
+            if (line.includes('|')) {
+              var cols = line.split('|').map(function(x) { return x.trim(); });
+              // Remove empty elements from ends if it starts/ends with |
+              if (cols[0] === '') cols.shift();
+              if (cols[cols.length - 1] === '') cols.pop();
+
+              var phoneCol = -1;
+              for (var ci = 0; ci < cols.length; ci++) {
+                if (phoneRe.test(cols[ci])) {
+                  phoneCol = ci;
+                  break;
+                }
+              }
+
+              if (phoneCol >= 0) {
+                var phoneMatch = cols[phoneCol].match(phoneRe);
+                var phone = phoneMatch ? phoneMatch[0] : '';
+                if (phone && !seenPhones[phone]) {
+                  seenPhones[phone] = true;
+                  
+                  var name = '';
+                  if (phoneCol > 0) {
+                    name = cols[phoneCol - 1].replace(/^[新旧听一]+[\s\-\|]*/, '').trim();
+                  }
+
+                  var fund = '';
+                  var company = '';
+                  var note = '';
+
+                  if (cols.length > phoneCol + 1) {
+                    var val1 = cols[phoneCol + 1];
+                    if (/^\d{4,6}$/.test(val1)) {
+                      fund = val1;
+                    } else if (val1 && !/^(新增跟进|已拨|正常号|空号|停机|无法接通|挂断|意向|备注)/.test(val1) && val1 !== '---') {
+                      company = val1;
+                    }
+                  }
+                  if (cols.length > phoneCol + 2) {
+                    var val2 = cols[phoneCol + 2];
+                    if (!company && val2 && !/^(新增跟进|已拨|正常号|空号|停机|无法接通|挂断|意向|备注)/.test(val2) && val2 !== '---') {
+                      company = val2;
+                    } else if (val2 && val2 !== '---') {
+                      note = val2;
+                    }
+                  }
+                  if (cols.length > phoneCol + 3) {
+                    var val3 = cols[phoneCol + 3];
+                    if (val3 && val3 !== '---') {
+                      note = (note ? note + ' ' : '') + val3;
+                    }
+                  }
+
+                  company = company.replace(/\s*(新增跟进|已拨|正常号|空号|停机|无法接通|挂断|意向|备注).*$/, '').trim();
+                  extractedContacts.push({ name: name, phone: phone, company: company, fund: fund, note: note.trim() });
+                  return; // Skip rest of loop for this line
+                }
+              }
+            }
+
+            // 2. Try to find if there is a JSON object on this line
             var lineObj = null;
             var jsonMatch = line.match(/\{[\s\S]*?\}/);
             if (jsonMatch) {
@@ -7439,7 +7499,7 @@ const rid=Math.floor(Math.random()*1000);
               }
             }
 
-            // 2. Regular Regex Fallback if no JSON found on this line
+            // 3. Regular Regex Fallback if no JSON / Markdown table found on this line
             var phones = line.match(phoneRe);
             if (!phones) return;
             phones.forEach(function(phone) {
