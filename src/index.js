@@ -7308,8 +7308,30 @@ const rid=Math.floor(Math.random()*1000);
           }
 
           const systemText = ocrMode === 'bulk'
-            ? '你是一个精确的信息提取助手。请逐行逐条识别这张图片中的所有联系人信息，每一条独立判断，不要因为大部分行有某个字段就假设所有行都一样。\n\n图片可能是：微信聊天截图、通讯录截图、表格、名片、文字列表等。\n\n提取规则（逐条独立）：\n1. 姓名(name)：中文2-4个字。注意！左上角、角落、小字中的单个字（如"新""急""重"）不要忽略，可能是姓名的一部分或重要标注。\n2. 电话(phone)：手机号11位（1开头）或座机号。\n3. 公积金/金额(fund)：电话号码和公司名之间的数字，通常是4-6位纯数字（如27501、9660、24100），代表公积金缴存额。如果该行有这样的数字，务必提取到fund字段。\n4. 公司/单位(company)：仅当该联系人附近明确有公司名时才填写，没有就留空。\n5. 备注(note)：该联系人旁的其他信息（职位、地址等），没有就留空。\n\n关键原则：\n- 逐条独立判断！\n- 图片每一个角落的文字都要看。\n- phone或name至少有一个即可收录。\n- rawText中逐行转录图片完整文字，保留原始排版。\n\n输出纯JSON（禁止markdown代码块包裹）：\n{\n  "contacts": [\n    {"name": "张三", "phone": "13800138000", "fund": "27501", "company": "某某科技", "note": ""},\n    {"name": "", "phone": "13912345678", "fund": "9660", "company": "", "note": ""}\n  ],\n  "rawText": "逐行完整转录..."\n}'
-            : '你是一个OCR助手。请识别这张客户信息截图，提取以下字段：\n\n- name: 客户姓名（2-4个汉字）\n- phone: 电话号码（11位数字手机号）\n- company: 工作单位/公司名称\n- fund: 公积金信息\n- note: 备注/沟通记录\n\n如某字段无法识别则为空字符串。\n\n输出纯JSON（禁止markdown代码块）：\n{"name":"姓名","phone":"13800138000","company":"单位名","fund":"","note":"备注内容"}';
+            ? '你是一个精确定位并提取表格中所有联系人信息的OCR助手。请仔细观察图片，逐行逐条识别提取联系人信息，每一条独立判断，不可遗漏任何一行。\n\n' +
+              '【字段提取规则】：\n' +
+              '1. 姓名 (name)：通常是1-4个汉字。特别注意：在一些表格中，第一列可能仅有单个汉字的姓氏（如“温”、“朱”、“刘”、“张”等），请务必将其提取为 name。如果姓氏的左上角有蓝色图标污染（例如带有“听”或“新”字的圆形/三角形小图标），这是系统图标，绝对不是姓名的一部分，请务必剔除它，只保留纯姓氏（如“温”、“朱”）。\n' +
+              '2. 电话 (phone)：11位手机号（以1开头）。\n' +
+              '3. 公积金/金额 (fund)：电话号码和公司名称之间的纯数字列（通常是4-6位数字，如27501、9660、24100），请提取到 fund 字段。\n' +
+              '4. 公司/单位 (company)：请提取完整的公司或单位名称。特别注意：只提取纯粹的公司/单位名称（如“xxx有限公司”、“xxx实验室”等），绝对不要包含任何额外的动作或备注（如“已拨”、“新增跟进”、“挂断”、“正常号”等污染内容）。如果不存在公司名称，则设为空字符串 ""。\n' +
+              '5. 备注 (note)：提取公司名称旁边的其他额外备注信息，如果没有则留空。\n\n' +
+              '【输出格式】：\n' +
+              '请直接输出包含 contacts 列表和 rawText 的纯 JSON 格式（不要用 markdown 格式包裹，不要包含任何前导或后继的非 JSON 字符）：\n' +
+              '{\n' +
+              '  "contacts": [\n' +
+              '    {"name": "姓名", "phone": "13800000000", "fund": "27501", "company": "某某公司", "note": "备注"}\n' +
+              '  ],\n' +
+              '  "rawText": "这里逐行完整转录图片的全部原始文本"\n' +
+              '}'
+            : '你是一个OCR助手。请识别这张客户信息截图，提取以下字段：\n\n' +
+              '- name: 客户姓名（1-4个汉字，注意去除任何系统小图标如“听”、“新”的字面污染）\n' +
+              '- phone: 电话号码（11位数字手机号）\n' +
+              '- company: 工作单位/公司名称（只保留纯粹的单位/公司全称，剔除已拨、跟进等备注词）\n' +
+              '- fund: 公积金信息（4-6位纯数字）\n' +
+              '- note: 备注/沟通记录\n\n' +
+              '如某字段无法识别则为空字符串。\n\n' +
+              '输出纯JSON（禁止markdown代码块）：\n' +
+              '{"name":"姓名","phone":"13800000000","company":"单位名","fund":"","note":"备注内容"}';
 
           const base64Data = imageBase64.split(',')[1] || imageBase64;
           const imageBytes = [...new Uint8Array(Buffer.from(base64Data, 'base64'))];
@@ -7337,27 +7359,41 @@ const rid=Math.floor(Math.random()*1000);
           parsed = JSON.parse(content);
         } catch (e) {
           // 尝试提取 JSON
-          const jsonMatch = content.match(/\{[\s\S]*\}/);
+          const jsonMatch = content.match(/\[[\s\S]*\]/) || content.match(/\{[\s\S]*\}/);
           if (jsonMatch) {
             try { parsed = JSON.parse(jsonMatch[0]); } catch(e2) {}
           }
-          // JSON 解析失败 — 把原始内容当作 rawText 返回
-          if (!parsed) {
-            parsed = { rawText: content, contacts: [] };
-          }
+        }
+
+        if (!parsed) {
+          parsed = { rawText: content, contacts: [] };
+        } else if (Array.isArray(parsed)) {
+          parsed = { contacts: parsed, rawText: content };
+        } else if (parsed.contacts) {
+          parsed.rawText = parsed.rawText || content;
+        } else {
+          parsed.contacts = [];
+          parsed.rawText = content;
         }
 
         if (ocrMode === 'bulk') {
           var rawText = parsed.rawText || '';
           if (parsed.contacts && parsed.contacts.length > 0) {
-            var cleanedContacts = parsed.contacts.filter(function(c) { return c && c.phone; }).map(function(c) {
-              return {
-                name: (c.name || '').replace(/^[新旧]\s*/, '').trim(),
-                phone: (c.phone || '').replace(/\s+/g, '').trim(),
-                company: (c.company || '').trim(),
-                note: (c.note || '').trim()
-              };
-            });
+            var cleanedContacts = parsed.contacts.map(function(c) {
+              if (!c) return null;
+              var name = (c.name || '').toString().trim();
+              name = name.replace(/^[新旧听一]+[\s\-\|]*/, '').trim();
+
+              var phone = (c.phone || '').toString().replace(/\s+/g, '').trim();
+              var company = (c.company || '').toString().trim();
+              company = company.replace(/\s*(新增跟进|已拨|正常号|空号|停机|无法接通|挂断|意向|备注).*$/, '').trim();
+
+              var note = (c.note || '').toString().trim();
+              var fund = (c.fund || '').toString().trim();
+
+              return { name: name, phone: phone, company: company, fund: fund, note: note };
+            }).filter(function(c) { return c && (c.phone || c.name); });
+
             if (cleanedContacts.length > 0) {
               return new Response(JSON.stringify({
                 contacts: cleanedContacts,
@@ -7379,13 +7415,38 @@ const rid=Math.floor(Math.random()*1000);
           lines.forEach(function(line, lineIdx) {
             line = line.trim();
             if (!line) return;
+
+            // 1. Try to find if there is a JSON object on this line
+            var lineObj = null;
+            var jsonMatch = line.match(/\{[\s\S]*?\}/);
+            if (jsonMatch) {
+              try {
+                lineObj = JSON.parse(jsonMatch[0]);
+              } catch (e) {}
+            }
+
+            if (lineObj && (lineObj.phone || lineObj.name)) {
+              var phone = (lineObj.phone || '').toString().replace(/\s+/g, '').trim();
+              if (phone && !seenPhones[phone]) {
+                seenPhones[phone] = true;
+                var name = (lineObj.name || '').toString().replace(/^[新旧听一]+[\s\-\|]*/, '').trim();
+                var company = (lineObj.company || '').toString().trim();
+                company = company.replace(/\s*(新增跟进|已拨|正常号|空号|停机|无法接通|挂断|意向|备注).*$/, '').trim();
+                var note = (lineObj.note || '').toString().trim();
+                var fund = (lineObj.fund || '').toString().trim();
+                extractedContacts.push({ name: name, phone: phone, company: company, fund: fund, note: note });
+                return;
+              }
+            }
+
+            // 2. Regular Regex Fallback if no JSON found on this line
             var phones = line.match(phoneRe);
             if (!phones) return;
             phones.forEach(function(phone) {
               if (seenPhones[phone]) return;
               seenPhones[phone] = true;
 
-              var name = '', company = '', note = '';
+              var name = '', company = '', note = '', fund = '';
               var cols = line.split(/\t/);
               if (cols.length >= 3) {
                 // Tab-separated: find phone column
@@ -7394,29 +7455,43 @@ const rid=Math.floor(Math.random()*1000);
                   if (cols[ci].includes(phone)) { phoneCol = ci; break; }
                 }
                 if (phoneCol >= 0) {
-                  if (phoneCol > 0) name = cols[phoneCol - 1].replace(/^[新旧]\s*/, '').trim();
+                  if (phoneCol > 0) name = cols[phoneCol - 1].replace(/^[新旧听一]+[\s\-\|]*/, '').trim();
                   // Find first non-numeric, non-action column after phone
                   for (var ci2 = phoneCol + 1; ci2 < cols.length; ci2++) {
                     var val = cols[ci2].trim();
-                    if (val && !/^[\d.]+$/.test(val) && val !== '新增跟进' && val !== '已拨') {
+                    if (val && !/^[\d.]+$/.test(val) && !/^(新增跟进|已拨|正常号|空号|停机|无法接通|挂断|意向|备注)/.test(val)) {
                       company = val; break;
                     }
                   }
+                  // Find fund (check if there is a number column between phone and company)
+                  for (var ci3 = phoneCol + 1; ci3 < cols.length; ci3++) {
+                    var val = cols[ci3].trim();
+                    if (/^\d{4,6}$/.test(val)) {
+                      fund = val; break;
+                    }
+                  }
                   note = cols.filter(function(x, i) {
-                    return i > phoneCol && x.trim() && !/^[\d.]+$/.test(x.trim()) && x.trim() !== '新增跟进' && x.trim() !== company;
+                    return i > phoneCol && x.trim() && !/^[\d.]+$/.test(x.trim()) && !/^(新增跟进|已拨|正常号|空号|停机|无法接通|挂断|意向|备注)/.test(x.trim()) && x.trim() !== company;
                   }).join(' ').trim();
                 }
               } else {
                 // Space-separated fallback
                 var before = line.substring(0, line.indexOf(phone));
                 var nm = before.match(/([一-龥]{1,4})\s*$/);
-                if (nm) name = nm[1].replace(/^[新旧]\s*/, '');
+                if (nm) name = nm[1].replace(/^[新旧听一]+[\s\-\|]*/, '');
                 var after = line.substring(line.indexOf(phone) + phone.length).trim();
-                company = after.replace(/[\d.]+[\d\s]*$/g, '').replace(/\s*(新增跟进|已拨|正常号|空号|停机|无法接通).*$/, '').trim();
+                company = after.replace(/[\d.]+[\d\s]*$/g, '').replace(/\s*(新增跟进|已拨|正常号|空号|停机|无法接通|挂断|意向|备注).*$/, '').trim();
                 var nums = after.match(/[\d.]+/g);
                 note = nums ? nums.join(' ') : '';
                 if (note && company.indexOf(note) === 0) {
                   company = company.substring(note.length).trim();
+                }
+                if (nums) {
+                  nums.forEach(function(num) {
+                    if (/^\d{4,6}$/.test(num)) {
+                      fund = num;
+                    }
+                  });
                 }
 
                 // Vertical layout fallback
@@ -7425,7 +7500,7 @@ const rid=Math.floor(Math.random()*1000);
                     var prevLine = lines[lineIdx - 1].trim();
                     if (prevLine && !prevLine.match(phoneRe) && prevLine.length <= 8) {
                       if (!/电话|手机|号码|备注|意向|跟进|记录|挂断|接通|已接通|未接通|无效|全部|已拨|总数|待拨/i.test(prevLine)) {
-                        name = prevLine.replace(/^[新旧]\s*/, '');
+                        name = prevLine.replace(/^[新旧听一]+[\s\-\|]*/, '');
                       }
                     }
                   }
@@ -7440,7 +7515,11 @@ const rid=Math.floor(Math.random()*1000);
                 }
               }
 
-              extractedContacts.push({ name: name, phone: phone, company: company, note: note });
+              // Clean name and company once more
+              name = name.replace(/^[新旧听一]+[\s\-\|]*/, '').trim();
+              company = company.replace(/\s*(新增跟进|已拨|正常号|空号|停机|无法接通|挂断|意向|备注).*$/, '').trim();
+
+              extractedContacts.push({ name: name, phone: phone, company: company, fund: fund, note: note });
             });
           });
 
