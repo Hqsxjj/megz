@@ -3485,13 +3485,18 @@ export default {
       </details>
 
       <details style="margin-top:10px; border:1px dashed var(--card-border); border-radius:var(--radius-xs); padding:8px; background:rgba(120,120,120,0.02);">
-        <summary style="font-size:0.75rem; color:var(--text-soft); cursor:pointer; font-weight:700; outline:none; user-select:none;">👁️ Cloudflare Workers AI 图片识别</summary>
+        <summary style="font-size:0.75rem; color:var(--text-soft); cursor:pointer; font-weight:700; outline:none; user-select:none;">👁️ Gemini Vision 图片识别 (推荐)</summary>
         <div style="display:flex; flex-direction:column; gap:6px; margin-top:8px;">
           <div style="font-size:0.7rem; color:var(--text-soft); line-height:1.4;">
-            🤖 系统已自动启用 Cloudflare Workers AI 原生视觉模型（Llama 3.2 11B Vision）。
-            边缘计算原生推理，<strong>无需配置任何 API Key 与地址</strong>，开箱即用。
+            🚀 Gemini 2.0 Flash 中文 OCR 效果最佳。免费获取 Key: <a href="https://aistudio.google.com/apikey" target="_blank" style="color:#4285f4;font-weight:700;">aistudio.google.com/apikey</a><br>
+            支持多个 Key 逗号分隔（绕开单 Key 限流）。未配置则自动回退到 Workers AI (Kimi/Llama)。
           </div>
-          <button id="testVisionBtn" class="btn-add" style="font-size:0.7rem; height:28px; margin:4px 0 0 0; background:linear-gradient(135deg,#36d1dc,#5b86e5); color:white; border:none; width:100%; font-weight:700;">🔍 测试 Workers AI 连接</button>
+          <input type="password" class="input-simple" id="visionApiKeyInput" placeholder="Gemini API Key (支持逗号分隔多个key)" style="font-size:0.7rem; height:28px; padding:0 8px;">
+          <input type="text" class="input-simple" id="visionApiBaseInput" placeholder="API Base (可选，默认 Gemini 官方)" style="font-size:0.7rem; height:28px; padding:0 8px;">
+          <div style="display:flex; gap:6px;">
+            <button id="saveVisionConfigBtn" class="btn-add" style="font-size:0.7rem; height:28px; flex:1; margin:0; background:linear-gradient(135deg,#4285f4,#0d47a1); color:white; border:none; font-weight:700;">💾 保存</button>
+            <button id="testVisionBtn" class="btn-add" style="font-size:0.7rem; height:28px; flex:1; margin:0; background:linear-gradient(135deg,#36d1dc,#5b86e5); color:white; border:none; font-weight:700;">🔍 测试连接</button>
+          </div>
           <div id="visionConfigStatus" style="font-size:0.62rem; padding:4px 6px; border-radius:4px; background:var(--btn-bg); display:none; line-height:1.5; margin-top:4px;"></div>
         </div>
       </details>
@@ -5655,29 +5660,63 @@ const rid=Math.floor(Math.random()*1000);
       window.open(window.location.origin + '/api/siri/download?key=' + encodeURIComponent(siriKey), '_blank');
     });
 
-    // Test Vision API connectivity (Workers AI)
-    document.getElementById('testVisionBtn').addEventListener('click', async () => {
+    // Save Vision API config
+    document.getElementById('saveVisionConfigBtn').addEventListener('click', async () => {
       const statusEl = document.getElementById('visionConfigStatus');
+      const apiKey = document.getElementById('visionApiKeyInput').value.trim();
+      const apiBase = document.getElementById('visionApiBaseInput').value.trim();
       statusEl.style.display = 'block';
-      statusEl.innerHTML = '⏳ 正在测试 Workers AI 连通性...';
+      statusEl.innerHTML = '⏳ 正在保存...';
       statusEl.style.color = 'var(--text-soft)';
 
       try {
         const resp = await fetch('/api/ocr/test', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' }
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ saveOnly: true, visionApiKey: apiKey, visionApiBase: apiBase })
+        });
+        const result = await resp.json();
+        if (result.success) {
+          localStorage.setItem('vision_api_key', apiKey);
+          localStorage.setItem('vision_api_base', apiBase);
+          statusEl.innerHTML = '✅ 已保存！';
+          statusEl.style.color = '#43a047';
+        } else {
+          statusEl.innerHTML = '❌ 保存失败: ' + (result.error || '');
+          statusEl.style.color = '#e53935';
+        }
+      } catch (e) {
+        statusEl.innerHTML = '❌ 请求失败: ' + e.message;
+        statusEl.style.color = '#e53935';
+      }
+    });
+
+    // Test Vision API connectivity (Gemini or Workers AI fallback)
+    document.getElementById('testVisionBtn').addEventListener('click', async () => {
+      const statusEl = document.getElementById('visionConfigStatus');
+      const apiKey = document.getElementById('visionApiKeyInput').value.trim();
+      const apiBase = document.getElementById('visionApiBaseInput').value.trim();
+      statusEl.style.display = 'block';
+      statusEl.innerHTML = '⏳ 正在测试连接...';
+      statusEl.style.color = 'var(--text-soft)';
+
+      try {
+        const resp = await fetch('/api/ocr/test', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ visionApiKey: apiKey, visionApiBase: apiBase })
         });
 
         const result = await resp.json();
         if (result.success) {
-          statusEl.innerHTML = '✅ 连接成功！<br>当前模型: ' + result.model + '<br>能够正常使用 Workers AI 识别图片。';
+          statusEl.innerHTML = '✅ 连接成功！<br>引擎: ' + (result.engine || result.model || '') + '<br>' + (result.note || '可正常使用图片识别。');
           statusEl.style.color = '#43a047';
         } else {
-          statusEl.innerHTML = '❌ 连接失败: ' + (result.error || '未知错误');
+          statusEl.innerHTML = '❌ 失败: ' + (result.error || '未知错误') + '<br>' + (result.hint || '');
           statusEl.style.color = '#e53935';
         }
       } catch (e) {
-        statusEl.innerHTML = '❌ 测试请求失败: ' + e.message;
+        statusEl.innerHTML = '❌ 请求失败: ' + e.message;
         statusEl.style.color = '#e53935';
       }
     });
@@ -7300,29 +7339,114 @@ const rid=Math.floor(Math.random()*1000);
     // OCR Vision API 连通性测试 (Workers AI)
     if (path === '/api/ocr/test' && request.method === 'POST') {
       try {
+        const body = await request.json().catch(() => ({}));
+        const visionApiKey = body.visionApiKey || '';
+        const visionApiBase = body.visionApiBase || 'https://generativelanguage.googleapis.com/v1beta/openai/';
+
+        // If saveOnly, just persist the config and return
+        if (body.saveOnly) {
+          if (visionApiKey !== undefined) await env.DATA_KV.put('config:vision_api_key', visionApiKey);
+          if (visionApiBase !== undefined) await env.DATA_KV.put('config:vision_api_base', visionApiBase);
+          return new Response(JSON.stringify({ success: true }), {
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+
+        // Test Gemini Vision API first if key provided
+        if (visionApiKey) {
+          let geminiUrl = visionApiBase;
+          if (!geminiUrl.endsWith('/')) geminiUrl += '/';
+          geminiUrl += 'chat/completions';
+
+          try {
+            const testResp = await fetch(geminiUrl, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + visionApiKey.split(',')[0].trim()
+              },
+              body: JSON.stringify({
+                model: 'gemini-2.0-flash',
+                messages: [{ role: 'user', content: 'Reply with just "OK"' }],
+                max_tokens: 5,
+                temperature: 0
+              })
+            });
+
+            if (testResp.ok) {
+              return new Response(JSON.stringify({
+                success: true,
+                engine: 'Gemini 2.0 Flash',
+                note: '已连接 Gemini Vision API，中文 OCR 效果最佳。'
+              }), {
+                headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+              });
+            } else {
+              const errText = await testResp.text();
+              return new Response(JSON.stringify({
+                success: false,
+                error: 'Gemini API 返回 ' + testResp.status,
+                hint: errText.substring(0, 300)
+              }), {
+                headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+              });
+            }
+          } catch (e) {
+            return new Response(JSON.stringify({
+              success: false,
+              error: 'Gemini 连接失败: ' + e.message,
+              hint: '请检查 API Key 和网络连接'
+            }), {
+              headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+            });
+          }
+        }
+
+        // Fallback: test Workers AI
         if (!env.AI) {
-          return new Response(JSON.stringify({ success: false, error: 'Cloudflare Workers AI 未绑定。请确认 wrangler.toml 中已配置 [ai] 绑定。' }), {
+          return new Response(JSON.stringify({ success: false, error: '未配置 Gemini Key，且 Workers AI 未绑定。请输入 Gemini API Key。' }), {
             headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
           });
         }
-        
+
         try {
-          await env.AI.run("@cf/meta/llama-3.2-11b-vision-instruct", { prompt: "agree" });
+          const resp = await env.AI.run("@cf/moonshotai/kimi-k2.6", {
+            messages: [{ role: 'user', content: 'Say OK' }],
+            max_tokens: 5
+          });
+
+          if (resp && resp.response) {
+            return new Response(JSON.stringify({
+              success: true,
+              engine: 'Kimi K2.6 (Workers AI)',
+              note: 'Workers AI 可用，但中文 OCR 建议配置 Gemini。'
+            }), {
+              headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+            });
+          }
         } catch (e) {
-          console.warn("[OCR Test] Agree failed:", e.message);
+          console.warn("[OCR Test] Kimi failed, trying Llama:", e.message);
         }
 
-        const resp = await env.AI.run("@cf/meta/llama-3.2-11b-vision-instruct", {
-          messages: [{ role: 'user', content: 'Say "OK"' }],
-          max_tokens: 5
-        });
-
-        if (resp && resp.response) {
-          return new Response(JSON.stringify({ success: true, model: '@cf/meta/llama-3.2-11b-vision-instruct' }), {
-            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        try {
+          const resp2 = await env.AI.run("@cf/meta/llama-3.2-11b-vision-instruct", {
+            prompt: 'Say OK',
+            max_tokens: 5
           });
-        } else {
-          return new Response(JSON.stringify({ success: false, error: '模型响应为空' }), {
+          if (resp2 && resp2.response) {
+            return new Response(JSON.stringify({
+              success: true,
+              engine: 'Llama 3.2 Vision (Workers AI)',
+              note: 'Workers AI 可用，但中文 OCR 强烈建议配置 Gemini。'
+            }), {
+              headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+            });
+          }
+        } catch (e) {
+          console.warn("[OCR Test] Llama also failed:", e.message);
+        }
+
+        return new Response(JSON.stringify({ success: false, error: '所有引擎均不可用。请配置 Gemini API Key。' }), {
             headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
           });
         }
