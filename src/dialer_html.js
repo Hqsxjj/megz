@@ -1174,12 +1174,12 @@ export const DIALER_HTML = `<!DOCTYPE html>
             <div style="display: flex; gap: 14px; align-items: center; margin-top: 4px; background: var(--btn-bg); padding: 5px 12px; border-radius: var(--radius-xs); border: 1px solid var(--card-border); margin-bottom: 2px;">
               <span style="font-size: 0.65rem; color: var(--text-soft); font-weight: 800;">图片/PDF 识别引擎:</span>
               <label style="font-size: 0.65rem; font-weight: 800; color: var(--text-main); cursor: pointer; display: flex; align-items: center; gap: 4px;">
-                <input type="radio" name="ocrEngine" value="local" checked style="cursor: pointer; transform: scale(0.95);">
+                <input type="radio" name="ocrEngine" value="local" style="cursor: pointer; transform: scale(0.95);">
                 💻 本地免费 (Wasm)
               </label>
               <label style="font-size: 0.65rem; font-weight: 800; color: var(--text-main); cursor: pointer; display: flex; align-items: center; gap: 4px;">
-                <input type="radio" name="ocrEngine" value="ai" style="cursor: pointer; transform: scale(0.95);">
-                🤖 云端 AI (Gemini)
+                <input type="radio" name="ocrEngine" value="ai" checked style="cursor: pointer; transform: scale(0.95);">
+                🤖 Cloudflare Workers AI
               </label>
             </div>
             
@@ -2523,6 +2523,12 @@ export const DIALER_HTML = `<!DOCTYPE html>
 
       renderImportMappingControls(headersList, detected);
 
+      if (detected.nameIdx !== -1 && detected.phoneIdx !== -1) {
+        executeAIImportExcel();
+        alert('📊 Excel 识别：自动对应姓名列「' + headersList[detected.nameIdx].label + '」与电话列「' + headersList[detected.phoneIdx].label + '」成功，已自动入库并同步至 Supabase！');
+        return;
+      }
+
       var conf = 90;
       if (detected.nameIdx !== -1 && detected.phoneIdx !== -1) conf = detected.headerRowIdx !== -1 ? 98.5 : 92.0;
       if (detected.companyIdx !== -1) conf += 1.0;
@@ -2780,6 +2786,12 @@ export const DIALER_HTML = `<!DOCTYPE html>
       tempImportData = contactsList;
       tempImportType = 'vcf';
       
+      if (contactsList && contactsList.length > 0) {
+        executeAIImportVcf();
+        alert('📇 VCF 识别：成功自动识别 ' + contactsList.length + ' 个联系人，已直接自动入库并同步至 Supabase！');
+        return;
+      }
+
       document.getElementById('pillName').className = 'client-card-tag';
       document.getElementById('pillName').style.background = 'rgba(7,193,96,0.08)';
       document.getElementById('pillName').style.color = 'var(--accent-wechat)';
@@ -3672,13 +3684,13 @@ export const DIALER_HTML = `<!DOCTYPE html>
       }
       showAIScanningUI(file.name);
       
-      var visionKey = (localStorage.getItem('vision_api_key') || '').trim();
-      var aiKey = visionKey || (localStorage.getItem('ai_api_key') || localStorage.getItem('deepseek_api_key') || '').trim();
+      // Workers AI runs on the server side and does not require a client API key.
+      var aiKey = true;
 
       if (aiKey) {
         document.getElementById('aiScanStatus').innerHTML = '🤖 本地未检出，正切换为云端 AI 视觉识别...';
         if (document.getElementById('aiLog1')) { document.getElementById('aiLog1').innerHTML = '⏳ 图片发送至 AI 视觉模型...'; document.getElementById('aiLog1').style.opacity = '1'; }
-        if (document.getElementById('aiLog2')) { document.getElementById('aiLog2').innerHTML = '🧠 Gemini 多模态识别引擎'; document.getElementById('aiLog2').style.opacity = '1'; }
+        if (document.getElementById('aiLog2')) { document.getElementById('aiLog2').innerHTML = '🧠 Cloudflare Workers AI 视觉引擎'; document.getElementById('aiLog2').style.opacity = '1'; }
 
         var reader = new FileReader();
         reader.onload = function(e) {
@@ -3726,14 +3738,8 @@ export const DIALER_HTML = `<!DOCTYPE html>
     }
 
     function runCloudPdfOCR(pdf, fileName) {
-      var visionKey = (localStorage.getItem('vision_api_key') || '').trim();
-      var aiKey = visionKey || (localStorage.getItem('ai_api_key') || localStorage.getItem('deepseek_api_key') || '').trim();
-      
-      if (!aiKey) {
-        alert('本地未检出号码，且未配置云端 AI API Key（请配置 Vision Key）！');
-        resetAIImporterUI();
-        return;
-      }
+      // Workers AI runs on the server side and does not require a client API key.
+      var aiKey = true;
       
       var maxPages = pdf.numPages;
       var allContacts = [];
@@ -4334,7 +4340,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
       document.getElementById('aiScanStatus').innerHTML = '🖼️ 多图排队识别 · 共 ' + total + ' 张';
       document.getElementById('aiLog1').innerHTML = '📋 队列就绪，准备逐张识别...'; document.getElementById('aiLog1').style.opacity = '1';
       document.getElementById('aiLog2').innerHTML = '⏳ 等待处理第 1/' + total + ' 张...'; document.getElementById('aiLog2').style.opacity = '1';
-      document.getElementById('aiLog3').innerHTML = '🔧 引擎: ' + (ocrEngine === 'ai' ? '云端 AI (Gemini)' : '本地离线 (Wasm)'); document.getElementById('aiLog3').style.opacity = '0.8';
+      document.getElementById('aiLog3').innerHTML = '🔧 引擎: ' + (ocrEngine === 'ai' ? 'Cloudflare Workers AI' : '本地离线 (Wasm)'); document.getElementById('aiLog3').style.opacity = '0.8';
       document.getElementById('aiLog4').innerHTML = '⚡ 进度: 0/' + total; document.getElementById('aiLog4').style.opacity = '0.8';
 
       processNextInQueue(0);
@@ -4566,13 +4572,13 @@ export const DIALER_HTML = `<!DOCTYPE html>
       } else {
         showAIScanningUI(file.name);
         
-        var visionKey = (localStorage.getItem('vision_api_key') || '').trim();
-        var aiKey = visionKey || (localStorage.getItem('ai_api_key') || localStorage.getItem('deepseek_api_key') || '').trim();
+        // Workers AI runs on the server side and does not require a client API key.
+        var aiKey = true;
 
         if (aiKey) {
           document.getElementById('aiScanStatus').innerHTML = '🤖 AI 云端视觉识别中...';
           if (document.getElementById('aiLog1')) { document.getElementById('aiLog1').innerHTML = '⏳ 图片发送至 AI 视觉模型...'; document.getElementById('aiLog1').style.opacity = '1'; }
-          if (document.getElementById('aiLog2')) { document.getElementById('aiLog2').innerHTML = '🧠 Gemini 多模态识别引擎'; document.getElementById('aiLog2').style.opacity = '1'; }
+          if (document.getElementById('aiLog2')) { document.getElementById('aiLog2').innerHTML = '🧠 Cloudflare Workers AI 视觉引擎'; document.getElementById('aiLog2').style.opacity = '1'; }
 
           var reader = new FileReader();
           reader.onload = function(e) {
@@ -4739,6 +4745,12 @@ export const DIALER_HTML = `<!DOCTYPE html>
       tempImportType = 'unstructured';
       tempImportData = contacts;
       
+      if (contacts && contacts.length > 0) {
+        executeAIImportUnstructured();
+        alert('📝 文本识别：成功自动提取 ' + contacts.length + ' 个联系人，已直接自动入库并同步至 Supabase！');
+        return;
+      }
+
       document.getElementById('aiImportScanning').style.display = 'none';
       document.getElementById('aiLaserLine').style.display = 'none';
       

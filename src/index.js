@@ -3417,19 +3417,14 @@ export default {
       </details>
 
       <details style="margin-top:10px; border:1px dashed var(--card-border); border-radius:var(--radius-xs); padding:8px; background:rgba(120,120,120,0.02);">
-        <summary style="font-size:0.75rem; color:var(--text-soft); cursor:pointer; font-weight:700; outline:none; user-select:none;">👁️ Gemini Vision 图片识别 (独立配置)</summary>
+        <summary style="font-size:0.75rem; color:var(--text-soft); cursor:pointer; font-weight:700; outline:none; user-select:none;">👁️ Cloudflare Workers AI 图片识别</summary>
         <div style="display:flex; flex-direction:column; gap:6px; margin-top:8px;">
-          <input type="password" class="input-simple" id="visionApiKeyInput" placeholder="Gemini API Key (用于 OCR 图片/文档/表格识别)" style="font-size:0.7rem; height:28px; padding:0 8px;">
-          <input type="text" class="input-simple" id="visionApiBaseInput" placeholder="接口地址 (默认 Gemini)" style="font-size:0.7rem; height:28px; padding:0 8px;">
-          <div style="display:flex; gap:6px;">
-            <button id="saveVisionConfigBtn" class="btn-add" style="font-size:0.7rem; height:28px; margin:0; background:linear-gradient(135deg,#11998e,#38ef7d); color:white; border:none; flex:1; font-weight:700;">💾 保存</button>
-            <button id="testVisionBtn" class="btn-add" style="font-size:0.7rem; height:28px; margin:0; background:linear-gradient(135deg,#36d1dc,#5b86e5); color:white; border:none; flex:1; font-weight:700;">🔍 测试连接</button>
+          <div style="font-size:0.7rem; color:var(--text-soft); line-height:1.4;">
+            🤖 系统已自动启用 Cloudflare Workers AI 原生视觉模型（Llama 3.2 11B Vision）。
+            边缘计算原生推理，<strong>无需配置任何 API Key 与地址</strong>，开箱即用。
           </div>
-          <div id="visionConfigStatus" style="font-size:0.62rem; padding:4px 6px; border-radius:4px; background:var(--btn-bg); display:none; line-height:1.5;"></div>
-          <div style="font-size:0.6rem; color:var(--text-light); line-height:1.4; margin-top:2px;">
-            独立配置一个 Gemini API Key 专用于图片 OCR、文档扫描、表格识别等视觉任务。<br>
-            💡 <strong>不填则自动复用上方 AI 大模型 Key</strong>（但主模型选 DeepSeek 等不支持图片时识别效果会下降）。
-          </div>
+          <button id="testVisionBtn" class="btn-add" style="font-size:0.7rem; height:28px; margin:4px 0 0 0; background:linear-gradient(135deg,#36d1dc,#5b86e5); color:white; border:none; width:100%; font-weight:700;">🔍 测试 Workers AI 连接</button>
+          <div id="visionConfigStatus" style="font-size:0.62rem; padding:4px 6px; border-radius:4px; background:var(--btn-bg); display:none; line-height:1.5; margin-top:4px;"></div>
         </div>
       </details>
 
@@ -5448,10 +5443,6 @@ const rid=Math.floor(Math.random()*1000);
       document.getElementById('momentsEnabledCheck').checked = localStorage.getItem('moments_enabled') !== 'false';
       document.getElementById('momentsWebhookUrlInput').value = localStorage.getItem('moments_webhook_url') || '';
 
-      // Load vision config
-      document.getElementById('visionApiKeyInput').value = localStorage.getItem('vision_api_key') || '';
-      document.getElementById('visionApiBaseInput').value = localStorage.getItem('vision_api_base') || '';
-
       document.getElementById('exportModal').classList.add('active');
     });
     document.getElementById('closeExportModalBtn').addEventListener('click',()=>document.getElementById('exportModal').classList.remove('active'));
@@ -5596,53 +5587,22 @@ const rid=Math.floor(Math.random()*1000);
       window.open(window.location.origin + '/api/siri/download?key=' + encodeURIComponent(siriKey), '_blank');
     });
 
-    // Save vision config
-    document.getElementById('saveVisionConfigBtn').addEventListener('click', async () => {
-      const apiKey = document.getElementById('visionApiKeyInput').value.trim();
-      const apiBase = document.getElementById('visionApiBaseInput').value.trim();
-      localStorage.setItem('vision_api_key', apiKey);
-      localStorage.setItem('vision_api_base', apiBase);
-      try {
-        await syncOp('setVisionConfig', { visionApiKey: apiKey, visionApiBase: apiBase });
-        document.getElementById('exportStatus').innerText = apiKey ? '✅ Gemini Vision Key 已保存！图片识别将使用独立 Key。' : '✅ 已清除，图片识别将复用 AI 大模型 Key。';
-      } catch (e) {
-        document.getElementById('exportStatus').innerText = '❌ 保存失败: ' + e.message;
-      }
-    });
-
-    // Test Vision API connectivity
+    // Test Vision API connectivity (Workers AI)
     document.getElementById('testVisionBtn').addEventListener('click', async () => {
-      const apiKey = document.getElementById('visionApiKeyInput').value.trim();
-      const apiBase = document.getElementById('visionApiBaseInput').value.trim() || 'https://generativelanguage.googleapis.com/v1beta/openai/';
       const statusEl = document.getElementById('visionConfigStatus');
-
-      if (!apiKey) {
-        statusEl.style.display = 'block';
-        statusEl.innerHTML = '❌ 请先填入 Gemini API Key';
-        statusEl.style.color = '#e53935';
-        return;
-      }
-
       statusEl.style.display = 'block';
-      statusEl.innerHTML = '⏳ 正在测试 Gemini Vision API 连通性...';
+      statusEl.innerHTML = '⏳ 正在测试 Workers AI 连通性...';
       statusEl.style.color = 'var(--text-soft)';
 
       try {
-        // Save key first
-        localStorage.setItem('vision_api_key', apiKey);
-        localStorage.setItem('vision_api_base', apiBase);
-        await syncOp('setVisionConfig', { visionApiKey: apiKey, visionApiBase: apiBase });
-
-        // Test via /api/ocr/test
         const resp = await fetch('/api/ocr/test', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ apiKey: apiKey, apiBase: apiBase })
+          headers: { 'Content-Type': 'application/json' }
         });
 
         const result = await resp.json();
         if (result.success) {
-          statusEl.innerHTML = '✅ 连接成功！模型: ' + result.model + '<br>响应正常，可以正常识别图片。';
+          statusEl.innerHTML = '✅ 连接成功！<br>当前模型: ' + result.model + '<br>能够正常使用 Workers AI 识别图片。';
           statusEl.style.color = '#43a047';
         } else {
           statusEl.innerHTML = '❌ 连接失败: ' + (result.error || '未知错误');
@@ -7269,47 +7229,35 @@ const rid=Math.floor(Math.random()*1000);
     }
 
     // OCR Vision API 连通性测试
+    // OCR Vision API 连通性测试 (Workers AI)
     if (path === '/api/ocr/test' && request.method === 'POST') {
       try {
-        const body = await request.json();
-        const apiKey = body.apiKey;
-        const apiBase = body.apiBase || 'https://generativelanguage.googleapis.com/v1beta/openai/';
-        if (!apiKey) {
-          return new Response(JSON.stringify({ success: false, error: '缺少 API Key' }), {
+        if (!env.AI) {
+          return new Response(JSON.stringify({ success: false, error: 'Cloudflare Workers AI 未绑定。请确认 wrangler.toml 中已配置 [ai] 绑定。' }), {
             headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
           });
         }
+        
+        try {
+          await env.AI.run("@cf/meta/llama-3.2-11b-vision-instruct", { prompt: "agree" });
+        } catch (e) {
+          console.warn("[OCR Test] Agree failed:", e.message);
+        }
 
-        let url = apiBase;
-        if (!url.endsWith('/')) url += '/';
-        url += 'chat/completions';
-
-        // Send a simple text-only request to test API key validity
-        const resp = await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
-          body: JSON.stringify({
-            model: 'gemini-3.5-flash',
-            messages: [{ role: 'user', content: 'Say "OK"' }],
-            max_tokens: 5
-          })
+        const resp = await env.AI.run("@cf/meta/llama-3.2-11b-vision-instruct", {
+          messages: [{ role: 'user', content: 'Say "OK"' }],
+          max_tokens: 5
         });
 
-        if (!resp.ok) {
-          const errText = await resp.text();
-          let errMsg = 'HTTP ' + resp.status;
-          try {
-            const errJson = JSON.parse(errText);
-            errMsg = errJson.error?.message || errJson.error?.code || errText.substring(0, 100);
-          } catch(e) {}
-          return new Response(JSON.stringify({ success: false, error: errMsg }), {
+        if (resp && resp.response) {
+          return new Response(JSON.stringify({ success: true, model: '@cf/meta/llama-3.2-11b-vision-instruct' }), {
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
+        } else {
+          return new Response(JSON.stringify({ success: false, error: '模型响应为空' }), {
             headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
           });
         }
-
-        return new Response(JSON.stringify({ success: true, model: 'gemini-3.5-flash' }), {
-          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-        });
       } catch (e) {
         return new Response(JSON.stringify({ success: false, error: e.message }), {
           headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
@@ -7332,48 +7280,12 @@ const rid=Math.floor(Math.random()*1000);
 
         console.log('[OCR] Received imageBase64, length:', imageBase64.length, 'prefix:', imageBase64.substring(0, 50));
 
-        // OCR 必须使用支持图片的模型（Gemini / GPT-4V 等）
-        const visionApiKey = await env.DATA_KV.get('config:vision_api_key') || '';
-        const visionApiBase = await env.DATA_KV.get('config:vision_api_base') || 'https://generativelanguage.googleapis.com/v1beta/openai/';
-        const visionModel = 'gemini-3.5-flash';
-
-        let apiKey, apiBase, model;
-        if (visionApiKey) {
-          // 优先: 独立 Vision API Key → Gemini
-          apiKey = visionApiKey;
-          apiBase = visionApiBase;
-          model = visionModel;
-        } else {
-          // 回退: 检查通用 AI 是否支持图片
-          const provider = await env.DATA_KV.get('config:ai_provider') || 'deepseek';
-          if (provider === 'gemini') {
-            // Gemini 本身就支持图片
-            apiKey = await env.DATA_KV.get('config:ai_api_key') || await env.DATA_KV.get('config:deepseek_api_key') || env.AI_API_KEY || env.DEEPSEEK_API_KEY;
-            apiBase = await env.DATA_KV.get('config:ai_api_base') || env.AI_API_BASE || 'https://generativelanguage.googleapis.com/v1beta/openai/';
-            model = await env.DATA_KV.get('config:ai_model') || env.AI_API_MODEL || 'gemini-3.5-flash';
-          } else if (provider === 'custom') {
-            // 自定义 OpenAI 兼容接口（可能支持 Vision 如 GPT-4V）
-            apiKey = await env.DATA_KV.get('config:ai_api_key') || await env.DATA_KV.get('config:deepseek_api_key') || env.AI_API_KEY || env.DEEPSEEK_API_KEY;
-            apiBase = await env.DATA_KV.get('config:ai_api_base') || env.AI_API_BASE || 'https://api.openai.com/v1/';
-            model = await env.DATA_KV.get('config:ai_model') || env.AI_API_MODEL || 'gpt-4o';
-          } else {
-            // DeepSeek 等其他不支持图片的 → 需要单独配 Vision Key
-            return new Response(JSON.stringify({ error: '当前 AI 大模型 (DeepSeek) 不支持图片识别。请在网页端 → 导出配置 → 「👁️ Gemini Vision 图片识别」中填入独立的 Gemini API Key。' }), {
-              status: 400,
-              headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-            });
-          }
-          if (!apiKey) {
-            return new Response(JSON.stringify({ error: '未配置 AI API Key，请先在网页端配置。' }), {
-              status: 400,
-              headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-            });
-          }
+        if (!env.AI) {
+          return new Response(JSON.stringify({ error: 'Cloudflare Workers AI 绑定未启用。请确保 wrangler.toml 中已配置 [ai] 绑定。' }), {
+            status: 500,
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
         }
-
-        let url = apiBase;
-        if (!url.endsWith('/')) url += '/';
-        url += 'chat/completions';
 
         // 限制图片大小（max ~4MB base64）
         const imageSizeMB = imageBase64.length / 1024 / 1024 * 0.75; // 近似原始大小
@@ -7384,83 +7296,38 @@ const rid=Math.floor(Math.random()*1000);
           });
         }
 
-        // Wait for concurrency slot before calling Gemini
+        // Wait for concurrency slot before calling AI
         await geminiAcquire();
-        let aiResp;
+        let content = '';
         try {
-          var maxRetries = 3;
-          var retryDelay = 1500;
-          for (var attempt = 1; attempt <= maxRetries; attempt++) {
-            aiResp = await fetch(url, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': 'Bearer ' + apiKey
-              },
-              body: JSON.stringify({
-                model: model,
-                messages: [{
-                  role: 'user',
-                  content: [
-                    {
-                      type: 'text',
-                      text: ocrMode === 'bulk'
-                        ? '你是一个精确的信息提取助手。请逐行逐条识别这张图片中的所有联系人信息，每一条独立判断，不要因为大部分行有某个字段就假设所有行都一样。\n\n图片可能是：微信聊天截图、通讯录截图、表格、名片、文字列表等。\n\n提取规则（逐条独立）：\n1. 姓名：中文2-4个字。注意！左上角、角落、小字中的单个字（如"新""急""重"）不要忽略，可能是姓名的一部分或重要标注。如果图片中有"新"字开头的人名，如实提取。\n2. 电话：手机号11位（1开头）或座机号。一条记录中可能没有电话，也可能只有电话没有姓名，都要收录。\n3. 公司/单位：仅当该联系人附近明确有公司名时才填写。如果某行没有公司名，company留空字符串""，绝对不要从其他行复制或猜测。\n4. 备注：该联系人旁的其他信息（职位、地址等），没有就留空。\n\n关键原则：\n- 逐条独立判断！不要因为90%的行有某个字段，就给剩余10%也硬填。\n- 图片每一个角落的文字都要看，包括顶部、左上角的小字和标记。\n- 某条记录字段不全也没关系，phone或name至少有一个即可收录。\n- rawText中逐行转录图片完整文字，保留原始排版，用于本地兜底解析。\n\n输出纯JSON（禁止markdown代码块包裹）：\n{\n  "contacts": [\n    {"name": "张三", "phone": "13800138000", "company": "某某科技", "note": "经理"},\n    {"name": "", "phone": "13912345678", "company": "", "note": ""}\n  ],\n  "rawText": "逐行完整转录..."\n}'
-                        : '你是一个OCR助手。请识别这张客户信息截图，提取以下字段：\n\n- name: 客户姓名（2-4个汉字）\n- phone: 电话号码（11位数字手机号）\n- company: 工作单位/公司名称\n- fund: 公积金信息\n- note: 备注/沟通记录\n\n如某字段无法识别则为空字符串。\n\n输出纯JSON（禁止markdown代码块）：\n{"name":"姓名","phone":"13800138000","company":"单位名","fund":"","note":"备注内容"}'
-                        : '你是一个OCR助手。请识别这张客户信息截图，提取以下字段：\n\n- name: 客户姓名（2-4个汉字）\n- phone: 电话号码（11位数字手机号）\n- company: 工作单位/公司名称\n- fund: 公积金信息\n- note: 备注/沟通记录\n\n如某字段无法识别则为空字符串。\n\n输出纯JSON（禁止markdown代码块）：\n{"name":"姓名","phone":"13800138000","company":"单位名","fund":"","note":"备注内容"}'
-                    },
-                    {
-                      type: 'image_url',
-                      image_url: { url: imageBase64 }
-                    }
-                  ]
-                }],
-                temperature: 0,
-                max_tokens: 8192
-              })
-            });
-
-            if (aiResp.ok) {
-              break;
-            }
-
-            var shouldRetry = false;
-            if (aiResp.status === 503 || aiResp.status === 504 || aiResp.status === 429 || aiResp.status === 502) {
-              shouldRetry = true;
-            } else if (aiResp.status === 400) {
-              var respClone = aiResp.clone();
-              try {
-                var errText = await respClone.text();
-                if (errText.includes('503') || errText.includes('UNAVAILABLE') || errText.includes('high demand') || errText.includes('temporary')) {
-                  shouldRetry = true;
-                }
-              } catch (e) {}
-            }
-
-            if (shouldRetry && attempt < maxRetries) {
-              console.warn(`[OCR] Gemini API returned status ${aiResp.status} (temporary load), retrying ${attempt}/${maxRetries} in ${retryDelay}ms...`);
-              await new Promise(function(resolve) { setTimeout(resolve, retryDelay); });
-              retryDelay *= 2;
-            } else {
-              break;
-            }
+          // Ensure license agreement is signed
+          try {
+            await env.AI.run("@cf/meta/llama-3.2-11b-vision-instruct", { prompt: "agree" });
+          } catch (e) {
+            console.warn("[OCR] Agreeing to Meta license failed (might be already agreed):", e.message);
           }
+
+          const decodedImageBytes = decodeBase64Image(imageBase64);
+          const systemText = ocrMode === 'bulk'
+            ? '你是一个精确的信息提取助手。请逐行逐条识别这张图片中的所有联系人信息，每一条独立判断，不要因为大部分行有某个字段就假设所有行都一样。\n\n图片可能是：微信聊天截图、通讯录截图、表格、名片、文字列表等。\n\n提取规则（逐条独立）：\n1. 姓名：中文2-4个字。注意！左上角、角落、小字中的单个字（如"新""急""重"）不要忽略，可能是姓名的一部分或重要标注。如果图片中有"新"字开头的人名，如实提取。\n2. 电话：手机号11位（1开头）或座机号。一条记录中可能没有电话，也可能只有电话没有姓名，都要收录。\n3. 公司/单位：仅当该联系人附近明确有公司名时才填写。如果某行没有公司名，company留空字符串""，绝对不要从其他行复制或猜测。\n4. 备注：该联系人旁的其他信息（职位、地址等），没有就留空。\n\n关键原则：\n- 逐条独立判断！不要因为90%的行有某个字段，就给剩余10%也硬填。\n- 图片每一个角落的文字都要看，包括顶部、左上角的小字和标记。\n- 某条记录字段不全也没关系，phone或name至少有一个即可收录。\n- rawText中逐行转录图片完整文字，保留原始排版，用于本地兜底解析。\n\n输出纯JSON（禁止markdown代码块包裹）：\n{\n  "contacts": [\n    {"name": "张三", "phone": "13800138000", "company": "某某科技", "note": "经理"},\n    {"name": "", "phone": "13912345678", "company": "", "note": ""}\n  ],\n  "rawText": "逐行完整转录..."\n}'
+            : '你是一个OCR助手。请识别这张客户信息截图，提取以下字段：\n\n- name: 客户姓名（2-4个汉字）\n- phone: 电话号码（11位数字手机号）\n- company: 工作单位/公司名称\n- fund: 公积金信息\n- note: 备注/沟通记录\n\n如某字段无法识别则为空字符串。\n\n输出纯JSON（禁止markdown代码块）：\n{"name":"姓名","phone":"13800138000","company":"单位名","fund":"","note":"备注内容"}';
+
+          const aiResp = await env.AI.run("@cf/meta/llama-3.2-11b-vision-instruct", {
+            messages: [
+              { role: 'user', content: systemText }
+            ],
+            image: decodedImageBytes
+          });
+
+          if (!aiResp || !aiResp.response) {
+            throw new Error('Workers AI model returned empty response');
+          }
+          content = aiResp.response.trim();
         } finally {
           geminiRelease();
         }
 
-        if (!aiResp.ok) {
-          const errText = await aiResp.text();
-          console.error('[OCR] AI API error:', errText);
-          return new Response(JSON.stringify({ error: 'AI 识别失败: HTTP ' + aiResp.status + ' - ' + (errText.substring(0, 200)) }), {
-            status: 502,
-            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-          });
-        }
-
-        const aiData = await aiResp.json();
-        let content = aiData.choices[0].message.content.trim();
-        console.log('[OCR] AI raw response (first 500 chars):', content.substring(0, 500));
+        console.log('[OCR] Workers AI raw response (first 500 chars):', content.substring(0, 500));
         if (content.startsWith('```')) {
           content = content.replace(/^```json\s*/i, '').replace(/```$/, '').trim();
         }
