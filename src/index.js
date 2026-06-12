@@ -5516,6 +5516,10 @@ const rid=Math.floor(Math.random()*1000);
       document.getElementById('momentsEnabledCheck').checked = localStorage.getItem('moments_enabled') !== 'false';
       document.getElementById('momentsWebhookUrlInput').value = localStorage.getItem('moments_webhook_url') || '';
 
+      // Load vision config
+      document.getElementById('visionApiKeyInput').value = localStorage.getItem('vision_api_key') || '';
+      document.getElementById('visionApiBaseInput').value = localStorage.getItem('vision_api_base') || '';
+
       document.getElementById('exportModal').classList.add('active');
     });
     document.getElementById('closeExportModalBtn').addEventListener('click',()=>document.getElementById('exportModal').classList.remove('active'));
