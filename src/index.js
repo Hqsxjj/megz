@@ -1727,6 +1727,76 @@ export default {
 
     if (path.startsWith('/tessdata/')) {
       const fileName = path.replace('/tessdata/', '');
+      
+      if (fileName === 'worker.min.js') {
+        const cacheKey = `tessdata:${fileName}`;
+        let fileData = null;
+        if (env.DATA_KV) {
+          fileData = await env.DATA_KV.get(cacheKey, { type: 'arrayBuffer' });
+        }
+        if (!fileData) {
+          const cdnUrl = 'https://fastly.jsdelivr.net/npm/tesseract.js@4.1.1/dist/worker.min.js';
+          const response = await fetch(cdnUrl);
+          if (response.ok) {
+            const buffer = await response.arrayBuffer();
+            if (env.DATA_KV) {
+              await env.DATA_KV.put(cacheKey, buffer);
+            }
+            fileData = buffer;
+          } else {
+            return new Response('Failed to fetch worker from CDN: ' + response.status, {
+              status: 502,
+              headers: { 'Access-Control-Allow-Origin': '*' }
+            });
+          }
+        }
+        return new Response(fileData, {
+          headers: {
+            'Content-Type': 'application/javascript',
+            'Access-Control-Allow-Origin': '*',
+            'Cache-Control': 'public, max-age=31536000'
+          }
+        });
+      }
+
+      if (fileName.startsWith('core/')) {
+        const coreFile = fileName.replace('core/', '');
+        const cacheKey = `tessdata:core:${coreFile}`;
+        let fileData = null;
+        if (env.DATA_KV) {
+          fileData = await env.DATA_KV.get(cacheKey, { type: 'arrayBuffer' });
+        }
+        if (!fileData) {
+          const cdnUrl = `https://fastly.jsdelivr.net/npm/tesseract.js-core@4.0.2/${coreFile}`;
+          const response = await fetch(cdnUrl);
+          if (response.ok) {
+            const buffer = await response.arrayBuffer();
+            if (env.DATA_KV) {
+              await env.DATA_KV.put(cacheKey, buffer);
+            }
+            fileData = buffer;
+          } else {
+            return new Response('Failed to fetch core from CDN: ' + response.status, {
+              status: 502,
+              headers: { 'Access-Control-Allow-Origin': '*' }
+            });
+          }
+        }
+        let contentType = 'application/octet-stream';
+        if (coreFile.endsWith('.js')) {
+          contentType = 'application/javascript';
+        } else if (coreFile.endsWith('.wasm')) {
+          contentType = 'application/wasm';
+        }
+        return new Response(fileData, {
+          headers: {
+            'Content-Type': contentType,
+            'Access-Control-Allow-Origin': '*',
+            'Cache-Control': 'public, max-age=31536000'
+          }
+        });
+      }
+
       if (fileName.endsWith('.traineddata.gz')) {
         const cacheKey = `tessdata:${fileName}`;
         let fileData = null;
@@ -1735,7 +1805,7 @@ export default {
         }
         
         if (!fileData) {
-          const cdnUrl = `https://tessdata.projectnaptha.com/4.0.0_fast/${fileName}`;
+          const cdnUrl = `https://fastly.jsdelivr.net/gh/naptha/tessdata@gh-pages/4.0.0_fast/${fileName}`;
           const response = await fetch(cdnUrl);
           if (response.ok) {
             const buffer = await response.arrayBuffer();

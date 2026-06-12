@@ -4282,6 +4282,8 @@ export const DIALER_HTML = `<!DOCTYPE html>
 
     function runTesseractOnSlices(slices) {
       return Tesseract.createWorker({
+        workerPath: window.location.origin + '/tessdata/worker.min.js',
+        corePath: window.location.origin + '/tessdata/core',
         langPath: window.location.origin + '/tessdata',
         logger: function(m) {
           if (m.status === 'recognizing text') {
@@ -4589,6 +4591,8 @@ export const DIALER_HTML = `<!DOCTYPE html>
 
     function createAndInitWorker(callback) {
       Tesseract.createWorker({
+        workerPath: window.location.origin + '/tessdata/worker.min.js',
+        corePath: window.location.origin + '/tessdata/core',
         langPath: window.location.origin + '/tessdata'
       }).then(function(worker) {
         _tesseractWorker = worker;
@@ -4762,6 +4766,8 @@ export const DIALER_HTML = `<!DOCTYPE html>
           }
 
           Tesseract.createWorker({
+            workerPath: window.location.origin + '/tessdata/worker.min.js',
+            corePath: window.location.origin + '/tessdata/core',
             langPath: window.location.origin + '/tessdata',
             logger: function(m) {
               if (m.status === 'recognizing text') {
