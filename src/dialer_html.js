@@ -3012,11 +3012,11 @@ export const DIALER_HTML = `<!DOCTYPE html>
           
           // Spatial prefix/suffix extraction
           var prefix = line.substring(0, phoneInfo.index).trim();
-          var prefixMatch = /([\\u4e00-\\u9fa5]{2,4})\\s*$/.exec(prefix);
+          var prefixMatch = /([\\u4e00-\\u9fa5]{1,4})\\s*$/.exec(prefix);
           var prefixName = prefixMatch ? prefixMatch[1] : '';
           
           var suffix = line.substring(phoneInfo.index + phoneInfo.length).trim();
-          var suffixMatch = /^\\s*([\\u4e00-\\u9fa5]{2,4})/.exec(suffix);
+          var suffixMatch = /^\\s*([\\u4e00-\\u9fa5]{1,4})/.exec(suffix);
           var suffixName = suffixMatch ? suffixMatch[1] : '';
 
           // 2. Identify Name with multi-phase priority
