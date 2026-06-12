@@ -5,10 +5,19 @@ import { DIALER_HTML } from './dialer_html.js';
 import { createSupabaseClient } from './supabase.js';
 import { WeComCrypt } from './wecom_crypt.js';
 
-// ====== Gemini API Concurrency Limiter ======
-// Gemini free tier / shared keys often have strict RPM/TPM limits.
-// This semaphore caps concurrent vision API calls to avoid 429 errors.
+// ====== Gemini API Rate Limit & Circuit Breaker ======
+// Implements: concurrency cap, jittered exponential backoff, Retry-After header,
+// circuit breaker with KV persistence, and multi-key rotation.
+// Based on Gemini API best practices (2026):
+//   https://cloud.google.com/blog/products/ai-machine-learning/reduce-429-errors-on-vertex-ai
+
 const MAX_CONCURRENT_GEMINI = 3;
+const CIRCUIT_BREAKER_THRESHOLD = 5;   // consecutive failures to open circuit
+const CIRCUIT_COOLDOWN_MS = 30000;      // 30s cooldown after circuit opens
+const MAX_RETRIES = 3;
+const BASE_RETRY_MS = 1000;
+const MAX_BACKOFF_MS = 30000;
+
 let geminiActiveRequests = 0;
 const geminiWaitQueue = [];
 
@@ -30,6 +39,65 @@ function geminiRelease() {
     geminiActiveRequests++;
     next();
   }
+}
+
+// Jittered exponential backoff: base * 2^(attempt-1) + random 0-30% jitter
+function jitteredBackoff(attempt, baseMs) {
+  const exponential = baseMs * Math.pow(2, attempt - 1);
+  const jitter = Math.random() * 0.3 * exponential;
+  return Math.min(exponential + jitter, MAX_BACKOFF_MS);
+}
+
+// Parse Retry-After header (seconds or HTTP-date)
+function parseRetryAfter(headerValue) {
+  if (!headerValue) return null;
+  const seconds = parseInt(headerValue, 10);
+  if (!isNaN(seconds)) return seconds * 1000;
+  const date = new Date(headerValue);
+  if (!isNaN(date.getTime())) return Math.max(0, date.getTime() - Date.now());
+  return null;
+}
+
+// Circuit breaker: prevent hammering API when it's consistently failing
+async function checkCircuitBreaker(env) {
+  try {
+    const raw = await env.DATA_KV.get('gemini:circuit');
+    if (!raw) return { blocked: false };
+    const cb = JSON.parse(raw);
+    if (cb.open && cb.until > Date.now()) {
+      return { blocked: true, remainingSec: Math.ceil((cb.until - Date.now()) / 1000), failures: cb.failures };
+    }
+    // Cooldown expired — auto-reset to half-open
+    if (cb.open && cb.until <= Date.now()) {
+      await env.DATA_KV.put('gemini:circuit', JSON.stringify({ open: false, failures: 0, until: 0 }));
+    }
+  } catch(e) { /* KV read failure — proceed */ }
+  return { blocked: false };
+}
+
+async function recordCircuitFailure(env) {
+  try {
+    const raw = await env.DATA_KV.get('gemini:circuit');
+    const cb = raw ? JSON.parse(raw) : { open: false, failures: 0, until: 0 };
+    cb.failures++;
+    if (cb.failures >= CIRCUIT_BREAKER_THRESHOLD) {
+      cb.open = true;
+      cb.until = Date.now() + CIRCUIT_COOLDOWN_MS;
+      console.warn('[Gemini Circuit] OPEN — pausing all Gemini calls for ' + CIRCUIT_COOLDOWN_MS/1000 + 's after ' + cb.failures + ' consecutive failures');
+    }
+    await env.DATA_KV.put('gemini:circuit', JSON.stringify(cb));
+  } catch(e) { /* best-effort */ }
+}
+
+async function resetCircuitBreaker(env) {
+  try {
+    await env.DATA_KV.put('gemini:circuit', JSON.stringify({ open: false, failures: 0, until: 0 }));
+  } catch(e) {}
+}
+
+// Rotate through multiple API keys (comma-separated) to distribute rate limits
+function getKeyPool(visionApiKey) {
+  return visionApiKey.split(',').map(function(k) { return k.trim(); }).filter(Boolean);
 }
 
 async function getAllKVKeys(env, prefix) {
@@ -7280,13 +7348,6 @@ const rid=Math.floor(Math.random()*1000);
 
         console.log('[OCR] Received imageBase64, length:', imageBase64.length, 'prefix:', imageBase64.substring(0, 50));
 
-        if (!env.AI) {
-          return new Response(JSON.stringify({ error: 'Cloudflare Workers AI 绑定未启用。请确保 wrangler.toml 中已配置 [ai] 绑定。' }), {
-            status: 500,
-            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-          });
-        }
-
         // 限制图片大小（max ~4MB base64）
         const imageSizeMB = imageBase64.length / 1024 / 1024 * 0.75; // 近似原始大小
         if (imageSizeMB > 5) {
@@ -7297,30 +7358,32 @@ const rid=Math.floor(Math.random()*1000);
         }
 
         let systemText = ocrMode === 'bulk'
-            ? '你是一个精确定位并提取表格中所有联系人信息的OCR助手。请仔细观察图片，逐行逐条识别提取联系人信息，每一条独立判断，不可遗漏任何一行。\n\n' +
+            ? '你是一个精确的OCR文字识别助手。你的唯一任务是**忠实、逐字逐句地识别图片中的每一个文字**，绝对不允许猜测、编造或修改任何内容。\n\n' +
+              '【核心原则 - 必须遵守】：\n' +
+              '- 绝对忠于原图！只输出你确实看到的文字，不认识的字就留空，绝不猜测。\n' +
+              '- 禁止编造电话号码！手机号必须是图片中清晰可见的11位数字，如果模糊不清就不要提取。\n' +
+              '- 禁止编造姓名！姓名必须是图片中明确显示的中文，不要根据上下文”推理”出名字。\n' +
+              '- rawText 是最重要的输出！请在 rawText 中逐行转录图片中所有可见文字，保留原始排版格式。rawText 的准确性是第一优先级。\n\n' +
               '【字段提取规则】：\n' +
-              '1. 姓名 (name)：通常是1-4个汉字。特别注意：在一些表格中，第一列可能仅有单个汉字的姓氏（如“温”、“朱”、“刘”、“张”等），请务必将其提取为 name。如果姓氏的左上角有蓝色图标污染（例如带有“听”或“新”字的圆形/三角形小图标），这是系统图标，绝对不是姓名的一部分，请务必剔除它，只保留纯姓氏（如“温”、“朱”）。\n' +
-              '2. 电话 (phone)：11位手机号（以1开头）。\n' +
-              '3. 公积金/金额 (fund)：电话号码和公司名称之间的纯数字列（通常是4-6位数字，如27501、9660、24100），请提取到 fund 字段。\n' +
-              '4. 公司/单位 (company)：请提取完整的公司或单位名称。特别注意：只提取纯粹的公司/单位名称（如“xxx有限公司”、“xxx实验室”等），绝对不要包含任何额外的动作或备注（如“已拨”、“新增跟进”、“挂断”、“正常号”等污染内容）。如果不存在公司名称，则设为空字符串 ""。\n' +
-              '5. 备注 (note)：提取公司名称旁边的其他额外备注信息，如果没有则留空。\n\n' +
-              '【输出格式】：\n' +
-              '请直接输出包含 contacts 列表和 rawText 的纯 JSON 格式（不要用 markdown 格式包裹，不要包含任何前导或后继的非 JSON 字符）：\n' +
+              '1. 姓名 (name)：图片中明确显示的中文人名（1-4个汉字）。注意：表格第一列可能只有单个姓氏（如”温”、”张”），也要提取。如果图片中有系统图标标记（如蓝色小图标里的”听””新”字），这不是姓名的一部分，应剔除。\n' +
+              '2. 电话 (phone)：11位手机号（1开头）。如果图片中的号码模糊不清或无法确认位数，宁可留空也不要猜一个号码填进去。\n' +
+              '3. 公积金/金额 (fund)：姓名和公司之间的纯数字（通常4-6位），如没有就留空。\n' +
+              '4. 公司/单位 (company)：完整公司名称。不要包含”已拨””新增跟进””挂断”等操作标记。如果图片中没有公司名就留空。\n' +
+              '5. 备注 (note)：该行的其他信息，没有就留空。\n\n' +
+              '【输出格式 - 纯JSON，禁止markdown包裹】：\n' +
               '{\n' +
-              '  "contacts": [\n' +
-              '    {"name": "姓名", "phone": "13800000000", "fund": "27501", "company": "某某公司", "note": "备注"}\n' +
+              '  “contacts”: [\n' +
+              '    {“name”: “张三”, “phone”: “13800138000”, “fund”: “27501”, “company”: “某某科技有限公司”, “note”: “”}\n' +
               '  ],\n' +
-              '  "rawText": "这里逐行完整转录图片的全部原始文本"\n' +
+              '  “rawText”: “逐字逐句完整转录图片中的所有文字，保留原始行列排版...”\n' +
               '}'
-            : '你是一个OCR助手。请识别这张客户信息截图，提取以下字段：\n\n' +
-              '- name: 客户姓名（1-4个汉字，注意去除任何系统小图标如“听”、“新”的字面污染）\n' +
-              '- phone: 电话号码（11位数字手机号）\n' +
-              '- company: 工作单位/公司名称（只保留纯粹的单位/公司全称，剔除已拨、跟进等备注词）\n' +
-              '- fund: 公积金信息（4-6位纯数字）\n' +
-              '- note: 备注/沟通记录\n\n' +
-              '如某字段无法识别则为空字符串。\n\n' +
-              '输出纯JSON（禁止markdown代码块）：\n' +
-              '{"name":"姓名","phone":"13800000000","company":"单位名","fund":"","note":"备注内容"}';
+            : '你是一个精确的OCR助手。请忠实识别图片中的文字，不认识就留空，绝不猜测。\n\n' +
+              '- name: 客户姓名（1-4个汉字）\n' +
+              '- phone: 电话号码（11位数字，模糊不清则留空）\n' +
+              '- company: 公司名称（纯公司名，不含”已拨”等标记）\n' +
+              '- fund: 公积金/金额（4-6位数字）\n' +
+              '- note: 备注\n\n' +
+              '输出纯JSON：{“name”:””,”phone”:””,”company”:””,”fund”:””,”note”:””}';
 
           // Inject few-shot examples from past user corrections (bulk mode only)
           if (ocrMode === 'bulk') {
@@ -7346,43 +7409,150 @@ const rid=Math.floor(Math.random()*1000);
             }
           }
 
-          const base64Data = imageBase64.split(',')[1] || imageBase64;
-          const imageBytes = [...new Uint8Array(Buffer.from(base64Data, 'base64'))];
+          let content = '';
 
-          let aiResp;
-          try {
-            console.log('[OCR] Trying Kimi K2.6 for Chinese OCR...');
-            const messages = [
-              {
-                role: 'user',
-                content: [
-                  { type: 'text', text: systemText },
-                  { type: 'image', image: imageBytes }
-                ]
+          // Check if user has configured Gemini Vision API key (better Chinese OCR)
+          let visionApiKey = await env.DATA_KV.get('config:vision_api_key') || '';
+          const visionApiBase = await env.DATA_KV.get('config:vision_api_base') || 'https://generativelanguage.googleapis.com/v1beta/openai/';
+
+          if (visionApiKey) {
+            // ===== Gemini Vision API (优先 - 中文OCR效果最好) =====
+            // Rate limit protections: circuit breaker, jittered backoff, Retry-After, key rotation
+
+            // Check circuit breaker first
+            const circuit = await checkCircuitBreaker(env);
+            if (circuit.blocked) {
+              console.warn('[OCR] Gemini circuit breaker OPEN — skipping Gemini, remaining cooldown: ' + circuit.remainingSec + 's');
+              visionApiKey = ''; // Force Workers AI fallback
+            }
+
+            if (visionApiKey) {
+              console.log('[OCR] Using Gemini Vision API for superior Chinese OCR...');
+              const keyPool = getKeyPool(visionApiKey);
+              let geminiUrl = visionApiBase;
+              if (!geminiUrl.endsWith('/')) geminiUrl += '/';
+              geminiUrl += 'chat/completions';
+
+              await geminiAcquire();
+              try {
+                let geminiResp;
+                let finalError = null;
+                for (var attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+                  // Rotate API keys to distribute rate limit across keys
+                  const apiKey = keyPool[(attempt - 1) % keyPool.length];
+
+                  try {
+                    geminiResp = await fetch(geminiUrl, {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + apiKey
+                      },
+                      body: JSON.stringify({
+                        model: 'gemini-2.0-flash',
+                        messages: [{
+                          role: 'user',
+                          content: [
+                            { type: 'text', text: systemText },
+                            { type: 'image_url', image_url: { url: imageBase64 } }
+                          ]
+                        }],
+                        temperature: 0,
+                        max_tokens: 4096
+                      })
+                    });
+
+                    if (geminiResp.ok) break;
+
+                    finalError = { status: geminiResp.status };
+                    // Retryable status codes: 408, 429, 500, 502, 503, 504
+                    const retryable = [408, 429, 500, 502, 503, 504].indexOf(geminiResp.status) >= 0;
+
+                    if (!retryable) break;
+
+                    // Respect Retry-After header if present (takes priority)
+                    const retryAfter = parseRetryAfter(geminiResp.headers.get('Retry-After'));
+                    const delay = retryAfter || jitteredBackoff(attempt, BASE_RETRY_MS);
+
+                    console.warn('[OCR] Gemini ' + geminiResp.status + ' — retry ' + attempt + '/' + MAX_RETRIES + ' in ' + Math.round(delay) + 'ms' + (retryAfter ? ' (Retry-After)' : ''));
+                    await new Promise(function(r) { setTimeout(r, delay); });
+
+                  } catch (fetchErr) {
+                    finalError = { status: 0, message: fetchErr.message };
+                    if (attempt < MAX_RETRIES) {
+                      const delay = jitteredBackoff(attempt, BASE_RETRY_MS);
+                      console.warn('[OCR] Gemini network error — retry ' + attempt + '/' + MAX_RETRIES + ' in ' + Math.round(delay) + 'ms:', fetchErr.message);
+                      await new Promise(function(r) { setTimeout(r, delay); });
+                    }
+                  }
+                }
+
+                if (geminiResp && geminiResp.ok) {
+                  const geminiData = await geminiResp.json();
+                  content = geminiData.choices[0].message.content.trim();
+                  console.log('[OCR] Gemini response (first 500):', content.substring(0, 500));
+                  // Success — reset circuit breaker
+                  await resetCircuitBreaker(env);
+                } else {
+                  const errStatus = finalError ? finalError.status : 'unknown';
+                  const errText = geminiResp ? await geminiResp.text().catch(function() { return ''; }) : (finalError ? finalError.message : '');
+                  console.warn('[OCR] Gemini failed after ' + MAX_RETRIES + ' retries (' + errStatus + '), falling back to Workers AI:', errText.substring(0, 200));
+                  // Record failure for circuit breaker
+                  await recordCircuitFailure(env);
+                  visionApiKey = ''; // Force fallback
+                }
+              } finally {
+                geminiRelease();
               }
-            ];
-            aiResp = await env.AI.run("@cf/moonshotai/kimi-k2.6", {
-              messages: messages,
-              max_tokens: 2048
-            });
-          } catch (eKimi) {
-            console.warn("[OCR] Kimi K2.6 call failed, falling back to Llama 3.2 Vision:", eKimi.message);
-            aiResp = await env.AI.run("@cf/meta/llama-3.2-11b-vision-instruct", {
-              prompt: systemText,
-              image: imageBytes,
-              max_tokens: 2048
-            });
+            }
           }
 
-          if (!aiResp || !aiResp.response) {
-            throw new Error('Workers AI model returned empty response');
+          // Workers AI fallback (Kimi K2.6 → Llama 3.2)
+          if (!visionApiKey || !content) {
+            if (!env.AI) {
+              if (!visionApiKey) {
+                return new Response(JSON.stringify({ error: '未配置 AI。请在网页端 → 导出配置 → 「👁️ Gemini Vision 图片识别」填入 Gemini API Key（免费获取: https://aistudio.google.com/apikey），或启用 Workers AI 绑定。' }), {
+                  status: 500,
+                  headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+                });
+              }
+            } else {
+              const base64Data = imageBase64.split(',')[1] || imageBase64;
+              const imageBytes = [...new Uint8Array(Buffer.from(base64Data, 'base64'))];
+
+              let aiResp;
+              try {
+                console.log('[OCR] Trying Kimi K2.6 for Chinese OCR...');
+                aiResp = await env.AI.run("@cf/moonshotai/kimi-k2.6", {
+                  messages: [{ role: 'user', content: [{ type: 'text', text: systemText }, { type: 'image', image: imageBytes }] }],
+                  max_tokens: 4096,
+                  temperature: 0
+                });
+              } catch (eKimi) {
+                console.warn("[OCR] Kimi K2.6 call failed, falling back to Llama 3.2:", eKimi.message);
+                aiResp = await env.AI.run("@cf/meta/llama-3.2-11b-vision-instruct", {
+                  prompt: systemText,
+                  image: imageBytes,
+                  max_tokens: 4096,
+                  temperature: 0
+                });
+              }
+
+              if (aiResp && aiResp.response) {
+                content = aiResp.response.trim();
+                console.log('[OCR] Workers AI raw response (first 500):', content.substring(0, 500));
+              }
+            }
           }
-          content = aiResp.response.trim();
         } finally {
-          geminiRelease();
+          // No-op: geminiRelease already called in Gemini path
         }
 
-        console.log('[OCR] Workers AI raw response (first 500 chars):', content.substring(0, 500));
+        if (!content) {
+          throw new Error('所有 OCR 引擎均未返回结果');
+        }
+
+        console.log('[OCR] Final content (first 500 chars):', content.substring(0, 500));
         if (content.startsWith('```')) {
           content = content.replace(/^```json\s*/i, '').replace(/```$/, '').trim();
         }
