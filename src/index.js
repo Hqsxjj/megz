@@ -7447,9 +7447,8 @@ const rid=Math.floor(Math.random()*1000);
         }
 
         return new Response(JSON.stringify({ success: false, error: '所有引擎均不可用。请配置 Gemini API Key。' }), {
-            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-          });
-        }
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
       } catch (e) {
         return new Response(JSON.stringify({ success: false, error: e.message }), {
           headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
@@ -7668,9 +7667,6 @@ const rid=Math.floor(Math.random()*1000);
               }
             }
           }
-        } finally {
-          // No-op: geminiRelease already called in Gemini path
-        }
 
         if (!content) {
           throw new Error('所有 OCR 引擎均未返回结果');
