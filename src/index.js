@@ -7354,6 +7354,18 @@ const rid=Math.floor(Math.random()*1000);
 
         // Test Gemini Vision API first if key provided
         if (visionApiKey) {
+          // Check circuit breaker first (don't waste quota if Gemini is failing)
+          const circuit = await checkCircuitBreaker(env);
+          if (circuit.blocked) {
+            return new Response(JSON.stringify({
+              success: false,
+              error: '熔断器已开启（最近连续失败' + circuit.failures + '次）',
+              hint: '请等待 ' + circuit.remainingSec + ' 秒后重试，或更换新的 API Key。'
+            }), {
+              headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+            });
+          }
+
           let geminiUrl = visionApiBase;
           if (!geminiUrl.endsWith('/')) geminiUrl += '/';
           geminiUrl += 'chat/completions';
@@ -7367,13 +7379,14 @@ const rid=Math.floor(Math.random()*1000);
               },
               body: JSON.stringify({
                 model: 'gemini-2.0-flash',
-                messages: [{ role: 'user', content: 'Reply with just "OK"' }],
-                max_tokens: 5,
+                messages: [{ role: 'user', content: 'OK' }],
+                max_tokens: 1,
                 temperature: 0
               })
             });
 
             if (testResp.ok) {
+              await resetCircuitBreaker(env);
               return new Response(JSON.stringify({
                 success: true,
                 engine: 'Gemini 2.0 Flash',
@@ -7381,17 +7394,30 @@ const rid=Math.floor(Math.random()*1000);
               }), {
                 headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
               });
-            } else {
-              const errText = await testResp.text();
-              return new Response(JSON.stringify({
-                success: false,
-                error: 'Gemini API 返回 ' + testResp.status,
-                hint: errText.substring(0, 300)
-              }), {
-                headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-              });
             }
+
+            // Record failure for circuit breaker
+            const errText = await testResp.text();
+            await recordCircuitFailure(env);
+
+            // Parse specific error
+            var hint = errText.substring(0, 300);
+            if (testResp.status === 429) {
+              if (errText.includes('quota') || errText.includes('exceeded')) {
+                hint = '免费 Key 配额已用完。请：\n1. 等待约 1 分钟后重试（RPM 限制）\n2. 或到 aistudio.google.com 创建新 Key\n3. 或用逗号分隔配置多个 Key 轮转';
+              } else {
+                hint = '请求过于频繁，请等待几秒后重试。';
+              }
+            }
+            return new Response(JSON.stringify({
+              success: false,
+              error: 'Gemini API 返回 ' + testResp.status,
+              hint: hint
+            }), {
+              headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+            });
           } catch (e) {
+            await recordCircuitFailure(env);
             return new Response(JSON.stringify({
               success: false,
               error: 'Gemini 连接失败: ' + e.message,
