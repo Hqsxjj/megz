@@ -12,7 +12,7 @@ import { WeComCrypt } from './wecom_crypt.js';
 //   https://cloud.google.com/blog/products/ai-machine-learning/reduce-429-errors-on-vertex-ai
 
 const MAX_CONCURRENT_GEMINI = 3;
-const CIRCUIT_BREAKER_THRESHOLD = 5;   // consecutive failures to open circuit
+const CIRCUIT_BREAKER_THRESHOLD = 2;   // consecutive failures to open circuit (aggressive for free tier)
 const CIRCUIT_COOLDOWN_MS = 30000;      // 30s cooldown after circuit opens
 const MAX_RETRIES = 3;
 const BASE_RETRY_MS = 1000;
@@ -5664,14 +5664,19 @@ const rid=Math.floor(Math.random()*1000);
       window.open(window.location.origin + '/api/siri/download?key=' + encodeURIComponent(siriKey), '_blank');
     });
 
+    // Vision: client-side cooldown to prevent rapid-fire API calls
+    let visionTestCooldown = 0;
+
     // Save Vision API config
     document.getElementById('saveVisionConfigBtn').addEventListener('click', async () => {
       const statusEl = document.getElementById('visionConfigStatus');
       const apiKey = document.getElementById('visionApiKeyInput').value.trim();
       const apiBase = document.getElementById('visionApiBaseInput').value.trim();
+      const saveBtn = document.getElementById('saveVisionConfigBtn');
       statusEl.style.display = 'block';
       statusEl.innerHTML = '⏳ 正在保存...';
       statusEl.style.color = 'var(--text-soft)';
+      saveBtn.disabled = true;
 
       try {
         const resp = await fetch('/api/ocr/test', {
@@ -5692,16 +5697,32 @@ const rid=Math.floor(Math.random()*1000);
       } catch (e) {
         statusEl.innerHTML = '❌ 请求失败: ' + e.message;
         statusEl.style.color = '#e53935';
+      } finally {
+        setTimeout(function() { saveBtn.disabled = false; }, 1500);
       }
     });
 
     // Test Vision API connectivity (Gemini or Workers AI fallback)
     document.getElementById('testVisionBtn').addEventListener('click', async () => {
       const statusEl = document.getElementById('visionConfigStatus');
+      const testBtn = document.getElementById('testVisionBtn');
       const apiKey = document.getElementById('visionApiKeyInput').value.trim();
       const apiBase = document.getElementById('visionApiBaseInput').value.trim();
+
+      // Client-side cooldown: prevent clicking faster than every 10 seconds
+      if (visionTestCooldown > Date.now()) {
+        var remain = Math.ceil((visionTestCooldown - Date.now()) / 1000);
+        statusEl.style.display = 'block';
+        statusEl.innerHTML = '⏳ 请等待 ' + remain + ' 秒后再测试（避免触发 API 限流）';
+        statusEl.style.color = '#e67e22';
+        return;
+      }
+      visionTestCooldown = Date.now() + 10000; // 10 second cooldown
+
+      testBtn.disabled = true;
+      testBtn.textContent = '⏳ 测试中...';
       statusEl.style.display = 'block';
-      statusEl.innerHTML = '⏳ 正在测试连接...';
+      statusEl.innerHTML = '⏳ 正在测试连接（10秒冷却中）...';
       statusEl.style.color = 'var(--text-soft)';
 
       try {
@@ -5716,13 +5737,26 @@ const rid=Math.floor(Math.random()*1000);
           statusEl.innerHTML = '✅ 连接成功！<br>引擎: ' + (result.engine || result.model || '') + '<br>' + (result.note || '可正常使用图片识别。');
           statusEl.style.color = '#43a047';
         } else {
-          statusEl.innerHTML = '❌ 失败: ' + (result.error || '未知错误') + '<br>' + (result.hint || '');
+          statusEl.innerHTML = '❌ 失败: ' + (result.error || '未知错误') + '<br><span style="font-size:0.58rem;">' + (result.hint || '') + '</span>';
           statusEl.style.color = '#e53935';
         }
       } catch (e) {
         statusEl.innerHTML = '❌ 请求失败: ' + e.message;
         statusEl.style.color = '#e53935';
       }
+
+      // Countdown timer to re-enable button
+      var updateCooldown = function() {
+        var remain = Math.ceil((visionTestCooldown - Date.now()) / 1000);
+        if (remain <= 0) {
+          testBtn.disabled = false;
+          testBtn.textContent = '🔍 测试连接';
+        } else {
+          testBtn.textContent = '⏳ ' + remain + 's';
+          setTimeout(updateCooldown, 500);
+        }
+      };
+      setTimeout(updateCooldown, 1000);
     });
 
     // Save search config
