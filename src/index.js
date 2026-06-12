@@ -7315,15 +7315,8 @@ const rid=Math.floor(Math.random()*1000);
           const imageBytes = [...new Uint8Array(Buffer.from(base64Data, 'base64'))];
 
           const aiResp = await env.AI.run("@cf/meta/llama-3.2-11b-vision-instruct", {
-            messages: [
-              {
-                role: 'user',
-                content: [
-                  { type: 'text', text: systemText },
-                  { type: 'image', image: imageBytes }
-                ]
-              }
-            ]
+            prompt: systemText,
+            image: imageBytes
           });
 
           if (!aiResp || !aiResp.response) {
