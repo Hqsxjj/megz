@@ -3139,6 +3139,62 @@ export const DIALER_HTML = `<!DOCTYPE html>
       return results;
     }
 
+    // Correct OCR text using text AI (not vision) — fixes Tesseract/WASM errors
+    // Falls back to regex parsing if AI is unavailable
+    function correctOcrTextWithAI(rawText, fileName, onDone) {
+      // Check if any text AI is configured
+      var aiKey = (localStorage.getItem('ai_api_key') || localStorage.getItem('deepseek_api_key') || '').trim();
+      if (!aiKey) {
+        // No AI key — use regex fallback directly
+        var contacts = parsePhoneContactsFromRawText(rawText);
+        onDone(contacts);
+        return;
+      }
+
+      document.getElementById('aiLog3').innerHTML = '🧠 文本 AI 正在修正 OCR 识别错误...';
+      document.getElementById('aiLog3').style.opacity = '1';
+      if (document.getElementById('aiLog4')) {
+        document.getElementById('aiLog4').innerHTML = '⏳ 检测并修正：数字混淆、形近字、断裂文本...';
+        document.getElementById('aiLog4').style.opacity = '1';
+      }
+
+      fetch('/api/ocr/correct', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rawText: rawText, fileName: fileName || 'local_ocr' })
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(result) {
+        if (result.contacts && result.contacts.length > 0) {
+          if (document.getElementById('aiLog3')) {
+            document.getElementById('aiLog3').innerHTML = '✅ 文本 AI 修正完成 · 识别 ' + result.contacts.length + ' 个联系人';
+            document.getElementById('aiLog3').style.opacity = '1';
+          }
+          // Save raw OCR text for training data
+          tempOcrRawText = rawText;
+          tempOcrEngine = 'text_ai_correct';
+          onDone(result.contacts);
+        } else {
+          // AI returned no contacts — fallback to regex
+          if (document.getElementById('aiLog3')) {
+            document.getElementById('aiLog3').innerHTML = '⚠️ AI 未检出，使用本地正则解析...';
+          }
+          var fbContacts = parsePhoneContactsFromRawText(rawText);
+          tempOcrEngine = 'local_tesseract';
+          onDone(fbContacts);
+        }
+      })
+      .catch(function(err) {
+        console.error('[OCR Correct] API call failed, using regex fallback:', err.message);
+        if (document.getElementById('aiLog3')) {
+          document.getElementById('aiLog3').innerHTML = '⚠️ AI 不可用，使用本地正则解析...';
+        }
+        var fbContacts = parsePhoneContactsFromRawText(rawText);
+        tempOcrEngine = 'local_tesseract';
+        onDone(fbContacts);
+      });
+    }
+
     function handleFileImportDispatch(file) {
       if (!file) return;
       var ext = file.name.split('.').pop().toLowerCase();
@@ -3263,9 +3319,10 @@ export const DIALER_HTML = `<!DOCTYPE html>
                   document.getElementById('aiLog4').style.opacity = '1';
                 }
                 setTimeout(function() {
-                  var contacts = parsePhoneContactsFromRawText(text);
-                  renderAIUnstructuredReport(file.name, contacts);
-                }, 800);
+                  correctOcrTextWithAI(text, file.name, function(contacts) {
+                    renderAIUnstructuredReport(file.name, contacts);
+                  });
+                }, 600);
               })
               .catch(function(err) {
                 alert('Word 解析失败：' + err.message);
@@ -3334,13 +3391,14 @@ export const DIALER_HTML = `<!DOCTYPE html>
                         document.getElementById('aiLog4').style.opacity = '1';
                       }
                       setTimeout(function() {
-                        var contacts = parsePhoneContactsFromRawText(extractedText);
-                        if (contacts.length > 0) {
-                          renderAIUnstructuredReport(file.name, contacts);
-                        } else {
-                          handleScannedPdfOCR(pdf, file.name);
-                        }
-                      }, 800);
+                        correctOcrTextWithAI(extractedText, file.name, function(contacts) {
+                          if (contacts.length > 0) {
+                            renderAIUnstructuredReport(file.name, contacts);
+                          } else {
+                            handleScannedPdfOCR(pdf, file.name);
+                          }
+                        });
+                      }, 600);
                     }
                   });
                 });
@@ -4779,9 +4837,10 @@ export const DIALER_HTML = `<!DOCTYPE html>
           document.getElementById('aiLog4').style.opacity = '1';
         }
         setTimeout(function() {
-          var contacts = parsePhoneContactsFromRawText(text);
-          renderAIUnstructuredReport(file.name, contacts);
-        }, 800);
+          correctOcrTextWithAI(text, file.name, function(contacts) {
+            renderAIUnstructuredReport(file.name, contacts);
+          });
+        }, 600);
       };
       reader.readAsText(file, 'utf-8');
     }
