@@ -7336,11 +7336,30 @@ const rid=Math.floor(Math.random()*1000);
           const base64Data = imageBase64.split(',')[1] || imageBase64;
           const imageBytes = [...new Uint8Array(Buffer.from(base64Data, 'base64'))];
 
-          const aiResp = await env.AI.run("@cf/meta/llama-3.2-11b-vision-instruct", {
-            prompt: systemText,
-            image: imageBytes,
-            max_tokens: 2048
-          });
+          let aiResp;
+          try {
+            console.log('[OCR] Trying Kimi K2.6 for Chinese OCR...');
+            const messages = [
+              {
+                role: 'user',
+                content: [
+                  { type: 'text', text: systemText },
+                  { type: 'image', image: imageBytes }
+                ]
+              }
+            ];
+            aiResp = await env.AI.run("@cf/moonshotai/kimi-k2.6", {
+              messages: messages,
+              max_tokens: 2048
+            });
+          } catch (eKimi) {
+            console.warn("[OCR] Kimi K2.6 call failed, falling back to Llama 3.2 Vision:", eKimi.message);
+            aiResp = await env.AI.run("@cf/meta/llama-3.2-11b-vision-instruct", {
+              prompt: systemText,
+              image: imageBytes,
+              max_tokens: 2048
+            });
+          }
 
           if (!aiResp || !aiResp.response) {
             throw new Error('Workers AI model returned empty response');
