@@ -7311,11 +7311,19 @@ const rid=Math.floor(Math.random()*1000);
             ? '你是一个精确的信息提取助手。请逐行逐条识别这张图片中的所有联系人信息，每一条独立判断，不要因为大部分行有某个字段就假设所有行都一样。\n\n图片可能是：微信聊天截图、通讯录截图、表格、名片、文字列表等。\n\n提取规则（逐条独立）：\n1. 姓名：中文2-4个字。注意！左上角、角落、小字中的单个字（如"新""急""重"）不要忽略，可能是姓名的一部分或重要标注。如果图片中有"新"字开头的人名，如实提取。\n2. 电话：手机号11位（1开头）或座机号。一条记录中可能没有电话，也可能只有电话没有姓名，都要收录。\n3. 公司/单位：仅当该联系人附近明确有公司名时才填写。如果某行没有公司名，company留空字符串""，绝对不要从其他行复制或猜测。\n4. 备注：该联系人旁的其他信息（职位、地址等），没有就留空。\n\n关键原则：\n- 逐条独立判断！不要因为90%的行有某个字段，就给剩余10%也硬填。\n- 图片每一个角落的文字都要看，包括顶部、左上角的小字和标记。\n- 某条记录字段不全也没关系，phone或name至少有一个即可收录。\n- rawText中逐行转录图片完整文字，保留原始排版，用于本地兜底解析。\n\n输出纯JSON（禁止markdown代码块包裹）：\n{\n  "contacts": [\n    {"name": "张三", "phone": "13800138000", "company": "某某科技", "note": "经理"},\n    {"name": "", "phone": "13912345678", "company": "", "note": ""}\n  ],\n  "rawText": "逐行完整转录..."\n}'
             : '你是一个OCR助手。请识别这张客户信息截图，提取以下字段：\n\n- name: 客户姓名（2-4个汉字）\n- phone: 电话号码（11位数字手机号）\n- company: 工作单位/公司名称\n- fund: 公积金信息\n- note: 备注/沟通记录\n\n如某字段无法识别则为空字符串。\n\n输出纯JSON（禁止markdown代码块）：\n{"name":"姓名","phone":"13800138000","company":"单位名","fund":"","note":"备注内容"}';
 
+          const base64Data = imageBase64.split(',')[1] || imageBase64;
+          const imageBytes = [...new Uint8Array(Buffer.from(base64Data, 'base64'))];
+
           const aiResp = await env.AI.run("@cf/meta/llama-3.2-11b-vision-instruct", {
             messages: [
-              { role: 'user', content: systemText }
-            ],
-            image: imageBase64
+              {
+                role: 'user',
+                content: [
+                  { type: 'text', text: systemText },
+                  { type: 'image', image: imageBytes }
+                ]
+              }
+            ]
           });
 
           if (!aiResp || !aiResp.response) {
