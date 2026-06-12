@@ -507,7 +507,11 @@ export function createSupabaseClient(env) {
     updateCustomer: updateCustomer,
     batchUpdateCategory: batchUpdateCategory,
     deleteCustomer: deleteCustomer,
-    deleteCustomers: deleteCustomers
+    deleteCustomers: deleteCustomers,
+    saveCorrection: saveCorrection,
+    getCorrections: getCorrections,
+    getCorrectionsForExport: getCorrectionsForExport,
+    getCorrectionsCount: getCorrectionsCount
   };
 
   /**
@@ -576,6 +580,148 @@ export function createSupabaseClient(env) {
       }
     }
     return true;
+  }
+
+  /**
+   * Save an OCR correction record (training data).
+   */
+  async function saveCorrection(correction) {
+    if (!baseUrl || !key) return null;
+
+    const row = {
+      raw_text: correction.rawText || '',
+      original_json: correction.originalContacts || [],
+      corrected_json: correction.correctedContacts || [],
+      source_file: correction.sourceFile || '',
+      ocr_pipeline: correction.ocrPipeline || 'ai_vision',
+      ocr_mode: correction.ocrMode || 'bulk',
+      edit_count: correction.editCount || 0,
+      metadata: correction.metadata || {}
+    };
+
+    const resp = await fetch(baseUrl + '/rest/v1/ocr_corrections', {
+      method: 'POST',
+      headers: Object.assign({}, headers(), {
+        'Prefer': 'return=representation'
+      }),
+      body: JSON.stringify(row)
+    });
+
+    if (!resp.ok) {
+      const text = await resp.text();
+      console.error('[supabase] saveCorrection failed:', text);
+      throw new Error('Supabase saveCorrection failed [' + resp.status + ']: ' + text);
+    }
+
+    const data = await resp.json();
+    return data && data[0] ? data[0] : null;
+  }
+
+  /**
+   * Get OCR corrections with pagination and optional filtering.
+   */
+  async function getCorrections(page, pageSize, minEdits, sort) {
+    if (!baseUrl || !key) return { data: [], total: 0, page: page || 1, pageSize: pageSize || 20 };
+
+    try {
+      var p = page || 1;
+      var ps = pageSize || 20;
+      var from = (p - 1) * ps;
+      var to = from + ps - 1;
+
+      var url2 = baseUrl + '/rest/v1/ocr_corrections?select=*';
+
+      // Filter: only show rows with edits if minEdits > 0
+      if (minEdits && minEdits > 0) {
+        url2 += '&edit_count=gte.' + minEdits;
+      }
+
+      // Sort
+      if (sort === 'oldest') {
+        url2 += '&order=created_at.asc';
+      } else {
+        url2 += '&order=created_at.desc';
+      }
+
+      var headersWithCount = Object.assign({}, headers(), {
+        'Range': from + '-' + to,
+        'Prefer': 'count=exact'
+      });
+
+      var resp = await fetch(url2, { headers: headersWithCount });
+
+      if (!resp.ok) {
+        var text = await resp.text();
+        throw new Error('Supabase getCorrections failed [' + resp.status + ']: ' + text);
+      }
+
+      var data = await resp.json();
+      var total = data.length;
+      var contentRange = resp.headers.get('Content-Range');
+      if (contentRange) {
+        var parts = contentRange.split('/');
+        if (parts.length === 2) total = parseInt(parts[1], 10) || total;
+      }
+
+      return {
+        data: Array.isArray(data) ? data : [],
+        total: total,
+        page: p,
+        pageSize: ps
+      };
+    } catch (e) {
+      console.error('[supabase] getCorrections error:', e.message);
+      return { data: [], total: 0, page: page || 1, pageSize: pageSize || 20 };
+    }
+  }
+
+  /**
+   * Get OCR corrections for JSONL export.
+   */
+  async function getCorrectionsForExport(limit) {
+    if (!baseUrl || !key) return [];
+
+    var maxLimit = Math.min(limit || 200, 1000);
+    var url2 = baseUrl + '/rest/v1/ocr_corrections?select=*&edit_count=gt.0&order=created_at.desc&limit=' + maxLimit;
+
+    var resp = await fetch(url2, { headers: headers() });
+
+    if (!resp.ok) {
+      var text = await resp.text();
+      throw new Error('Supabase getCorrectionsForExport failed [' + resp.status + ']: ' + text);
+    }
+
+    return await resp.json();
+  }
+
+  /**
+   * Get total count of OCR corrections.
+   */
+  async function getCorrectionsCount() {
+    if (!baseUrl || !key) return 0;
+
+    try {
+      var resp = await fetch(
+        baseUrl + '/rest/v1/ocr_corrections?select=id&limit=0',
+        {
+          headers: Object.assign({}, headers(), {
+            'Prefer': 'count=exact'
+          })
+        }
+      );
+
+      if (!resp.ok) return 0;
+
+      var contentRange = resp.headers.get('Content-Range');
+      if (contentRange) {
+        var parts = contentRange.split('/');
+        if (parts.length === 2) return parseInt(parts[1], 10) || 0;
+      }
+      return 0;
+    } catch (e) {
+      console.error('[supabase] getCorrectionsCount error:', e.message);
+      return 0;
+    }
   }
 }
 

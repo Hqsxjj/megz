@@ -1169,7 +1169,8 @@ export const DIALER_HTML = `<!DOCTYPE html>
             </div>
             <span style="font-size: 0.88rem; color: var(--text-main); font-weight: 900; letter-spacing: 0.5px;">BH-AI 智能双引擎导入助手</span>
             <span style="font-size: 0.7rem; color: var(--text-light); max-width: 320px; line-height: 1.4; margin-top: -4px;">搭载启发式文字密度与特征识别算法，自动检测表头、过滤噪音，100% 本地隐私安全。</span>
-            
+            <button id="ocrTrainingDataBtn" style="background:transparent; border:1px solid var(--card-border); font-size:0.62rem; color:var(--text-soft); cursor:pointer; display:inline-flex; align-items:center; gap:3px; padding:2px 8px; border-radius:10px; margin-top:-2px;">📊 训练数据 (<span id="trainingCountBadge" style="color:var(--accent-wechat);font-weight:800;">0</span>)</button>
+
             <!-- OCR Mode Switcher -->
             <div style="display: flex; gap: 14px; align-items: center; margin-top: 4px; background: var(--btn-bg); padding: 5px 12px; border-radius: var(--radius-xs); border: 1px solid var(--card-border); margin-bottom: 2px;">
               <span style="font-size: 0.65rem; color: var(--text-soft); font-weight: 800;">图片/PDF 识别引擎:</span>
@@ -1547,6 +1548,34 @@ export const DIALER_HTML = `<!DOCTYPE html>
   <!-- SheetJS CDN -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.1.1/tesseract.min.js"></script>
+
+<!-- OCR Training Data Modal -->
+<div class="modal-overlay" id="ocrCorrectionModal" style="z-index: 5000;">
+  <div class="modal-card" style="max-width: 640px; gap: 10px; max-height: 80vh; overflow-y: auto; width: 94vw;">
+    <div style="display:flex; justify-content:space-between; align-items:center; position:sticky; top:0; background:var(--modal-card); padding-bottom: 6px; border-bottom:1px solid var(--card-border);">
+      <span style="font-size:0.9rem; font-weight:900; color:var(--text-main);">🧠 OCR 训练数据收集</span>
+      <button id="closeOcrCorrectionBtn" style="background:none; border:none; font-size:1.2rem; cursor:pointer; color:var(--text-soft); line-height:1;">✕</button>
+    </div>
+    <div id="ocrCorrectionStats" style="font-size:0.72rem; color:var(--text-soft); padding:0 2px;">
+      已收集 <strong id="ocrCorrectionCount" style="color:var(--accent-wechat);">0</strong> 条修正记录
+      <span id="ocrCorrectionBadge" style="display:none; margin-left:8px; padding:1px 8px; border-radius:10px; background:#07c160; color:white; font-size:0.6rem; font-weight:700;">🎯 可用于提示改进</span>
+    </div>
+    <div style="display:flex; gap:6px; flex-wrap:wrap; align-items:center;">
+      <button id="ocrExportJsonlBtn" class="btn-secondary" style="flex:1; min-width:90px; padding:6px 10px; font-size:0.68rem;">📥 导出 JSONL</button>
+      <button id="ocrRefreshCorrectionsBtn" class="btn-secondary" style="padding:6px 10px; font-size:0.68rem;">🔄 刷新</button>
+      <label style="font-size:0.6rem; color:var(--text-light); cursor:pointer; display:flex; align-items:center; gap:4px; white-space:nowrap;">
+        <input type="checkbox" id="ocrFilterEditsOnly" checked style="cursor:pointer;">
+        仅显示有修改
+      </label>
+    </div>
+    <div id="ocrCorrectionList" style="max-height:55vh; overflow-y:auto; border:1px solid var(--card-border); border-radius:var(--radius-xs); background:var(--bg-app);">
+      <div style="text-align:center; padding:28px; font-size:0.72rem; color:var(--text-light);">点击"刷新"加载记录</div>
+    </div>
+    <div style="font-size:0.55rem; color:var(--text-light); text-align:center; padding:4px;">
+      修正数据用于改进 AI 识别提示词 · 不会上传原始图片 · 每 24h 自动刷新示例缓存
+    </div>
+  </div>
+</div>
 
 <!-- Customer Database Dashboard (v2) -->
 <!-- Customer Database Dashboard (v2) -->
@@ -2227,6 +2256,12 @@ export const DIALER_HTML = `<!DOCTYPE html>
     var tempImportDetected = null;
     var tempImportType = 'xlsx'; // 'xlsx', 'vcf', 'unstructured'
     var tempUnstructuredContacts = [];
+
+    // OCR Training: save original results before user edits
+    var tempOcrFileName = '';
+    var tempOcrRawText = '';
+    var tempOcrOriginalContacts = [];
+    var tempOcrEngine = 'ai_vision'; // 'ai_vision', 'local_tesseract', 'paddleocr', 'text_fallback'
 
     function resetAIImporterUI() {
       multiImageAborted = true;
@@ -3197,6 +3232,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
     }
 
     function handleDocxImport(file) {
+      tempOcrEngine = 'text_fallback';
       showAIScanningUI(file.name);
       document.getElementById('aiScanStatus').innerHTML = '⚙️ AI 正在载入 Word 解析引擎...';
       if (document.getElementById('aiLog1')) {
@@ -3245,6 +3281,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
     }
 
     function handlePdfImport(file) {
+      tempOcrEngine = 'text_fallback';
       showAIScanningUI(file.name);
       document.getElementById('aiScanStatus').innerHTML = '⚙️ AI 正在载入 PDF 解析引擎...';
       if (document.getElementById('aiLog1')) {
@@ -3709,6 +3746,9 @@ export const DIALER_HTML = `<!DOCTYPE html>
           })
           .then(function(result) {
             if (document.getElementById('aiLog4')) { document.getElementById('aiLog4').innerHTML = '✅ AI 识别完成'; document.getElementById('aiLog4').style.opacity = '1'; }
+            // Save raw OCR data for training feedback
+            tempOcrRawText = result.rawText || '';
+            tempOcrEngine = 'ai_vision';
             var contacts = [];
             if (result.contacts && result.contacts.length > 0) {
               result.contacts.forEach(function(c) { if (c.phone) contacts.push({ name: c.name || '', phone: c.phone, company: c.company || '', note: c.note || '' }); });
@@ -3984,6 +4024,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
 
     // PaddleOCR 图片回退
     function runPaddleOCRImageFallback(file) {
+      tempOcrEngine = 'paddleocr';
       if (!file) { runCloudImageOCR(file); return; }
       if (document.getElementById('aiScanStatus')) {
         document.getElementById('aiScanStatus').innerHTML = '🧠 正在启动 PaddleOCR 深度学习识别...';
@@ -4037,6 +4078,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
 
     // PaddleOCR PDF 回退
     function runPaddleOCRPdfFallback(pdf, fileName) {
+      tempOcrEngine = 'paddleocr';
       if (document.getElementById('aiScanStatus')) {
         document.getElementById('aiScanStatus').innerHTML = '🧠 正在启动 PaddleOCR 深度学习识别...';
       }
@@ -4331,6 +4373,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
       var ocrEngine = 'local';
       var ocrEngineRadio = document.querySelector('input[name="ocrEngine"]:checked');
       if (ocrEngineRadio) ocrEngine = ocrEngineRadio.value;
+      tempOcrEngine = ocrEngine === 'ai' ? 'ai_vision' : 'local_tesseract';
 
       // Set up scanning UI directly (skip showAIScanningUI timeouts to avoid progress overwrite)
       document.getElementById('aiImportInit').style.display = 'none';
@@ -4566,6 +4609,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
       if (ocrEngineRadio) {
         ocrEngine = ocrEngineRadio.value;
       }
+      tempOcrEngine = ocrEngine === 'ai' ? 'ai_vision' : 'local_tesseract';
 
       if (ocrEngine === 'local') {
         runLocalTableSlicingOCR(file);
@@ -4627,6 +4671,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
       tempOcrFile = file;
       tempOcrPdf = null;
       tempOcrFileName = file.name;
+      tempOcrEngine = 'local_tesseract';
       
       var reader = new FileReader();
       reader.onload = function(e) {
@@ -4710,6 +4755,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
     }
 
     function handleTxtImport(file) {
+      tempOcrEngine = 'text_fallback';
       showAIScanningUI(file.name);
       document.getElementById('aiScanStatus').innerHTML = '📄 正在读取文本文档...';
       if (document.getElementById('aiLog1')) {
@@ -4741,6 +4787,10 @@ export const DIALER_HTML = `<!DOCTYPE html>
     }
 
     function renderAIUnstructuredReport(fileName, contacts) {
+      // Snapshot original contacts BEFORE user edits (for training feedback)
+      tempOcrOriginalContacts = JSON.parse(JSON.stringify(contacts));
+      tempOcrFileName = fileName;
+      if (!tempOcrEngine) tempOcrEngine = 'text_fallback'; // Default if not set by caller
       tempUnstructuredContacts = contacts;
       tempImportType = 'unstructured';
       tempImportData = contacts;
@@ -4854,6 +4904,39 @@ export const DIALER_HTML = `<!DOCTYPE html>
       });
     }
 
+    function saveOcrCorrection() {
+      // Save OCR correction as training data (non-blocking)
+      var corrected = tempUnstructuredContacts;
+      if (!tempOcrOriginalContacts || tempOcrOriginalContacts.length === 0) return;
+      if (!corrected || corrected.length === 0) return;
+
+      // Check if anything actually changed
+      var hasChanges = JSON.stringify(tempOcrOriginalContacts) !== JSON.stringify(corrected);
+      if (!hasChanges) return;
+
+      fetch('/api/ocr/correction', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          rawText: tempOcrRawText || '',
+          originalContacts: tempOcrOriginalContacts,
+          correctedContacts: corrected,
+          sourceFile: tempOcrFileName || '',
+          ocrPipeline: tempOcrEngine || 'ai_vision',
+          ocrMode: 'bulk',
+          metadata: {
+            batchLabel: (document.getElementById('batchLabelInput') || {}).value || ''
+          }
+        })
+      }).then(function() {
+        // Refresh count badge if visible
+        fetchTrainingDataCount();
+      }).catch(function(err) {
+        console.error('Failed to save OCR correction:', err);
+        // Non-blocking — don't interrupt import flow
+      });
+    }
+
     function executeAIImportUnstructured() {
       if (!tempUnstructuredContacts || tempUnstructuredContacts.length === 0) return;
       var batchLabel = (document.getElementById('batchLabelInput').value || '').trim();
@@ -4877,6 +4960,9 @@ export const DIALER_HTML = `<!DOCTYPE html>
 
       // Auto-upload to Supabase
       uploadCustomersToSupabase(tempUnstructuredContacts, batchLabel);
+
+      // Save OCR correction for training feedback loop (before reset clears state)
+      saveOcrCorrection();
 
       resetAIImporterUI();
     }
@@ -4914,8 +5000,121 @@ export const DIALER_HTML = `<!DOCTYPE html>
           executeAIImportUnstructured();
         }
       });
+
+      // Init OCR training data UI
+      initOcrCorrectionUI();
     }
 
+    // ====== OCR Training Data Review UI ======
+
+    function initOcrCorrectionUI() {
+      var btn = document.getElementById('ocrTrainingDataBtn');
+      var modal = document.getElementById('ocrCorrectionModal');
+      var closeBtn = document.getElementById('closeOcrCorrectionBtn');
+      var exportBtn = document.getElementById('ocrExportJsonlBtn');
+      var refreshBtn = document.getElementById('ocrRefreshCorrectionsBtn');
+      var filterCheckbox = document.getElementById('ocrFilterEditsOnly');
+
+      // Open modal
+      if (btn && modal) {
+        btn.addEventListener('click', function() {
+          modal.classList.add('active');
+          loadOcrCorrections();
+        });
+      }
+
+      // Close modal
+      if (closeBtn && modal) {
+        closeBtn.addEventListener('click', function() { modal.classList.remove('active'); });
+        modal.addEventListener('click', function(e) {
+          if (e.target === modal) modal.classList.remove('active');
+        });
+      }
+
+      // Export JSONL
+      if (exportBtn) {
+        exportBtn.addEventListener('click', function() {
+          window.open('/api/ocr/corrections/export?limit=500', '_blank');
+        });
+      }
+
+      // Refresh
+      if (refreshBtn) {
+        refreshBtn.addEventListener('click', loadOcrCorrections);
+      }
+
+      // Filter toggle
+      if (filterCheckbox) {
+        filterCheckbox.addEventListener('change', loadOcrCorrections);
+      }
+
+      // Initial count fetch
+      fetchTrainingDataCount();
+    }
+
+    function loadOcrCorrections() {
+      var container = document.getElementById('ocrCorrectionList');
+      if (!container) return;
+      container.innerHTML = '<div style="text-align:center;padding:24px;font-size:0.7rem;color:var(--text-light);">⏳ 加载中...</div>';
+
+      var minEdits = 0;
+      var filterEl = document.getElementById('ocrFilterEditsOnly');
+      if (filterEl && filterEl.checked) minEdits = 1;
+
+      fetch('/api/ocr/corrections?page=1&pageSize=50&minEdits=' + minEdits + '&sort=newest')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          if (!data.data || data.data.length === 0) {
+            container.innerHTML = '<div style="text-align:center;padding:28px;font-size:0.72rem;color:var(--text-light);">📭 暂无记录<br><span style="font-size:0.58rem;">导入并修正联系人后，修正记录会自动收集</span></div>';
+            return;
+          }
+          var countEl = document.getElementById('ocrCorrectionCount');
+          if (countEl) countEl.textContent = data.total || 0;
+
+          var html = '';
+          data.data.forEach(function(c) {
+            var origStr = JSON.stringify(c.original_json).substring(0, 120);
+            var corrStr = JSON.stringify(c.corrected_json).substring(0, 120);
+            var hasEdits = c.edit_count > 0;
+            var borderColor = hasEdits ? 'var(--accent-wechat)' : 'var(--card-border)';
+            var badgeColor = hasEdits ? '#07c160' : '#999';
+            html += '<div style="border-left:3px solid ' + borderColor + '; border-bottom:0.5px solid var(--card-border); padding:6px 8px; background:var(--card-bg);">' +
+              '<div style="display:flex;justify-content:space-between;align-items:center;font-size:0.58rem;color:var(--text-light);">' +
+                '<span style="font-weight:700;">' + esc(c.source_file || '未知文件') + '</span>' +
+                '<span style="display:flex;align-items:center;gap:4px;">' +
+                  '<span style="background:' + badgeColor + ';color:white;padding:0px 5px;border-radius:6px;font-size:0.52rem;font-weight:700;">' + c.edit_count + '处修改</span>' +
+                  '<span>' + (c.created_at || '').slice(0,19).replace('T',' ') + '</span>' +
+                '</span>' +
+              '</div>' +
+              '<div style="font-size:0.6rem; margin-top:3px; word-break:break-all; line-height:1.3;">' +
+                '<span style="color:var(--text-soft);">原始: </span><span style="color:#999;">' + esc(origStr) + '</span><br>' +
+                '<span style="color:var(--text-soft);">修正: </span><span style="color:' + (hasEdits ? 'var(--accent-wechat)' : 'var(--text-main)') + ';">' + esc(corrStr) + '</span>' +
+              '</div>' +
+              '<div style="font-size:0.55rem; color:var(--text-light); margin-top:2px;">🔧 ' + esc(c.ocr_pipeline || 'unknown') + ' · ' + esc(c.ocr_mode || 'bulk') + '</div>' +
+            '</div>';
+          });
+          container.innerHTML = html;
+        })
+        .catch(function(err) {
+          container.innerHTML = '<div style="text-align:center;padding:24px;font-size:0.7rem;color:#e74c3c;">⚠️ 加载失败: ' + esc(err.message) + '</div>';
+        });
+    }
+
+    function fetchTrainingDataCount() {
+      fetch('/api/ocr/corrections/stats')
+        .then(function(r) { return r.json(); })
+        .then(function(stats) {
+          var badge = document.getElementById('trainingCountBadge');
+          var countEl = document.getElementById('ocrCorrectionCount');
+          var countBadge = document.getElementById('ocrCorrectionBadge');
+          if (badge) badge.textContent = stats.count || 0;
+          if (countEl) countEl.textContent = stats.count || 0;
+          if (countBadge) {
+            countBadge.style.display = (stats.count > 0) ? 'inline' : 'none';
+          }
+        })
+        .catch(function() {});
+    }
 
     // Parse Excel/CSV
     function handleExcelImport(file) {

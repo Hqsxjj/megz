@@ -7296,18 +7296,7 @@ const rid=Math.floor(Math.random()*1000);
           });
         }
 
-        // Wait for concurrency slot before calling AI
-        await geminiAcquire();
-        let content = '';
-        try {
-          // Ensure license agreement is signed
-          try {
-            await env.AI.run("@cf/meta/llama-3.2-11b-vision-instruct", { prompt: "agree" });
-          } catch (e) {
-            console.warn("[OCR] Agreeing to Meta license failed (might be already agreed):", e.message);
-          }
-
-          const systemText = ocrMode === 'bulk'
+        let systemText = ocrMode === 'bulk'
             ? '你是一个精确定位并提取表格中所有联系人信息的OCR助手。请仔细观察图片，逐行逐条识别提取联系人信息，每一条独立判断，不可遗漏任何一行。\n\n' +
               '【字段提取规则】：\n' +
               '1. 姓名 (name)：通常是1-4个汉字。特别注意：在一些表格中，第一列可能仅有单个汉字的姓氏（如“温”、“朱”、“刘”、“张”等），请务必将其提取为 name。如果姓氏的左上角有蓝色图标污染（例如带有“听”或“新”字的圆形/三角形小图标），这是系统图标，绝对不是姓名的一部分，请务必剔除它，只保留纯姓氏（如“温”、“朱”）。\n' +
@@ -7332,6 +7321,30 @@ const rid=Math.floor(Math.random()*1000);
               '如某字段无法识别则为空字符串。\n\n' +
               '输出纯JSON（禁止markdown代码块）：\n' +
               '{"name":"姓名","phone":"13800000000","company":"单位名","fund":"","note":"备注内容"}';
+
+          // Inject few-shot examples from past user corrections (bulk mode only)
+          if (ocrMode === 'bulk') {
+            try {
+              const fewShotCached = await env.DATA_KV.get('config:few_shot_examples');
+              if (fewShotCached) {
+                const fewShotExamples = JSON.parse(fewShotCached);
+                if (fewShotExamples && fewShotExamples.length > 0) {
+                  systemText += '\n\n=== 以下是你过去在类似任务中被用户修正过的示例（请学习修正模式，但不要输出这些示例数据本身）===\n';
+                  for (let fi = 0; fi < Math.min(fewShotExamples.length, 3); fi++) {
+                    const ex = fewShotExamples[fi];
+                    systemText += '\n【示例' + (fi + 1) + '】\n';
+                    systemText += '原始图片文字片段: ' + (ex.rawText || '') + '\n';
+                    systemText += 'AI原始提取: ' + JSON.stringify(ex.originalContacts || []) + '\n';
+                    systemText += '用户修正后的正确结果: ' + JSON.stringify(ex.correctedContacts || []) + '\n';
+                  }
+                  systemText += '\n=== 请参考以上修正模式，对当前图片执行同样高质量的信息提取 ===';
+                  console.log('[OCR] Injected ' + Math.min(fewShotExamples.length, 3) + ' few-shot examples into prompt');
+                }
+              }
+            } catch (fewErr) {
+              console.warn('[OCR] Few-shot fetch failed, using base prompt:', fewErr.message);
+            }
+          }
 
           const base64Data = imageBase64.split(',')[1] || imageBase64;
           const imageBytes = [...new Uint8Array(Buffer.from(base64Data, 'base64'))];
@@ -7627,6 +7640,178 @@ const rid=Math.floor(Math.random()*1000);
         console.error('[OCR] error:', e.message);
         return new Response(JSON.stringify({ error: 'OCR 处理失败: ' + e.message }), {
           status: 500,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+    }
+
+    // === OCR Correction Training Data APIs ===
+
+    // POST /api/ocr/correction — save a correction pair
+    if (path === '/api/ocr/correction' && request.method === 'POST') {
+      try {
+        const body = await request.json();
+        const { rawText, originalContacts, correctedContacts, sourceFile, ocrPipeline, ocrMode, metadata } = body;
+        if (!rawText && (!originalContacts || originalContacts.length === 0)) {
+          return new Response(JSON.stringify({ error: '缺少 rawText 或 originalContacts' }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+
+        // Compute edit_count by comparing original vs corrected
+        var editCount = 0;
+        if (originalContacts && correctedContacts) {
+          for (var i = 0; i < Math.max(originalContacts.length, correctedContacts.length); i++) {
+            var orig = originalContacts[i] || {};
+            var corr = correctedContacts[i] || {};
+            if (orig.name !== corr.name) editCount++;
+            if (orig.phone !== corr.phone) editCount++;
+            if (orig.company !== corr.company) editCount++;
+            if (orig.note !== corr.note) editCount++;
+          }
+        }
+
+        const sb = createSupabaseClient(env);
+        const saved = await sb.saveCorrection({
+          rawText: rawText || '',
+          originalContacts: originalContacts || [],
+          correctedContacts: correctedContacts || [],
+          sourceFile: sourceFile || '',
+          ocrPipeline: ocrPipeline || 'ai_vision',
+          ocrMode: ocrMode || 'bulk',
+          editCount: editCount,
+          metadata: metadata || {}
+        });
+
+        // Update KV caches
+        try {
+          var countStr = await env.DATA_KV.get('correction:count');
+          var count = parseInt(countStr || '0', 10) + 1;
+          await env.DATA_KV.put('correction:count', String(count), { expirationTtl: 3600 });
+          await env.DATA_KV.put('correction:last_sync', new Date().toISOString());
+
+          // Update few_shot_examples ring buffer if user made edits
+          if (editCount > 0 && originalContacts && correctedContacts) {
+            var examples = [];
+            try {
+              var cached = await env.DATA_KV.get('config:few_shot_examples');
+              if (cached) examples = JSON.parse(cached);
+            } catch(e) {}
+            examples.unshift({
+              rawText: (rawText || '').substring(0, 500),
+              originalContacts: originalContacts.map(function(c) {
+                return { name: c.name || '', phone: c.phone || '', company: c.company || '', note: c.note || '' };
+              }),
+              correctedContacts: correctedContacts.map(function(c) {
+                return { name: c.name || '', phone: c.phone || '', company: c.company || '', note: c.note || '' };
+              })
+            });
+            if (examples.length > 20) examples.length = 20;
+            await env.DATA_KV.put('config:few_shot_examples', JSON.stringify(examples), { expirationTtl: 86400 });
+          }
+        } catch (kvErr) {
+          console.error('[OCR correction] KV update failed:', kvErr.message);
+        }
+
+        return new Response(JSON.stringify({ success: true, id: saved ? saved.id : null }), {
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      } catch (e) {
+        console.error('[OCR correction] Save failed:', e.message);
+        return new Response(JSON.stringify({ error: '保存修正记录失败: ' + e.message }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+    }
+
+    // GET /api/ocr/corrections — list corrections
+    if (path === '/api/ocr/corrections' && request.method === 'GET') {
+      try {
+        const url = new URL(request.url);
+        const page = parseInt(url.searchParams.get('page') || '1', 10);
+        const pageSize = Math.min(parseInt(url.searchParams.get('pageSize') || '20', 10), 200);
+        const minEdits = parseInt(url.searchParams.get('minEdits') || '0', 10);
+        const sort = url.searchParams.get('sort') || 'newest';
+
+        const sb = createSupabaseClient(env);
+        const result = await sb.getCorrections(page, pageSize, minEdits, sort);
+
+        return new Response(JSON.stringify(result), {
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      } catch (e) {
+        console.error('[OCR corrections] List failed:', e.message);
+        return new Response(JSON.stringify({ error: '获取修正记录失败: ' + e.message }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+    }
+
+    // GET /api/ocr/corrections/export — export as JSONL for fine-tuning
+    if (path === '/api/ocr/corrections/export' && request.method === 'GET') {
+      try {
+        const url = new URL(request.url);
+        const limit = Math.min(parseInt(url.searchParams.get('limit') || '200', 10), 1000);
+
+        const sb = createSupabaseClient(env);
+        const rows = await sb.getCorrectionsForExport(limit);
+
+        var jsonlLines = [];
+        for (var i = 0; i < rows.length; i++) {
+          var row = rows[i];
+          jsonlLines.push(JSON.stringify({
+            input: {
+              rawText: row.raw_text || '',
+              contacts: row.original_json || []
+            },
+            output: {
+              contacts: row.corrected_json || []
+            }
+          }));
+        }
+
+        return new Response(jsonlLines.join('\n'), {
+          headers: {
+            'Content-Type': 'application/x-ndjson',
+            'Content-Disposition': 'attachment; filename="ocr_training_data.jsonl"',
+            'Access-Control-Allow-Origin': '*'
+          }
+        });
+      } catch (e) {
+        console.error('[OCR correction export] Failed:', e.message);
+        return new Response(JSON.stringify({ error: '导出失败: ' + e.message }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+    }
+
+    // GET /api/ocr/corrections/stats — quick stats
+    if (path === '/api/ocr/corrections/stats' && request.method === 'GET') {
+      try {
+        var count = 0;
+        var lastSync = '';
+        try {
+          var cachedCount = await env.DATA_KV.get('correction:count');
+          if (cachedCount) count = parseInt(cachedCount, 10) || 0;
+          lastSync = await env.DATA_KV.get('correction:last_sync') || '';
+        } catch (kvErr) {}
+
+        // Fallback: query Supabase directly if KV is empty
+        if (count === 0) {
+          const sb = createSupabaseClient(env);
+          count = await sb.getCorrectionsCount();
+        }
+
+        return new Response(JSON.stringify({ count: count, lastSync: lastSync }), {
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      } catch (e) {
+        console.error('[OCR stats] Failed:', e.message);
+        return new Response(JSON.stringify({ count: 0, lastSync: '' }), {
           headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
         });
       }
