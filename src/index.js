@@ -7338,7 +7338,8 @@ const rid=Math.floor(Math.random()*1000);
 
           const aiResp = await env.AI.run("@cf/meta/llama-3.2-11b-vision-instruct", {
             prompt: systemText,
-            image: imageBytes
+            image: imageBytes,
+            max_tokens: 2048
           });
 
           if (!aiResp || !aiResp.response) {
