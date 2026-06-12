@@ -32,6 +32,19 @@ function geminiRelease() {
   }
 }
 
+function decodeBase64Image(dataUrl) {
+  const base64Data = dataUrl.split(',')[1] || dataUrl;
+  if (typeof Buffer !== 'undefined') {
+    return new Uint8Array(Buffer.from(base64Data, 'base64'));
+  }
+  const binaryString = atob(base64Data);
+  const bytes = new Uint8Array(binaryString.length);
+  for (let i = 0; i < binaryString.length; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  return bytes;
+}
+
 async function getAllKVKeys(env, prefix) {
   let keys = [];
   let cursor = undefined;
