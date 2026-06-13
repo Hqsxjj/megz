@@ -3674,10 +3674,10 @@ export const DIALER_HTML = `<!DOCTYPE html>
           document.getElementById('aiLog3').style.opacity = '1';
         }
         
-        doTesseractLocal(tempOcrFile, function(err, contacts) {
+        doTesseractLocal(tempOcrImgDataUrl, function(err, contacts) {
           if (err || !contacts || contacts.length === 0) {
             console.error('Local Full-Image Tesseract failed, trying PaddleOCR:', err);
-            runPaddleOCRImageFallback(tempOcrFile);
+            runPaddleOCRImageFallback(tempOcrFile || tempOcrImgDataUrl);
           } else {
             if (document.getElementById('aiLog4')) {
               document.getElementById('aiLog4').innerHTML = '🎉 本地识别成功，共 ' + contacts.length + ' 人';
@@ -3805,12 +3805,12 @@ export const DIALER_HTML = `<!DOCTYPE html>
     }
 
     function runCloudImageOCR(file) {
-      if (!file) {
+      if (!file && !tempOcrImgDataUrl) {
         alert('本地识别未检出号码，且找不到原始图片，请重新上传。');
         resetAIImporterUI();
         return;
       }
-      showAIScanningUI(file.name);
+      showAIScanningUI((file && file.name) ? file.name : tempOcrFileName);
       
       // Workers AI runs on the server side and does not require a client API key.
       var aiKey = true;
@@ -3820,13 +3820,12 @@ export const DIALER_HTML = `<!DOCTYPE html>
         if (document.getElementById('aiLog1')) { document.getElementById('aiLog1').innerHTML = '⏳ 图片发送至 AI 视觉模型...'; document.getElementById('aiLog1').style.opacity = '1'; }
         if (document.getElementById('aiLog2')) { document.getElementById('aiLog2').innerHTML = '🧠 Cloudflare Workers AI 视觉引擎'; document.getElementById('aiLog2').style.opacity = '1'; }
 
-        var reader = new FileReader();
-        reader.onload = function(e) {
+        var proceedWithDataUrl = function(base64Img) {
           if (document.getElementById('aiLog3')) { document.getElementById('aiLog3').innerHTML = '📸 图片编码完成，等待返回...'; document.getElementById('aiLog3').style.opacity = '1'; }
           fetch('/api/ocr', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ image: e.target.result, mode: 'bulk' })
+            body: JSON.stringify({ image: base64Img, mode: 'bulk' })
           })
           .then(function(r) {
             return r.text().then(function(t) {
@@ -3857,11 +3856,25 @@ export const DIALER_HTML = `<!DOCTYPE html>
             resetAIImporterUI();
           });
         };
-        reader.onerror = function() {
-          alert('读取图片失败！');
+
+        if (file instanceof File || file instanceof Blob) {
+          var reader = new FileReader();
+          reader.onload = function(e) {
+            proceedWithDataUrl(e.target.result);
+          };
+          reader.onerror = function() {
+            alert('读取图片失败！');
+            resetAIImporterUI();
+          };
+          reader.readAsDataURL(file);
+        } else if (typeof file === 'string' && file.startsWith('data:')) {
+          proceedWithDataUrl(file);
+        } else if (tempOcrImgDataUrl) {
+          proceedWithDataUrl(tempOcrImgDataUrl);
+        } else {
+          alert('无法读取图片数据，请重新上传。');
           resetAIImporterUI();
-        };
-        reader.readAsDataURL(file);
+        }
       } else {
         alert('本地未检出号码，且未配置云端 AI API Key（请配置 Vision Key）！');
         resetAIImporterUI();
