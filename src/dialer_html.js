@@ -4026,7 +4026,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
       });
       _paddleOCR.loading = true;
 
-      var recModelUrl = localStorage.getItem('paddleocr_rec_model') || 'https://hf-mirror.com/nicball/PaddleOCR-v4-ONNX/resolve/main/ch_PP-OCRv4_rec_infer.onnx';
+      var recModelUrl = localStorage.getItem('paddleocr_rec_model') || 'https://cdn.jsdelivr.net/npm/@gutenye/ocr-models/ch_PP-OCRv4_rec_infer.onnx';
       var dictUrl = localStorage.getItem('paddleocr_dict') || 'https://cdn.jsdelivr.net/gh/PaddlePaddle/PaddleOCR@main/ppocr/utils/ppocr_keys_v1.txt';
 
       var loadOrt = window.ort ? Promise.resolve() : loadScript('https://cdn.jsdelivr.net/npm/onnxruntime-web@1.21.0/dist/ort.min.js');
