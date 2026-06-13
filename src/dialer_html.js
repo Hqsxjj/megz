@@ -2939,20 +2939,37 @@ export const DIALER_HTML = `<!DOCTYPE html>
         var line = lines[i].trim();
         if (!line) continue;
         
-        var phoneRegex = /(?:1[3-9]\\d{9}|1[3-9]\\d{1,2}[-\\s]\\d{3,4}[-\\s]\\d{4}|0\\d{2,3}[-\\s]\\d{7,8}|0\\d{9,11})/g;
+        var cleanLine = line.replace(/[-\\s]/g, '').replace(/[Il|]/g, '1').replace(/[oO]/g, '0');
+        var robustPhoneRegex = /(?:1[3-9]\\d{9}|0\\d{2,3}\\d{7,8})/g;
         var match;
         var foundPhonesInLine = [];
         
-        while ((match = phoneRegex.exec(line)) !== null) {
-          var cleanPhoneStr = match[0].replace(/[-\\s]/g, '');
+        while ((match = robustPhoneRegex.exec(cleanLine)) !== null) {
+          var cleanPhoneStr = match[0];
           if (!phoneSet.has(cleanPhoneStr)) {
             foundPhonesInLine.push({
               phone: cleanPhoneStr,
-              raw: match[0],
-              index: match.index,
+              raw: cleanPhoneStr,
+              index: 0,
               length: match[0].length
             });
             phoneSet.add(cleanPhoneStr);
+          }
+        }
+        
+        if (foundPhonesInLine.length === 0) {
+          var phoneRegex = /(?:1[3-9]\\d{9}|1[3-9]\\d{1,2}[-\\s]\\d{3,4}[-\\s]\\d{4}|0\\d{2,3}[-\\s]\\d{7,8}|0\\d{9,11})/g;
+          while ((match = phoneRegex.exec(line)) !== null) {
+            var cleanPhoneStr = match[0].replace(/[-\\s]/g, '');
+            if (!phoneSet.has(cleanPhoneStr)) {
+              foundPhonesInLine.push({
+                phone: cleanPhoneStr,
+                raw: match[0],
+                index: match.index,
+                length: match[0].length
+              });
+              phoneSet.add(cleanPhoneStr);
+            }
           }
         }
         
