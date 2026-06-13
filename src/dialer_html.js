@@ -1251,6 +1251,10 @@ export const DIALER_HTML = `<!DOCTYPE html>
               <input type="range" id="sliderSplit1" min="5" max="95" value="25" style="width: 100%; cursor: pointer; height: 4px;">
               <input type="range" id="sliderSplit2" min="5" max="95" value="60" style="width: 100%; cursor: pointer; height: 4px;">
             </div>
+            <label style="font-size: 0.75rem; color: var(--text-main); margin-top: 6px; display: flex; align-items: center; gap: 6px; cursor: pointer;">
+              <input type="checkbox" id="chkUseSlicing" style="accent-color: var(--primary-color);"> 启用表格列切片模式 (适合Excel截图，普通名片/照片请取消勾选)
+            </label>
+            </div>
 
             <!-- Column Order Preset -->
             <div style="display: flex; gap: 8px; align-items: center; width: 100%; max-width: 320px;">
@@ -3658,6 +3662,35 @@ export const DIALER_HTML = `<!DOCTYPE html>
     }
 
     function processLocalImageOCR() {
+      var useSlicing = document.getElementById('chkUseSlicing') ? document.getElementById('chkUseSlicing').checked : false;
+      
+      if (!useSlicing) {
+        if (document.getElementById('aiLog2')) {
+          document.getElementById('aiLog2').innerHTML = '⏳ 正在进行全图 AI 识别，取消切片优化...';
+          document.getElementById('aiLog2').style.opacity = '1';
+        }
+        if (document.getElementById('aiLog3')) {
+          document.getElementById('aiLog3').innerHTML = '⏳ 正在加载语言模型包...';
+          document.getElementById('aiLog3').style.opacity = '1';
+        }
+        
+        doTesseractLocal(tempOcrFile, function(err, contacts) {
+          if (err || !contacts || contacts.length === 0) {
+            console.error('Local Full-Image Tesseract failed, trying PaddleOCR:', err);
+            runPaddleOCRImageFallback(tempOcrFile);
+          } else {
+            if (document.getElementById('aiLog4')) {
+              document.getElementById('aiLog4').innerHTML = '🎉 本地识别成功，共 ' + contacts.length + ' 人';
+              document.getElementById('aiLog4').style.opacity = '1';
+            }
+            setTimeout(function() {
+              renderAIUnstructuredReport(tempOcrFileName, contacts);
+            }, 800);
+          }
+        });
+        return;
+      }
+
       var img = new Image();
       img.src = tempOcrImgDataUrl;
       img.onload = function() {
