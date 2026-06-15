@@ -7261,6 +7261,45 @@ const rid=Math.floor(Math.random()*1000);
       }
     }
 
+    // Workers AI 单细胞视觉模型识别 (Fallback)
+    if (path === '/api/ocr/vision_cell' && request.method === 'POST') {
+      try {
+        const body = await request.json();
+        const base64 = body.image.replace(/^data:image\/\w+;base64,/, '');
+        
+        let imgArray;
+        try {
+          const { Buffer } = await import('node:buffer');
+          imgArray = Buffer.from(base64, 'base64');
+        } catch(e) {
+          const binaryString = atob(base64);
+          imgArray = new Uint8Array(binaryString.length);
+          for (let i = 0; i < binaryString.length; i++) {
+            imgArray[i] = binaryString.charCodeAt(i);
+          }
+        }
+
+        const response = await env.AI.run('@cf/meta/llama-3.2-11b-vision-instruct', {
+          image: [...imgArray],
+          prompt: "Please extract the Chinese characters (usually a single surname or name) from this image. Output ONLY the exact Chinese characters you see. Do not include any other text, punctuation, or explanations. If you don't see any Chinese characters, output nothing.",
+          max_tokens: 10
+        });
+
+        let text = (response.response || '').trim();
+        // remove any AI conversational filler like "The text is:" or quotes
+        text = text.replace(/^["']|["']$/g, '').replace(/The text is:?\s*/i, '').trim();
+
+        return new Response(JSON.stringify({ text: text }), {
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ error: e.message }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+    }
+
     // OCR 文本提取（粘贴文本直接解析）
     if (path === '/api/ocr/text' && request.method === 'POST') {
       try {

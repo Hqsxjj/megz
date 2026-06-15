@@ -4135,19 +4135,39 @@ export const DIALER_HTML = `<!DOCTYPE html>
               if (!c.name || c.name === '严' || c.minNameDist > 15) {
                 var nameCol = slices.find(function(s) { return s.type === 'name'; });
                 var cellDataUrl = cropCellInBrowser(img, c.yCenter, nameCol);
-                return workerObj.setParameters({ tessedit_pageseg_mode: '7', tessedit_char_whitelist: '' })
-                  .then(function() { return workerObj.recognize(cellDataUrl); })
-                  .then(function(cellRes) {
-                    var fallbackName = cellRes.data.text.trim().replace(/^[新旧听一]\s*/, '').replace(/[^\u4e00-\u9fa5a-zA-Z]/g, '').trim();
-                    if (fallbackName && fallbackName !== '严') {
-                      c.name = fallbackName;
-                    }
-                    return processFallbacks(cIdx + 1);
-                  })
-                  .catch(function(err) {
-                    console.error('Fallback OCR failed for index ' + cIdx, err);
-                    return processFallbacks(cIdx + 1);
-                  });
+                
+                return fetch('/api/ocr/vision_cell', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ image: cellDataUrl })
+                })
+                .then(function(res) {
+                  if (res.ok) return res.json();
+                  throw new Error('Vision API fallback failed');
+                })
+                .then(function(data) {
+                  var fallbackName = (data.text || '').trim().replace(/^[新旧听一]\s*/, '').replace(/[^\u4e00-\u9fa5a-zA-Z]/g, '').trim();
+                  if (fallbackName && fallbackName !== '严') {
+                    c.name = fallbackName;
+                  }
+                  return processFallbacks(cIdx + 1);
+                })
+                .catch(function(err) {
+                  console.warn('Workers AI vision fallback failed, trying Tesseract:', err);
+                  return workerObj.setParameters({ tessedit_pageseg_mode: '7', tessedit_char_whitelist: '' })
+                    .then(function() { return workerObj.recognize(cellDataUrl); })
+                    .then(function(cellRes) {
+                      var fallbackName = cellRes.data.text.trim().replace(/^[新旧听一]\s*/, '').replace(/[^\u4e00-\u9fa5a-zA-Z]/g, '').trim();
+                      if (fallbackName && fallbackName !== '严') {
+                        c.name = fallbackName;
+                      }
+                      return processFallbacks(cIdx + 1);
+                    })
+                    .catch(function(err2) {
+                      console.error('Fallback OCR failed for index ' + cIdx, err2);
+                      return processFallbacks(cIdx + 1);
+                    });
+                });
               } else {
                 return processFallbacks(cIdx + 1);
               }
