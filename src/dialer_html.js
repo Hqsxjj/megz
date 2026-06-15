@@ -3728,7 +3728,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
           document.getElementById('aiLog3').style.opacity = '1';
         }
         
-        runTesseractOnSlices(slices)
+        runTesseractOnSlices(slices, img)
           .then(function(contacts) {
             if (contacts && contacts.length > 0) {
               if (document.getElementById('aiLog4')) {
@@ -3799,7 +3799,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
             img.src = canvas.toDataURL('image/jpeg', 0.95);
             img.onload = function() {
               var slices = sliceAndPreprocess(img, split1, split2, order);
-              runTesseractOnSlices(slices)
+              runTesseractOnSlices(slices, img)
                 .then(function(pageContacts) {
                   allContacts = allContacts.concat(pageContacts);
                   processPage(pageNumber + 1);
@@ -4238,8 +4238,8 @@ export const DIALER_HTML = `<!DOCTYPE html>
     }
 
     function sliceAndPreprocess(img, split1, split2, order) {
-      var w = img.naturalWidth;
-      var h = img.naturalHeight;
+      var w = img.naturalWidth || img.width;
+      var h = img.naturalHeight || img.height;
       
       var x1 = w * split1;
       var x2 = w * split2;
@@ -4269,43 +4269,44 @@ export const DIALER_HTML = `<!DOCTYPE html>
         
         var imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
         var data = imgData.data;
-        // 1. Calculate grayscale histogram
+        
         var histogram = new Array(256).fill(0);
         var totalPixels = data.length / 4;
+        
         for (var i = 0; i < data.length; i += 4) {
           var r = data[i];
           var g = data[i+1];
           var b = data[i+2];
-          var val = Math.round(0.299 * r + 0.587 * g + 0.114 * b);
-          histogram[val]++;
-        }
-        
-        // 1.5 Contrast stretching - enhance faded/low-contrast images
-        var cumLow = 0, cumHigh = 0, minG = 0, maxG = 255;
-        for (var ci = 0; ci < 256; ci++) { cumLow += histogram[ci]; if (cumLow >= totalPixels * 0.01) { minG = ci; break; } }
-        for (var ci = 255; ci >= 0; ci--) { cumHigh += histogram[ci]; if (cumHigh >= totalPixels * 0.01) { maxG = ci; break; } }
-        var gRange = maxG - minG;
-        if (gRange > 30 && gRange < 240) {
-          for (var i = 0; i < data.length; i += 4) {
-            for (var c = 0; c < 3; c++) {
-              data[i+c] = Math.max(0, Math.min(255, Math.round(((data[i+c] - minG) / gRange) * 255)));
+          
+          if (type === 'name') {
+            var pixelIdx = i / 4;
+            var pixelX = pixelIdx % canvas.width;
+            if (pixelX < 24 && b > r + 10) {
+              r = 255;
+              g = 255;
+              b = 255;
             }
-          }
-          histogram = new Array(256).fill(0);
-          for (var i = 0; i < data.length; i += 4) {
-            var rr = data[i], gg = data[i+1], bb = data[i+2];
-            histogram[Math.round(0.299 * rr + 0.587 * gg + 0.114 * bb)]++;
+            var val = Math.min(r, g, b);
+            data[i] = val;
+            data[i+1] = val;
+            data[i+2] = val;
+            histogram[val]++;
+          } else {
+            var val = Math.round(0.299 * r + 0.587 * g + 0.114 * b);
+            data[i] = val;
+            data[i+1] = val;
+            data[i+2] = val;
+            histogram[val]++;
           }
         }
         
-        // 2. Otsu's Thresholding algorithm to calculate dynamic optimal threshold
         var sum = 0;
         for (var i = 0; i < 256; i++) sum += i * histogram[i];
         var sumB = 0;
         var wB = 0;
         var wF = 0;
         var varMax = 0;
-        var threshold = 140; // Default fallback
+        var threshold = 140;
         for (var t = 0; t < 256; t++) {
           wB += histogram[t];
           if (wB === 0) continue;
@@ -4321,29 +4322,89 @@ export const DIALER_HTML = `<!DOCTYPE html>
           }
         }
         
-        // 3. Apply Otsu binarization
         for (var i = 0; i < data.length; i += 4) {
-          var r = data[i];
-          var g = data[i+1];
-          var b = data[i+2];
-          var v = 0.299 * r + 0.587 * g + 0.114 * b;
-          var finalVal = v < threshold ? 0 : 255;
+          var finalVal = data[i] < threshold ? 0 : 255;
           data[i] = finalVal;
           data[i+1] = finalVal;
           data[i+2] = finalVal;
         }
+        
         ctx.putImageData(imgData, 0, 0);
         
         results.push({
           type: type,
-          dataUrl: canvas.toDataURL('image/jpeg', 0.95)
+          dataUrl: canvas.toDataURL('image/png')
         });
       });
       
       return results;
     }
 
-    function runTesseractOnSlices(slices) {
+    function runTesseractOnSlices(slices, img) {
+      function cropCellInBrowser(sourceImg, yCenter) {
+        var cellCanvas = document.createElement('canvas');
+        var cellCtx = cellCanvas.getContext('2d');
+        
+        cellCanvas.width = 77 * 2;
+        cellCanvas.height = 48 * 2;
+        
+        var imgH = sourceImg.naturalHeight || sourceImg.height;
+        var yStart = Math.max(0, Math.min(Math.round(yCenter - 24), imgH - 48));
+        cellCtx.drawImage(sourceImg, 0, yStart, 77, 48, 0, 0, cellCanvas.width, cellCanvas.height);
+        
+        var imgData = cellCtx.getImageData(0, 0, cellCanvas.width, cellCanvas.height);
+        var data = imgData.data;
+        
+        var histogram = new Array(256).fill(0);
+        for (var i = 0; i < data.length; i += 4) {
+          var r = data[i];
+          var g = data[i+1];
+          var b = data[i+2];
+          
+          var pixelIdx = i / 4;
+          var pixelX = pixelIdx % cellCanvas.width;
+          if (pixelX < 24 && b > r + 10) {
+            r = 255;
+            g = 255;
+            b = 255;
+          }
+          var val = Math.min(r, g, b);
+          data[i] = val;
+          data[i+1] = val;
+          data[i+2] = val;
+          histogram[val]++;
+        }
+        
+        var sum = 0;
+        for (var i = 0; i < 256; i++) sum += i * histogram[i];
+        var sumB = 0, wB = 0, wF = 0, varMax = 0, threshold = 140;
+        var totalPixels = data.length / 4;
+        for (var t = 0; t < 256; t++) {
+          wB += histogram[t];
+          if (wB === 0) continue;
+          wF = totalPixels - wB;
+          if (wF === 0) break;
+          sumB += t * histogram[t];
+          var mB = sumB / wB;
+          var mF = (sum - sumB) / wF;
+          var varBetween = wB * wF * (mB - mF) * (mB - mF);
+          if (varBetween > varMax) {
+            varMax = varBetween;
+            threshold = t;
+          }
+        }
+        
+        for (var i = 0; i < data.length; i += 4) {
+          var finalVal = data[i] < threshold ? 0 : 255;
+          data[i] = finalVal;
+          data[i+1] = finalVal;
+          data[i+2] = finalVal;
+        }
+        
+        cellCtx.putImageData(imgData, 0, 0);
+        return cellCanvas.toDataURL('image/png');
+      }
+
       return Tesseract.createWorker({
         workerPath: window.location.origin + '/tessdata/worker.min.js',
         corePath: window.location.origin + '/tessdata/core',
@@ -4361,8 +4422,8 @@ export const DIALER_HTML = `<!DOCTYPE html>
         var workerObj = worker;
         
         return Promise.resolve(worker.load())
-          .then(function() { return Promise.resolve(worker.loadLanguage('chi_sim+eng')); })
-          .then(function() { return Promise.resolve(worker.initialize('chi_sim+eng')); })
+          .then(function() { return Promise.resolve(worker.loadLanguage('chi_sim')); })
+          .then(function() { return Promise.resolve(worker.initialize('chi_sim')); })
           .then(function() {
             var results = {};
             
@@ -4373,12 +4434,11 @@ export const DIALER_HTML = `<!DOCTYPE html>
               var slice = slices[idx];
               
               var params = {
-                tessedit_pageseg_mode: '4' // Force single column vertical layout mode for column slices
+                tessedit_pageseg_mode: '6',
+                tessedit_char_whitelist: ''
               };
               if (slice.type === 'phone') {
                 params.tessedit_char_whitelist = '0123456789- ';
-              } else {
-                params.tessedit_char_whitelist = '';
               }
               
               document.getElementById('aiScanStatus').innerHTML = '🔍 正在识别列: ' + (slice.type === 'name' ? '姓名' : (slice.type === 'phone' ? '电话' : '单位/备注')) + '...';
@@ -4399,16 +4459,13 @@ export const DIALER_HTML = `<!DOCTYPE html>
             return recognizeNext(0);
           })
           .then(function(ocrData) {
-            try { workerObj.terminate(); } catch(e) {}
-            
             var names = ocrData.name || [];
             var phones = ocrData.phone || [];
-            var notes = ocrData.other || [];
+            var companies = ocrData.other || [];
             
             var contacts = [];
             phones.forEach(function(pItem) {
               var phoneText = pItem.text.replace(/\s+/g, '').trim();
-              // OCR 数字纠错: 常见字母→数字误识修正
               phoneText = phoneText.replace(/[OoQD]/g, '0').replace(/[lIi|!]/g, '1').replace(/[Z]/g, '2').replace(/[B]/g, '8').replace(/[S]/g, '5').replace(/[G]/g, '6').replace(/[A]/g, '4').replace(/[T]/g, '7').replace(/[g]/g, '9');
               var phoneMatch = phoneText.match(/1[3-9]\d{9}/);
               if (!phoneMatch) return;
@@ -4418,40 +4475,70 @@ export const DIALER_HTML = `<!DOCTYPE html>
               var minNameDist = 99999;
               names.forEach(function(nItem) {
                 var dist = Math.abs(nItem.yCenter - pItem.yCenter);
-                if (dist < minNameDist && dist < 50) {
+                if (dist < minNameDist && dist < 30) {
                   minNameDist = dist;
                   bestName = nItem.text.trim();
                 }
               });
               
-              var bestNote = '';
-              var minNoteDist = 99999;
-              notes.forEach(function(ntItem) {
-                var dist = Math.abs(ntItem.yCenter - pItem.yCenter);
-                if (dist < minNoteDist && dist < 50) {
-                  minNoteDist = dist;
-                  bestNote = ntItem.text.trim();
+              var bestCompany = '';
+              var minCompanyDist = 99999;
+              companies.forEach(function(cItem) {
+                var dist = Math.abs(cItem.yCenter - pItem.yCenter);
+                if (dist < minCompanyDist && dist < 30) {
+                  minCompanyDist = dist;
+                  bestCompany = cItem.text.trim();
                 }
               });
               
-              bestName = bestName.replace(/^[新旧]\s*/, '').replace(/[^\u4e00-\u9fa5a-zA-Z]/g, '').trim();
-              bestNote = bestNote.replace(/^[|丨\s:]+/, '').replace(/[|丨\s:]+$/, '').trim();
-              
-              var companyName = '';
-              if (bestNote.length > 4 && (bestNote.includes('公司') || bestNote.includes('集团') || bestNote.includes('厂') || bestNote.includes('行') || bestNote.includes('店') || bestNote.includes('局'))) {
-                companyName = bestNote;
-                bestNote = '';
-              }
+              bestName = bestName.replace(/^[新旧听一]\s*/, '').replace(/[^\u4e00-\u9fa5a-zA-Z]/g, '').trim();
+              bestCompany = bestCompany.replace(/^[|丨\s:]+/, '').replace(/[|丨\s:]+$/, '').trim();
               
               contacts.push({
-                name: bestName || '客户-' + cleanPhone.substring(cleanPhone.length - 4),
+                name: bestName,
                 phone: cleanPhone,
-                company: companyName,
-                note: bestNote
+                company: bestCompany,
+                note: '',
+                yCenter: pItem.yCenter,
+                minNameDist: minNameDist
               });
             });
             
-            return contacts;
+            function processFallbacks(cIdx) {
+              if (cIdx >= contacts.length) {
+                try { workerObj.terminate(); } catch(e) {}
+                return contacts.map(function(c) {
+                  return {
+                    name: c.name || '客户-' + c.phone.substring(c.phone.length - 4),
+                    phone: c.phone,
+                    company: c.company,
+                    note: ''
+                  };
+                });
+              }
+              
+              var c = contacts[cIdx];
+              if (!c.name || c.name === '严' || c.minNameDist > 15) {
+                var cellDataUrl = cropCellInBrowser(img, c.yCenter);
+                return workerObj.setParameters({ tessedit_pageseg_mode: '10', tessedit_char_whitelist: '' })
+                  .then(function() { return workerObj.recognize(cellDataUrl); })
+                  .then(function(cellRes) {
+                    var fallbackName = cellRes.data.text.trim().replace(/^[新旧听一]\s*/, '').replace(/[^\u4e00-\u9fa5a-zA-Z]/g, '').trim();
+                    if (fallbackName && fallbackName !== '严') {
+                      c.name = fallbackName;
+                    }
+                    return processFallbacks(cIdx + 1);
+                  })
+                  .catch(function(err) {
+                    console.error('Fallback OCR failed for index ' + cIdx, err);
+                    return processFallbacks(cIdx + 1);
+                  });
+              } else {
+                return processFallbacks(cIdx + 1);
+              }
+            }
+            
+            return processFallbacks(0);
           })
           .catch(function(err) {
             try { workerObj.terminate(); } catch(e) {}
