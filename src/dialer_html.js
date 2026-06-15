@@ -3883,7 +3883,9 @@ export const DIALER_HTML = `<!DOCTYPE html>
           if (type === 'name') {
             var pixelIdx = i / 4;
             var pixelX = pixelIdx % canvas.width;
-            if (pixelX < 24 && b > r + 10) {
+            var isRedText = r > g + 20 && r > b + 20 && r > 100;
+            var isBlackText = r < 120 && g < 120 && b < 120 && Math.abs(r - b) < 30 && Math.abs(r - g) < 30;
+            if (pixelX < 60 && !isRedText && !isBlackText) {
               r = 255;
               g = 255;
               b = 255;
@@ -3965,7 +3967,9 @@ export const DIALER_HTML = `<!DOCTYPE html>
           
           var pixelIdx = i / 4;
           var pixelX = pixelIdx % cellCanvas.width;
-          if (pixelX < 24 && b > r + 10) {
+          var isRedText = r > g + 20 && r > b + 20 && r > 100;
+          var isBlackText = r < 120 && g < 120 && b < 120 && Math.abs(r - b) < 30 && Math.abs(r - g) < 30;
+          if (pixelX < 60 && !isRedText && !isBlackText) {
             r = 255;
             g = 255;
             b = 255;
