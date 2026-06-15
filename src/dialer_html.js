@@ -3916,6 +3916,10 @@ export const DIALER_HTML = `<!DOCTYPE html>
               b = 255;
             }
             var val = Math.min(r, g, b);
+            if (r > g + 10 && r > b + 10) {
+              var redness = r - Math.max(g, b);
+              val = Math.max(0, val - redness * 2);
+            }
             data[i] = val;
             data[i+1] = val;
             data[i+2] = val;
@@ -4004,6 +4008,10 @@ export const DIALER_HTML = `<!DOCTYPE html>
             b = 255;
           }
           var val = Math.min(r, g, b);
+          if (r > g + 10 && r > b + 10) {
+            var redness = r - Math.max(g, b);
+            val = Math.max(0, val - redness * 2);
+          }
           data[i] = val;
           data[i+1] = val;
           data[i+2] = val;
@@ -4156,7 +4164,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
               if (!c.name || c.name === '严' || c.minNameDist > 15) {
                 var nameCol = slices.find(function(s) { return s.type === 'name'; });
                 var cellDataUrl = cropCellInBrowser(img, c.yCenter, nameCol);
-                return workerObj.setParameters({ tessedit_pageseg_mode: '8', tessedit_char_whitelist: '' })
+                return workerObj.setParameters({ tessedit_pageseg_mode: '7', tessedit_char_whitelist: '' })
                   .then(function() { return workerObj.recognize(cellDataUrl); })
                   .then(function(cellRes) {
                     var fallbackName = cellRes.data.text.trim().replace(/^[新旧听一]\s*/, '').replace(/[^\u4e00-\u9fa5a-zA-Z]/g, '').trim();
