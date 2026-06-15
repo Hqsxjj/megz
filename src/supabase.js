@@ -360,13 +360,32 @@ export function createSupabaseClient(env) {
           }
         }
       }
+
+      var fundVal = (c.fund || '').trim();
+      if (fundVal) {
+        // We want to ensure that fund is saved in noteVal JSON
+        if (noteVal.indexOf('{') === 0) {
+          try {
+            var obj = JSON.parse(noteVal);
+            if (obj && typeof obj === 'object') {
+              obj.fund = fundVal;
+              noteVal = JSON.stringify(obj);
+            }
+          } catch (e) {
+            noteVal = JSON.stringify({ note: noteVal, fund: fundVal });
+          }
+        } else {
+          noteVal = JSON.stringify({ note: noteVal, fund: fundVal });
+        }
+      }
+
       return {
         name: (c.name || '').trim() || '未知姓名',
         mobile: (c.mobile || c.phone || '').trim(),
         company_name: (c.company || c.company_name || '').trim(),
         note: noteVal,
         category: (c.category || '').trim() || '公海客户',
-        fund: (c.fund || '').trim(),
+        fund: fundVal,
         batch_label: (c.batch_label || '').trim()
       };
     }).filter(function(r) {

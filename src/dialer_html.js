@@ -2748,8 +2748,10 @@ export const DIALER_HTML = `<!DOCTYPE html>
           }
         });
         var finalNote = noteVal;
-        if (Object.keys(customObj).length > 0) {
-          finalNote = JSON.stringify({ note: noteVal, custom: customObj });
+        if (Object.keys(customObj).length > 0 || fundVal) {
+          var pl = { note: noteVal, custom: customObj };
+          if (fundVal) pl.fund = fundVal;
+          finalNote = JSON.stringify(pl);
         }
 
         parsedCustomers.push({
@@ -6024,6 +6026,9 @@ export const DIALER_HTML = `<!DOCTYPE html>
             if (obj && typeof obj === 'object') {
               var baseNote = obj.note !== undefined ? obj.note : '';
               parsed.custom = obj.custom || {};
+              if (obj.fund) {
+                c.fund = obj.fund; // Restore fund to customer object
+              }
               if (textPart) {
                 parsed.note = baseNote ? baseNote + '\\n' + textPart : textPart;
               } else {
@@ -6041,8 +6046,43 @@ export const DIALER_HTML = `<!DOCTYPE html>
       return customers.map(function(c) {
         var copy = Object.assign({}, c);
         var parsed = { note: copy.note || '', custom: copy.custom || {} };
-        if (Object.keys(parsed.custom).length > 0) {
-          copy.note = JSON.stringify({ note: parsed.note, custom: parsed.custom });
+        
+        var fundVal = (copy.fund || '').trim();
+        var rawNote = (copy.note || '').trim();
+        if (rawNote.indexOf('{') === 0) {
+          try {
+            var braceCount = 0;
+            var jsonEndIdx = -1;
+            for (var i = 0; i < rawNote.length; i++) {
+              if (rawNote[i] === '{') braceCount++;
+              else if (rawNote[i] === '}') {
+                braceCount--;
+                if (braceCount === 0) { jsonEndIdx = i; break; }
+              }
+            }
+            if (jsonEndIdx !== -1) {
+              var jsonPart = rawNote.slice(0, jsonEndIdx + 1);
+              var textPart = rawNote.slice(jsonEndIdx + 1).trim();
+              var obj = JSON.parse(jsonPart);
+              if (obj && typeof obj === 'object') {
+                parsed.note = obj.note !== undefined ? obj.note : '';
+                parsed.custom = Object.assign({}, obj.custom || {}, parsed.custom);
+                if (obj.fund && !fundVal) fundVal = obj.fund;
+                if (textPart) {
+                  parsed.note = parsed.note ? parsed.note + '\n' + textPart : textPart;
+                }
+              }
+            }
+          } catch(e) {}
+        }
+
+        var jsonPayload = { note: parsed.note, custom: parsed.custom };
+        if (fundVal) {
+          jsonPayload.fund = fundVal;
+        }
+
+        if (Object.keys(parsed.custom).length > 0 || fundVal) {
+          copy.note = JSON.stringify(jsonPayload);
         } else {
           copy.note = parsed.note;
         }
@@ -6531,7 +6571,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
           
           var clientObj = DB.allData.find(function(c) { return c.mobile === mobile; });
           var rawNoteStr = clientObj ? (clientObj.note || '') : '';
-          var parsed = { note: oldNote, custom: {} };
+          var parsed = { note: oldNote, custom: {}, fund: '' };
           if (rawNoteStr.trim().indexOf('{') === 0) {
             try {
               var braceCount = 0;
@@ -6548,14 +6588,17 @@ export const DIALER_HTML = `<!DOCTYPE html>
                 var obj = JSON.parse(jsonPart);
                 if (obj && typeof obj === 'object') {
                   parsed.custom = obj.custom || {};
+                  parsed.fund = obj.fund || '';
                 }
               }
             } catch (err) {}
           }
           
           var notePayload = newNote;
-          if (Object.keys(parsed.custom).length > 0) {
-            notePayload = JSON.stringify({ note: newNote, custom: parsed.custom });
+          if (Object.keys(parsed.custom).length > 0 || parsed.fund) {
+            var pl = { note: newNote, custom: parsed.custom };
+            if (parsed.fund) pl.fund = parsed.fund;
+            notePayload = JSON.stringify(pl);
           }
           
           fetch('/api/dialer/customers', {
