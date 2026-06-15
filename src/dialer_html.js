@@ -3875,6 +3875,25 @@ export const DIALER_HTML = `<!DOCTYPE html>
         var histogram = new Array(256).fill(0);
         var totalPixels = data.length / 4;
         
+        var rowStarts = [];
+        if (type === 'name') {
+          var lastBlueY = -999;
+          for (var py = 0; py < canvas.height; py++) {
+            var isBlue = false;
+            for (var px = 0; px < 20; px++) {
+              var idx = (py * canvas.width + px) * 4;
+              var bR = data[idx], bG = data[idx+1], bB = data[idx+2];
+              if (bB > bR + 15 && bB > bG + 15) {
+                isBlue = true; break;
+              }
+            }
+            if (isBlue) {
+              if (py - lastBlueY > 40) rowStarts.push(py);
+              lastBlueY = py;
+            }
+          }
+        }
+        
         for (var i = 0; i < data.length; i += 4) {
           var r = data[i];
           var g = data[i+1];
@@ -3883,7 +3902,15 @@ export const DIALER_HTML = `<!DOCTYPE html>
           if (type === 'name') {
             var pixelIdx = i / 4;
             var pixelX = pixelIdx % canvas.width;
-            if (pixelX < 55 && b > r + 15 && b > g + 15) {
+            var pixelY = Math.floor(pixelIdx / canvas.width);
+            var activeYStart = -999;
+            for (var rs = 0; rs < rowStarts.length; rs++) {
+              if (pixelY >= rowStarts[rs] - 15 && pixelY - rowStarts[rs] < 60) {
+                activeYStart = rowStarts[rs];
+                break;
+              }
+            }
+            if ((activeYStart !== -999 && pixelX + (pixelY - activeYStart) < 55) || (pixelX < 55 && b > r + 15 && b > g + 15)) {
               r = 255;
               g = 255;
               b = 255;
@@ -3965,7 +3992,8 @@ export const DIALER_HTML = `<!DOCTYPE html>
           
           var pixelIdx = i / 4;
           var pixelX = pixelIdx % cellCanvas.width;
-          if (pixelX < 55 && b > r + 15 && b > g + 15) {
+          var pixelY = Math.floor(pixelIdx / cellCanvas.width);
+          if (pixelX + pixelY < 55 || (pixelX < 55 && b > r + 15 && b > g + 15)) {
             r = 255;
             g = 255;
             b = 255;
