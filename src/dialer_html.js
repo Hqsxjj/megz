@@ -4282,6 +4282,11 @@ export const DIALER_HTML = `<!DOCTYPE html>
           .then(function() { return Promise.resolve(worker.loadLanguage('chi_sim+eng')); })
           .then(function() { return Promise.resolve(worker.initialize('chi_sim+eng')); })
           .then(function() {
+            return Promise.resolve(worker.setParameters({
+              tessedit_pageseg_mode: '6'
+            }));
+          })
+          .then(function() {
             _tesseractReady = true;
             callback(null, worker);
           });
@@ -4294,7 +4299,11 @@ export const DIALER_HTML = `<!DOCTYPE html>
     function processSingleImageLocal(file, callback) {
       getTesseractWorker(function(err, worker) {
         if (err) { callback(err, []); return; }
-        worker.recognize(file).then(function(result) {
+        Promise.resolve(worker.setParameters({
+          tessedit_pageseg_mode: '6'
+        })).then(function() {
+          return worker.recognize(file);
+        }).then(function(result) {
           var text = result.data.text;
           correctOcrTextWithAI(text, typeof file === 'string' ? 'image_data' : (file.name || 'image_ocr'), function(contacts) {
             callback(null, contacts);
@@ -4305,7 +4314,11 @@ export const DIALER_HTML = `<!DOCTYPE html>
           _tesseractReady = false;
           getTesseractWorker(function(err2, worker2) {
             if (err2) { callback(recogErr, []); return; }
-            worker2.recognize(file).then(function(result2) {
+            Promise.resolve(worker2.setParameters({
+              tessedit_pageseg_mode: '6'
+            })).then(function() {
+              return worker2.recognize(file);
+            }).then(function(result2) {
               var text2 = result2.data.text;
               correctOcrTextWithAI(text2, typeof file === 'string' ? 'image_data' : (file.name || 'image_ocr'), function(contacts2) {
                 callback(null, contacts2);
@@ -4414,6 +4427,11 @@ export const DIALER_HTML = `<!DOCTYPE html>
             return Promise.resolve(worker.load())
               .then(function() { return Promise.resolve(worker.loadLanguage('chi_sim+eng')); })
               .then(function() { return Promise.resolve(worker.initialize('chi_sim+eng')); })
+              .then(function() {
+                return Promise.resolve(worker.setParameters({
+                  tessedit_pageseg_mode: '6'
+                }));
+              })
               .then(function() { return Promise.resolve(worker.recognize(file)); })
               .then(function(result) {
                 try { worker.terminate(); } catch(e) {}
