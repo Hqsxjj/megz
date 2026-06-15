@@ -3609,8 +3609,25 @@ export const DIALER_HTML = `<!DOCTYPE html>
                 renderAIUnstructuredReport(tempOcrFileName, contacts);
               }, 800);
             } else {
-              alert('本地 Tesseract 识别未检出联系人。请尝试在上方调整分割线滑块，并重新“开始本地识别”。');
-              resetAIImporterUI();
+              // Slicing failed to find contacts — auto fallback to full-image Tesseract + AI correction
+              if (document.getElementById('aiLog2')) {
+                document.getElementById('aiLog2').innerHTML = '⚠️ 切片未检出，正自动尝试全图识别与 AI 修正...';
+                document.getElementById('aiLog2').style.opacity = '1';
+              }
+              doTesseractLocal(tempOcrImgDataUrl, function(err, contacts) {
+                if (err || !contacts || contacts.length === 0) {
+                  alert('本地 Tesseract 识别未检出联系人。请尝试在上方调整分割线滑块，并重新“开始本地识别”，或者直接粘贴文本。');
+                  resetAIImporterUI();
+                } else {
+                  if (document.getElementById('aiLog4')) {
+                    document.getElementById('aiLog4').innerHTML = '🎉 全图 AI 识别成功，共 ' + contacts.length + ' 人';
+                    document.getElementById('aiLog4').style.opacity = '1';
+                  }
+                  setTimeout(function() {
+                    renderAIUnstructuredReport(tempOcrFileName, contacts);
+                  }, 800);
+                }
+              });
             }
           })
           .catch(function(err) {
@@ -4277,8 +4294,9 @@ export const DIALER_HTML = `<!DOCTYPE html>
         if (err) { callback(err, []); return; }
         worker.recognize(file).then(function(result) {
           var text = result.data.text;
-          var contacts = parsePhoneContactsFromRawText(text);
-          callback(null, contacts);
+          correctOcrTextWithAI(text, typeof file === 'string' ? 'image_data' : (file.name || 'image_ocr'), function(contacts) {
+            callback(null, contacts);
+          });
         }).catch(function(recogErr) {
           // Worker might be stale, reset and retry once
           _tesseractWorker = null;
@@ -4287,8 +4305,9 @@ export const DIALER_HTML = `<!DOCTYPE html>
             if (err2) { callback(recogErr, []); return; }
             worker2.recognize(file).then(function(result2) {
               var text2 = result2.data.text;
-              var contacts2 = parsePhoneContactsFromRawText(text2);
-              callback(null, contacts2);
+              correctOcrTextWithAI(text2, typeof file === 'string' ? 'image_data' : (file.name || 'image_ocr'), function(contacts2) {
+                callback(null, contacts2);
+              });
             }).catch(function(e2) { callback(e2, []); });
           });
         });
