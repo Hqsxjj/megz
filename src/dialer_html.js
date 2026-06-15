@@ -6087,7 +6087,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
                 parsed.custom = Object.assign({}, obj.custom || {}, parsed.custom);
                 if (obj.fund && !fundVal) fundVal = obj.fund;
                 if (textPart) {
-                  parsed.note = parsed.note ? parsed.note + '\n' + textPart : textPart;
+                  parsed.note = parsed.note ? parsed.note + '\\n' + textPart : textPart;
                 }
               }
             }
