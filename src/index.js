@@ -7507,6 +7507,116 @@ const rid=Math.floor(Math.random()*1000);
       }
     }
 
+    // POST /api/ocr/categorize — Clean, correct, and re-classify contacts lists using text AI
+    if (path === '/api/ocr/categorize' && request.method === 'POST') {
+      let contactsList = [];
+      try {
+        const body = await request.json();
+        contactsList = body.contacts || [];
+        const fileName = body.fileName || '';
+        
+        if (contactsList.length === 0) {
+          return new Response(JSON.stringify({ contacts: [] }), {
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+
+        const provider = await env.DATA_KV.get('config:ai_provider') || 'deepseek';
+        let apiKey = await env.DATA_KV.get('config:ai_api_key') || await env.DATA_KV.get('config:deepseek_api_key') || env.AI_API_KEY || env.DEEPSEEK_API_KEY || '';
+        let apiBase = await env.DATA_KV.get('config:ai_api_base') || env.AI_API_BASE || 'https://api.deepseek.com/v1/';
+        let model = await env.DATA_KV.get('config:ai_model') || env.AI_API_MODEL || 'deepseek-chat';
+
+        if (provider === 'gemini') {
+          apiBase = await env.DATA_KV.get('config:ai_api_base') || env.AI_API_BASE || 'https://generativelanguage.googleapis.com/v1beta/openai/';
+          model = 'gemini-2.5-flash';
+        }
+
+        if (!apiKey) {
+          return new Response(JSON.stringify({ contacts: contactsList, engine: 'bypass' }), {
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+
+        let url = apiBase;
+        if (!url.endsWith('/')) url += '/';
+        url += 'chat/completions';
+
+        const systemPrompt = '你是一个通讯录数据清洗与智能分类专家。输入是一个包含从图片表格中通过本地 OCR 识别初步对齐的联系人 JSON 数组。\n' +
+          '由于表格列切分或识别误差，数据可能存在以下归类错误：\n' +
+          '1. 本应是“公司/单位”的信息被归到“姓名”或“备注”中（例如姓名中出现了“鹏城国家实验室”或包含“公司”等字眼）。\n' +
+          '2. 本应是“姓名”的信息被误归类为了“公司”或“备注”（姓名通常为2-4个中文字，绝不能是公司或单位名字）。\n' +
+          '3. 姓名或公司名称中存在明显的形近字识别错误（例如把“葛”误识为“草”，把“温”误识为“湿”或“强”等，请将其纠正为正确的常见中文名称）。\n' +
+          '4. 电话号码（phone）是绝对正确的，不可更改，但必须根据手机号与行的对应关系，将姓名、公司、备注进行重新划分和修正。\n\n' +
+          '【整理规则】：\n' +
+          '- name: 姓名（必须是人名，不能包含机构、集团、公司、实验室、研究所、学校等单位名称。如没有合适人名，则留空）。\n' +
+          '- phone: 保持原样不变。\n' +
+          '- company: 公司或单位机构全称（如果原数据中公司名被错放在了姓名或备注列，请移动到此处；并纠正错别字，例如“腾城国家实验室”应修正为“鹏城国家实验室”）。\n' +
+          '- note: 真实的备注（如果原备注里装的是公司名，将其移动到 company 后，将此处清空或精简）。\n\n' +
+          '请只输出合法的纯 JSON 格式数据（不要用 ```json 包含）：\n' +
+          '{\n  "contacts": [\n    { "name": "正确的姓名", "phone": "13XXXXXXXXX", "company": "正确归类后的公司", "note": "备注信息" }\n  ]\n}';
+
+        const aiResp = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + apiKey
+          },
+          body: JSON.stringify({
+            model: model,
+            messages: [
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: '请对以下初步提取的联系人列表进行清洗和重新分类归类：\n\n' + JSON.stringify(contactsList, null, 2) }
+            ],
+            temperature: 0,
+            max_tokens: 4096
+          })
+        });
+
+        if (!aiResp.ok) {
+          const errText = await aiResp.text();
+          console.error('[OCR Categorize] AI API error:', aiResp.status, errText.substring(0, 200));
+          return new Response(JSON.stringify({ contacts: contactsList, engine: 'bypass_api_error' }), {
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+
+        const aiData = await aiResp.json();
+        let content = aiData.choices[0].message.content.trim();
+        if (content.startsWith('```')) {
+          content = content.replace(/^```json\s*/i, '').replace(/```$/, '').trim();
+        }
+
+        let parsed;
+        try {
+          parsed = JSON.parse(content);
+        } catch (e) {
+          const jsonMatch = content.match(/\{[\s\S]*\}/);
+          if (jsonMatch) { try { parsed = JSON.parse(jsonMatch[0]); } catch(e2) {} }
+        }
+
+        if (!parsed || !parsed.contacts || parsed.contacts.length === 0) {
+          return new Response(JSON.stringify({ contacts: contactsList, engine: 'bypass_parse_error' }), {
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+
+        console.log('[OCR Categorize] AI processed ' + parsed.contacts.length + ' contacts');
+
+        return new Response(JSON.stringify({
+          contacts: parsed.contacts,
+          engine: 'text_ai_categorize'
+        }), {
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+
+      } catch (e) {
+        console.error('[OCR Categorize] error:', e.message);
+        return new Response(JSON.stringify({ contacts: contactsList, error: e.message, engine: 'bypass_exception' }), {
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+    }
+
     // Helper: phone + contact extraction from raw text (regex fallback)
     function extractContactsFromRawText(rawText) {
       var phoneRe = /1[3-9]\d{9}/g;

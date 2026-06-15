@@ -3731,13 +3731,47 @@ export const DIALER_HTML = `<!DOCTYPE html>
         runTesseractOnSlices(slices, img)
           .then(function(contacts) {
             if (contacts && contacts.length > 0) {
-              if (document.getElementById('aiLog4')) {
-                document.getElementById('aiLog4').innerHTML = '🎉 本地识别成功，共 ' + contacts.length + ' 人';
-                document.getElementById('aiLog4').style.opacity = '1';
+              var aiKey = (localStorage.getItem('ai_api_key') || localStorage.getItem('deepseek_api_key') || '').trim();
+              if (aiKey) {
+                if (document.getElementById('aiLog4')) {
+                  document.getElementById('aiLog4').innerHTML = '🤖 正在调用文本 AI 模型分类归类...';
+                  document.getElementById('aiLog4').style.opacity = '1';
+                }
+                fetch('/api/ocr/categorize', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ contacts: contacts, fileName: tempOcrFileName })
+                })
+                .then(function(r) { return r.json(); })
+                .then(function(res) {
+                  var finalContacts = res.contacts || contacts;
+                  if (document.getElementById('aiLog4')) {
+                    document.getElementById('aiLog4').innerHTML = '🎉 本地识别与 AI 智能归类完成，共 ' + finalContacts.length + ' 人';
+                    document.getElementById('aiLog4').style.opacity = '1';
+                  }
+                  setTimeout(function() {
+                    renderAIUnstructuredReport(tempOcrFileName, finalContacts);
+                  }, 800);
+                })
+                .catch(function(err) {
+                  console.warn('AI categorization failed, using raw local OCR:', err);
+                  if (document.getElementById('aiLog4')) {
+                    document.getElementById('aiLog4').innerHTML = '🎉 本地识别成功，共 ' + contacts.length + ' 人';
+                    document.getElementById('aiLog4').style.opacity = '1';
+                  }
+                  setTimeout(function() {
+                    renderAIUnstructuredReport(tempOcrFileName, contacts);
+                  }, 800);
+                });
+              } else {
+                if (document.getElementById('aiLog4')) {
+                  document.getElementById('aiLog4').innerHTML = '🎉 本地识别成功，共 ' + contacts.length + ' 人';
+                  document.getElementById('aiLog4').style.opacity = '1';
+                }
+                setTimeout(function() {
+                  renderAIUnstructuredReport(tempOcrFileName, contacts);
+                }, 800);
               }
-              setTimeout(function() {
-                renderAIUnstructuredReport(tempOcrFileName, contacts);
-              }, 800);
             } else {
               // Local Tesseract failed! Try PaddleOCR deep learning, then cloud AI
               runPaddleOCRImageFallback(tempOcrFile);
@@ -3767,12 +3801,45 @@ export const DIALER_HTML = `<!DOCTYPE html>
             if (document.getElementById('aiScanStatus')) {
               document.getElementById('aiScanStatus').innerHTML = '✅ 本地 PDF 识别完成';
             }
-            if (document.getElementById('aiLog4')) {
-              document.getElementById('aiLog4').innerHTML = '🎉 共识别到 ' + allContacts.length + ' 个联系人';
+            var aiKey = (localStorage.getItem('ai_api_key') || localStorage.getItem('deepseek_api_key') || '').trim();
+            if (aiKey) {
+              if (document.getElementById('aiLog4')) {
+                document.getElementById('aiLog4').innerHTML = '🤖 正在调用文本 AI 模型整理分类...';
+                document.getElementById('aiLog4').style.opacity = '1';
+              }
+              
+              fetch('/api/ocr/categorize', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ contacts: allContacts, fileName: tempOcrFileName })
+              })
+              .then(function(r) { return r.json(); })
+              .then(function(res) {
+                var finalContacts = res.contacts || allContacts;
+                if (document.getElementById('aiLog4')) {
+                  document.getElementById('aiLog4').innerHTML = '🎉 本地识别与 AI 智能归类完成，共 ' + finalContacts.length + ' 人';
+                }
+                setTimeout(function() {
+                  renderAIUnstructuredReport(tempOcrFileName, finalContacts);
+                }, 800);
+              })
+              .catch(function(err) {
+                console.warn('AI categorization for PDF failed:', err);
+                if (document.getElementById('aiLog4')) {
+                  document.getElementById('aiLog4').innerHTML = '🎉 共识别到 ' + allContacts.length + ' 个联系人（AI整理失败）';
+                }
+                setTimeout(function() {
+                  renderAIUnstructuredReport(tempOcrFileName, allContacts);
+                }, 800);
+              });
+            } else {
+              if (document.getElementById('aiLog4')) {
+                document.getElementById('aiLog4').innerHTML = '🎉 共识别到 ' + allContacts.length + ' 个联系人';
+              }
+              setTimeout(function() {
+                renderAIUnstructuredReport(tempOcrFileName, allContacts);
+              }, 800);
             }
-            setTimeout(function() {
-              renderAIUnstructuredReport(tempOcrFileName, allContacts);
-            }, 800);
           } else {
             // Local Tesseract failed! Try PaddleOCR deep learning, then cloud AI
             runPaddleOCRPdfFallback(pdf, tempOcrFileName);
