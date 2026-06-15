@@ -3562,8 +3562,9 @@ export const DIALER_HTML = `<!DOCTYPE html>
         
         doTesseractLocal(tempOcrImgDataUrl, function(err, contacts) {
           if (err || !contacts || contacts.length === 0) {
-            console.error('Local Full-Image Tesseract failed, trying PaddleOCR:', err);
-            runPaddleOCRImageFallback(tempOcrFile || tempOcrImgDataUrl);
+            console.error('Local Full-Image Tesseract failed:', err);
+            alert('本地 OCR 识别失败或未检出任何联系人！');
+            resetAIImporterUI();
           } else {
             if (document.getElementById('aiLog4')) {
               document.getElementById('aiLog4').innerHTML = '🎉 本地识别成功，共 ' + contacts.length + ' 人';
@@ -3692,32 +3693,9 @@ export const DIALER_HTML = `<!DOCTYPE html>
     }
 
     function runCloudImageOCR(file) {
-            resetAIImporterUI();
-          });
-        };
-
-        if (file instanceof File || file instanceof Blob) {
-          var reader = new FileReader();
-          reader.onload = function(e) {
-            proceedWithDataUrl(e.target.result);
-          };
-          reader.onerror = function() {
-            alert('读取图片失败！');
-            resetAIImporterUI();
-          };
-          reader.readAsDataURL(file);
-        } else if (typeof file === 'string' && file.startsWith('data:')) {
-          proceedWithDataUrl(file);
-        } else if (tempOcrImgDataUrl) {
-          proceedWithDataUrl(tempOcrImgDataUrl);
-        } else {
-          alert('无法读取图片数据，请重新上传。');
-          resetAIImporterUI();
-        }
-      } else {
-        alert('本地未检出号码，且未配置云端 AI API Key（请配置 Vision Key）！');
-        resetAIImporterUI();
-      }
+      console.warn('runCloudImageOCR is deprecated');
+      alert('云端视觉 OCR 识别已弃用，请配置本地 OCR (Tesseract) 或文本 AI 纠错管线。');
+      resetAIImporterUI();
     }
 
     function runCloudPdfOCR(pdf, fileName) {
