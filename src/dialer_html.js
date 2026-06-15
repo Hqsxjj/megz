@@ -3864,10 +3864,18 @@ export const DIALER_HTML = `<!DOCTYPE html>
         var canvas = document.createElement('canvas');
         var ctx = canvas.getContext('2d');
         
-        canvas.width = col.width * 2;
+        var sX = col.startX;
+        var cW = col.width;
+        if (type === 'name') {
+          // Physically crop the left 25 pixels to completely eliminate the blue icon
+          sX += 25;
+          cW = Math.max(10, cW - 25);
+        }
+        
+        canvas.width = cW * 2;
         canvas.height = h * 2;
         
-        ctx.drawImage(img, col.startX, 0, col.width, h, 0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, sX, 0, cW, h, 0, 0, canvas.width, canvas.height);
         
         var imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
         var data = imgData.data;
@@ -3875,46 +3883,12 @@ export const DIALER_HTML = `<!DOCTYPE html>
         var histogram = new Array(256).fill(0);
         var totalPixels = data.length / 4;
         
-        var rowStarts = [];
-        if (type === 'name') {
-          var lastBlueY = -999;
-          for (var py = 0; py < canvas.height; py++) {
-            var isBlue = false;
-            for (var px = 0; px < 20; px++) {
-              var idx = (py * canvas.width + px) * 4;
-              var bR = data[idx], bG = data[idx+1], bB = data[idx+2];
-              if (bB > bR + 15 && bB > bG + 15) {
-                isBlue = true; break;
-              }
-            }
-            if (isBlue) {
-              if (py - lastBlueY > 40) rowStarts.push(py);
-              lastBlueY = py;
-            }
-          }
-        }
-        
         for (var i = 0; i < data.length; i += 4) {
           var r = data[i];
           var g = data[i+1];
           var b = data[i+2];
           
           if (type === 'name') {
-            var pixelIdx = i / 4;
-            var pixelX = pixelIdx % canvas.width;
-            var pixelY = Math.floor(pixelIdx / canvas.width);
-            var activeYStart = -999;
-            for (var rs = 0; rs < rowStarts.length; rs++) {
-              if (pixelY >= rowStarts[rs] - 15 && pixelY - rowStarts[rs] < 60) {
-                activeYStart = rowStarts[rs];
-                break;
-              }
-            }
-            if ((activeYStart !== -999 && pixelX + (pixelY - activeYStart) < 55) || (pixelX < 55 && b > r + 15 && b > g + 15)) {
-              r = 255;
-              g = 255;
-              b = 255;
-            }
             var val = Math.min(r, g, b);
             if (r > g + 10 && r > b + 10) {
               var redness = r - Math.max(g, b);
@@ -3981,7 +3955,12 @@ export const DIALER_HTML = `<!DOCTYPE html>
         var cellCtx = cellCanvas.getContext('2d');
         
         var w = col ? col.width : 77;
+        var w = col ? col.width : 77;
         var startX = col ? col.startX : 0;
+        
+        // Physically crop the left 25 pixels
+        startX += 25;
+        w = Math.max(10, w - 25);
         
         cellCanvas.width = w * 2;
         cellCanvas.height = 48 * 2;
@@ -3999,14 +3978,6 @@ export const DIALER_HTML = `<!DOCTYPE html>
           var g = data[i+1];
           var b = data[i+2];
           
-          var pixelIdx = i / 4;
-          var pixelX = pixelIdx % cellCanvas.width;
-          var pixelY = Math.floor(pixelIdx / cellCanvas.width);
-          if (pixelX + pixelY < 55 || (pixelX < 55 && b > r + 15 && b > g + 15)) {
-            r = 255;
-            g = 255;
-            b = 255;
-          }
           var val = Math.min(r, g, b);
           if (r > g + 10 && r > b + 10) {
             var redness = r - Math.max(g, b);
