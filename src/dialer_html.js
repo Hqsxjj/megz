@@ -3962,6 +3962,8 @@ export const DIALER_HTML = `<!DOCTYPE html>
         
         results.push({
           type: type,
+          startX: col.startX,
+          width: col.width,
           dataUrl: canvas.toDataURL('image/png')
         });
       });
@@ -3970,16 +3972,19 @@ export const DIALER_HTML = `<!DOCTYPE html>
     }
 
     function runTesseractOnSlices(slices, img) {
-      function cropCellInBrowser(sourceImg, yCenter) {
+      function cropCellInBrowser(sourceImg, yCenter, col) {
         var cellCanvas = document.createElement('canvas');
         var cellCtx = cellCanvas.getContext('2d');
         
-        cellCanvas.width = 77 * 2;
+        var w = col ? col.width : 77;
+        var startX = col ? col.startX : 0;
+        
+        cellCanvas.width = w * 2;
         cellCanvas.height = 48 * 2;
         
         var imgH = sourceImg.naturalHeight || sourceImg.height;
         var yStart = Math.max(0, Math.min(Math.round(yCenter - 24), imgH - 48));
-        cellCtx.drawImage(sourceImg, 0, yStart, 77, 48, 0, 0, cellCanvas.width, cellCanvas.height);
+        cellCtx.drawImage(sourceImg, startX, yStart, w, 48, 0, 0, cellCanvas.width, cellCanvas.height);
         
         var imgData = cellCtx.getImageData(0, 0, cellCanvas.width, cellCanvas.height);
         var data = imgData.data;
@@ -4149,8 +4154,9 @@ export const DIALER_HTML = `<!DOCTYPE html>
               
               var c = contacts[cIdx];
               if (!c.name || c.name === '严' || c.minNameDist > 15) {
-                var cellDataUrl = cropCellInBrowser(img, c.yCenter);
-                return workerObj.setParameters({ tessedit_pageseg_mode: '10', tessedit_char_whitelist: '' })
+                var nameCol = slices.find(function(s) { return s.type === 'name'; });
+                var cellDataUrl = cropCellInBrowser(img, c.yCenter, nameCol);
+                return workerObj.setParameters({ tessedit_pageseg_mode: '8', tessedit_char_whitelist: '' })
                   .then(function() { return workerObj.recognize(cellDataUrl); })
                   .then(function(cellRes) {
                     var fallbackName = cellRes.data.text.trim().replace(/^[新旧听一]\s*/, '').replace(/[^\u4e00-\u9fa5a-zA-Z]/g, '').trim();
