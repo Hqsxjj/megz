@@ -273,8 +273,16 @@ async function doWebSearch(env, query) {
 }
 
 async function callAIChat(env, messages, temperature = 0.5, apiKeyOverride = '') {
-  const provider = await env.DATA_KV.get('config:ai_provider') || 'deepseek';
-  const apiKey = apiKeyOverride || await env.DATA_KV.get('config:ai_api_key') || await env.DATA_KV.get('config:deepseek_api_key') || env.AI_API_KEY || env.DEEPSEEK_API_KEY;
+  let provider = await env.DATA_KV.get('config:ai_provider') || 'deepseek';
+  const visionKey = await env.DATA_KV.get('config:vision_api_key') || '';
+  const aiKey = await env.DATA_KV.get('config:ai_api_key') || await env.DATA_KV.get('config:deepseek_api_key') || env.AI_API_KEY || env.DEEPSEEK_API_KEY;
+  
+  let apiKey = apiKeyOverride || aiKey;
+  if (!apiKeyOverride && (provider === 'gemini' || (visionKey && !aiKey))) {
+    provider = 'gemini';
+    apiKey = visionKey || aiKey;
+  }
+  
   let apiBase = await env.DATA_KV.get('config:ai_api_base') || env.AI_API_BASE;
   let model = await env.DATA_KV.get('config:ai_model') || env.AI_API_MODEL;
 
@@ -324,8 +332,16 @@ async function callAIChat(env, messages, temperature = 0.5, apiKeyOverride = '')
 }
 
 async function callAIChatWithTools(env, messages, temperature = 0.5, fromUser = '') {
-  const provider = await env.DATA_KV.get('config:ai_provider') || 'deepseek';
-  const apiKey = await env.DATA_KV.get('config:ai_api_key') || await env.DATA_KV.get('config:deepseek_api_key') || env.AI_API_KEY || env.DEEPSEEK_API_KEY;
+  let provider = await env.DATA_KV.get('config:ai_provider') || 'deepseek';
+  const visionKey = await env.DATA_KV.get('config:vision_api_key') || '';
+  const aiKey = await env.DATA_KV.get('config:ai_api_key') || await env.DATA_KV.get('config:deepseek_api_key') || env.AI_API_KEY || env.DEEPSEEK_API_KEY;
+  
+  let apiKey = aiKey;
+  if (provider === 'gemini' || (visionKey && !aiKey)) {
+    provider = 'gemini';
+    apiKey = visionKey || aiKey;
+  }
+  
   let apiBase = await env.DATA_KV.get('config:ai_api_base') || env.AI_API_BASE;
   let model = await env.DATA_KV.get('config:ai_model') || env.AI_API_MODEL;
 
@@ -772,7 +788,7 @@ async function callAIChatWithTools(env, messages, temperature = 0.5, fromUser = 
           const content = functionArgs.content;
           const showOnLock = functionArgs.show !== undefined ? functionArgs.show : true;
 
-          const hasKey = await env.DATA_KV.get('config:ai_api_key') || await env.DATA_KV.get('config:deepseek_api_key') || env.AI_API_KEY || env.DEEPSEEK_API_KEY;
+          const hasKey = await env.DATA_KV.get('config:ai_api_key') || await env.DATA_KV.get('config:deepseek_api_key') || await env.DATA_KV.get('config:vision_api_key') || env.AI_API_KEY || env.DEEPSEEK_API_KEY;
           let parsedResult = null;
 
           if (!hasKey) {
@@ -1128,7 +1144,7 @@ export default {
           });
         }
 
-        const hasKey = await env.DATA_KV.get('config:ai_api_key') || await env.DATA_KV.get('config:deepseek_api_key') || env.AI_API_KEY || env.DEEPSEEK_API_KEY;
+        const hasKey = await env.DATA_KV.get('config:ai_api_key') || await env.DATA_KV.get('config:deepseek_api_key') || await env.DATA_KV.get('config:vision_api_key') || env.AI_API_KEY || env.DEEPSEEK_API_KEY;
         if (!hasKey) {
           return new Response(JSON.stringify({ reply: '后端未配置大模型 API Key，请先登录网页端配置。' }), {
             headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
@@ -3460,11 +3476,10 @@ export default {
       </details>
 
       <details style="margin-top:10px; border:1px dashed var(--card-border); border-radius:var(--radius-xs); padding:8px; background:rgba(120,120,120,0.02);">
-        <summary style="font-size:0.75rem; color:var(--text-soft); cursor:pointer; font-weight:700; outline:none; user-select:none;">👁️ Gemini Vision 图片识别 (推荐)</summary>
+        <summary style="font-size:0.75rem; color:var(--text-soft); cursor:pointer; font-weight:700; outline:none; user-select:none;">🔮 Google Gemini AI 配置</summary>
         <div style="display:flex; flex-direction:column; gap:6px; margin-top:8px;">
           <div style="font-size:0.7rem; color:var(--text-soft); line-height:1.4;">
-            🚀 Gemini 2.0 Flash 中文 OCR 效果最佳。免费获取 Key: <a href="https://aistudio.google.com/apikey" target="_blank" style="color:#4285f4;font-weight:700;">aistudio.google.com/apikey</a><br>
-            支持多个 Key 逗号分隔（绕开单 Key 限流）。未配置则自动回退到 Workers AI (Kimi/Llama)。
+            🚀 配置 Gemini API Key 后，本地 Tesseract OCR 提取的联系人数据将自动通过 Gemini 整理分类（智能排齐姓名、公司、备注等）并修正识别错别字。<br>免费获取 Key: <a href="https://aistudio.google.com/apikey" target="_blank" style="color:#4285f4;font-weight:700;">aistudio.google.com/apikey</a>
           </div>
           <input type="password" class="input-simple" id="visionApiKeyInput" placeholder="Gemini API Key (支持逗号分隔多个key)" style="font-size:0.7rem; height:28px; padding:0 8px;">
           <input type="text" class="input-simple" id="visionApiBaseInput" placeholder="API Base (可选，默认 Gemini 官方)" style="font-size:0.7rem; height:28px; padding:0 8px;">
@@ -6616,7 +6631,7 @@ const rid=Math.floor(Math.random()*1000);
         }
 
         // Get key from body, or KV config, or env
-        let hasKey = apiKey || await env.DATA_KV.get('config:ai_api_key') || await env.DATA_KV.get('config:deepseek_api_key') || env.AI_API_KEY || env.DEEPSEEK_API_KEY;
+        let hasKey = apiKey || await env.DATA_KV.get('config:ai_api_key') || await env.DATA_KV.get('config:deepseek_api_key') || await env.DATA_KV.get('config:vision_api_key') || env.AI_API_KEY || env.DEEPSEEK_API_KEY;
 
         if (!hasKey) {
           const mockTitles = {
@@ -7015,7 +7030,7 @@ const rid=Math.floor(Math.random()*1000);
                 }
               }
             } else {
-              const hasKey = await env.DATA_KV.get('config:ai_api_key') || await env.DATA_KV.get('config:deepseek_api_key') || env.AI_API_KEY || env.DEEPSEEK_API_KEY;
+              const hasKey = await env.DATA_KV.get('config:ai_api_key') || await env.DATA_KV.get('config:deepseek_api_key') || await env.DATA_KV.get('config:vision_api_key') || env.AI_API_KEY || env.DEEPSEEK_API_KEY;
               if (!hasKey) {
                 replyContent = `🤖 每日智能助手：\n\n您说：“${trimmedContent}”。\n\n提示：系统管理员尚未配置 AI 大模型 API Key 且未配置企业微信自建应用，因此无法为您服务。`;
               } else {
@@ -7105,7 +7120,7 @@ const rid=Math.floor(Math.random()*1000);
                 }
               } else {
                 // LLM AI dialogue
-                const hasKey = await env.DATA_KV.get('config:ai_api_key') || await env.DATA_KV.get('config:deepseek_api_key') || env.AI_API_KEY || env.DEEPSEEK_API_KEY;
+                const hasKey = await env.DATA_KV.get('config:ai_api_key') || await env.DATA_KV.get('config:deepseek_api_key') || await env.DATA_KV.get('config:vision_api_key') || env.AI_API_KEY || env.DEEPSEEK_API_KEY;
                 if (!hasKey) {
                   replyContent = `🤖 每日智能助手：\n\n您说：“${trimmedContent}”。\n\n提示：系统管理员尚未配置 AI 大模型 API Key，因此无法为您服务。`;
                 } else {
@@ -7349,6 +7364,67 @@ const rid=Math.floor(Math.random()*1000);
     }
 
 
+    // POST /api/ocr/test — Test Gemini/AI API connectivity
+    if (path === '/api/ocr/test' && request.method === 'POST') {
+      try {
+        const body = await request.json();
+        const { saveOnly, visionApiKey, visionApiBase } = body;
+        
+        if (visionApiKey !== undefined) {
+          await env.DATA_KV.put('config:vision_api_key', visionApiKey || '');
+        }
+        if (visionApiBase !== undefined) {
+          await env.DATA_KV.put('config:vision_api_base', visionApiBase || '');
+        }
+        
+        if (saveOnly) {
+          return new Response(JSON.stringify({ success: true }), {
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+        
+        // Connectivity test
+        const apiKey = visionApiKey || await env.DATA_KV.get('config:vision_api_key') || '';
+        if (!apiKey) {
+          return new Response(JSON.stringify({ success: false, error: 'API Key 不能为空' }), {
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+        
+        let apiBase = visionApiBase || await env.DATA_KV.get('config:vision_api_base') || 'https://generativelanguage.googleapis.com/v1beta/openai/';
+        if (!apiBase.endsWith('/')) apiBase += '/';
+        const url = apiBase + 'chat/completions';
+        
+        const testResp = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + apiKey
+          },
+          body: JSON.stringify({
+            model: 'gemini-2.5-flash',
+            messages: [{ role: 'user', content: 'Say OK' }],
+            max_tokens: 5
+          })
+        });
+        
+        if (!testResp.ok) {
+          const errText = await testResp.text();
+          return new Response(JSON.stringify({ success: false, error: `API 返回错误 (${testResp.status}): ${errText}` }), {
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+        
+        return new Response(JSON.stringify({ success: true }), {
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ success: false, error: e.message }), {
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+    }
+
     // OCR 文本修正：用文本 AI 修正本地 WASM OCR 的识别错误
     // 优势：不限次数（文本 API 便宜/免费），积累训练数据
     if (path === '/api/ocr/correct' && request.method === 'POST') {
@@ -7362,15 +7438,26 @@ const rid=Math.floor(Math.random()*1000);
           });
         }
 
-        // Get the regular AI config (text model, not vision)
-        const provider = await env.DATA_KV.get('config:ai_provider') || 'deepseek';
-        let apiKey = await env.DATA_KV.get('config:ai_api_key') || await env.DATA_KV.get('config:deepseek_api_key') || env.AI_API_KEY || env.DEEPSEEK_API_KEY || '';
-        let apiBase = await env.DATA_KV.get('config:ai_api_base') || env.AI_API_BASE || 'https://api.deepseek.com/v1/';
-        let model = await env.DATA_KV.get('config:ai_model') || env.AI_API_MODEL || 'deepseek-chat';
+        // Get the regular AI config (text model, prioritizing gemini's vision key)
+        let provider = await env.DATA_KV.get('config:ai_provider') || 'deepseek';
+        const visionKey = await env.DATA_KV.get('config:vision_api_key') || '';
+        const aiKey = await env.DATA_KV.get('config:ai_api_key') || await env.DATA_KV.get('config:deepseek_api_key') || env.AI_API_KEY || env.DEEPSEEK_API_KEY || '';
+        
+        let apiKey = aiKey;
+        if (provider === 'gemini' || (visionKey && !aiKey)) {
+          provider = 'gemini';
+          apiKey = visionKey || aiKey;
+        }
+
+        let apiBase = await env.DATA_KV.get('config:ai_api_base') || env.AI_API_BASE;
+        let model = await env.DATA_KV.get('config:ai_model') || env.AI_API_MODEL;
 
         if (provider === 'gemini') {
-          apiBase = await env.DATA_KV.get('config:ai_api_base') || env.AI_API_BASE || 'https://generativelanguage.googleapis.com/v1beta/openai/';
-          model = 'gemini-2.5-flash';
+          if (!apiBase) apiBase = 'https://generativelanguage.googleapis.com/v1beta/openai/';
+          if (!model) model = 'gemini-2.5-flash';
+        } else {
+          if (!apiBase) apiBase = 'https://api.deepseek.com/v1/';
+          if (!model) model = 'deepseek-chat';
         }
 
         if (!apiKey) {
@@ -7521,14 +7608,25 @@ const rid=Math.floor(Math.random()*1000);
           });
         }
 
-        const provider = await env.DATA_KV.get('config:ai_provider') || 'deepseek';
-        let apiKey = await env.DATA_KV.get('config:ai_api_key') || await env.DATA_KV.get('config:deepseek_api_key') || env.AI_API_KEY || env.DEEPSEEK_API_KEY || '';
-        let apiBase = await env.DATA_KV.get('config:ai_api_base') || env.AI_API_BASE || 'https://api.deepseek.com/v1/';
-        let model = await env.DATA_KV.get('config:ai_model') || env.AI_API_MODEL || 'deepseek-chat';
+        let provider = await env.DATA_KV.get('config:ai_provider') || 'deepseek';
+        const visionKey = await env.DATA_KV.get('config:vision_api_key') || '';
+        const aiKey = await env.DATA_KV.get('config:ai_api_key') || await env.DATA_KV.get('config:deepseek_api_key') || env.AI_API_KEY || env.DEEPSEEK_API_KEY || '';
+        
+        let apiKey = aiKey;
+        if (provider === 'gemini' || (visionKey && !aiKey)) {
+          provider = 'gemini';
+          apiKey = visionKey || aiKey;
+        }
+
+        let apiBase = await env.DATA_KV.get('config:ai_api_base') || env.AI_API_BASE;
+        let model = await env.DATA_KV.get('config:ai_model') || env.AI_API_MODEL;
 
         if (provider === 'gemini') {
-          apiBase = await env.DATA_KV.get('config:ai_api_base') || env.AI_API_BASE || 'https://generativelanguage.googleapis.com/v1beta/openai/';
-          model = 'gemini-2.5-flash';
+          if (!apiBase) apiBase = 'https://generativelanguage.googleapis.com/v1beta/openai/';
+          if (!model) model = 'gemini-2.5-flash';
+        } else {
+          if (!apiBase) apiBase = 'https://api.deepseek.com/v1/';
+          if (!model) model = 'deepseek-chat';
         }
 
         if (!apiKey) {
@@ -8009,7 +8107,7 @@ async function doMomentsPush(env, logPrefix) {
   }
 
   // 检查 AI API Key
-  const apiKey = await env.DATA_KV.get('config:ai_api_key') || await env.DATA_KV.get('config:deepseek_api_key') || env.AI_API_KEY || env.DEEPSEEK_API_KEY;
+  const apiKey = await env.DATA_KV.get('config:ai_api_key') || await env.DATA_KV.get('config:deepseek_api_key') || await env.DATA_KV.get('config:vision_api_key') || env.AI_API_KEY || env.DEEPSEEK_API_KEY;
   if (!apiKey) {
     console.log(`${logPrefix} 未配置 AI API Key，无法生成朋友圈文案。`);
     if (logPrefix === '[Cron]') {

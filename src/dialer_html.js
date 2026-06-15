@@ -1171,18 +1171,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
             <span style="font-size: 0.7rem; color: var(--text-light); max-width: 320px; line-height: 1.4; margin-top: -4px;">搭载启发式文字密度与特征识别算法，自动检测表头、过滤噪音，100% 本地隐私安全。</span>
             <button id="ocrTrainingDataBtn" style="background:transparent; border:1px solid var(--card-border); font-size:0.62rem; color:var(--text-soft); cursor:pointer; display:inline-flex; align-items:center; gap:3px; padding:2px 8px; border-radius:10px; margin-top:-2px;">📊 训练数据 (<span id="trainingCountBadge" style="color:var(--accent-wechat);font-weight:800;">0</span>)</button>
 
-            <!-- OCR Mode Switcher -->
-            <div style="display: flex; gap: 14px; align-items: center; margin-top: 4px; background: var(--btn-bg); padding: 5px 12px; border-radius: var(--radius-xs); border: 1px solid var(--card-border); margin-bottom: 2px;">
-              <span style="font-size: 0.65rem; color: var(--text-soft); font-weight: 800;">图片/PDF 识别引擎:</span>
-              <label style="font-size: 0.65rem; font-weight: 800; color: var(--text-main); cursor: pointer; display: flex; align-items: center; gap: 4px;">
-                <input type="radio" name="ocrEngine" value="local" style="cursor: pointer; transform: scale(0.95);">
-                💻 本地免费 (Wasm)
-              </label>
-              <label style="font-size: 0.65rem; font-weight: 800; color: var(--text-main); cursor: pointer; display: flex; align-items: center; gap: 4px;">
-                <input type="radio" name="ocrEngine" value="ai" checked style="cursor: pointer; transform: scale(0.95);">
-                🤖 Cloudflare Workers AI
-              </label>
-            </div>
+            
             
             <div class="import-buttons" style="margin-top: 6px; display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; width: 100%;">
               <label class="btn-primary" for="xlsFileInput" id="xlsSelectBtn" style="cursor:pointer; display:inline-flex; align-items:center; justify-content:center; padding: 8px 16px; font-size: 0.76rem; flex: 1; min-width: 130px; text-align: center;">📂 导入表格 / 文档</label>
@@ -3164,7 +3153,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
     // Falls back to regex parsing if AI is unavailable
     function correctOcrTextWithAI(rawText, fileName, onDone) {
       // Check if any text AI is configured
-      var aiKey = (localStorage.getItem('ai_api_key') || localStorage.getItem('deepseek_api_key') || '').trim();
+      var aiKey = (localStorage.getItem('vision_api_key') || localStorage.getItem('ai_api_key') || localStorage.getItem('deepseek_api_key') || '').trim();
       if (!aiKey) {
         // No AI key — use regex fallback directly
         var contacts = parsePhoneContactsFromRawText(rawText);
@@ -3426,127 +3415,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
               }
 
               function handleScannedPdfOCR(pdf, fileName) {
-                var ocrEngine = 'local';
-                var ocrEngineRadio = document.querySelector('input[name="ocrEngine"]:checked');
-                if (ocrEngineRadio) {
-                  ocrEngine = ocrEngineRadio.value;
-                }
-
-                if (ocrEngine === 'local') {
-                  runLocalScannedPdfSlicingOCR(pdf, fileName);
-                } else {
-                  var maxPages = pdf.numPages;
-                  var allContacts = [];
-                  
-                  if (document.getElementById('aiScanStatus')) {
-                    document.getElementById('aiScanStatus').innerHTML = '🤖 检测为扫描版 PDF，正切换为 AI 视觉 OCR...';
-                  }
-                  if (document.getElementById('aiLog3')) {
-                    document.getElementById('aiLog3').innerHTML = '⏳ 正在通过 Canvas 渲染多模态图像...';
-                  }
-                  if (document.getElementById('aiLog4')) {
-                    document.getElementById('aiLog4').innerHTML = '⏳ 准备识别第 1/' + maxPages + ' 页...';
-                    document.getElementById('aiLog4').style.opacity = '1';
-                  }
-
-                var canvas = document.createElement('canvas');
-                var ctx = canvas.getContext('2d');
-
-                function processPageOCR(pageNumber) {
-                  if (pageNumber > maxPages) {
-                    if (document.getElementById('aiScanStatus')) {
-                      document.getElementById('aiScanStatus').innerHTML = '✅ 扫描版 PDF 识别完成';
-                    }
-                    if (document.getElementById('aiLog4')) {
-                      document.getElementById('aiLog4').innerHTML = '🎉 共识别到 ' + allContacts.length + ' 个联系人';
-                    }
-                    setTimeout(function() {
-                      renderAIUnstructuredReport(fileName, allContacts);
-                    }, 800);
-                    return;
-                  }
-
-                  if (document.getElementById('aiLog4')) {
-                    document.getElementById('aiLog4').innerHTML = '⏳ 正在通过 AI 识别第 ' + pageNumber + '/' + maxPages + ' 页...';
-                  }
-
-                  pdf.getPage(pageNumber).then(function(page) {
-                    var viewport = page.getViewport({ scale: 1.5 });
-                    canvas.width = viewport.width;
-                    canvas.height = viewport.height;
-
-                    var renderContext = {
-                      canvasContext: ctx,
-                      viewport: viewport
-                    };
-
-                    page.render(renderContext).promise.then(function() {
-                      var imgData = canvas.toDataURL('image/jpeg', 0.75);
-
-                      fetch('/api/ocr', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ image: imgData, mode: 'bulk' })
-                      })
-                      .then(function(r) {
-                        return r.text().then(function(t) {
-                          try {
-                            var d = JSON.parse(t);
-                            return d;
-                          } catch(e) {
-                            throw new Error('服务器异常 (' + r.status + '): ' + t.substring(0, 100));
-                          }
-                        });
-                      })
-                      .then(function(result) {
-                        var pageContacts = [];
-                        if (result.contacts && result.contacts.length > 0) {
-                          result.contacts.forEach(function(c) {
-                            if (c.phone) {
-                              pageContacts.push({
-                                name: c.name || '',
-                                phone: c.phone,
-                                company: c.company || '',
-                                note: c.note || ''
-                              });
-                            }
-                          });
-                        } else if (result.name || result.phone) {
-                          pageContacts.push({
-                            name: result.name || '',
-                            phone: result.phone || '',
-                            company: result.company || '',
-                            note: result.note || result.fund || ''
-                          });
-                        }
-                        if (result.rawText || result.note) {
-                          var extra = parsePhoneContactsFromRawText(result.rawText || result.note || '');
-                          extra.forEach(function(ec) {
-                            if (!pageContacts.find(function(c) { return c.phone === ec.phone; })) {
-                              pageContacts.push(ec);
-                            }
-                          });
-                        }
-
-                        allContacts = allContacts.concat(pageContacts);
-                        processPageOCR(pageNumber + 1);
-                      })
-                      .catch(function(err) {
-                        console.error('Page ' + pageNumber + ' OCR failed:', err.message);
-                        if (document.getElementById('aiLog3')) {
-                          document.getElementById('aiLog3').innerHTML = '⚠️ 第 ' + pageNumber + ' 页识别失败: ' + err.message + '，尝试下一页...';
-                        }
-                        processPageOCR(pageNumber + 1);
-                      });
-                    });
-                  }).catch(function(err) {
-                    console.error('Page ' + pageNumber + ' render failed:', err.message);
-                    processPageOCR(pageNumber + 1);
-                  });
-                }
-
-                processPageOCR(1);
-                }
+                runLocalScannedPdfSlicingOCR(pdf, fileName);
               }
               
               loadPageText(1).catch(function(err) {
@@ -3731,55 +3600,22 @@ export const DIALER_HTML = `<!DOCTYPE html>
         runTesseractOnSlices(slices, img)
           .then(function(contacts) {
             if (contacts && contacts.length > 0) {
-              var aiKey = (localStorage.getItem('ai_api_key') || localStorage.getItem('deepseek_api_key') || '').trim();
-              if (aiKey) {
-                if (document.getElementById('aiLog4')) {
-                  document.getElementById('aiLog4').innerHTML = '🤖 正在调用文本 AI 模型分类归类...';
-                  document.getElementById('aiLog4').style.opacity = '1';
-                }
-                fetch('/api/ocr/categorize', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ contacts: contacts, fileName: tempOcrFileName })
-                })
-                .then(function(r) { return r.json(); })
-                .then(function(res) {
-                  var finalContacts = res.contacts || contacts;
-                  if (document.getElementById('aiLog4')) {
-                    document.getElementById('aiLog4').innerHTML = '🎉 本地识别与 AI 智能归类完成，共 ' + finalContacts.length + ' 人';
-                    document.getElementById('aiLog4').style.opacity = '1';
-                  }
-                  setTimeout(function() {
-                    renderAIUnstructuredReport(tempOcrFileName, finalContacts);
-                  }, 800);
-                })
-                .catch(function(err) {
-                  console.warn('AI categorization failed, using raw local OCR:', err);
-                  if (document.getElementById('aiLog4')) {
-                    document.getElementById('aiLog4').innerHTML = '🎉 本地识别成功，共 ' + contacts.length + ' 人';
-                    document.getElementById('aiLog4').style.opacity = '1';
-                  }
-                  setTimeout(function() {
-                    renderAIUnstructuredReport(tempOcrFileName, contacts);
-                  }, 800);
-                });
-              } else {
-                if (document.getElementById('aiLog4')) {
-                  document.getElementById('aiLog4').innerHTML = '🎉 本地识别成功，共 ' + contacts.length + ' 人';
-                  document.getElementById('aiLog4').style.opacity = '1';
-                }
-                setTimeout(function() {
-                  renderAIUnstructuredReport(tempOcrFileName, contacts);
-                }, 800);
+              if (document.getElementById('aiLog4')) {
+                document.getElementById('aiLog4').innerHTML = '🎉 本地识别成功，共 ' + contacts.length + ' 人';
+                document.getElementById('aiLog4').style.opacity = '1';
               }
+              setTimeout(function() {
+                renderAIUnstructuredReport(tempOcrFileName, contacts);
+              }, 800);
             } else {
-              // Local Tesseract failed! Try PaddleOCR deep learning, then cloud AI
-              runPaddleOCRImageFallback(tempOcrFile);
+              alert('本地 Tesseract 识别未检出联系人。请尝试在上方调整分割线滑块，并重新“开始本地识别”。');
+              resetAIImporterUI();
             }
           })
           .catch(function(err) {
-            console.error('Local Tesseract failed, trying PaddleOCR:', err);
-            runPaddleOCRImageFallback(tempOcrFile);
+            console.error('Local Tesseract failed:', err);
+            alert('本地 Tesseract 识别失败，请重试。');
+            resetAIImporterUI();
           });
       };
     }
@@ -3801,48 +3637,15 @@ export const DIALER_HTML = `<!DOCTYPE html>
             if (document.getElementById('aiScanStatus')) {
               document.getElementById('aiScanStatus').innerHTML = '✅ 本地 PDF 识别完成';
             }
-            var aiKey = (localStorage.getItem('ai_api_key') || localStorage.getItem('deepseek_api_key') || '').trim();
-            if (aiKey) {
-              if (document.getElementById('aiLog4')) {
-                document.getElementById('aiLog4').innerHTML = '🤖 正在调用文本 AI 模型整理分类...';
-                document.getElementById('aiLog4').style.opacity = '1';
-              }
-              
-              fetch('/api/ocr/categorize', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ contacts: allContacts, fileName: tempOcrFileName })
-              })
-              .then(function(r) { return r.json(); })
-              .then(function(res) {
-                var finalContacts = res.contacts || allContacts;
-                if (document.getElementById('aiLog4')) {
-                  document.getElementById('aiLog4').innerHTML = '🎉 本地识别与 AI 智能归类完成，共 ' + finalContacts.length + ' 人';
-                }
-                setTimeout(function() {
-                  renderAIUnstructuredReport(tempOcrFileName, finalContacts);
-                }, 800);
-              })
-              .catch(function(err) {
-                console.warn('AI categorization for PDF failed:', err);
-                if (document.getElementById('aiLog4')) {
-                  document.getElementById('aiLog4').innerHTML = '🎉 共识别到 ' + allContacts.length + ' 个联系人（AI整理失败）';
-                }
-                setTimeout(function() {
-                  renderAIUnstructuredReport(tempOcrFileName, allContacts);
-                }, 800);
-              });
-            } else {
-              if (document.getElementById('aiLog4')) {
-                document.getElementById('aiLog4').innerHTML = '🎉 共识别到 ' + allContacts.length + ' 个联系人';
-              }
-              setTimeout(function() {
-                renderAIUnstructuredReport(tempOcrFileName, allContacts);
-              }, 800);
+            if (document.getElementById('aiLog4')) {
+              document.getElementById('aiLog4').innerHTML = '🎉 共识别到 ' + allContacts.length + ' 个联系人';
             }
+            setTimeout(function() {
+              renderAIUnstructuredReport(tempOcrFileName, allContacts);
+            }, 800);
           } else {
-            // Local Tesseract failed! Try PaddleOCR deep learning, then cloud AI
-            runPaddleOCRPdfFallback(pdf, tempOcrFileName);
+            alert('本地 PDF 识别未检出联系人。请尝试在上方调整分割线滑块并重新识别。');
+            resetAIImporterUI();
           }
           return;
         }
@@ -3889,54 +3692,6 @@ export const DIALER_HTML = `<!DOCTYPE html>
     }
 
     function runCloudImageOCR(file) {
-      if (!file && !tempOcrImgDataUrl) {
-        alert('本地识别未检出号码，且找不到原始图片，请重新上传。');
-        resetAIImporterUI();
-        return;
-      }
-      showAIScanningUI((file && file.name) ? file.name : tempOcrFileName);
-      
-      // Workers AI runs on the server side and does not require a client API key.
-      var aiKey = true;
-
-      if (aiKey) {
-        document.getElementById('aiScanStatus').innerHTML = '🤖 本地未检出，正切换为云端 AI 视觉识别...';
-        if (document.getElementById('aiLog1')) { document.getElementById('aiLog1').innerHTML = '⏳ 图片发送至 AI 视觉模型...'; document.getElementById('aiLog1').style.opacity = '1'; }
-        if (document.getElementById('aiLog2')) { document.getElementById('aiLog2').innerHTML = '🧠 Cloudflare Workers AI 视觉引擎'; document.getElementById('aiLog2').style.opacity = '1'; }
-
-        var proceedWithDataUrl = function(base64Img) {
-          if (document.getElementById('aiLog3')) { document.getElementById('aiLog3').innerHTML = '📸 图片编码完成，等待返回...'; document.getElementById('aiLog3').style.opacity = '1'; }
-          fetch('/api/ocr', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ image: base64Img, mode: 'bulk' })
-          })
-          .then(function(r) {
-            return r.text().then(function(t) {
-              try { var d = JSON.parse(t); return d; } catch(e) {
-                throw new Error('服务器异常 (' + r.status + '): ' + t.substring(0, 100));
-              }
-            });
-          })
-          .then(function(result) {
-            if (document.getElementById('aiLog4')) { document.getElementById('aiLog4').innerHTML = '✅ AI 识别完成'; document.getElementById('aiLog4').style.opacity = '1'; }
-            // Save raw OCR data for training feedback
-            tempOcrRawText = result.rawText || '';
-            tempOcrEngine = 'ai_vision';
-            var contacts = [];
-            if (result.contacts && result.contacts.length > 0) {
-              result.contacts.forEach(function(c) { if (c.phone) contacts.push({ name: c.name || '', phone: c.phone, company: c.company || '', note: c.note || '' }); });
-            } else if (result.name || result.phone) {
-              contacts.push({ name: result.name || '', phone: result.phone || '', company: result.company || '', note: result.note || result.fund || '' });
-            }
-            if (result.rawText || result.note) {
-              var extra = parsePhoneContactsFromRawText(result.rawText || result.note || '');
-              extra.forEach(function(ec) { if (!contacts.find(function(c) { return c.phone === ec.phone; })) contacts.push(ec); });
-            }
-            renderAIUnstructuredReport(file.name, contacts);
-          })
-          .catch(function(err) {
-            alert('云端 AI 识别失败: ' + err.message);
             resetAIImporterUI();
           });
         };
@@ -4083,226 +3838,9 @@ export const DIALER_HTML = `<!DOCTYPE html>
       processPageOCR(1);
     }
 
-    // ====== PaddleOCR ONNX 深度学习引擎 (延迟加载) ======
-    var _paddleOCR = { recSession: null, dict: null, ready: false, loading: false };
 
-    function loadPaddleOCREngine() {
-      if (_paddleOCR.ready) return Promise.resolve(true);
-      if (_paddleOCR.loading) return new Promise(function(resolve) {
-        var chk = setInterval(function() { if (!_paddleOCR.loading) { clearInterval(chk); resolve(_paddleOCR.ready); } }, 200);
-      });
-      _paddleOCR.loading = true;
 
-      var recModelUrl = localStorage.getItem('paddleocr_rec_model') || 'https://cdn.jsdelivr.net/npm/@gutenye/ocr-models/ch_PP-OCRv4_rec_infer.onnx';
-      var dictUrl = localStorage.getItem('paddleocr_dict') || 'https://cdn.jsdelivr.net/gh/PaddlePaddle/PaddleOCR@main/ppocr/utils/ppocr_keys_v1.txt';
 
-      var loadOrt = window.ort ? Promise.resolve() : loadScript('https://cdn.jsdelivr.net/npm/onnxruntime-web@1.21.0/dist/ort.min.js');
-
-      return loadOrt.then(function() {
-        if (document.getElementById('aiLog2')) {
-          document.getElementById('aiLog2').innerHTML = '⏳ 正在下载 PaddleOCR 深度学习模型...';
-          document.getElementById('aiLog2').style.opacity = '1';
-        }
-        return Promise.all([
-          ort.InferenceSession.create(recModelUrl, { executionProviders: ['wasm'] }),
-          fetch(dictUrl).then(function(r) { return r.text(); })
-        ]);
-      }).then(function(results) {
-        _paddleOCR.recSession = results[0];
-        _paddleOCR.dict = results[1].split('\\n').filter(Boolean);
-        _paddleOCR.ready = true;
-        _paddleOCR.loading = false;
-        console.log('[PaddleOCR] Model loaded, dict size:', _paddleOCR.dict.length);
-        return true;
-      }).catch(function(err) {
-        console.error('[PaddleOCR] Load failed:', err);
-        _paddleOCR.loading = false;
-        return false;
-      });
-    }
-
-    // 水平投影法检测文本行
-    function paddleOCRFindLines(canvasEl) {
-      var w = canvasEl.width, h = canvasEl.height;
-      var ctx2 = canvasEl.getContext('2d');
-      var imgD = ctx2.getImageData(0, 0, w, h);
-      var d = imgD.data;
-      var proj = new Array(h).fill(0);
-      for (var y = 0; y < h; y++) {
-        for (var x = 0; x < w; x++) {
-          var idx = (y * w + x) * 4;
-          var gray = 0.299 * d[idx] + 0.587 * d[idx+1] + 0.114 * d[idx+2];
-          if (gray < 180) proj[y]++;
-        }
-      }
-      var thresh = w * 0.01;
-      var lines = [], inLine = false, start = 0;
-      for (var y = 0; y < h; y++) {
-        if (proj[y] > thresh && !inLine) { inLine = true; start = y; }
-        else if ((proj[y] <= thresh || y === h - 1) && inLine) {
-          inLine = false;
-          var end = y === h - 1 ? y + 1 : y;
-          if (end - start > 8) lines.push({ y: Math.max(0, start - 2), h: Math.min(end - start + 4, h - start) });
-        }
-      }
-      return lines;
-    }
-
-    // PaddleOCR 单行识别
-    function paddleOCRRecLine(canvasEl, line) {
-      var tH = 48;
-      var scale = tH / line.h;
-      var tW = Math.max(Math.round(canvasEl.width * scale), 48);
-      tW = Math.ceil(tW / 32) * 32;
-
-      var lc = document.createElement('canvas');
-      var lctx = lc.getContext('2d');
-      lc.width = tW; lc.height = tH;
-      lctx.fillStyle = '#fff';
-      lctx.fillRect(0, 0, tW, tH);
-      lctx.drawImage(canvasEl, 0, line.y, canvasEl.width, line.h, 0, 0, Math.round(canvasEl.width * scale), tH);
-
-      var pixels = lctx.getImageData(0, 0, tW, tH).data;
-      var t = new Float32Array(3 * tH * tW);
-      for (var i = 0; i < tH * tW; i++) {
-        t[i] = (pixels[i*4] / 255.0 - 0.5) / 0.5;
-        t[tH * tW + i] = (pixels[i*4+1] / 255.0 - 0.5) / 0.5;
-        t[2 * tH * tW + i] = (pixels[i*4+2] / 255.0 - 0.5) / 0.5;
-      }
-
-      var inputName = _paddleOCR.recSession.inputNames[0];
-      var tensor = new ort.Tensor('float32', t, [1, 3, tH, tW]);
-      var feeds = {};
-      feeds[inputName] = tensor;
-
-      return _paddleOCR.recSession.run(feeds).then(function(output) {
-        var outKey = Object.keys(output)[0];
-        var outData = output[outKey];
-        var dims = outData.dims;
-        var raw = outData.data;
-        var seqLen = dims[1], numChars = dims[2];
-        var text = '', lastIdx = 0;
-        for (var s = 0; s < seqLen; s++) {
-          var maxIdx = 0, maxVal = raw[s * numChars];
-          for (var c = 1; c < numChars; c++) {
-            if (raw[s * numChars + c] > maxVal) { maxVal = raw[s * numChars + c]; maxIdx = c; }
-          }
-          if (maxIdx !== 0 && maxIdx !== lastIdx && maxIdx - 1 < _paddleOCR.dict.length) {
-            text += _paddleOCR.dict[maxIdx - 1];
-          }
-          lastIdx = maxIdx;
-        }
-        return text;
-      });
-    }
-
-    // 对整个 canvas 执行 PaddleOCR 识别
-    function runPaddleOCROnCanvas(canvasEl) {
-      var lines = paddleOCRFindLines(canvasEl);
-      if (lines.length === 0) return Promise.resolve('');
-      var allText = [];
-      function processNext(idx) {
-        if (idx >= lines.length) return Promise.resolve(allText.join('\\n'));
-        return paddleOCRRecLine(canvasEl, lines[idx])
-          .then(function(text) { if (text.trim()) allText.push(text.trim()); return processNext(idx + 1); })
-          .catch(function() { return processNext(idx + 1); });
-      }
-      return processNext(0);
-    }
-
-    // PaddleOCR 图片回退
-    function runPaddleOCRImageFallback(file) {
-      tempOcrEngine = 'paddleocr';
-      if (!file) { runCloudImageOCR(file); return; }
-      if (document.getElementById('aiScanStatus')) {
-        document.getElementById('aiScanStatus').innerHTML = '🧠 正在启动 PaddleOCR 深度学习识别...';
-      }
-      if (document.getElementById('aiLog2')) {
-        document.getElementById('aiLog2').innerHTML = '⏳ 加载 PaddleOCR ONNX 引擎...';
-        document.getElementById('aiLog2').style.opacity = '1';
-      }
-      loadPaddleOCREngine().then(function(loaded) {
-        if (!loaded) {
-          if (document.getElementById('aiLog2')) document.getElementById('aiLog2').innerHTML = '⚠️ PaddleOCR 不可用，切换云端 AI...';
-          runCloudImageOCR(file);
-          return;
-        }
-        if (document.getElementById('aiLog3')) {
-          document.getElementById('aiLog3').innerHTML = '✅ PaddleOCR 模型加载成功';
-          document.getElementById('aiLog3').style.opacity = '1';
-        }
-        var reader = new FileReader();
-        reader.onload = function(e) {
-          var img = new Image();
-          img.onload = function() {
-            var cvs = document.createElement('canvas');
-            cvs.width = img.naturalWidth;
-            cvs.height = img.naturalHeight;
-            var cctx = cvs.getContext('2d');
-            cctx.drawImage(img, 0, 0);
-            if (document.getElementById('aiScanStatus')) document.getElementById('aiScanStatus').innerHTML = '📸 PaddleOCR 深度识别中...';
-            runPaddleOCROnCanvas(cvs).then(function(ocrText) {
-              if (document.getElementById('aiLog4')) {
-                document.getElementById('aiLog4').innerHTML = '✅ PaddleOCR 识别完成';
-                document.getElementById('aiLog4').style.opacity = '1';
-              }
-              var contacts = parsePhoneContactsFromRawText(ocrText);
-              if (contacts && contacts.length > 0) {
-                setTimeout(function() { renderAIUnstructuredReport(file.name, contacts); }, 500);
-              } else {
-                if (document.getElementById('aiLog4')) document.getElementById('aiLog4').innerHTML = '⚠️ PaddleOCR 未检出号码，切换云端 AI...';
-                runCloudImageOCR(file);
-              }
-            }).catch(function(err) {
-              console.error('[PaddleOCR] Recognition failed:', err);
-              runCloudImageOCR(file);
-            });
-          };
-          img.src = e.target.result;
-        };
-        reader.readAsDataURL(file);
-      });
-    }
-
-    // PaddleOCR PDF 回退
-    function runPaddleOCRPdfFallback(pdf, fileName) {
-      tempOcrEngine = 'paddleocr';
-      if (document.getElementById('aiScanStatus')) {
-        document.getElementById('aiScanStatus').innerHTML = '🧠 正在启动 PaddleOCR 深度学习识别...';
-      }
-      loadPaddleOCREngine().then(function(loaded) {
-        if (!loaded) { runCloudPdfOCR(pdf, fileName); return; }
-        var maxPages = pdf.numPages;
-        var allContacts = [];
-        var cvs = document.createElement('canvas');
-        var cctx = cvs.getContext('2d');
-        function processPage(pageNumber) {
-          if (pageNumber > maxPages) {
-            if (allContacts.length > 0) {
-              if (document.getElementById('aiScanStatus')) document.getElementById('aiScanStatus').innerHTML = '✅ PaddleOCR PDF 识别完成';
-              setTimeout(function() { renderAIUnstructuredReport(fileName, allContacts); }, 500);
-            } else {
-              runCloudPdfOCR(pdf, fileName);
-            }
-            return;
-          }
-          if (document.getElementById('aiScanStatus')) document.getElementById('aiScanStatus').innerHTML = '📄 PaddleOCR 识别第 ' + pageNumber + '/' + maxPages + ' 页...';
-          pdf.getPage(pageNumber).then(function(page) {
-            var viewport = page.getViewport({ scale: 1.5 });
-            cvs.width = viewport.width;
-            cvs.height = viewport.height;
-            page.render({ canvasContext: cctx, viewport: viewport }).promise.then(function() {
-              runPaddleOCROnCanvas(cvs).then(function(ocrText) {
-                var contacts = parsePhoneContactsFromRawText(ocrText);
-                allContacts = allContacts.concat(contacts);
-                processPage(pageNumber + 1);
-              }).catch(function() { processPage(pageNumber + 1); });
-            });
-          }).catch(function() { processPage(pageNumber + 1); });
-        }
-        processPage(1);
-      });
-    }
 
     function sliceAndPreprocess(img, split1, split2, order) {
       var w = img.naturalWidth || img.width;
@@ -4648,9 +4186,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
       var total = files.length;
 
       var ocrEngine = 'local';
-      var ocrEngineRadio = document.querySelector('input[name="ocrEngine"]:checked');
-      if (ocrEngineRadio) ocrEngine = ocrEngineRadio.value;
-      tempOcrEngine = ocrEngine === 'ai' ? 'ai_vision' : 'local_tesseract';
+      tempOcrEngine = 'local_tesseract';
 
       // Set up scanning UI directly (skip showAIScanningUI timeouts to avoid progress overwrite)
       document.getElementById('aiImportInit').style.display = 'none';
@@ -4660,7 +4196,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
       document.getElementById('aiScanStatus').innerHTML = '🖼️ 多图排队识别 · 共 ' + total + ' 张';
       document.getElementById('aiLog1').innerHTML = '📋 队列就绪，准备逐张识别...'; document.getElementById('aiLog1').style.opacity = '1';
       document.getElementById('aiLog2').innerHTML = '⏳ 等待处理第 1/' + total + ' 张...'; document.getElementById('aiLog2').style.opacity = '1';
-      document.getElementById('aiLog3').innerHTML = '🔧 引擎: ' + (ocrEngine === 'ai' ? 'Cloudflare Workers AI' : '本地离线 (Wasm)'); document.getElementById('aiLog3').style.opacity = '0.8';
+      document.getElementById('aiLog3').innerHTML = '🔧 引擎: 本地离线 (Wasm)'; document.getElementById('aiLog3').style.opacity = '0.8';
       document.getElementById('aiLog4').innerHTML = '⚡ 进度: 0/' + total; document.getElementById('aiLog4').style.opacity = '0.8';
 
       processNextInQueue(0);
@@ -4689,89 +4225,21 @@ export const DIALER_HTML = `<!DOCTYPE html>
         document.getElementById('aiLog4').style.opacity = '1';
       }
 
-      var ocrEngine = 'local';
-      var ocrEngineRadio = document.querySelector('input[name="ocrEngine"]:checked');
-      if (ocrEngineRadio) ocrEngine = ocrEngineRadio.value;
-
-      if (ocrEngine === 'ai') {
-        processSingleImageAI(file, function(err, contacts) {
-          if (err) {
-            if (document.getElementById('aiLog3')) {
-              document.getElementById('aiLog3').innerHTML = '⚠️ ' + esc(file.name) + ' 失败: ' + err.message + '，继续下一张...';
-              document.getElementById('aiLog3').style.opacity = '1';
-            }
-          } else {
-            if (document.getElementById('aiLog3')) {
-              document.getElementById('aiLog3').innerHTML = '✅ ' + esc(file.name) + ' 识别完成 (' + contacts.length + ' 个联系人)';
-              document.getElementById('aiLog3').style.opacity = '1';
-            }
-            multiImageResults = multiImageResults.concat(contacts);
+      processSingleImageLocal(file, function(err, contacts) {
+        if (err) {
+          if (document.getElementById('aiLog3')) {
+            document.getElementById('aiLog3').innerHTML = '⚠️ ' + esc(file.name) + ' 本地识别失败: ' + err.message + '，继续下一张...';
+            document.getElementById('aiLog3').style.opacity = '1';
           }
-          processNextInQueue(index + 1);
-        });
-      } else {
-        processSingleImageLocal(file, function(err, contacts) {
-          if (err) {
-            if (document.getElementById('aiLog3')) {
-              document.getElementById('aiLog3').innerHTML = '⚠️ ' + esc(file.name) + ' 本地识别失败: ' + err.message + '，继续下一张...';
-              document.getElementById('aiLog3').style.opacity = '1';
-            }
-          } else {
-            if (document.getElementById('aiLog3')) {
-              document.getElementById('aiLog3').innerHTML = '✅ ' + esc(file.name) + ' 本地识别完成 (' + contacts.length + ' 个联系人)';
-              document.getElementById('aiLog3').style.opacity = '1';
-            }
-            multiImageResults = multiImageResults.concat(contacts);
+        } else {
+          if (document.getElementById('aiLog3')) {
+            document.getElementById('aiLog3').innerHTML = '✅ ' + esc(file.name) + ' 本地识别完成 (' + contacts.length + ' 个联系人)';
+            document.getElementById('aiLog3').style.opacity = '1';
           }
-          processNextInQueue(index + 1);
-        });
-      }
-    }
-
-    function processSingleImageAI(file, callback) {
-      var visionKey = (localStorage.getItem('vision_api_key') || '').trim();
-      var aiKey = visionKey || (localStorage.getItem('ai_api_key') || localStorage.getItem('deepseek_api_key') || '').trim();
-
-      if (!aiKey) {
-        callback(new Error('未配置 AI Key'), []);
-        return;
-      }
-
-      var reader = new FileReader();
-      reader.onload = function(e) {
-        fetch('/api/ocr', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ image: e.target.result, mode: 'bulk' })
-        })
-        .then(function(r) {
-          return r.text().then(function(t) {
-            try { var d = JSON.parse(t); return d; } catch(err) {
-              throw new Error('服务器异常 (' + r.status + '): ' + t.substring(0, 100));
-            }
-          });
-        })
-        .then(function(result) {
-          var contacts = [];
-          if (result.contacts && result.contacts.length > 0) {
-            result.contacts.forEach(function(c) { if (c.phone) contacts.push({ name: c.name || '', phone: c.phone, company: c.company || '', note: c.note || '' }); });
-          } else if (result.name || result.phone) {
-            contacts.push({ name: result.name || '', phone: result.phone || '', company: result.company || '', note: result.note || result.fund || '' });
-          }
-          if (result.rawText || result.note) {
-            var extra = parsePhoneContactsFromRawText(result.rawText || result.note || '');
-            extra.forEach(function(ec) { if (!contacts.find(function(c) { return c.phone === ec.phone; })) contacts.push(ec); });
-          }
-          callback(null, contacts);
-        })
-        .catch(function(err) {
-          callback(err, []);
-        });
-      };
-      reader.onerror = function() {
-        callback(new Error('文件读取失败'), []);
-      };
-      reader.readAsDataURL(file);
+          multiImageResults = multiImageResults.concat(contacts);
+        }
+        processNextInQueue(index + 1);
+      });
     }
 
     var _tesseractWorker = null;
@@ -4883,67 +4351,8 @@ export const DIALER_HTML = `<!DOCTYPE html>
     }
 
     function handleImageOCR(file) {
-      var ocrEngine = 'local';
-      var ocrEngineRadio = document.querySelector('input[name="ocrEngine"]:checked');
-      if (ocrEngineRadio) {
-        ocrEngine = ocrEngineRadio.value;
-      }
-      tempOcrEngine = ocrEngine === 'ai' ? 'ai_vision' : 'local_tesseract';
-
-      if (ocrEngine === 'local') {
-        runLocalTableSlicingOCR(file);
-      } else {
-        showAIScanningUI(file.name);
-        
-        // Workers AI runs on the server side and does not require a client API key.
-        var aiKey = true;
-
-        if (aiKey) {
-          document.getElementById('aiScanStatus').innerHTML = '🤖 AI 云端视觉识别中...';
-          if (document.getElementById('aiLog1')) { document.getElementById('aiLog1').innerHTML = '⏳ 图片发送至 AI 视觉模型...'; document.getElementById('aiLog1').style.opacity = '1'; }
-          if (document.getElementById('aiLog2')) { document.getElementById('aiLog2').innerHTML = '🧠 Cloudflare Workers AI 视觉引擎'; document.getElementById('aiLog2').style.opacity = '1'; }
-
-          var reader = new FileReader();
-          reader.onload = function(e) {
-            if (document.getElementById('aiLog3')) { document.getElementById('aiLog3').innerHTML = '📸 图片编码完成，等待返回...'; document.getElementById('aiLog3').style.opacity = '1'; }
-            fetch('/api/ocr', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ image: e.target.result, mode: 'bulk' })
-            })
-            .then(function(r) {
-              return r.text().then(function(t) {
-                try { var d = JSON.parse(t); return d; } catch(e) {
-                  throw new Error('服务器异常 (' + r.status + '): ' + t.substring(0, 100));
-                }
-              });
-            })
-            .then(function(result) {
-              if (document.getElementById('aiLog4')) { document.getElementById('aiLog4').innerHTML = '✅ AI 识别完成'; document.getElementById('aiLog4').style.opacity = '1'; }
-              var contacts = [];
-              if (result.contacts && result.contacts.length > 0) {
-                result.contacts.forEach(function(c) { if (c.phone) contacts.push({ name: c.name || '', phone: c.phone, company: c.company || '', note: c.note || '' }); });
-              } else if (result.name || result.phone) {
-                contacts.push({ name: result.name || '', phone: result.phone || '', company: result.company || '', note: result.note || result.fund || '' });
-              }
-              if (result.rawText || result.note) {
-                var extra = parsePhoneContactsFromRawText(result.rawText || result.note || '');
-                extra.forEach(function(ec) { if (!contacts.find(function(c) { return c.phone === ec.phone; })) contacts.push(ec); });
-              }
-              renderAIUnstructuredReport(file.name, contacts);
-            })
-            .catch(function(err) {
-              console.error('AI Vision failed, fallback to Local:', err.message);
-              if (document.getElementById('aiLog3')) { document.getElementById('aiLog3').innerHTML = '⚠️ 云端失败: ' + err.message + '，切换本地引擎...'; document.getElementById('aiLog3').style.opacity = '1'; }
-              runLocalTableSlicingOCR(file);
-            });
-          };
-          reader.onerror = function() { runLocalTableSlicingOCR(file); };
-          reader.readAsDataURL(file);
-        } else {
-          runLocalTableSlicingOCR(file);
-        }
-      }
+      tempOcrEngine = 'local_tesseract';
+      runLocalTableSlicingOCR(file);
     }
 
     function runLocalTableSlicingOCR(file) {
