@@ -3883,8 +3883,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
           if (type === 'name') {
             var pixelIdx = i / 4;
             var pixelX = pixelIdx % canvas.width;
-            var pixelY = Math.floor(pixelIdx / canvas.width);
-            if (pixelX + pixelY < 50 || (pixelX < 40 && b > r + 15 && b > g + 15)) {
+            if (pixelX < 55 && b > r + 15 && b > g + 15) {
               r = 255;
               g = 255;
               b = 255;
@@ -3966,8 +3965,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
           
           var pixelIdx = i / 4;
           var pixelX = pixelIdx % cellCanvas.width;
-          var pixelY = Math.floor(pixelIdx / cellCanvas.width);
-          if (pixelX + pixelY < 50 || (pixelX < 40 && b > r + 15 && b > g + 15)) {
+          if (pixelX < 55 && b > r + 15 && b > g + 15) {
             r = 255;
             g = 255;
             b = 255;
