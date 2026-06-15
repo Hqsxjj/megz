@@ -1182,7 +1182,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
             <div id="textImportPanel" style="display:none; flex-direction:column; gap:6px; width:100%; margin-top:6px;">
               <textarea id="textImportArea" placeholder="在此粘贴文本，如：张三 13800138000 腾讯科技 备注" style="width:100%; height:120px; padding:8px; font-size:0.72rem; border:1px solid var(--card-border); border-radius:var(--radius-xs); background:var(--card-bg); color:var(--text-main); resize:vertical; outline:none; font-family:monospace;"></textarea>
               <div style="display:flex; gap:6px;">
-                <button class="btn-primary" style="flex:1; padding:6px; font-size:0.72rem; background:var(--wechat-gradient); color:white; border:none; border-radius:var(--radius-xs); font-weight:700;" onclick="var t=document.getElementById('textImportArea').value.trim();if(!t){alert('请先粘贴文本');return;}var btn=this;btn.disabled=true;var contacts=window.parsePhoneContactsFromRawText(t);if(contacts&&contacts.length>0){document.getElementById('textImportPanel').style.display='none';window.renderAIUnstructuredReport('本地文本提取',contacts);btn.disabled=false;}else{btn.textContent='本地未检出，切换云端 AI...';fetch('/api/ocr/text',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({rawText:t})}).then(function(r){return r.json()}).then(function(d){btn.textContent='🔍 智能识别提取';btn.disabled=false;if(d.contacts&&d.contacts.length>0){document.getElementById('textImportPanel').style.display='none';window.renderAIUnstructuredReport('云端文本解析',d.contacts)}else{alert('本地与云端 AI 均未识别到联系人，请确认文本包含有效手机号')}}).catch(function(e){btn.textContent='🔍 智能识别提取';btn.disabled=false;alert('识别失败: '+e.message)})}">🔍 智能识别提取</button>
+                <button class="btn-primary" id="textImportExtractBtn" style="flex:1; padding:6px; font-size:0.72rem; background:var(--wechat-gradient); color:white; border:none; border-radius:var(--radius-xs); font-weight:700;">🔍 智能识别提取</button>
                 <button class="btn-secondary" style="padding:6px 12px; font-size:0.72rem; background:var(--btn-bg); color:var(--text-soft); border:1px solid var(--card-border); border-radius:var(--radius-xs);" onclick="document.getElementById('textImportPanel').style.display='none';">取消</button>
               </div>
             </div>
@@ -4429,10 +4429,9 @@ export const DIALER_HTML = `<!DOCTYPE html>
               document.getElementById('aiLog4').innerHTML = '✅ 图像文字识别与神经特征映射完毕';
             }
             var text = result.data.text;
-            setTimeout(function() {
-              var contacts = parsePhoneContactsFromRawText(text);
+            correctOcrTextWithAI(text, file.name, function(contacts) {
               renderAIUnstructuredReport(file.name, contacts);
-            }, 800);
+            });
           }).catch(function(err) {
             alert('本地 OCR 识别失败：' + (err.message || err));
             resetAIImporterUI();
@@ -4691,6 +4690,45 @@ export const DIALER_HTML = `<!DOCTYPE html>
           executeAIImportUnstructured();
         }
       });
+
+      // Text paste button: use AI correction
+      var textExtractBtn = document.getElementById('textImportExtractBtn');
+      if (textExtractBtn) {
+        textExtractBtn.addEventListener('click', function() {
+          var t = document.getElementById('textImportArea').value.trim();
+          if (!t) { alert('请先粘贴文本'); return; }
+          var btn = this;
+          btn.disabled = true;
+          btn.textContent = '⏳ AI 修正中...';
+          correctOcrTextWithAI(t, '文本粘贴', function(contacts) {
+            btn.textContent = '🔍 智能识别提取';
+            btn.disabled = false;
+            if (contacts && contacts.length > 0) {
+              document.getElementById('textImportPanel').style.display = 'none';
+              window.renderAIUnstructuredReport('文本粘贴', contacts);
+            } else {
+              // Fallback to server-side extraction
+              btn.textContent = '本地未检出，切换云端 AI...';
+              fetch('/api/ocr/text', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rawText: t }) })
+                .then(function(r) { return r.json(); })
+                .then(function(d) {
+                  btn.textContent = '🔍 智能识别提取';
+                  btn.disabled = false;
+                  if (d.contacts && d.contacts.length > 0) {
+                    document.getElementById('textImportPanel').style.display = 'none';
+                    window.renderAIUnstructuredReport('云端文本解析', d.contacts);
+                  } else {
+                    alert('本地与云端 AI 均未识别到联系人，请确认文本包含有效手机号');
+                  }
+                }).catch(function(e) {
+                  btn.textContent = '🔍 智能识别提取';
+                  btn.disabled = false;
+                  alert('识别失败: ' + e.message);
+                });
+            }
+          });
+        });
+      }
 
       // Init OCR training data UI
       initOcrCorrectionUI();
@@ -6802,6 +6840,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
     window.openDBDashboard = openDBDashboard;
     window.parsePhoneContactsFromRawText = parsePhoneContactsFromRawText;
     window.renderAIUnstructuredReport = renderAIUnstructuredReport;
+    window.correctOcrTextWithAI = correctOcrTextWithAI;
 
     function initCustViewer(){
       var ov=document.getElementById('dbOverlay'); if(!ov)return;
