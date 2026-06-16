@@ -1154,7 +1154,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
       </div>
       
       <!-- Dashboard -->
-      <div class="dashboard-panel" id="dashboardPanel">
+      <div class="dashboard-panel" id="dashboardPanel" style="display: none;">
         <!-- AI Drag & Drop Zone -->
         <div class="import-zone" id="dropZone" style="position: relative; overflow: hidden; min-height: 200px;">
           <!-- Animation Laser Line (Only visible during scanning) -->
@@ -2215,10 +2215,10 @@ export const DIALER_HTML = `<!DOCTYPE html>
       if (expBtn) expBtn.style.display = hasData ? 'flex' : 'none';
       if (clrBtn) clrBtn.style.display = hasData ? 'flex' : 'none';
       
-      // Auto-hide import zone if there is data, otherwise display it
+      // Always hide import zone after initialization or data updates
       var panel = document.getElementById('dashboardPanel');
       if (panel) {
-        panel.style.display = hasData ? 'none' : 'block';
+        panel.style.display = 'none';
       }
     }
 
