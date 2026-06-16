@@ -6073,8 +6073,8 @@ const rid=Math.floor(Math.random()*1000);
 
       // 定义本地提取正则辅助函数
       const extractContactsFromText = (text) => {
-        const lines = text.split('\n');
-        const phoneRe = /1[3-9]\d{9}/g;
+        const lines = text.split('\\n');
+        const phoneRe = /1[3-9]\\d{9}/g;
         const list = [];
         const seenPhones = {};
         for (let i = 0; i < lines.length; i++) {
@@ -6085,7 +6085,7 @@ const rid=Math.floor(Math.random()*1000);
             phones.forEach(p => {
               if (seenPhones[p]) return;
               seenPhones[p] = true;
-              const cols = line.split(/\s+/);
+              const cols = line.split(/\\s+/);
               let name = '';
               let company = '';
               let fund = '';
@@ -6093,13 +6093,13 @@ const rid=Math.floor(Math.random()*1000);
               const phoneIdx = cols.findIndex(c => c.includes(p));
               if (phoneIdx !== -1) {
                 if (phoneIdx > 0) {
-                  name = cols[phoneIdx - 1].replace(/^[新旧听一]+[\s\-\|]*/, '').trim();
+                  name = cols[phoneIdx - 1].replace(/^[新旧听一]+[\\s\\-\\|]*/, '').trim();
                 }
                 if (cols.length > phoneIdx + 1) {
                   company = cols[phoneIdx + 1].trim();
                 }
                 for (let j = phoneIdx + 1; j < cols.length; j++) {
-                  if (/^\d{4,6}$/.test(cols[j])) {
+                  if (/^\\d{4,6}$/.test(cols[j])) {
                     fund = cols[j];
                     break;
                   }
