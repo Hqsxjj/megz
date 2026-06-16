@@ -2986,6 +2986,20 @@
         return true;
       }
 
+      function isNoteLike(str) {
+        if (!str) return false;
+        if (/已|不|需|要|想|加|微|信|挂|忙|通|拒|错|空|停|回|查|跟|打|拨|过|转|去|好|中|没|死|下|上|朝|晚|息|留|考|虑|意向|跟进|记录|接听|挂断|无效|空号|停机|拒绝|联系|电话|时间|下午|上午|明天|后天/i.test(str)) {
+          return true;
+        }
+        if (/[了吧呢吗没说谈电话办买看做去来想在要给]/g.test(str)) {
+          return true;
+        }
+        if (str.length > 10 && !/有限|集团|公司|厂|店|中心|商行|工作室|学校|医院/i.test(str)) {
+          return true;
+        }
+        return false;
+      }
+
       for (var i = 0; i < lines.length; i++) {
         var line = lines[i].trim();
         if (!line) continue;
@@ -3072,6 +3086,19 @@
             for (var j = 0; j < remainingParts.length; j++) {
               var part = remainingParts[j];
               if (/局|厅|科|所|校|院|部/.test(part)) {
+                bestCompany = part;
+                break;
+              }
+            }
+          }
+          
+          // Phase C Fallback Company (any segment that is not note-like, not the name, and is a Chinese/Alphanumeric noun of length 2-12)
+          if (!bestCompany) {
+            for (var j = 0; j < remainingParts.length; j++) {
+              var part = remainingParts[j];
+              if (part === name) continue;
+              var isChineseNoun = /^[\u4e00-\u9fa5a-zA-Z0-9\(\)（）]+$/.test(part) && /[\u4e00-\u9fa5]/.test(part);
+              if (isChineseNoun && part.length >= 2 && part.length <= 12 && !isNoteLike(part)) {
                 bestCompany = part;
                 break;
               }
