@@ -1,1731 +1,4 @@
-export const DIALER_HTML = `<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes, viewport-fit=cover, shrink-to-fit=no">
-  <title>智能快捷拨号助手</title>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    :root {
-      --bg-app: #ededed;
-      --card-bg: #ffffff;
-      --card-border: #e0e0e0;
-      --text-main: #191919;
-      --text-soft: #5e5e5e;
-      --text-light: #8e8e8e;
-      --accent-wechat: #07c160;
-      --accent-intent: #07c160;
-      --accent-wechat-bg: #f0fdf5;
-      --accent-intent-bg: #f0fdf5;
-      --btn-bg: #f5f5f5;
-      --btn-hover: #e5e5e5;
-      --shadow-card: 0 1px 3px rgba(0,0,0,0.06);
-      --border-light: #e5e5e5;
-      --modal-bg: rgba(0,0,0,0.45);
-      --modal-card: #ffffff;
-      --radius-sm: 8px;
-      --radius-xs: 6px;
-      --wechat-gradient: linear-gradient(135deg, #b7f0ce 0%, #6be89d 50%, #1aad5a 100%);
-      --intent-gradient: linear-gradient(135deg, #ffe0b2 0%, #ffb74d 50%, #f57c00 100%);
-      --revisit-gradient: linear-gradient(135deg, #d1e0ff 0%, #7b9ff5 50%, #4a6cf7 100%);
-    }
-    body.dark-mode {
-      --bg-app: rgba(17,17,17,0.92);
-      --card-bg: rgba(26,26,26,0.9);
-      --card-border: #2c2c2c;
-      --text-main: #e5e5e5;
-      --text-soft: #a0a0a0;
-      --text-light: #6b6b6b;
-      --accent-wechat: #07c160;
-      --accent-intent: #07c160;
-      --accent-wechat-bg: #17241c;
-      --accent-intent-bg: #17241c;
-      --btn-bg: rgba(38,38,38,0.85);
-      --btn-hover: #2c2c2c;
-      --border-light: #262626;
-      --modal-bg: rgba(0,0,0,0.88);
-      --modal-card: #1a1a1a;
-      --wechat-gradient: linear-gradient(135deg, #0d3320 0%, #144d2e 50%, #1a6b3a 100%);
-      --intent-gradient: linear-gradient(135deg, #332010 0%, #4d2e14 50%, #6b3a1a 100%);
-      --revisit-gradient: linear-gradient(135deg, #1a2233 0%, #2a354d 50%, #3a4d6b 100%);
-    }
-    html, body {
-      height: 100%;
-      width: 100%;
-      overflow: hidden;
-      background: var(--bg-app);
-      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue", sans-serif;
-      font-weight: 700;
-      transition: background 0.3s;
-    }
-    .app-shell {
-      height: 100%;
-      width: 100%;
-      display: flex;
-      flex-direction: column;
-      padding-top: env(safe-area-inset-top);
-      padding-bottom: env(safe-area-inset-bottom);
-    }
-    .container {
-      flex: 1;
-      width: 100%;
-      max-width: none;
-      margin: 0;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-      background: var(--bg-app);
-    }
 
-    /* Header Bar — full width */
-    .header-bar {
-      height: 36px;
-      padding: 0 16px;
-      border-bottom: 1px solid var(--border-light);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      flex-shrink: 0;
-      position: relative;
-      background: var(--card-bg);
-    }
-    .header-stats-minimal {
-      font-size: 0.78rem;
-      font-weight: 900;
-      color: var(--text-soft);
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-    .header-dropdown {
-      position: absolute;
-      top: 34px;
-      right: 4px;
-      background: var(--card-bg);
-      border: 1px solid var(--card-border);
-      border-radius: 6px;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.12);
-      z-index: 2500;
-      display: flex;
-      flex-direction: column;
-      padding: 4px 0;
-      max-height: 60vh;
-      overflow-y: auto;
-      min-width: 140px;
-    }
-    .dropdown-item {
-      padding: 8px 14px;
-      font-size: 0.76rem;
-      color: var(--text-soft);
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      transition: all 0.15s;
-      font-weight: 700;
-      background: transparent;
-      border: none;
-      width: 100%;
-      text-align: left;
-    }
-    .dropdown-item:hover {
-      background: var(--btn-hover);
-      color: var(--text-main);
-    }
-    .icon-btn {
-      background: var(--btn-bg);
-      border: 1px solid var(--card-border);
-      color: var(--text-main);
-      font-size: 0.76rem;
-      font-weight: 800;
-      padding: 4px 10px;
-      border-radius: var(--radius-xs);
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      transition: all 0.2s;
-    }
-    .icon-btn:hover {
-      background: var(--btn-hover);
-    }
-    
-    /* Dashboard Area — compact horizontal */
-    .dashboard-panel {
-      padding: 10px 16px;
-      background: var(--card-bg);
-      border-bottom: 1px solid var(--border-light);
-      flex-shrink: 0;
-    }
-    .import-zone {
-      background: var(--bg-app);
-      border: 1.5px dashed var(--card-border);
-      border-radius: 6px;
-      padding: 16px 24px;
-      text-align: center;
-      display: flex;
-      flex-direction: row;
-      align-items: center;
-      justify-content: center;
-      gap: 16px;
-      transition: all 0.2s;
-      flex-wrap: wrap;
-    }
-    .import-zone.dragover {
-      border-color: var(--accent-wechat);
-      background: var(--accent-wechat-bg);
-    }
-    .import-buttons {
-      display: flex;
-      gap: 10px;
-    }
-    .btn-primary {
-      background: var(--wechat-gradient);
-      color: white;
-      border: none;
-      padding: 10px 20px;
-      border-radius: var(--radius-xs);
-      font-size: 0.82rem;
-      font-weight: 800;
-      cursor: pointer;
-      box-shadow: 0 4px 12px rgba(7,193,96,0.2);
-      transition: all 0.2s;
-    }
-    .btn-primary:hover {
-      transform: translateY(-1px);
-      box-shadow: 0 6px 16px rgba(7,193,96,0.3);
-    }
-    .btn-secondary {
-      background: var(--revisit-gradient);
-      color: white;
-      border: none;
-      padding: 10px 20px;
-      border-radius: var(--radius-xs);
-      font-size: 0.82rem;
-      font-weight: 800;
-      cursor: pointer;
-      box-shadow: 0 4px 12px rgba(74,108,247,0.2);
-      transition: all 0.2s;
-    }
-    .btn-secondary:hover {
-      transform: translateY(-1px);
-      box-shadow: 0 6px 16px rgba(74,108,247,0.3);
-    }
-    
-    /* Stats Bar — compact horizontal */
-    .stats-bar {
-      margin-top: 0;
-      display: flex;
-      align-items: center;
-      gap: 24px;
-      background: transparent;
-      border: none;
-      border-radius: 0;
-      padding: 6px 0;
-      flex-wrap: wrap;
-    }
-    .stat-item {
-      display: flex;
-      flex-direction: row;
-      align-items: center;
-      gap: 6px;
-    }
-    .stat-label {
-      font-size: 0.7rem;
-      color: var(--text-light);
-    }
-    .stat-val {
-      font-size: 0.95rem;
-      font-weight: 900;
-      color: var(--text-main);
-    }
-    .progress-track {
-      flex: 1;
-      min-width: 120px;
-      height: 6px;
-      background: var(--btn-bg);
-      border-radius: 3px;
-      overflow: hidden;
-      position: relative;
-    }
-    .progress-fill {
-      height: 100%;
-      background: var(--wechat-gradient);
-      width: 0%;
-      border-radius: 3px;
-      transition: width 0.3s ease;
-    }
-
-    /* Control Panel — full width toolbar */
-    .control-bar {
-      min-height: 40px;
-      padding: 6px 16px;
-      border-bottom: 1px solid var(--border-light);
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      flex-shrink: 0;
-      flex-wrap: wrap;
-      background: var(--card-bg);
-    }
-    .search-input {
-      width: 160px;
-      flex-shrink: 0;
-      height: 30px;
-      background: var(--bg-app);
-      border: 1px solid var(--card-border);
-      border-radius: 4px;
-      padding: 0 10px;
-      font-size: 0.78rem;
-      color: var(--text-main);
-      outline: none;
-      font-weight: 700;
-      transition: all 0.2s;
-    }
-    .search-input:focus {
-      border-color: var(--accent-wechat);
-      background: var(--card-bg);
-    }
-    .filter-group {
-      display: flex;
-      gap: 4px;
-    }
-    .filter-tab {
-      height: 30px;
-      padding: 0 12px;
-      background: transparent;
-      border: none;
-      color: var(--text-soft);
-      font-size: 0.76rem;
-      font-weight: 800;
-      border-radius: 6px;
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      transition: all 0.2s;
-    }
-    .filter-tab.active {
-      background: var(--accent-wechat-bg);
-      color: var(--accent-wechat);
-    }
-    
-    /* Cards Container — Table on desktop, cards on mobile */
-    .cards-content {
-      flex: 1;
-      overflow: auto;
-      padding: 0;
-    }
-    /* CRM Table */
-    .crm-table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 13px;
-      min-width: 900px;
-    }
-    .crm-table thead th {
-      position: sticky; top: 0; z-index: 2;
-      background: #f0f0f0;
-      padding: 6px 10px;
-      text-align: left;
-      font-weight: 700;
-      color: #444;
-      border: 1px solid #d0d0d0;
-      border-top: none;
-      border-bottom: 2px solid #c0c0c0;
-      white-space: nowrap;
-      font-size: 12px;
-      cursor: pointer;
-      user-select: none;
-    }
-    .crm-table thead th:hover { background: #e4e4e4; }
-    .crm-table thead th .sort-arrow { font-size: 10px; margin-left: 2px; opacity: 0.35; }
-    .crm-table thead th.sorted .sort-arrow { opacity: 1; color: #4a6cf7; }
-    .crm-table td {
-      padding: 4px 10px;
-      border: 1px solid #e0e0e0;
-      color: #333;
-      white-space: nowrap;
-      font-size: 13px;
-      vertical-align: middle;
-    }
-    .crm-table tbody tr:nth-child(even) td { background: #f8f9fa; }
-    .crm-table tbody tr:hover td { background: rgba(74,108,247,0.05) !important; }
-    .crm-table tbody tr.row-dialed td { opacity: 0.55; }
-    .crm-table .col-no { width: 40px; text-align: center; color: #aaa; font-size: 11px; }
-    .crm-table .col-status { width: 80px; }
-    .crm-table .col-name { min-width: 70px; }
-    .crm-table .col-phone { min-width: 115px; font-family: monospace; }
-    .crm-table .col-company { min-width: 140px; }
-    .crm-table .col-note { min-width: 80px; max-width: 150px; overflow: hidden; text-overflow: ellipsis; }
-    .crm-table .col-batch { min-width: 90px; }
-    .crm-table .col-action { width: 60px; text-align: center; }
-    body.dark-mode .crm-table thead th { background: #2a2a2a; border-color: #444; color: #ccc; border-bottom-color: #555; }
-    body.dark-mode .crm-table thead th:hover { background: #333; }
-    body.dark-mode .crm-table td { color: #ddd; border-color: #3a3a3a; }
-    body.dark-mode .crm-table tbody tr:nth-child(even) td { background: #232323; }
-    body.dark-mode .crm-table tbody tr:hover td { background: rgba(74,108,247,0.1) !important; }
-    .xls-dial-card {
-      background: var(--card-bg);
-      border: 1px solid var(--card-border);
-      border-radius: 6px;
-      padding: 10px 14px;
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-      box-shadow: none;
-      position: relative;
-      transition: all 0.15s ease;
-    }
-    .xls-dial-card:hover {
-      border-color: rgba(74,108,247,0.3);
-      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-    }
-    .xls-dial-card.dialed {
-      opacity: 0.65;
-      border-color: var(--border-light);
-      background: rgba(0, 0, 0, 0.01);
-    }
-    body.dark-mode .xls-dial-card.dialed {
-      background: rgba(255, 255, 255, 0.01);
-    }
-    .xls-dial-badge {
-      font-size: 0.65rem;
-      font-weight: 800;
-      padding: 2px 6px;
-      border-radius: 4px;
-      display: inline-flex;
-      align-items: center;
-    }
-    .xls-dial-badge-todo {
-      background: var(--btn-bg);
-      color: var(--text-soft);
-    }
-    .xls-dial-badge-success {
-      background: rgba(7, 193, 96, 0.1);
-      color: var(--accent-intent);
-      border: 0.5px solid rgba(7, 193, 96, 0.2);
-    }
-    .xls-dial-badge-failed {
-      background: rgba(231, 76, 60, 0.1);
-      color: #e74c3c;
-      border: 0.5px solid rgba(231, 76, 60, 0.2);
-    }
-    
-
-    
-    .client-card-top {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    .client-card-primary {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-    .client-card-name-btn {
-      font-size: 0.92rem;
-      font-weight: 900;
-      color: var(--text-main);
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      padding: 1px 4px;
-      border-radius: var(--radius-xs);
-      transition: all 0.2s;
-    }
-    .client-card-name-btn:hover {
-      background: var(--btn-hover);
-    }
-    .client-card-phone-wrap {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-    }
-    .client-phone-btn {
-      font-family: monospace;
-      font-size: 0.82rem;
-      font-weight: 800;
-      color: var(--text-soft);
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      padding: 1px 4px;
-      border-radius: var(--radius-xs);
-      transition: all 0.2s;
-    }
-    .client-phone-btn:hover {
-      background: var(--btn-hover);
-      color: var(--text-main);
-    }
-    .client-phone-btn.copied {
-      color: var(--text-main) !important;
-      text-shadow: 0 0 6px rgba(7, 193, 96, 0.45);
-      font-weight: 900;
-      text-decoration: line-through;
-      text-decoration-color: rgba(231, 76, 60, 0.7);
-      text-decoration-thickness: 2px;
-    }
-    body.dark-mode .client-phone-btn.copied {
-      text-shadow: 0 0 8px rgba(7, 193, 96, 0.6);
-    }
-    .client-card-tags {
-      display: flex;
-      gap: 6px;
-      flex-wrap: wrap;
-    }
-    .client-card-tag {
-      font-size: 0.65rem;
-      font-weight: 800;
-      padding: 2px 6px;
-      border-radius: 4px;
-    }
-    .client-card-tag-company {
-      background: rgba(7,193,96,0.08);
-      color: var(--accent-wechat);
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-    .client-card-tag-company:hover {
-      background: var(--btn-hover);
-    }
-    .client-card-body {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-      border-left: 2px solid var(--border-light);
-      padding-left: 8px;
-    }
-    .client-card-content-block {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-    }
-    .client-card-label {
-      font-size: 0.62rem;
-      color: var(--text-light);
-      text-transform: uppercase;
-    }
-    .client-card-text {
-      font-size: 0.74rem;
-      color: var(--text-soft);
-      line-height: 1.4;
-    }
-    .client-card-actions {
-      display: flex;
-      justify-content: flex-end;
-      border-top: 1px dashed var(--border-light);
-      padding-top: 6px;
-      margin-top: 0px;
-    }
-    
-    /* AI Importer Animations */
-    @keyframes pulse-ring {
-      0% { transform: scale(0.95); opacity: 0.5; }
-      50% { transform: scale(1.1); opacity: 0.15; }
-      100% { transform: scale(0.95); opacity: 0.5; }
-    }
-    @keyframes laser-scan {
-      0% { top: 0%; opacity: 0; }
-      10% { opacity: 1; }
-      90% { opacity: 1; }
-      100% { top: 100%; opacity: 0; }
-    }
-    .ai-laser-line {
-      position: absolute;
-      left: 0;
-      width: 100%;
-      height: 2px;
-      background: linear-gradient(90deg, rgba(7,193,96,0) 0%, rgba(7,193,96,0.8) 50%, rgba(7,193,96,0) 100%);
-      box-shadow: 0 0 8px rgba(7,193,96,0.6);
-      animation: laser-scan 2s infinite linear;
-      pointer-events: none;
-    }
-    
-    /* Overlay and Modals */
-    .modal-overlay {
-      position: fixed;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background: var(--modal-bg);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-      z-index: 2000;
-      opacity: 0;
-      pointer-events: none;
-      transition: all 0.25s ease;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    .modal-overlay.active {
-      opacity: 1;
-      pointer-events: auto;
-    }
-    .modal-card {
-      background: var(--modal-card);
-      border: 1px solid var(--card-border);
-      border-radius: 14px;
-      box-shadow: 0 15px 45px rgba(0,0,0,0.3);
-      width: 90vw;
-      max-width: 400px;
-      padding: 24px;
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-      transform: translateY(20px);
-      transition: all 0.25s cubic-bezier(0.25, 0.8, 0.25, 1);
-    }
-    .modal-overlay.active .modal-card {
-      transform: translateY(0);
-    }
-    
-    /* Dialer Assist */
-    .call-pulse {
-      width: 64px;
-      height: 64px;
-      border-radius: 50%;
-      background: var(--accent-wechat-bg);
-      color: var(--accent-wechat);
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 1.8rem;
-      margin: 0 auto 6px;
-      position: relative;
-    }
-    .call-pulse::after {
-      content: '';
-      position: absolute;
-      top: 0; left: 0; right: 0; bottom: 0;
-      border-radius: 50%;
-      border: 2px solid var(--accent-wechat);
-      animation: ripple 1.6s infinite ease-out;
-      opacity: 0;
-    }
-    @keyframes ripple {
-      0% { transform: scale(1); opacity: 0.5; }
-      100% { transform: scale(1.6); opacity: 0; }
-    }
-    
-    .btn-modal {
-      height: 42px;
-      border: none;
-      border-radius: var(--radius-xs);
-      font-size: 0.85rem;
-      font-weight: 800;
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      transition: all 0.2s;
-    }
-    .btn-success {
-      background: #07c160;
-      color: white;
-      box-shadow: 0 4px 12px rgba(7,193,96,0.25);
-    }
-    .btn-danger {
-      background: #e74c3c;
-      color: white;
-      box-shadow: 0 4px 12px rgba(231,76,60,0.25);
-    }
-    .btn-neutral {
-      background: #7f8c8d;
-      color: white;
-      box-shadow: 0 4px 12px rgba(127,140,141,0.25);
-    }
-    
-    /* Export Panel */
-    .export-modal-card {
-      max-width: 500px;
-    }
-    .export-textarea {
-      width: 100%;
-      height: 200px;
-      background: var(--btn-bg);
-      border: 1px solid var(--card-border);
-      border-radius: var(--radius-xs);
-      padding: 10px 12px;
-      font-size: 0.76rem;
-      color: var(--text-main);
-      outline: none;
-      font-weight: 600;
-      resize: none;
-      line-height: 1.5;
-      font-family: monospace;
-    }
-    .sync-badge {
-      transition: all 0.2s ease;
-      cursor: pointer;
-    }
-    .sync-badge.online-synced {
-      background: var(--accent-wechat-bg) !important;
-      color: var(--accent-wechat) !important;
-      border: 0.5px solid rgba(7,193,96,0.2) !important;
-    }
-    .sync-badge.online-unsynced {
-      background: rgba(245,124,0,0.1) !important;
-      color: #f57c00 !important;
-      border: 0.5px solid rgba(245,124,0,0.2) !important;
-    }
-    .sync-badge.offline-mode {
-      background: var(--btn-bg) !important;
-      color: var(--text-light) !important;
-      border: 0.5px solid var(--card-border) !important;
-    }
-    
-    /* Android APK full-screen spacing */
-    body.android .app-shell { padding-top: 39px; }
-
-    /* Mobile Adaptive Styles for iOS & Android */
-    @media (max-width: 480px) {
-      .container {
-        border-left: none;
-        border-right: none;
-        border-radius: 0;
-        box-shadow: none;
-      }
-      .control-bar {
-        padding: 4px 8px;
-        gap: 4px;
-        min-height: 42px;
-      }
-      .search-input {
-        width: 100px;
-        padding: 0 6px;
-        font-size: 0.74rem;
-      }
-      .filter-group {
-        gap: 2px;
-      }
-      .filter-tab {
-        padding: 0 6px;
-        font-size: 0.7rem;
-        height: 28px;
-      }
-      .header-bar {
-        height: 38px;
-        padding: 0 10px;
-      }
-      .header-stats-minimal {
-        font-size: 0.72rem;
-      }
-      .cards-content {
-        padding: 6px 8px;
-        gap: 6px;
-        grid-template-columns: 1fr; /* single column on mobile */
-      }
-      .xls-dial-card {
-        padding: 8px 10px;
-        gap: 5px;
-        border-radius: 6px;
-      }
-      .card-copy-btn {
-        top: 6px;
-        right: 10px;
-        padding: 2px 5px;
-        font-size: 0.62rem;
-      }
-      .client-card-name-btn {
-        font-size: 0.88rem;
-        padding: 1px 2px;
-      }
-      .client-phone {
-        font-size: 0.78rem;
-      }
-      .xls-dial-badge {
-        font-size: 0.6rem;
-        padding: 1px 4px;
-      }
-      .client-card-tag {
-        font-size: 0.6rem;
-        padding: 1px 4px;
-      }
-      .client-card-body {
-        gap: 2px;
-        padding-left: 6px;
-      }
-      .client-card-text {
-        font-size: 0.72rem;
-      }
-      .client-card-actions {
-        padding-top: 4px;
-      }
-      .xls-card-dial-btn {
-        height: 26px;
-        padding: 0 10px;
-        font-size: 0.72rem;
-      }
-      #custViewerBtn2,
-      #custViewerBtn,
-      #toggleCopyLimitBtn,
-      .copy-limit-sub {
-        display: none !important;
-      }
-    }
-
-    /* Whitelist match badges */
-    .xls-dial-badge-whitelist {
-      background: rgba(7,193,96,0.1);
-      color: var(--accent-wechat);
-      border: 0.5px solid rgba(7,193,96,0.2);
-    }
-    .xls-dial-badge-not-whitelist {
-      background: rgba(231,76,60,0.1);
-      color: #e74c3c;
-      border: 0.5px solid rgba(231,76,60,0.2);
-    }
-
-    /* Whitelist management modal */
-    .whitelist-textarea {
-      width: 100%;
-      height: 180px;
-      background: var(--btn-bg);
-      border: 1px solid var(--card-border);
-      border-radius: var(--radius-xs);
-      padding: 10px 12px;
-      font-size: 0.76rem;
-      color: var(--text-main);
-      outline: none;
-      font-weight: 600;
-      resize: none;
-      line-height: 1.5;
-    }
-    .whitelist-company-item {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 5px 0;
-      border-bottom: 1px solid var(--border-light);
-    }
-    /* Copy limit toast */
-    .copy-limit-toast {
-      position: fixed;
-      top: 16px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: #e74c3c;
-      color: #fff;
-      padding: 12px 24px;
-      border-radius: 8px;
-      font-size: 0.88rem;
-      font-weight: 600;
-      z-index: 9999;
-      box-shadow: 0 4px 16px rgba(231, 76, 60, 0.35);
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity 0.3s ease;
-      max-width: 90vw;
-      text-align: center;
-    }
-    .copy-limit-toast.show {
-      opacity: 1;
-      pointer-events: auto;
-    }
-    .copy-limit-toast.warn {
-      background: #f39c12;
-      box-shadow: 0 4px 16px rgba(243, 156, 18, 0.35);
-    }
-    .copy-limit-sub {
-      padding-left: 24px !important;
-      font-size: 0.72rem !important;
-      opacity: 0.85;
-    }
-    /* ====== Professional CRM Dashboard ====== */
-    .db-overlay {
-      position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 99999;
-      display: none; align-items: center; justify-content: center;
-      -webkit-overflow-scrolling: touch;
-      backdrop-filter: blur(8px);
-    }
-    .db-overlay.active { display: flex; }
-    .db-panel {
-      background: #f8fafc; border-radius: 8px; width: 96vw; max-width: 1400px;
-      height: 92vh; max-height: 900px; display: flex; flex-direction: column; overflow: hidden;
-      box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04);
-      border: 1px solid #e2e8f0;
-      transition: all 0.3s ease;
-    }
-    body.dark-mode .db-panel { background: #0f172a; border-color: #334155; }
-    
-    /* CRM Tabs bar */
-    .crm-tabs {
-      display: flex; background: #fff; border-bottom: 1px solid #e2e8f0; flex-shrink: 0;
-      align-items: center; padding: 0 16px; gap: 8px; height: 44px;
-    }
-    body.dark-mode .crm-tabs { background: #1e293b; border-color: #334155; }
-    .crm-tab {
-      display: inline-flex; align-items: center; gap: 6px; padding: 0 16px; height: 44px;
-      font-size: 0.82rem; font-weight: 700; color: #64748b; cursor: pointer; position: relative;
-      user-select: none; transition: all 0.2s ease;
-    }
-    .crm-tab:hover { color: #ff5722; }
-    .crm-tab.active { color: #ff5722; }
-    .crm-tab.active::after {
-      content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 3px;
-      background: #ff5722; border-top-left-radius: 3px; border-top-right-radius: 3px;
-    }
-    .crm-tab-close {
-      font-size: 10px; opacity: 0.5; margin-left: 4px; border-radius: 50%; width: 14px; height: 14px;
-      display: inline-flex; align-items: center; justify-content: center;
-    }
-    .crm-tab-close:hover { background: rgba(0,0,0,0.1); opacity: 1; }
-    body.dark-mode .crm-tab { color: #94a3b8; }
-    body.dark-mode .crm-tab.active { color: #ff5722; }
-    
-    .db-header { display: none; }
-    .crm-tabs-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
-    .db-close {
-      width: 28px; height: 28px; border: none; background: rgba(0,0,0,0.06); border-radius: 4px;
-      font-size: 0.9rem; cursor: pointer; color: #666; display: flex; align-items: center; justify-content: center;
-    }
-    .db-close:hover { background: #e81123; color: #fff; }
-    body.dark-mode .db-close { background: rgba(255,255,255,0.08); color: #cbd5e1; }
-    body.dark-mode .db-close:hover { background: #e81123; color: #fff; }
-    
-    /* CRM Shortcut Filter bar */
-    .crm-shortcut-bar {
-      display: flex; gap: 8px; padding: 10px 16px 6px 16px; align-items: center; flex-shrink: 0;
-      background: #fff;
-    }
-    body.dark-mode .crm-shortcut-bar { background: #1e293b; }
-    .crm-shortcut-btn {
-      padding: 5px 16px; border-radius: 4px; border: 1px solid #e2e8f0; font-size: 0.78rem;
-      background: #f8fafc; color: #64748b; font-weight: 600; cursor: pointer; transition: all 0.2s;
-    }
-    .crm-shortcut-btn:hover { border-color: #ff5722; color: #ff5722; }
-    .crm-shortcut-btn.active { background: rgba(255,87,34,0.08); border-color: #ff5722; color: #ff5722; }
-    body.dark-mode .crm-shortcut-btn { background: #0f172a; border-color: #334155; color: #94a3b8; }
-    body.dark-mode .crm-shortcut-btn.active { background: rgba(255,87,34,0.15); color: #ff5722; border-color: #ff5722; }
-    .crm-shortcut-add {
-      font-size: 1.1rem; color: #ff5722; font-weight: 800; cursor: pointer; padding: 0 4px;
-    }
-
-    /* CRM Search Area */
-    .crm-search-card {
-      background: #fff; padding: 12px 16px; border-bottom: 1px solid #e2e8f0; flex-shrink: 0;
-    }
-    body.dark-mode .crm-search-card { background: #1e293b; border-color: #334155; }
-    .crm-search-grid {
-      display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px;
-      align-items: center;
-    }
-    .crm-search-item { display: flex; align-items: center; gap: 8px; }
-    .crm-search-label { font-size: 0.78rem; font-weight: 700; color: #475569; white-space: nowrap; width: 64px; }
-    body.dark-mode .crm-search-label { color: #94a3b8; }
-    .crm-input, .crm-select {
-      flex: 1; height: 32px; padding: 0 10px; border: 1px solid #cbd5e1; border-radius: 4px;
-      font-size: 0.78rem; outline: none; background: #fff; color: #1e293b; transition: border 0.15s;
-      width: 100%;
-    }
-    .crm-input:focus, .crm-select:focus { border-color: #ff5722; }
-    body.dark-mode .crm-input, body.dark-mode .crm-select { background: #0f172a; border-color: #334155; color: #cbd5e1; }
-    
-    .crm-search-actions { display: flex; gap: 8px; margin-top: 10px; justify-content: flex-start; }
-    .crm-btn-search {
-      height: 32px; padding: 0 20px; border-radius: 4px; background: #ff5722; color: #fff;
-      font-size: 0.78rem; font-weight: 700; border: none; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;
-    }
-    .crm-btn-search:hover { background: #f4511e; }
-    .crm-btn-reset {
-      height: 32px; padding: 0 16px; border-radius: 4px; background: #fff; color: #475569;
-      font-size: 0.78rem; font-weight: 700; border: 1px solid #cbd5e1; cursor: pointer;
-    }
-    .crm-btn-reset:hover { border-color: #ff5722; color: #ff5722; }
-    body.dark-mode .crm-btn-reset { background: #0f172a; border-color: #334155; color: #94a3b8; }
-
-    /* Action Toolbar */
-    .crm-toolbar {
-      display: flex; gap: 8px; padding: 10px 16px; align-items: center; flex-shrink: 0;
-      background: #fff; border-bottom: 1px solid #e2e8f0; flex-wrap: wrap;
-    }
-    body.dark-mode .crm-toolbar { background: #1e293b; border-color: #334155; }
-    .crm-tool-btn {
-      height: 30px; padding: 0 12px; border-radius: 4px; font-size: 0.78rem; font-weight: 700;
-      background: #fff; border: 1px solid #e2e8f0; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;
-      transition: all 0.2s;
-    }
-    .crm-tool-btn:hover { border-color: #ff5722; color: #ff5722; }
-    .crm-tool-btn.primary { background: #ff5722; color: #fff; border: none; }
-    .crm-tool-btn.primary:hover { background: #f4511e; }
-    .crm-tool-btn.green { border-color: #07c160; color: #07c160; background: rgba(7,193,96,0.03); }
-    .crm-tool-btn.green:hover { background: #07c160; color: #fff; }
-    .crm-tool-btn.blue { border-color: #4a6cf7; color: #4a6cf7; background: rgba(74,108,247,0.03); }
-    .crm-tool-btn.blue:hover { background: #4a6cf7; color: #fff; }
-    .crm-tool-btn.orange { border-color: #ff9800; color: #ff9800; background: rgba(255,152,0,0.03); }
-    .crm-tool-btn.orange:hover { background: #ff9800; color: #fff; }
-    .crm-tool-btn.red { border-color: #ef4444; color: #ef4444; background: rgba(239,68,68,0.03); }
-    .crm-tool-btn.red:hover { background: #ef4444; color: #fff; }
-    body.dark-mode .crm-tool-btn { background: #0f172a; border-color: #334155; color: #94a3b8; }
-    body.dark-mode .crm-tool-btn.green { border-color: #07c160; color: #07c160; }
-    body.dark-mode .crm-tool-btn.blue { border-color: #4a6cf7; color: #4a6cf7; }
-    body.dark-mode .crm-tool-btn.orange { border-color: #ff9800; color: #ff9800; }
-    body.dark-mode .crm-tool-btn.red { border-color: #ef4444; color: #ef4444; }
-    .crm-toolbar-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
-
-    /* CRM Status Badges Bar */
-    .crm-badge-bar {
-      display: flex; gap: 16px; padding: 10px 16px; align-items: center; flex-shrink: 0;
-      background: #f8fafc; border-bottom: 1px solid #e2e8f0; flex-wrap: wrap;
-    }
-    body.dark-mode .crm-badge-bar { background: #0f172a; border-color: #334155; }
-    .crm-badge-item {
-      display: inline-flex; align-items: center; gap: 6px; font-size: 0.74rem; font-weight: 700;
-      color: #475569;
-    }
-    body.dark-mode .crm-badge-item { color: #94a3b8; }
-    .crm-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
-    .crm-dot.red { background: #ff4d4f; box-shadow: 0 0 4px #ff4d4f; }
-    .crm-dot.yellow { background: #ffc53d; box-shadow: 0 0 4px #ffc53d; }
-    .crm-dot.blue { background: #1890ff; box-shadow: 0 0 4px #1890ff; }
-    .crm-dot.cyan { background: #13c2c2; box-shadow: 0 0 4px #13c2c2; }
-    
-    /* CRM Table & Layout */
-    .db-table-wrap { flex: 1; overflow: auto; background: #fff; position: relative; }
-    body.dark-mode .db-table-wrap { background: #1e293b; }
-    .crm-table { width: 100%; border-collapse: collapse; min-width: 900px; text-align: left; }
-    .crm-table thead th {
-      position: sticky; top: 0; z-index: 3; background: #f1f5f9; padding: 10px 14px;
-      font-size: 0.76rem; font-weight: 800; color: #475569; border-bottom: 1px solid #cbd5e1;
-      white-space: nowrap; user-select: none; cursor: pointer;
-    }
-    body.dark-mode .crm-table thead th { background: #0f172a; color: #94a3b8; border-color: #334155; }
-    .crm-table thead th:hover { background: #cbd5e1; }
-    body.dark-mode .crm-table thead th:hover { background: #1e293b; }
-    .crm-table thead th .sort-arrow { font-size: 9px; margin-left: 2px; opacity: 0.35; }
-    .crm-table thead th.sorted .sort-arrow { opacity: 1; color: #ff5722; }
-    
-    .crm-table td {
-      padding: 10px 14px; border-bottom: 1px solid #e2e8f0; font-size: 0.8rem; color: #334155;
-      vertical-align: middle; white-space: nowrap; text-overflow: ellipsis; overflow: hidden;
-      max-width: 260px;
-    }
-    body.dark-mode .crm-table td { border-color: #334155; color: #cbd5e1; }
-    .crm-table tbody tr { transition: background 0.15s; }
-    .crm-table tbody tr:hover { background: #f8fafc; }
-    body.dark-mode .crm-table tbody tr:hover { background: rgba(255,255,255,0.02); }
-    .crm-table tbody tr.selected { background: rgba(255,87,34,0.04) !important; }
-    body.dark-mode .crm-table tbody tr.selected { background: rgba(255,87,34,0.08) !important; }
-    .db-loading { text-align: center; padding: 60px 20px; color: #94a3b8; }
-    .db-empty { text-align: center; padding: 80px 20px; color: #94a3b8; font-size: 0.9rem; }
-
-    /* Circle Avatar */
-    .crm-name-cell { display: flex; align-items: center; gap: 8px; }
-    .crm-avatar {
-      width: 28px; height: 28px; border-radius: 50%; background: #4a6cf7; color: #fff;
-      display: inline-flex; align-items: center; justify-content: center; font-size: 0.76rem;
-      font-weight: 800; text-transform: uppercase; flex-shrink: 0;
-    }
-    /* New / Old Badges */
-    .crm-badge-new {
-      background: #e6f7ff; color: #1890ff; border: 1px solid #91d5ff;
-      font-size: 10px; padding: 1px 4px; border-radius: 3px; font-weight: 700; margin-right: 4px;
-    }
-    .crm-badge-old {
-      background: #f5f5f5; color: #8c8c8c; border: 1px solid #d9d9d9;
-      font-size: 10px; padding: 1px 4px; border-radius: 3px; font-weight: 700; margin-right: 4px;
-    }
-    body.dark-mode .crm-badge-new { background: rgba(24,144,255,0.15); border-color: rgba(24,144,255,0.3); }
-    body.dark-mode .crm-badge-old { background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.15); }
-    
-    /* Phone Cell Call icon */
-    .crm-phone-cell { display: flex; align-items: center; gap: 6px; font-family: monospace; font-size: 0.82rem; }
-    .crm-btn-call {
-      color: #ff5722; cursor: pointer; border: none; background: none; font-size: 0.8rem;
-      display: inline-flex; align-items: center; justify-content: center; border-radius: 50%;
-      width: 22px; height: 22px; transition: background 0.15s;
-    }
-    .crm-btn-call:hover { background: rgba(255,87,34,0.1); }
-    
-    /* Action Link */
-    .crm-action-link {
-      color: #ff5722; cursor: pointer; font-weight: 700; text-decoration: none; font-size: 0.76rem;
-    }
-    .crm-action-link:hover { text-decoration: underline; }
-
-    /* Footer / Pager */
-    .crm-pager {
-      display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
-      padding: 10px 16px; border-top: 1px solid #e2e8f0; background: #fff; flex-wrap: wrap; gap: 8px;
-    }
-    body.dark-mode .crm-pager { background: #1e293b; border-color: #334155; }
-    .crm-pager-left { font-size: 0.78rem; color: #64748b; }
-    body.dark-mode .crm-pager-left { color: #cbd5e1; }
-    .crm-pager-center { display: flex; align-items: center; gap: 8px; }
-    .crm-pager-btn {
-      height: 28px; padding: 0 12px; border: 1px solid #cbd5e1; background: #fff; color: #475569;
-      border-radius: 4px; font-size: 0.78rem; font-weight: 600; cursor: pointer;
-    }
-    .crm-pager-btn:hover:not(:disabled) { border-color: #ff5722; color: #ff5722; }
-    .crm-pager-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-    body.dark-mode .crm-pager-btn { background: #0f172a; border-color: #334155; color: #cbd5e1; }
-    
-    .crm-pager-right { display: flex; align-items: center; gap: 8px; }
-    .crm-select-page {
-      height: 28px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 0.78rem;
-      padding: 0 4px; background: #fff; color: #475569; cursor: pointer;
-    }
-    body.dark-mode .crm-select-page { background: #0f172a; border-color: #334155; color: #cbd5e1; }
-    
-    /* Category tag override */
-    .cust-cat-tag {
-      display: inline-block; padding: 2px 8px; border-radius: 10px;
-      font-size: 11px; font-weight: 700; cursor: pointer;
-      background: #f0f0f0; color: #888; border: 1px dashed #ccc;
-      max-width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-    }
-    .cust-cat-tag.set { border-style: solid; }
-    .cust-cat-tag:hover { filter: brightness(0.9); }
-    .cust-cat-tag.cat-潜在客户 { background:#e3f2fd;color:#1565c0;border-color:#90caf9; }
-    .cust-cat-tag.cat-意向客户 { background:#fff3e0;color:#e65100;border-color:#ffcc80; }
-    .cust-cat-tag.cat-已成交 { background:#e8f5e9;color:#2e7d32;border-color:#a5d6a7; }
-    .cust-cat-tag.cat-无效号码 { background:#fce4ec;color:#c62828;border-color:#ef9a9a; }
-    .cust-cat-tag.cat-待跟进 { background:#f3e5f5;color:#6a1b9a;border-color:#ce93d8; }
-    .cust-cat-tag.cat-老客户 { background:#e0f7fa;color:#006064;border-color:#80deea; }
-    .cust-cat-tag.cat-同行 { background:#fff8e1;color:#f57f17;border-color:#fff176; }
-    .cust-cat-tag.cat-其他 { background:#eceff1;color:#455a64;border-color:#b0bec5; }
-    .cust-cat-edit-wrap { display: inline-flex; gap: 2px; align-items: center; }
-    .cust-cat-select, .cust-cat-input { font-size: 11px; padding: 1px 4px; border-radius: 3px; border: 1px solid #ff5722; outline: none; }
-    .cust-cat-input { width: 60px; }
-    .cust-cat-save, .cust-cat-cancel { font-size: 10px; padding: 1px 6px; border-radius: 3px; cursor: pointer; border: none; font-weight: 700; }
-    .cust-cat-save { background: #07c160; color: #fff; }
-    .cust-cat-cancel { background: #eee; color: #666; }
-    /* Mobile responsive */
-    @media (max-width: 768px) {
-      .db-panel { width: 100vw; height: 100vh; max-height: 100vh; border-radius: 0; }
-      .crm-search-grid { grid-template-columns: 1fr; }
-      .crm-tabs { padding: 0 8px; gap: 2px; }
-      .crm-tab { padding: 0 8px; font-size: 0.76rem; }
-      .crm-toolbar { padding: 6px 12px; gap: 4px; }
-      .crm-tool-btn { padding: 0 8px; font-size: 0.74rem; }
-      .crm-badge-bar { padding: 6px 12px; gap: 8px; }
-      .crm-table td, .crm-table thead th { padding: 8px 10px; font-size: 0.76rem; }
-    }
-      .db-pager { padding: 4px 10px; }
-      .db-cat-bar { padding: 3px 10px; }
-    }
-  </style>
-</head>
-<body>
-  <div class="copy-limit-toast" id="copyLimitToast"></div>
-  <div class="app-shell">
-    <div class="container">
-      <!-- Header -->
-      <div class="header-bar">
-        <!-- Minimal Stats on the Left -->
-        <div class="header-stats-minimal" id="headerStatsMinimal" style="display: none;">
-          <span>进度:</span>
-          <span id="doneCount" style="color: var(--accent-wechat);">0</span>
-          <span style="color: var(--text-light);">/</span>
-          <span id="totalCount">0</span>
-          <span id="percentText" style="font-size: 0.65rem; color: var(--text-light); margin-left: 2px;">(0%)</span>
-        </div>
-        
-        <!-- Auto Dial Toggle -->
-        <button id="autoDialBtn" title="自动拨打" style="font-size: 0.78rem; padding: 4px 10px; border: 1px solid var(--accent-wechat); background: var(--accent-wechat-bg); color: var(--accent-wechat); cursor: pointer; outline: none; font-weight: 700; border-radius: var(--radius-xs); white-space: nowrap;">自动拨打</button>
-        <!-- Database Viewer -->
-        <button id="custViewerBtn2" title="查看 Supabase 客户数据库" onclick="if(window.openDBDashboard)window.openDBDashboard();else{document.getElementById('dbOverlay').classList.add('active');alert('看板已打开，数据加载中...');}" style="font-size: 0.78rem; padding: 4px 10px; border: 1px solid #4a6cf7; background: rgba(74,108,247,0.08); color: #4a6cf7; cursor: pointer; outline: none; font-weight: 700; border-radius: var(--radius-xs); margin-right: 8px; white-space: nowrap;">📋 数据库</button>
-        <!-- Dropdown Menu Trigger on the Right -->
-        <div style="position: relative; display: inline-block;">
-          <button id="headerMenuBtn" title="更多设置" style="font-size: 0.8rem; padding: 6px 10px; border: none; background: transparent; cursor: pointer; outline: none; font-weight: 800; color: var(--text-soft); min-width: 44px; min-height: 34px; -webkit-tap-highlight-color: transparent; touch-action: manipulation;">更多</button>
-          <div class="header-dropdown" id="headerDropdown" style="display: none;">
-            <button class="dropdown-item sync-badge" id="syncStatusBadge">离线模式</button>
-            <button class="dropdown-item" id="toggleImportBtn">导入文件</button>
-            <button class="dropdown-item" id="whitelistMenuBtn">白名单管理</button>
-            <button class="dropdown-item" id="toggleDualSimBtn">双卡轮换: 开</button>
-            <button class="dropdown-item" id="toggleRotationBtn">轮换频率: 10通</button>
-            <button class="dropdown-item" id="toggleCopyLimitBtn">复制限制: 开</button>
-            <button class="dropdown-item copy-limit-sub" id="toggleThreshold5">  5次限制: ✓</button>
-            <button class="dropdown-item copy-limit-sub" id="toggleThreshold10">  10次限制: ✓</button>
-            <button class="dropdown-item copy-limit-sub" id="toggleThreshold20">  20次限制: ✓</button>
-            <button class="dropdown-item copy-limit-sub" id="toggleThreshold30">  30次限制: ✓</button>
-            <button class="dropdown-item" id="exportBtn" style="display:none;">导出记录</button>
-            <button class="dropdown-item" id="clearBtn" style="display:none; color: #e74c3c;">清空数据</button>
-            <button class="dropdown-item" id="custViewerBtn">📋 客户数据</button>
-            <button class="dropdown-item" id="darkToggleBtn">切换主题</button>
-          </div>
-        </div>
-
-        <!-- Super thin absolute-positioned progress line at bottom of header -->
-        <div style="position: absolute; bottom: 0; left: 0; right: 0; height: 3px; background: var(--border-light); overflow: hidden;">
-          <div class="progress-fill" id="progressFill" style="height: 100%; width: 0%; transition: width 0.3s ease;"></div>
-        </div>
-      </div>
-      
-      <!-- Dashboard -->
-      <div class="dashboard-panel" id="dashboardPanel" style="display: none;">
-        <!-- AI Drag & Drop Zone -->
-        <div class="import-zone" id="dropZone" style="position: relative; overflow: hidden; min-height: 200px;">
-          <!-- Animation Laser Line (Only visible during scanning) -->
-          <div id="aiLaserLine" class="ai-laser-line" style="display: none;"></div>
-
-          <!-- 1. INITIAL STATE -->
-          <div id="aiImportInit" style="display: flex; flex-direction: column; align-items: center; gap: 10px; width: 100%;">
-            <!-- Pulsing AI Brain Core SVG -->
-            <div style="position: relative; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; margin-bottom: 2px;">
-              <div style="position: absolute; width: 44px; height: 44px; border-radius: 50%; border: 2px solid rgba(7, 193, 96, 0.4); animation: pulse-ring 2s infinite ease-in-out;"></div>
-              <div style="position: absolute; width: 30px; height: 30px; border-radius: 50%; background: var(--wechat-gradient); display: flex; align-items: center; justify-content: center; color: white; font-size: 1.1rem; box-shadow: 0 0 10px rgba(7, 193, 96, 0.4);">🤖</div>
-            </div>
-            <span style="font-size: 0.88rem; color: var(--text-main); font-weight: 900; letter-spacing: 0.5px;">BH-AI 智能双引擎导入助手</span>
-            <span style="font-size: 0.7rem; color: var(--text-light); max-width: 320px; line-height: 1.4; margin-top: -4px;">搭载启发式文字密度与特征识别算法，自动检测表头、过滤噪音，100% 本地隐私安全。</span>
-            <button id="ocrTrainingDataBtn" style="background:transparent; border:1px solid var(--card-border); font-size:0.62rem; color:var(--text-soft); cursor:pointer; display:inline-flex; align-items:center; gap:3px; padding:2px 8px; border-radius:10px; margin-top:-2px;">📊 训练数据 (<span id="trainingCountBadge" style="color:var(--accent-wechat);font-weight:800;">0</span>)</button>
-
-            
-            
-            <div class="import-buttons" style="margin-top: 6px; display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; width: 100%;">
-              <label class="btn-primary" for="xlsFileInput" id="xlsSelectBtn" style="cursor:pointer; display:inline-flex; align-items:center; justify-content:center; padding: 8px 16px; font-size: 0.76rem; flex: 1; min-width: 130px; text-align: center;">📂 导入表格 / 文档</label>
-              <label class="btn-primary" for="imgFileInput" id="imgSelectBtn" style="cursor:pointer; display:inline-flex; align-items:center; justify-content:center; padding: 8px 16px; font-size: 0.76rem; flex: 1; min-width: 130px; text-align: center; background: var(--revisit-gradient) !important; color: white;">📸 智能图片 OCR (可多选)</label>
-              <label class="btn-secondary" for="vcfFileInput" id="vcfSelectBtn" style="cursor:pointer; display:inline-flex; align-items:center; justify-content:center; padding: 8px 16px; font-size: 0.76rem; flex: 1; min-width: 130px; text-align: center;">👤 导入 VCF 通录</label>
-              <button class="btn-secondary" id="textImportBtn" style="cursor:pointer; display:inline-flex; align-items:center; justify-content:center; padding: 8px 16px; font-size: 0.76rem; flex: 1; min-width: 130px; text-align: center; background: linear-gradient(135deg,#667eea,#764ba2); color:white; border:none; font-weight:700;" onclick="document.getElementById('textImportPanel').style.display='flex';document.getElementById('textImportArea').value='';document.getElementById('textImportArea').focus();">📝 粘贴文本识别</button>
-            </div>
-            <div id="textImportPanel" style="display:none; flex-direction:column; gap:6px; width:100%; margin-top:6px;">
-              <textarea id="textImportArea" placeholder="在此粘贴文本，如：张三 13800138000 腾讯科技 备注" style="width:100%; height:120px; padding:8px; font-size:0.72rem; border:1px solid var(--card-border); border-radius:var(--radius-xs); background:var(--card-bg); color:var(--text-main); resize:vertical; outline:none; font-family:monospace;"></textarea>
-              <div style="display:flex; gap:6px;">
-                <button class="btn-primary" id="textImportExtractBtn" style="flex:1; padding:6px; font-size:0.72rem; background:var(--wechat-gradient); color:white; border:none; border-radius:var(--radius-xs); font-weight:700;">🔍 智能识别提取</button>
-                <button class="btn-secondary" style="padding:6px 12px; font-size:0.72rem; background:var(--btn-bg); color:var(--text-soft); border:1px solid var(--card-border); border-radius:var(--radius-xs);" onclick="document.getElementById('textImportPanel').style.display='none';">取消</button>
-              </div>
-            </div>
-            <input type="file" id="xlsFileInput" accept=".xls,.xlsx,.csv,.docx,.pdf,.txt" style="display:none;">
-            <input type="file" id="imgFileInput" accept="image/*" multiple style="display:none;">
-            <input type="file" id="vcfFileInput" accept=".vcf,.vcard" style="display:none;">
-            <div style="display: flex; gap: 6px; align-items: center; margin-top: 6px; width: 100%;">
-              <span style="font-size: 0.68rem; color: var(--text-soft); font-weight: 800; white-space: nowrap;">🏷️ 批次标签</span>
-              <input type="text" id="batchLabelInput" placeholder="如: 6月展会名单" value="" style="flex:1; height:28px; padding:0 8px; font-size:0.72rem; border:1px solid var(--card-border); border-radius:var(--radius-xs); background:var(--card-bg); color:var(--text-main); outline:none;">
-            </div>
-            <div style="display: flex; gap: 6px; align-items: center; margin-top: 6px; width: 100%;">
-              <span style="font-size: 0.68rem; color: var(--text-soft); font-weight: 800; white-space: nowrap;">🗂️ 默认分类</span>
-              <select id="importCategorySelect" style="flex:1; height:28px; padding:0 8px; font-size:0.72rem; border:1px solid var(--card-border); border-radius:var(--radius-xs); background:var(--card-bg); color:var(--text-main); outline:none; cursor:pointer;">
-                <option value="待跟进">待跟进</option>
-                <option value="潜在客户">潜在客户</option>
-                <option value="意向客户">意向客户</option>
-                <option value="已成交">已成交</option>
-                <option value="无效号码">无效号码</option>
-                <option value="老客户">老客户</option>
-                <option value="同行">同行</option>
-                <option value="其他">其他</option>
-                <option value="公海客户" selected>公海客户</option>
-                <option value="未分类">未分类</option>
-              </select>
-            </div>
-          </div>
-
-          <!-- 2. SCANNING STATE -->
-          <div id="aiImportScanning" style="display: none; flex-direction: column; align-items: center; gap: 12px; width: 100%; padding: 10px 0;">
-            <div style="font-size: 1.6rem; animation: pulse-ring 1s infinite alternate; margin-bottom: 2px;">🧠</div>
-            <span style="font-size: 0.8rem; color: var(--text-main); font-weight: 800;" id="aiScanStatus">BH-AI 深度模型解析中...</span>
-            <div style="display: flex; flex-direction: column; gap: 4px; text-align: left; font-size: 0.65rem; color: var(--text-soft); font-family: monospace; width: 100%; max-width: 260px; background: rgba(0,0,0,0.02); padding: 8px; border-radius: var(--radius-xs); border: 0.5px solid var(--card-border);">
-              <div id="aiLog1" style="opacity: 0.4;">[ ] 正在读取数据流...</div>
-              <div id="aiLog2" style="opacity: 0.4;">[ ] 正在评估特征维度...</div>
-              <div id="aiLog3" style="opacity: 0.4;">[ ] 正在过滤杂质与噪音...</div>
-              <div id="aiLog4" style="opacity: 0.4;">[ ] 正在匹配智能映射...</div>
-            </div>
-          </div>
-
-          <!-- 4. LOCAL OCR SLICING CONFIG STATE -->
-          <div id="localOcrConfigPanel" style="display: none; flex-direction: column; align-items: center; gap: 10px; width: 100%; padding: 10px 0;">
-            <span style="font-size: 0.8rem; font-weight: 900; color: var(--text-main);">📸 本地离线识别 - 栏目切分微调</span>
-            <span style="font-size: 0.65rem; color: var(--text-light); text-align: center; max-width: 300px; margin-top: -6px;">请调整边界线，确保手机号列、姓名列被虚线分离开，以达到 100% 识别精准度。</span>
-            
-            <div style="position: relative; border: 1px solid var(--card-border); border-radius: var(--radius-xs); background: #eee; overflow: hidden; display: flex; justify-content: center; align-items: center; max-height: 180px; width: 100%; max-width: 360px;">
-              <canvas id="ocrPreviewCanvas" style="max-height: 180px; max-width: 100%; object-fit: contain;"></canvas>
-            </div>
-            
-            <!-- Sliders -->
-            <div style="display: flex; flex-direction: column; gap: 4px; width: 100%; max-width: 320px;">
-              <div style="display: flex; justify-content: space-between; font-size: 0.65rem; color: var(--text-soft); font-weight: 800;">
-                <span>左侧边界线: <strong id="valSplit1">25%</strong></span>
-                <span>右侧边界线: <strong id="valSplit2">60%</strong></span>
-              </div>
-              <input type="range" id="sliderSplit1" min="5" max="95" value="25" style="width: 100%; cursor: pointer; height: 4px;">
-              <input type="range" id="sliderSplit2" min="5" max="95" value="60" style="width: 100%; cursor: pointer; height: 4px;">
-            </div>
-            <label style="font-size: 0.75rem; color: var(--text-main); margin-top: 6px; display: none !important; align-items: center; gap: 6px; cursor: pointer;">
-              <input type="checkbox" id="chkUseSlicing" style="accent-color: var(--primary-color);" checked> 启用表格列切片模式 (适合Excel截图，普通名片/照片请取消勾选)
-            </label>
-            </div>
-
-            <!-- Column Order Preset -->
-            <div style="display: flex; gap: 8px; align-items: center; width: 100%; max-width: 320px;">
-              <span style="font-size: 0.65rem; color: var(--text-soft); font-weight: 800; white-space: nowrap;">栏目顺序:</span>
-              <select id="ocrColumnOrder" style="flex: 1; height: 26px; font-size: 0.68rem; border-radius: var(--radius-xs); border: 1px solid var(--card-border); background: var(--btn-bg); color: var(--text-main); font-weight: 700; outline: none;">
-                <option value="name_phone_other">左:姓名 | 中:电话 | 右:单位或备注</option>
-                <option value="phone_name_other">左:电话 | 中:姓名 | 右:单位或备注</option>
-                <option value="name_other_phone">左:姓名 | 中:单位或备注 | 右:电话</option>
-              </select>
-            </div>
-
-            <div style="display: flex; gap: 10px; width: 100%; max-width: 320px; margin-top: 4px;">
-              <button id="btnStartLocalOcr" class="btn-primary" style="flex: 1; padding: 6px; font-size: 0.75rem; background: var(--wechat-gradient) !important; color: white;">⚡ 开始本地识别</button>
-              <button id="btnCancelLocalOcr" class="btn-secondary" style="padding: 6px 14px; font-size: 0.75rem;">取消</button>
-            </div>
-          </div>
-
-          <!-- 3. REPORT STATE -->
-          <div id="aiImportReport" style="display: none; flex-direction: column; width: 100%; text-align: left; gap: 8px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed var(--border-light); padding-bottom: 6px;">
-              <span id="aiReportTitle" style="font-size: 0.8rem; font-weight: 900; color: var(--text-main);">AI 识别报告</span>
-              <span id="aiConfidenceBadge" style="font-size: 0.62rem; font-weight: 800; padding: 2px 6px; border-radius: 4px; background: rgba(7, 193, 96, 0.1); color: var(--accent-wechat); border: 0.5px solid rgba(7, 193, 96, 0.2);">● 置信度: 98%</span>
-            </div>
-
-            <!-- Mapped Pillars -->
-            <div id="aiExcelMappingPills" style="display: flex; flex-wrap: wrap; gap: 4px; background: var(--btn-bg); padding: 6px; border-radius: var(--radius-xs);">
-              <div style="font-size: 0.65rem; font-weight: 800; color: var(--text-soft); width: 100%; margin-bottom: 2px;">AI 智能列映射映射关系：</div>
-              <div class="client-card-tag" id="pillName" style="background: rgba(7,193,96,0.08); color: var(--accent-wechat);">姓名 ➔ 未识别</div>
-              <div class="client-card-tag" id="pillPhone" style="background: rgba(7,193,96,0.08); color: var(--accent-wechat);">电话 ➔ 未识别</div>
-              <div class="client-card-tag" id="pillCompany" style="background: rgba(74,108,247,0.08); color: #4a6cf7;">公司 ➔ 无</div>
-              <div class="client-card-tag" id="pillNote" style="background: rgba(245,124,0,0.08); color: #f57c00;">备注 ➔ 无</div>
-            </div>
-
-            <!-- Manual Override Button & Selectors (Collapsed by default) -->
-            <div id="aiExcelMappingControls" style="width: 100%;">
-              <button id="aiToggleAdjustBtn" style="background: transparent; border: none; font-size: 0.65rem; font-weight: 800; color: var(--text-soft); cursor: pointer; display: inline-flex; align-items: center; gap: 4px; padding: 2px 0; outline: none;">⚙️ 手动修正 AI 映射结果 ▾</button>
-              <div id="aiAdjustControls" style="display: none; grid-template-columns: repeat(2, 1fr); gap: 6px; margin-top: 4px; border: 1px dashed var(--card-border); padding: 8px; border-radius: var(--radius-xs); background: var(--card-bg);">
-                <div style="display: flex; flex-direction: column; gap: 2px;">
-                  <label style="font-size: 0.6rem; color: var(--text-light); font-weight: 800;">姓名数据列</label>
-                  <select id="aiSelName" style="height: 24px; font-size: 0.65rem; outline: none; border: 1px solid var(--card-border); border-radius: 4px; font-weight: 800; color: var(--text-soft); background: var(--btn-bg);"></select>
-                </div>
-                <div style="display: flex; flex-direction: column; gap: 2px;">
-                  <label style="font-size: 0.6rem; color: var(--text-light); font-weight: 800;">电话数据列</label>
-                  <select id="aiSelPhone" style="height: 24px; font-size: 0.65rem; outline: none; border: 1px solid var(--card-border); border-radius: 4px; font-weight: 800; color: var(--text-soft); background: var(--btn-bg);"></select>
-                </div>
-                <div style="display: flex; flex-direction: column; gap: 2px;">
-                  <label style="font-size: 0.6rem; color: var(--text-light); font-weight: 800;">公司数据列 (可选)</label>
-                  <select id="aiSelCompany" style="height: 24px; font-size: 0.65rem; outline: none; border: 1px solid var(--card-border); border-radius: 4px; font-weight: 800; color: var(--text-soft); background: var(--btn-bg);"></select>
-                </div>
-                <div style="display: flex; flex-direction: column; gap: 2px;">
-                  <label style="font-size: 0.6rem; color: var(--text-light); font-weight: 800;">备注数据列 (可选)</label>
-                  <select id="aiSelNote" style="height: 24px; font-size: 0.65rem; outline: none; border: 1px solid var(--card-border); border-radius: 4px; font-weight: 800; color: var(--text-soft); background: var(--btn-bg);"></select>
-                </div>
-              </div>
-            </div>
-
-            <!-- Live Preview Table -->
-            <div id="aiExcelPreviewContainer" style="width: 100%; border: 1px solid var(--card-border); border-radius: var(--radius-xs); overflow: hidden; background: var(--card-bg);">
-              <div style="font-size: 0.6rem; font-weight: 800; color: var(--text-light); background: var(--btn-bg); padding: 4px 8px; border-bottom: 1px solid var(--card-border);">AI 导入数据效果实时预览 (前3行)：</div>
-              <div style="overflow-x: auto; width: 100%;">
-                <table style="width: 100%; border-collapse: collapse; font-size: 0.65rem; text-align: left;" id="aiPreviewTable">
-                  <thead>
-                    <tr style="border-bottom: 1px solid var(--card-border); font-weight: 800; color: var(--text-soft); background: rgba(0,0,0,0.01);">
-                      <th style="padding: 4px 8px;">姓名</th>
-                      <th style="padding: 4px 8px;">电话</th>
-                      <th style="padding: 4px 8px;">公司</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <!-- populated dynamically -->
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            <!-- Unstructured Preview Table Container (Only visible for TXT/DOCX/PDF/OCR) -->
-            <div id="aiUnstructuredContainer" style="display: none; width: 100%; border: 1px solid var(--card-border); border-radius: var(--radius-xs); overflow: hidden; background: var(--card-bg);">
-              <div style="font-size: 0.6rem; font-weight: 800; color: var(--text-light); background: var(--btn-bg); padding: 4px 8px; border-bottom: 1px solid var(--card-border);">AI 智能提取结果校验与编辑面板：</div>
-              <div style="max-height: 250px; overflow-y: auto; overflow-x: auto; width: 100%;">
-                <table style="width: 100%; border-collapse: collapse; font-size: 0.65rem; text-align: left;" id="aiUnstructuredTable">
-                  <thead>
-                    <tr style="border-bottom: 1px solid var(--card-border); font-weight: 800; color: var(--text-soft); background: rgba(0,0,0,0.01); position: sticky; top: 0; background: var(--btn-bg); z-index: 10;">
-                      <th style="padding: 6px 8px; width: 40px; text-align: center;">操作</th>
-                      <th style="padding: 6px 8px; width: 70px;">姓名</th>
-                      <th style="padding: 6px 8px; width: 100px;">电话</th>
-                      <th style="padding: 6px 8px; width: 100px;">公司</th>
-                      <th style="padding: 6px 8px;">备注</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <!-- populated dynamically -->
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-
-            <!-- Confirm Buttons -->
-            <div style="display: flex; gap: 8px; width: 100%; margin-top: 4px;">
-              <button id="aiConfirmImportBtn" class="btn-primary" style="flex: 1; padding: 8px; font-size: 0.78rem; font-weight: 800; border-radius: var(--radius-xs); box-shadow: var(--wechat-gradient); text-align: center;">AI 确认导入</button>
-              <button id="aiResetImportBtn" class="btn-modal btn-neutral" style="padding: 8px 14px; font-size: 0.78rem; font-weight: 800; border-radius: var(--radius-xs); height: auto; box-shadow: none;">取消</button>
-            </div>
-          </div>
-        </div>
-      </div>
-      
-      <!-- Controls -->
-      <div class="control-bar" id="controlBar" style="display:none; flex-wrap: wrap; gap: 6px;">
-        <input type="text" class="search-input" id="searchInput" placeholder="搜索" style="flex: 1; min-width: 60px;">
-        <select id="sortSelect" style="height: 28px; font-size: 0.68rem; border: 1px solid var(--card-border); border-radius: var(--radius-xs); background: var(--btn-bg); color: var(--text-soft); font-weight: 800; outline: none; padding: 0 4px; cursor: pointer; flex-shrink: 0; width: 95px;">
-          <option value="default">导入顺序</option>
-          <option value="name">姓名 A-Z</option>
-          <option value="company">公司 A-Z</option>
-          <option value="todo">待拨优先</option>
-          <option value="dialed">已拨优先</option>
-          <option value="shuffle" selected>随机打乱</option>
-        </select>
-        <select id="whitelistFilterSelect" style="height: 28px; font-size: 0.68rem; border: 1px solid var(--card-border); border-radius: var(--radius-xs); background: var(--btn-bg); color: var(--text-soft); font-weight: 800; outline: none; padding: 0 4px; cursor: pointer; flex-shrink: 0; width: 85px;">
-          <option value="all">白名单筛选</option>
-          <option value="yes">白名单</option>
-          <option value="no">非白名单</option>
-        </select>
-        <button id="whitelistCheckBtn" title="对照白名单检查客户单位" style="height:28px; padding:0 8px; font-size:0.65rem; border:1px solid var(--accent-wechat); background:var(--accent-wechat-bg); color:var(--accent-wechat); border-radius:var(--radius-xs); cursor:pointer; font-weight:800; outline:none; white-space:nowrap; flex-shrink:0;">☑ 白名单</button>
-        <button id="dbSyncBtn" title="将本地修改与呼叫进度同步上传到 Supabase 数据库" style="height:28px; padding:0 8px; font-size:0.65rem; border:1px solid #4a6cf7; background:rgba(74,108,247,0.08); color:#4a6cf7; border-radius:var(--radius-xs); cursor:pointer; font-weight:800; outline:none; white-space:nowrap; flex-shrink:0;">📤 同步到数据库</button>
-        <div class="filter-group" style="flex-shrink: 0;">
-          <button class="filter-tab active" data-filter="all">全部</button>
-          <button class="filter-tab" data-filter="todo">待拨打</button>
-          <button class="filter-tab" data-filter="success">已接通</button>
-          <button class="filter-tab" data-filter="failed">未接通</button>
-        </div>
-      </div>
-      
-      <!-- Contacts List -->
-      <div class="cards-content" id="cardsContainer">
-        <div style="text-align:center;padding:80px 20px;color:var(--text-light);font-size:0.82rem;display:flex;flex-direction:column;gap:12px;">
-          <span>暂无联系人数据，请在上方导入表格或通讯录文件</span>
-          <span style="font-size:0.7rem;color:var(--text-light);max-width:320px;margin:0 auto;line-height:1.5;">数据仅保存在您的浏览器本地，不经过任何后台服务器，完全保护您的客户隐私。</span>
-        </div>
-      </div>
-    </div>
-  </div>
-  
-  <!-- Call Assistant Modal -->
-  <div id="callAssistOverlay" class="modal-overlay" style="z-index:3000;">
-    <div class="modal-card" style="text-align:center;gap:12px;">
-      <div style="font-size:0.75rem;color:var(--text-soft);font-weight:800;letter-spacing:1px;text-transform:uppercase;">快捷呼叫助理</div>
-      <div style="display:none;" id="callAssistName">-</div>
-      <div style="display:flex;align-items:center;justify-content:center;margin-top:2px;">
-        <div id="callAssistNameDisplay" class="client-card-name-btn" title="点击复制姓名" style="font-size:1.25rem;font-weight:900;color:var(--text-main);">-</div>
-      </div>
-      <div id="callAssistPhone" style="display:none;">-</div>
-      <div style="display:flex;align-items:center;justify-content:center;margin-top:-2px;">
-        <div id="callAssistPhoneDisplay" class="client-phone-btn" title="点击复制号码" style="font-size:1.15rem !important;font-weight:900;color:var(--text-main);">-</div>
-      </div>
-      <div id="callAssistCompanyRow" style="display:none;margin-top:2px;width:100%;">
-        <span style="font-size:0.7rem;color:var(--text-light);font-weight:800;">公司：</span>
-        <span id="callAssistCompany" title="点击复制单位" style="font-size:0.75rem;font-weight:800;color:var(--accent-wechat);background:rgba(7,193,96,0.08);padding:2px 8px;border-radius:var(--radius-xs);cursor:pointer;display:inline-block;"></span>
-      </div>
-      <div id="callAssistNoteRow" style="display:none;margin-top:4px;width:100%;text-align:left;">
-        <span style="font-size:0.7rem;color:var(--text-light);font-weight:800;">备注：</span>
-        <span id="callAssistNote" style="font-size:0.72rem;font-weight:700;color:var(--text-soft);line-height:1.4;word-break:break-all;white-space:pre-wrap;"></span>
-      </div>
-      <div style="display:flex;justify-content:center;margin-top:4px;width:100%;">
-        <a id="callAssistDialLink" class="btn-modal btn-success" style="width:100%;text-decoration:none;display:flex;align-items:center;justify-content:center;font-size:0.85rem;height:38px;box-shadow:var(--wechat-gradient);border-radius:var(--radius-xs);">立即拨打</a>
-      </div>
-      
-      <!-- Recording Player Container inside Call Assistant Modal -->
-      <div id="callAssistRecContainer" style="display:none;text-align:left;flex-direction:column;gap:4px;width:100%;margin-top:4px;">
-        <span class="client-card-label" style="font-size:0.65rem;color:var(--accent-wechat);font-weight:800;">通话录音</span>
-        <div id="callAssistAudioWrapper"></div>
-      </div>
-      
-      <!-- Remark Input Field (Directly Visible) -->
-      <div style="text-align:left;display:flex;flex-direction:column;gap:4px;width:100%;">
-        <span class="client-card-label" style="font-size:0.65rem;color:var(--text-light);font-weight:800;">通话小记 / 沟通记录</span>
-        <textarea id="callLogNote" placeholder="在这里输入通话记录、客户意向等备注信息..." style="width:100%;height:100px;font-size:0.8rem;padding:8px 10px;background:var(--btn-bg);border:1px solid var(--card-border);border-radius:var(--radius-xs);color:var(--text-main);outline:none;font-weight:700;resize:none;"></textarea>
-      </div>
-
-      <!-- Direct Outcome Action Buttons -->
-      <div style="display:flex;gap:10px;width:100%;margin-top:4px;">
-        <button id="callOutcomeSuccessBtn" class="btn-modal btn-success" style="flex:1;font-size:0.85rem;height:42px;box-shadow:var(--wechat-gradient);">已接通</button>
-        <button id="callOutcomeFailedBtn" class="btn-modal btn-danger" style="flex:1;font-size:0.85rem;height:42px;box-shadow:var(--intent-gradient);">未接通</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Export Dialog Modal -->
-  <div id="exportModal" class="modal-overlay">
-    <div class="modal-card export-modal-card">
-      <div style="font-size:0.95rem;font-weight:900;color:var(--text-main);display:flex;justify-content:space-between;align-items:center;">
-        <span>导出拨号记录</span>
-        <button id="closeExportBtn" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:var(--text-soft);">✕</button>
-      </div>
-      <div style="font-size:0.7rem;color:var(--text-light);font-weight:700;">包含通话时长、拨号状态与通话小记</div>
-      <textarea id="exportTextarea" class="export-textarea" readonly></textarea>
-      <button id="copyExportBtn" class="btn-modal btn-success" style="width:100%;">复制记录到剪贴板</button>
-    </div>
-  </div>
-
-  <!-- Sync Conflict Dialog Modal -->
-  <div id="syncConflictModal" class="modal-overlay" style="z-index:4000;">
-    <div class="modal-card" style="text-align:center;">
-      <div style="font-size:0.95rem;font-weight:900;color:var(--text-main);margin-top:4px;">同步冲突检测</div>
-      <div style="font-size:0.75rem;color:var(--text-soft);line-height:1.5;margin-top:6px;text-align:left;">
-        云端检测到与您本地不同的拨号进度记录：
-        <ul style="padding-left:16px;margin-top:6px;list-style:disc;display:flex;flex-direction:column;gap:4px;">
-          <li>本地有 <strong id="conflictLocalCount" style="color:var(--accent-intent);">0</strong> 位联系人</li>
-          <li>云端有 <strong id="conflictCloudCount" style="color:#4a6cf7;">0</strong> 位联系人</li>
-        </ul>
-        请选择同步冲突解决方式：
-      </div>
-      <div style="display:flex;flex-direction:column;gap:10px;width:100%;margin-top:12px;">
-        <button id="syncUseLocalBtn" class="btn-modal btn-success" style="width:100%;">保留本地，覆写云端</button>
-        <button id="syncUseCloudBtn" class="btn-modal btn-secondary" style="width:100%;">拉取云端，覆写本地</button>
-        <button id="syncCancelBtn" class="btn-modal btn-neutral" style="width:100%;">稍后处理 (保持离线)</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Note Details Modal -->
-  <div id="noteModal" class="modal-overlay" style="z-index:100005;">
-    <div class="modal-card" style="text-align:left; gap:12px;">
-      <div style="font-size:0.95rem; font-weight:900; color:var(--text-main); display:flex; justify-content:space-between; align-items:center;">
-        <span>客户资料备注</span>
-        <button id="closeNoteModalBtn" style="background:none; border:none; font-size:1.2rem; cursor:pointer; color:var(--text-soft); padding:0;">✕</button>
-      </div>
-      <div style="border-top:1px dashed var(--border-light); padding-top:8px;">
-        <p id="noteModalContent" style="font-size:0.8rem; color:var(--text-soft); line-height:1.5; white-space:pre-wrap; font-weight:700; word-break:break-all;"></p>
-      </div>
-    </div>
-  </div>
-
-  <!-- Custom Columns Management Modal -->
-  <div id="customColumnsModal" class="modal-overlay" style="z-index:100005;">
-    <div class="modal-card" style="max-width: 400px; gap: 12px; text-align: left;">
-      <div style="font-size:0.95rem; font-weight:900; color:var(--text-main); display:flex; justify-content:space-between; align-items:center;">
-        <span>自定义列管理</span>
-        <button id="closeCustomColumnsBtn" style="background:none; border:none; font-size:1.2rem; cursor:pointer; color:var(--text-soft); padding:0;">✕</button>
-      </div>
-      <div style="font-size:0.7rem; color:var(--text-light); font-weight:700; margin-bottom: 4px;">
-        您可以添加或删除 CRM 数据库的自定义数据列。自定义列的值可在 Excel 导入时手动映射关联，或在跟进备注时作为关联字段保存。
-      </div>
-      <div style="display:flex; flex-direction:column; gap:6px; max-height:200px; overflow-y:auto; border: 1px solid var(--card-border); padding: 8px; border-radius: var(--radius-xs); background: var(--btn-bg);" id="customColumnsList"></div>
-      <div style="display:flex; gap:6px; margin-top:8px;">
-        <input type="text" id="newCustomColInput" placeholder="输入新列名，如：微信号" style="flex:1; height:32px; padding:0 8px; font-size:0.75rem; border:1px solid var(--card-border); border-radius:4px; font-weight:bold; outline:none; background:var(--card-bg); color:var(--text-main);">
-        <button id="addCustomColBtn" class="btn-primary" style="padding:0 14px; height:32px; font-size:0.75rem;">添加列</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Whitelist Management Modal -->
-  <div id="whitelistModal" class="modal-overlay">
-    <div class="modal-card" style="max-width: 480px; gap: 12px;">
-      <div style="font-size:0.95rem; font-weight:900; color:var(--text-main); display:flex; justify-content:space-between; align-items:center;">
-        <span>建易贷白名单管理</span>
-        <button id="closeWhitelistBtn" style="background:none; border:none; font-size:1.2rem; cursor:pointer; color:var(--text-soft); padding:0;">✕</button>
-      </div>
-      <div class="whitelist-status" id="whitelistStatus" style="font-size:0.7rem; color:var(--text-soft); font-weight:700;">未加载白名单</div>
-
-      <!-- Upload area -->
-      <div style="border:1px dashed var(--card-border); border-radius:var(--radius-xs); padding:12px;">
-        <div style="font-size:0.72rem; font-weight:800; color:var(--text-soft); margin-bottom:6px;">
-          粘贴企业名称（每行一个，从Word文档全选复制粘贴即可）：
-        </div>
-        <textarea id="whitelistTextarea" class="whitelist-textarea" placeholder="例：&#10;中国石油化工集团公司&#10;国家电网有限公司&#10;中国工商银行股份有限公司"></textarea>
-        <div style="display:flex; gap:8px; margin-top:8px;">
-          <button id="whitelistUploadBtn" class="btn-primary" style="flex:1; padding:8px; font-size:0.78rem;">上传白名单</button>
-          <button id="whitelistRefreshBtn" class="btn-secondary" style="padding:8px 14px; font-size:0.78rem;">刷新列表</button>
-        </div>
-      </div>
-
-      <!-- Failed Uploads retry area -->
-      <div id="whitelistFailedArea" style="display:none; border:1px solid #e74c3c; background:rgba(231,76,60,0.05); border-radius:var(--radius-xs); padding:10px;">
-        <div style="font-size:0.72rem; font-weight:800; color:#e74c3c; margin-bottom:6px; display:flex; justify-content:space-between; align-items:center;">
-          <span>⚠️ 上次上传失败的企业 (<span id="whitelistFailedCount">0</span>)</span>
-          <a href="#" id="whitelistFailedClearBtn" style="color:#e74c3c; text-decoration:underline; font-size:0.65rem;">清除</a>
-        </div>
-        <div id="whitelistFailedList" style="max-height:80px; overflow-y:auto; font-size:0.68rem; color:var(--text-soft); border:1px solid rgba(231,76,60,0.2); border-radius:4px; padding:4px; background:#fff; margin-bottom:8px; text-align:left; white-space:pre-wrap;"></div>
-        <button id="whitelistFailedRetryBtn" class="btn-primary" style="background:#e74c3c; border-color:#e74c3c; color:#fff; width:100%; padding:6px; font-size:0.75rem;">尝试重新上传</button>
-      </div>
-
-      <!-- Search in Whitelist -->
-      <div style="display:flex; flex-direction:column; gap:4px; margin-top:2px;">
-        <div style="font-size:0.7rem; font-weight:800; color:var(--text-soft);">在白名单中搜索已存企业：</div>
-        <input type="text" id="whitelistModalSearchInput" class="search-input" placeholder="输入企业名称进行搜索..." style="height:28px; font-size:0.72rem; border-radius:var(--radius-xs); padding:0 8px; border:1px solid var(--card-border); background:var(--btn-bg); color:var(--text-main); font-weight:700; width:100%;">
-      </div>
-
-      <!-- Existing companies list -->
-      <div style="max-height:180px; overflow-y:auto; border:1px solid var(--card-border); border-radius:var(--radius-xs); padding:8px;">
-        <div id="whitelistCompanyList" style="font-size:0.7rem; color:var(--text-light); text-align:center;">点击"刷新列表"加载白名单企业</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- SheetJS CDN -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.1.1/tesseract.min.js"></script>
-
-<!-- OCR Training Data Modal -->
-<div class="modal-overlay" id="ocrCorrectionModal" style="z-index: 5000;">
-  <div class="modal-card" style="max-width: 640px; gap: 10px; max-height: 80vh; overflow-y: auto; width: 94vw;">
-    <div style="display:flex; justify-content:space-between; align-items:center; position:sticky; top:0; background:var(--modal-card); padding-bottom: 6px; border-bottom:1px solid var(--card-border);">
-      <span style="font-size:0.9rem; font-weight:900; color:var(--text-main);">🧠 OCR 训练数据收集</span>
-      <button id="closeOcrCorrectionBtn" style="background:none; border:none; font-size:1.2rem; cursor:pointer; color:var(--text-soft); line-height:1;">✕</button>
-    </div>
-    <div id="ocrCorrectionStats" style="font-size:0.72rem; color:var(--text-soft); padding:0 2px;">
-      已收集 <strong id="ocrCorrectionCount" style="color:var(--accent-wechat);">0</strong> 条修正记录
-      <span id="ocrCorrectionBadge" style="display:none; margin-left:8px; padding:1px 8px; border-radius:10px; background:#07c160; color:white; font-size:0.6rem; font-weight:700;">🎯 可用于提示改进</span>
-    </div>
-    <div style="display:flex; gap:6px; flex-wrap:wrap; align-items:center;">
-      <button id="ocrExportJsonlBtn" class="btn-secondary" style="flex:1; min-width:90px; padding:6px 10px; font-size:0.68rem;">📥 导出 JSONL</button>
-      <button id="ocrRefreshCorrectionsBtn" class="btn-secondary" style="padding:6px 10px; font-size:0.68rem;">🔄 刷新</button>
-      <label style="font-size:0.6rem; color:var(--text-light); cursor:pointer; display:flex; align-items:center; gap:4px; white-space:nowrap;">
-        <input type="checkbox" id="ocrFilterEditsOnly" checked style="cursor:pointer;">
-        仅显示有修改
-      </label>
-    </div>
-    <div id="ocrCorrectionList" style="max-height:55vh; overflow-y:auto; border:1px solid var(--card-border); border-radius:var(--radius-xs); background:var(--bg-app);">
-      <div style="text-align:center; padding:28px; font-size:0.72rem; color:var(--text-light);">点击"刷新"加载记录</div>
-    </div>
-    <div style="font-size:0.55rem; color:var(--text-light); text-align:center; padding:4px;">
-      修正数据用于改进 AI 识别提示词 · 不会上传原始图片 · 每 24h 自动刷新示例缓存
-    </div>
-  </div>
-</div>
-
-<!-- Customer Database Dashboard (v2) -->
-<!-- Customer Database Dashboard (v2) -->
-<!-- DB Password Gate -->
-<div class="modal-overlay" id="dbPwdOverlay" style="display:none; z-index:10000; align-items:center; justify-content:center;">
-  <div class="modal-card" style="text-align:center; gap:16px; max-width:340px;">
-    <div style="font-size:1.6rem;">🔐</div>
-    <span style="font-size:0.85rem; font-weight:900; color:var(--text-main);" id="dbPwdTitle">数据库访问密码</span>
-    <span style="font-size:0.65rem; color:var(--text-light);" id="dbPwdHint">请输入6位密码（字母+数字）</span>
-    <input type="password" id="dbPwdInput" maxlength="6" placeholder="6位字母或数字" autocomplete="off" style="width:100%; max-width:220px; height:42px; font-size:1.4rem; text-align:center; letter-spacing:8px; border:2px solid var(--card-border); border-radius:var(--radius-xs); background:var(--card-bg); color:var(--text-main); outline:none; font-family:monospace;">
-    <span id="dbPwdError" style="font-size:0.62rem; color:#e74c3c; display:none; min-height:16px;"></span>
-    <div style="display:flex; gap:8px; width:100%;">
-      <button id="dbPwdCancelBtn" class="btn-modal btn-danger" style="flex:1;">取消</button>
-      <button id="dbPwdConfirmBtn" class="btn-modal btn-success" style="flex:1;">确认</button>
-    </div>
-    <button id="dbPwdResetBtn" style="font-size:0.58rem; color:var(--text-light); background:none; border:none; cursor:pointer; text-decoration:underline; display:none;">重置密码（需验证旧密码）</button>
-  </div>
-</div>
-
-<div class="db-overlay" id="dbOverlay">
-  <div class="db-panel">
-    <!-- CRM Top Tabs -->
-    <div class="crm-tabs">
-      <div class="crm-tab active" data-tab="all">首页</div>
-      <div class="crm-tab" data-tab="意向客户">意向客户 <span class="crm-tab-close">✕</span></div>
-      <div class="crm-tab" data-tab="线索池">线索池 <span class="crm-tab-close">✕</span></div>
-      <div class="crm-tab" data-tab="公海客户">公海客户 <span class="crm-tab-close">✕</span></div>
-      <div class="crm-tabs-right">
-        <button class="db-close" id="dbClose">✕</button>
-      </div>
-    </div>
-
-    <!-- CRM Shortcut Filters -->
-    <div class="crm-shortcut-bar">
-      <button class="crm-shortcut-btn active" data-shortcut="all">全部</button>
-      <button class="crm-shortcut-btn" data-shortcut="today">今日新增</button>
-      <button class="crm-shortcut-btn" data-shortcut="never">从未跟进</button>
-      <button class="crm-shortcut-btn" data-shortcut="3days">3天以上未跟进</button>
-      <span class="crm-shortcut-add" title="添加快捷过滤">(+)</span>
-    </div>
-
-    <!-- CRM Search Area -->
-    <div class="crm-search-card">
-      <div class="crm-search-grid">
-        <div class="crm-search-item">
-          <span class="crm-search-label">客户标签</span>
-          <select class="crm-select" id="dbCatFilter"><option value="">请选择标签</option></select>
-        </div>
-        <div class="crm-search-item">
-          <span class="crm-search-label">客户名称</span>
-          <input type="text" class="crm-input" id="dbNameSearch" placeholder="请填写客户名称">
-        </div>
-        <div class="crm-search-item">
-          <span class="crm-search-label">联系号码</span>
-          <input type="text" class="crm-input" id="dbPhoneSearch" placeholder="请填写联系号码">
-        </div>
-        <div class="crm-search-item">
-          <span class="crm-search-label">备注信息</span>
-          <input type="text" class="crm-input" id="dbNoteSearch" placeholder="请填写备注">
-        </div>
-        <div class="crm-search-item">
-          <span class="crm-search-label">导入批次</span>
-          <select class="crm-select" id="dbBatchFilter"><option value="">全部批次</option></select>
-        </div>
-      </div>
-      <div class="crm-search-actions">
-        <button class="crm-btn-search" id="crmSearchBtn">🔍 搜索</button>
-        <button class="crm-btn-reset" id="crmResetBtn">🔄 重置</button>
-        <input type="text" id="dbSearch" style="display:none;" placeholder="隐式兼容搜索">
-      </div>
-    </div>
-
-    <!-- Action Toolbar -->
-    <div class="crm-toolbar">
-      <button class="crm-tool-btn green" id="crmAddCustBtn">➕ 添加客户</button>
-      <button class="crm-tool-btn orange" id="crmAddToDialBtn">📞 添加到待拨打</button>
-      <button class="crm-tool-btn orange" id="crmPullFilteredBtn" title="将当前分类和批次下的所有客户一键拉取到待拨打列表">📥 按分类一键拉取</button>
-      <button class="crm-tool-btn blue" id="crmMoveLeadsBtn" title="转入线索池">👤 转入线索池</button>
-      <button class="crm-tool-btn blue" id="crmMoveIntentBtn">👤 转入意向客户</button>
-      <button class="crm-tool-btn" id="crmMovePublicBtn">🌐 转入公海</button>
-      <button class="crm-tool-btn red" id="crmBatchDeleteBtn" title="删除勾选的客户">🗑️ 批量删除</button>
-      <button class="crm-tool-btn" id="crmAddHelperBtn">🤝 添加协助人</button>
-      <button class="crm-tool-btn" id="crmRemoveHelperBtn">🚫 取消协助人</button>
-      <button class="crm-tool-btn" id="dbBatchCatBtn" title="更多批量分类">🏷 批量分类</button>
-      <button class="crm-tool-btn blue" id="crmManageColsBtn" title="管理自定义列">⚙️ 自定义列</button>
-    </div>
-
-    <!-- Batch category mini-panel -->
-    <div id="dbBatchCatPanel" style="display:none;padding:6px 16px;border-bottom:1px solid #cbd5e1;background:#f8fafc;align-items:center;gap:8px;flex-wrap:wrap;">
-      <span style="font-size:12px;font-weight:700;color:#555;">批量设置分类：</span>
-      <select id="dbBatchCatSel" style="height:28px;border:1px solid #ccc;border-radius:3px;font-size:12px;padding:0 6px;">
-        <option value="">选择批次</option>
-      </select>
-      <span style="font-size:12px;color:#888;">→</span>
-      <select id="dbCatTargetSel" style="height:28px;border:1px solid #ccc;border-radius:3px;font-size:12px;padding:0 6px;"></select>
-      <button id="dbBatchCatApply" style="height:28px;padding:0 14px;background:#ff5722;color:#fff;border:none;border-radius:4px;font-size:12px;font-weight:700;cursor:pointer;">应用</button>
-      <button id="dbBatchCatCancel" style="height:28px;padding:0 10px;background:#eee;color:#666;border:none;border-radius:4px;font-size:12px;cursor:pointer;">取消</button>
-      <span id="dbBatchCatStatus" style="font-size:11px;color:#07c160;display:none;"></span>
-    </div>
-
-    <!-- CRM Status Badges Bar -->
-    <div class="crm-badge-bar">
-      <div class="crm-badge-item"><span class="crm-dot red"></span> 广告新客户待跟进：<span id="crmRedCount">0</span></div>
-      <div class="crm-badge-item"><span class="crm-dot yellow"></span> 广告再分配待跟进：<span id="crmYellowCount">0</span></div>
-      <div class="crm-badge-item"><span class="crm-dot blue"></span> 导入新客户待跟进：<span id="crmBlueCount">0</span></div>
-      <div class="crm-badge-item"><span class="crm-dot cyan"></span> 导入再分配待跟进：<span id="crmCyanCount">0</span></div>
-    </div>
-
-    <!-- CRM Data Table -->
-    <div class="db-table-wrap">
-      <table class="crm-table">
-        <thead>
-          <tr id="dbHeaderRow">
-            <th style="width: 40px; text-align: center; cursor: default;"><input type="checkbox" id="crmSelectAll"></th>
-            <th data-sort="name" style="width: 140px;">客户名称 <span class="sort-arrow">▲</span></th>
-            <th data-sort="mobile" style="width: 160px;">联系号码 <span class="sort-arrow">▲</span></th>
-            <th data-sort="note" style="min-width: 120px;">备注 <span class="sort-arrow">▲</span></th>
-            <th data-sort="company_name" style="min-width: 200px;">单位 <span class="sort-arrow">▲</span></th>
-            <th data-sort="category" style="width: 100px;">分类 <span class="sort-arrow">▲</span></th>
-            <th data-sort="created_at" style="width: 150px;">入库时间 <span class="sort-arrow">▲</span></th>
-            <th style="width: 100px; cursor: default;">操作</th>
-          </tr>
-        </thead>
-        <tbody id="dbTbody">
-          <tr><td colspan="20" class="db-loading">⏳ 加载中...</td></tr>
-        </tbody>
-      </table>
-      <div class="db-empty" id="dbEmpty" style="display:none;">
-        <div style="font-size:2.5rem;margin-bottom:12px;">📭</div>
-        <div>暂无客户数据</div>
-        <div style="font-size:0.72rem;color:#aaa;margin-top:4px;">导入客户或检查 Supabase 连接</div>
-      </div>
-    </div>
-
-    <!-- CRM Footer Pager -->
-    <div class="crm-pager">
-      <div class="crm-pager-left" id="dbTotal">共 0 条</div>
-      <div class="crm-pager-center">
-        <button class="crm-pager-btn" id="dbPrev">‹ 上一页</button>
-        <span id="dbPageInfo" style="font-size: 0.78rem; font-weight: 700; color: #475569; display: inline-flex; align-items: center; gap: 4px;">
-          第 <input type="number" id="dbPageInput" min="1" style="width: 48px; text-align: center; height: 24px; border: 1px solid var(--card-border); border-radius: 4px; font-weight: bold; background: var(--card-bg); color: var(--text-main); outline: none; margin: 0 2px;" value="1"> / <span id="dbPageTotal">1</span> 页
-        </span>
-        <button class="crm-pager-btn" id="dbNext">下一页 ›</button>
-      </div>
-      <div class="crm-pager-right">
-        <select class="crm-select-page" id="dbPageSize">
-          <option value="30">30条/页</option>
-          <option value="50">50条/页</option>
-          <option value="100">100条/页</option>
-          <option value="300" selected>300条/页</option>
-        </select>
-      </div>
-    </div>
-  </div>
-</div>
-
-  <script>
   (function(){
     // Android WebView detection for full-screen spacing
     if(/Android/.test(navigator.userAgent)&&!/iPhone|iPad|iPod/.test(navigator.userAgent)){
@@ -1923,7 +196,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
 
     function cleanPhone(val) {
       if (!val) return '';
-      var s = String(val).trim().replace(/[^\\d+]/g, '');
+      var s = String(val).trim().replace(/[^\d+]/g, '');
       if (s.indexOf('+86') === 0) return s.slice(3);
       if (s.indexOf('86') === 0 && s.length === 13) return s.slice(2);
       return s;
@@ -1931,32 +204,32 @@ export const DIALER_HTML = `<!DOCTYPE html>
 
     function isPhone(val) {
       var clean = cleanPhone(val);
-      return /^1[3-9]\\d{9}$/.test(clean);
+      return /^1[3-9]\d{9}$/.test(clean);
     }
 
     function nameScore(val) {
       if (!val) return 0;
       var s = String(val).trim();
       if (isPhone(s)) return 0;
-      if (/^\\d+$/.test(s)) return 0;
+      if (/^\d+$/.test(s)) return 0;
       
       // Common Chinese Surnames Regex
       var surnameRegex = /^[王李张刘陈杨黄赵吴周徐孙马朱胡郭何林罗高郑梁谢宋唐董许韩邓冯曹彭曾萧田庄潘袁于叶余魏蒋田杜丁沈姜范江傅钟卢汪戴崔]/;
       
-      if (/^[\\u4e00-\\u9fa5]{2,4}$/.test(s)) {
+      if (/^[\u4e00-\u9fa5]{2,4}$/.test(s)) {
         if (surnameRegex.test(s)) {
           return 25; // Highly weigh standard Chinese names with common surnames
         }
         return 10;
       }
-      if (/^[\\u4e00-\\u9fa5]{2,6}$/.test(s)) return 5;
-      if (/^[A-Za-z\\s]{2,15}$/.test(s)) return 3;
+      if (/^[\u4e00-\u9fa5]{2,6}$/.test(s)) return 5;
+      if (/^[A-Za-z\s]{2,15}$/.test(s)) return 3;
       if (s.length >= 2 && s.length <= 15) return 1;
       return 0;
     }
 
     function decodeQPUtf8(s) {
-      var t = s.replace(/=\\r?\\n/g, '');
+      var t = s.replace(/=\r?\n/g, '');
       var b = [];
       var i = 0;
       while (i < t.length) {
@@ -2215,10 +488,10 @@ export const DIALER_HTML = `<!DOCTYPE html>
       if (expBtn) expBtn.style.display = hasData ? 'flex' : 'none';
       if (clrBtn) clrBtn.style.display = hasData ? 'flex' : 'none';
       
-      // Always hide import zone after initialization or data updates
+      // Auto-hide import zone if there is data, otherwise display it
       var panel = document.getElementById('dashboardPanel');
       if (panel) {
-        panel.style.display = 'none';
+        panel.style.display = hasData ? 'none' : 'block';
       }
     }
 
@@ -2263,12 +536,6 @@ export const DIALER_HTML = `<!DOCTYPE html>
       document.getElementById('aiImportReport').style.display = 'none';
       document.getElementById('aiLaserLine').style.display = 'none';
       document.getElementById('aiAdjustControls').style.display = 'none';
-      
-      var dz = document.getElementById('dropZone');
-      if (dz) {
-        dz.style.minHeight = '200px';
-        dz.style.padding = ''; // Reset to CSS default
-      }
       
       document.getElementById('aiExcelMappingPills').style.display = 'flex';
       document.getElementById('aiExcelMappingControls').style.display = 'block';
@@ -2741,7 +1008,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
         var noteVal = noteCol !== -1 ? String(row[noteCol] || '').trim() : '';
 
         var fundVal = '';
-        if (/^\d{4,5}$/.test(noteVal)) {
+        if (/^d{4,5}$/.test(noteVal)) {
           fundVal = noteVal;
           noteVal = '';
         }
@@ -2802,7 +1069,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
         c.category = defaultCat;
         c.mobile = c.mobile || c.phone;
         c.phone = c.phone || c.mobile;
-        if (!c.fund && /^\d{4,5}$/.test((c.note || '').trim())) {
+        if (!c.fund && /^d{4,5}$/.test((c.note || '').trim())) {
           c.fund = c.note.trim();
           c.note = '';
         }
@@ -2896,7 +1163,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
     function parsePhoneContactsFromRawText(text) {
       if (!text) return [];
       
-      var lines = text.split(/\\r\\n|\\r|\\n/);
+      var lines = text.split(/\r\n|\r|\n/);
       var results = [];
       var phoneSet = new Set();
       
@@ -2906,9 +1173,9 @@ export const DIALER_HTML = `<!DOCTYPE html>
       // Strict metadata, label and corporate suffix validation to filter out noise
       function isValidNameHeuristic(str) {
         if (!str) return false;
-        var cleanStr = str.replace(/[\\s.,，。:：;；%&|()（）\\[\\]{}<>]/g, '');
+        var cleanStr = str.replace(/[\s.,，。:：;；%&|()（）\[\]{}<>]/g, '');
         // Must contain ONLY Chinese characters
-        if (!/^[\\u4e00-\\u9fa5]+$/.test(cleanStr)) {
+        if (!/^[\u4e00-\u9fa5]+$/.test(cleanStr)) {
           return false;
         }
         // Length check
@@ -2936,8 +1203,8 @@ export const DIALER_HTML = `<!DOCTYPE html>
         var line = lines[i].trim();
         if (!line) continue;
         
-        var cleanLine = line.replace(/[-\\s]/g, '').replace(/[Il|]/g, '1').replace(/[oO]/g, '0');
-        var robustPhoneRegex = /(?:1[3-9]\\d{9}|0\\d{2,3}\\d{7,8})/g;
+        var cleanLine = line.replace(/[-\s]/g, '').replace(/[Il|]/g, '1').replace(/[oO]/g, '0');
+        var robustPhoneRegex = /(?:1[3-9]\d{9}|0\d{2,3}\d{7,8})/g;
         var match;
         var foundPhonesInLine = [];
         
@@ -2955,9 +1222,9 @@ export const DIALER_HTML = `<!DOCTYPE html>
         }
         
         if (foundPhonesInLine.length === 0) {
-          var phoneRegex = /(?:1[3-9]\\d{9}|1[3-9]\\d{1,2}[-\\s]\\d{3,4}[-\\s]\\d{4}|0\\d{2,3}[-\\s]\\d{7,8}|0\\d{9,11})/g;
+          var phoneRegex = /(?:1[3-9]\d{9}|1[3-9]\d{1,2}[-\s]\d{3,4}[-\s]\d{4}|0\d{2,3}[-\s]\d{7,8}|0\d{9,11})/g;
           while ((match = phoneRegex.exec(line)) !== null) {
-            var cleanPhoneStr = match[0].replace(/[-\\s]/g, '');
+            var cleanPhoneStr = match[0].replace(/[-\s]/g, '');
             if (!phoneSet.has(cleanPhoneStr)) {
               foundPhonesInLine.push({
                 phone: cleanPhoneStr,
@@ -2985,12 +1252,12 @@ export const DIALER_HTML = `<!DOCTYPE html>
           var lineWithoutPhone = line.replace(rawPhoneStr, ' ');
           
           // Delimit segments on the line to parse columns/words
-          var delimiters = /[\\s,，:：|｜;；\\t\\-\\[\\]\\(\\)]+/;
+          var delimiters = /[\s,，:：|｜;；\t\-\[\]\(\)]+/;
           var lineParts = lineWithoutPhone.split(delimiters).map(function(p) { return p.trim(); }).filter(Boolean);
           
           // Filter out other phone tokens if any
           var remainingParts = lineParts.filter(function(part) {
-            var cleanPart = part.replace(/[-\\s]/g, '');
+            var cleanPart = part.replace(/[-\s]/g, '');
             for (var k = 0; k < foundPhonesInLine.length; k++) {
               var otherPhone = foundPhonesInLine[k];
               if (cleanPart.indexOf(otherPhone.phone) !== -1 || part.indexOf(otherPhone.raw) !== -1) {
@@ -3030,11 +1297,11 @@ export const DIALER_HTML = `<!DOCTYPE html>
           
           // Spatial prefix/suffix extraction
           var prefix = line.substring(0, phoneInfo.index).trim();
-          var prefixMatch = /(?:^|\\s)([\\u4e00-\\u9fa5]{2,4})(?=\\s|$)/.exec(prefix) || /^([\\u4e00-\\u9fa5]{2,4})/.exec(prefix) || /([\\u4e00-\\u9fa5]{1,4})\\s*$/.exec(prefix);
+          var prefixMatch = /([\u4e00-\u9fa5]{1,4})\s*$/.exec(prefix);
           var prefixName = prefixMatch ? prefixMatch[1] : '';
           
           var suffix = line.substring(phoneInfo.index + phoneInfo.length).trim();
-          var suffixMatch = /^\\s*([\\u4e00-\\u9fa5]{1,4})/.exec(suffix);
+          var suffixMatch = /^\s*([\u4e00-\u9fa5]{1,4})/.exec(suffix);
           var suffixName = suffixMatch ? suffixMatch[1] : '';
 
           // 2. Identify Name with multi-phase priority
@@ -3103,8 +1370,8 @@ export const DIALER_HTML = `<!DOCTYPE html>
               if (/姓名|电话|手机|号码|公司|备注|联系人|客户|微信|负责人|说明|介绍|详情/i.test(part) && part.length <= 5) {
                 continue;
               }
-              var cleanPart = part.replace(/[-\\s.,，。:：;；%&|()（）\\[\\]{}<>]/g, '');
-              if (cleanPart.length <= 1 && !/^\\d$/.test(cleanPart)) {
+              var cleanPart = part.replace(/[-\s.,，。:：;；%&|()（）\[\]{}<>]/g, '');
+              if (cleanPart.length <= 1 && !/^\d$/.test(cleanPart)) {
                 continue;
               }
               if (/^[a-zA-Z]+$/.test(cleanPart) && cleanPart.length < 3) {
@@ -3116,7 +1383,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
           
           var finalNote = noteParts.join(' ');
           var fund = '';
-          if (/^\d{4,5}$/.test(finalNote)) {
+          if (/^d{4,5}$/.test(finalNote)) {
             fund = finalNote;
             finalNote = '';
           }
@@ -3131,7 +1398,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
       }
       
       if (results.length === 0) {
-        var globalPhoneRegex = /1[3-9]\\d{9}/g;
+        var globalPhoneRegex = /1[3-9]\d{9}/g;
         var globalMatch;
         while ((globalMatch = globalPhoneRegex.exec(text)) !== null) {
           var p = globalMatch[0];
@@ -3141,7 +1408,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
             // Reverse-seek in raw text for names immediately preceding global phones
             var searchStart = Math.max(0, globalMatch.index - 15);
             var searchSlice = text.substring(searchStart, globalMatch.index);
-            var nameMatch = /([\\u4e00-\\u9fa5]{2,4})\\s*$/.exec(searchSlice);
+            var nameMatch = /([\u4e00-\u9fa5]{2,4})\s*$/.exec(searchSlice);
             var foundName = nameMatch ? nameMatch[1] : '';
             
             results.push({
@@ -3270,7 +1537,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
           "    self.postMessage({ success: false, error: err.message });",
           "  }",
           "};"
-        ].join("\\n");
+        ].join("\n");
         
         var blob = new Blob([workerCode], { type: 'application/javascript' });
         var workerUrl = URL.createObjectURL(blob);
@@ -3395,7 +1662,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
                 return pdf.getPage(pageNumber).then(function(page) {
                   return page.getTextContent().then(function(textContent) {
                     var pageText = textContent.items.map(function(item) { return item.str; }).join(' ');
-                    extractedText += pageText + '\\n';
+                    extractedText += pageText + '\n';
                     loadedPages++;
                     
                     if (loadedPages < maxPages) {
@@ -3556,7 +1823,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
     }
 
     function processLocalImageOCR() {
-      var useSlicing = document.getElementById('chkUseSlicing') ? document.getElementById('chkUseSlicing').checked : true;
+      var useSlicing = document.getElementById('chkUseSlicing') ? document.getElementById('chkUseSlicing').checked : false;
       
       if (!useSlicing) {
         if (document.getElementById('aiLog2')) {
@@ -3606,73 +1873,41 @@ export const DIALER_HTML = `<!DOCTYPE html>
           document.getElementById('aiLog3').style.opacity = '1';
         }
         
-        if (document.getElementById('aiLog2')) {
-          document.getElementById('aiLog2').innerHTML = '⏳ 正在并行运行本地 OCR 与云端视觉识别...';
-          document.getElementById('aiLog2').style.opacity = '1';
-        }
-        
-        var localOcrPromise = runTesseractOnSlices(slices, img);
-        
-        var cloudVisionPromise = fetch('/api/ocr', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ image: tempOcrImgDataUrl })
-        })
-        .then(function(r) { return r.json(); })
-        .then(function(data) { return data.text || ''; })
-        .catch(function(err) {
-          console.warn('Cloud Vision AI failed:', err);
-          return '';
-        });
-        
-        Promise.all([localOcrPromise, cloudVisionPromise])
-          .then(function(results) {
-            var localContacts = results[0];
-            var visionText = results[1];
-            
-            if (!visionText) {
-              if (document.getElementById('aiLog3')) {
-                document.getElementById('aiLog3').innerHTML = '⚠️ 云端视觉识别不可用，仅使用本地识别结果';
-              }
-              if (localContacts && localContacts.length > 0) {
-                setTimeout(function() {
-                  renderAIUnstructuredReport(tempOcrFileName, localContacts);
-                }, 800);
-              } else {
-                alert('本地识别未检出联系人。');
-                resetAIImporterUI();
-              }
-              return;
-            }
-            
-            if (document.getElementById('aiLog3')) {
-              document.getElementById('aiLog3').innerHTML = '🤖 正在使用大模型对双通道数据进行对齐与纠错...';
-            }
-            
-            return fetch('/api/ocr/correct', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                localContacts: localContacts,
-                visionText: visionText,
-                fileName: tempOcrFileName || 'local_ocr_hybrid'
-              })
-            })
-            .then(function(r) { return r.json(); })
-            .then(function(mergeResult) {
-              var mergedContacts = mergeResult.contacts || localContacts;
+        runTesseractOnSlices(slices, img)
+          .then(function(contacts) {
+            if (contacts && contacts.length > 0) {
               if (document.getElementById('aiLog4')) {
-                document.getElementById('aiLog4').innerHTML = '🎉 双通道融合纠错完成，共 ' + mergedContacts.length + ' 人';
+                document.getElementById('aiLog4').innerHTML = '🎉 本地识别成功，共 ' + contacts.length + ' 人';
                 document.getElementById('aiLog4').style.opacity = '1';
               }
               setTimeout(function() {
-                renderAIUnstructuredReport(tempOcrFileName, mergedContacts);
+                renderAIUnstructuredReport(tempOcrFileName, contacts);
               }, 800);
-            });
+            } else {
+              // Slicing failed to find contacts — auto fallback to full-image Tesseract + AI correction
+              if (document.getElementById('aiLog2')) {
+                document.getElementById('aiLog2').innerHTML = '⚠️ 切片未检出，正自动尝试全图识别与 AI 修正...';
+                document.getElementById('aiLog2').style.opacity = '1';
+              }
+              doTesseractLocal(tempOcrImgDataUrl, function(err, contacts) {
+                if (err || !contacts || contacts.length === 0) {
+                  alert('本地 Tesseract 识别未检出联系人。请尝试在上方调整分割线滑块，并重新“开始本地识别”，或者直接粘贴文本。');
+                  resetAIImporterUI();
+                } else {
+                  if (document.getElementById('aiLog4')) {
+                    document.getElementById('aiLog4').innerHTML = '🎉 全图 AI 识别成功，共 ' + contacts.length + ' 人';
+                    document.getElementById('aiLog4').style.opacity = '1';
+                  }
+                  setTimeout(function() {
+                    renderAIUnstructuredReport(tempOcrFileName, contacts);
+                  }, 800);
+                }
+              });
+            }
           })
           .catch(function(err) {
-            console.error('Hybrid OCR pipeline failed:', err);
-            alert('识别处理失败: ' + err.message);
+            console.error('Local Tesseract failed:', err);
+            alert('本地 Tesseract 识别失败，请重试。');
             resetAIImporterUI();
           });
       };
@@ -3724,54 +1959,16 @@ export const DIALER_HTML = `<!DOCTYPE html>
             viewport: viewport
           }).promise.then(function() {
             var img = new Image();
-            var imgDataUrl = canvas.toDataURL('image/jpeg', 0.95);
-            img.src = imgDataUrl;
+            img.src = canvas.toDataURL('image/jpeg', 0.95);
             img.onload = function() {
               var slices = sliceAndPreprocess(img, split1, split2, order);
-              
-              var localOcrPromise = runTesseractOnSlices(slices, img);
-              
-              var cloudVisionPromise = fetch('/api/ocr', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ image: imgDataUrl })
-              })
-              .then(function(r) { return r.json(); })
-              .then(function(data) { return data.text || ''; })
-              .catch(function(err) {
-                console.warn('PDF page cloud vision failed:', err);
-                return '';
-              });
-              
-              Promise.all([localOcrPromise, cloudVisionPromise])
-                .then(function(results) {
-                  var localContacts = results[0];
-                  var visionText = results[1];
-                  
-                  if (!visionText) {
-                    allContacts = allContacts.concat(localContacts);
-                    processPage(pageNumber + 1);
-                    return;
-                  }
-                  
-                  return fetch('/api/ocr/correct', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                      localContacts: localContacts,
-                      visionText: visionText,
-                      fileName: tempOcrFileName || 'local_pdf_hybrid'
-                    })
-                  })
-                  .then(function(r) { return r.json(); })
-                  .then(function(mergeResult) {
-                    var mergedContacts = mergeResult.contacts || localContacts;
-                    allContacts = allContacts.concat(mergedContacts);
-                    processPage(pageNumber + 1);
-                  });
+              runTesseractOnSlices(slices, img)
+                .then(function(pageContacts) {
+                  allContacts = allContacts.concat(pageContacts);
+                  processPage(pageNumber + 1);
                 })
                 .catch(function(err) {
-                  console.error('Page ' + pageNumber + ' hybrid OCR failed:', err);
+                  console.error('Page ' + pageNumber + ' local OCR failed:', err);
                   processPage(pageNumber + 1);
                 });
             };
@@ -3940,17 +2137,10 @@ export const DIALER_HTML = `<!DOCTYPE html>
         var canvas = document.createElement('canvas');
         var ctx = canvas.getContext('2d');
         
-        var sX = col.startX;
-        var cW = col.width;
-        if (type === 'name') {
-          // Removed physical crop to avoid cutting into surnames that are close to the edge
-          // We will use color filtering below to wash away the blue icon
-        }
-        
-        canvas.width = cW * 2;
+        canvas.width = col.width * 2;
         canvas.height = h * 2;
         
-        ctx.drawImage(img, sX, 0, cW, h, 0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, col.startX, 0, col.width, h, 0, 0, canvas.width, canvas.height);
         
         var imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
         var data = imgData.data;
@@ -3964,14 +2154,14 @@ export const DIALER_HTML = `<!DOCTYPE html>
           var b = data[i+2];
           
           if (type === 'name') {
-            var val = Math.min(r, g, b);
-            if (b > r + 30 && b > g + 10 && r < 180) {
-              // Wash away blue corner mark by making it white
-              val = 255;
-            } else if (r > g + 10 && r > b + 10) {
-              var redness = r - Math.max(g, b);
-              val = Math.max(0, val - redness * 2);
+            var pixelIdx = i / 4;
+            var pixelX = pixelIdx % canvas.width;
+            if (pixelX < 24 && b > r + 10) {
+              r = 255;
+              g = 255;
+              b = 255;
             }
+            var val = Math.min(r, g, b);
             data[i] = val;
             data[i+1] = val;
             data[i+2] = val;
@@ -4018,8 +2208,6 @@ export const DIALER_HTML = `<!DOCTYPE html>
         
         results.push({
           type: type,
-          startX: col.startX,
-          width: col.width,
           dataUrl: canvas.toDataURL('image/png')
         });
       });
@@ -4028,25 +2216,16 @@ export const DIALER_HTML = `<!DOCTYPE html>
     }
 
     function runTesseractOnSlices(slices, img) {
-      function cropCellInBrowser(sourceImg, yCenter, col, keepColor) {
+      function cropCellInBrowser(sourceImg, yCenter) {
         var cellCanvas = document.createElement('canvas');
         var cellCtx = cellCanvas.getContext('2d');
         
-        var w = col ? col.width : 77;
-        var startX = col ? col.startX : 0;
-        
-        // Removed physical crop to prevent cutting surnames
-        
-        cellCanvas.width = w * 2;
+        cellCanvas.width = 77 * 2;
         cellCanvas.height = 48 * 2;
         
         var imgH = sourceImg.naturalHeight || sourceImg.height;
         var yStart = Math.max(0, Math.min(Math.round(yCenter - 24), imgH - 48));
-        cellCtx.drawImage(sourceImg, startX, yStart, w, 48, 0, 0, cellCanvas.width, cellCanvas.height);
-        
-        if (keepColor) {
-          return cellCanvas.toDataURL('image/png');
-        }
+        cellCtx.drawImage(sourceImg, 0, yStart, 77, 48, 0, 0, cellCanvas.width, cellCanvas.height);
         
         var imgData = cellCtx.getImageData(0, 0, cellCanvas.width, cellCanvas.height);
         var data = imgData.data;
@@ -4057,14 +2236,14 @@ export const DIALER_HTML = `<!DOCTYPE html>
           var g = data[i+1];
           var b = data[i+2];
           
-          var val = Math.min(r, g, b);
-          if (b > r + 30 && b > g + 10 && r < 180) {
-            // Wash away blue corner mark by making it white
-            val = 255;
-          } else if (r > g + 10 && r > b + 10) {
-            var redness = r - Math.max(g, b);
-            val = Math.max(0, val - redness * 2);
+          var pixelIdx = i / 4;
+          var pixelX = pixelIdx % cellCanvas.width;
+          if (pixelX < 24 && b > r + 10) {
+            r = 255;
+            g = 255;
+            b = 255;
           }
+          var val = Math.min(r, g, b);
           data[i] = val;
           data[i+1] = val;
           data[i+2] = val;
@@ -4161,9 +2340,9 @@ export const DIALER_HTML = `<!DOCTYPE html>
             
             var contacts = [];
             phones.forEach(function(pItem) {
-              var phoneText = pItem.text.replace(/\s+/g, '').trim();
+              var phoneText = pItem.text.replace(/s+/g, '').trim();
               phoneText = phoneText.replace(/[OoQD]/g, '0').replace(/[lIi|!]/g, '1').replace(/[Z]/g, '2').replace(/[B]/g, '8').replace(/[S]/g, '5').replace(/[G]/g, '6').replace(/[A]/g, '4').replace(/[T]/g, '7').replace(/[g]/g, '9');
-              var phoneMatch = phoneText.match(/1[3-9]\d{9}/);
+              var phoneMatch = phoneText.match(/1[3-9]d{9}/);
               if (!phoneMatch) return;
               var cleanPhone = phoneMatch[0];
               
@@ -4187,8 +2366,8 @@ export const DIALER_HTML = `<!DOCTYPE html>
                 }
               });
               
-              bestName = bestName.replace(/^[新旧听一]\s*/, '').replace(/[^\u4e00-\u9fa5a-zA-Z]/g, '').trim();
-              bestCompany = bestCompany.replace(/^[|丨\s:]+/, '').replace(/[|丨\s:]+$/, '').trim();
+              bestName = bestName.replace(/^[新旧听一]s*/, '').replace(/[^一-龥a-zA-Z]/g, '').trim();
+              bestCompany = bestCompany.replace(/^[|丨s:]+/, '').replace(/[|丨s:]+$/, '').trim();
               
               contacts.push({
                 name: bestName,
@@ -4200,17 +2379,41 @@ export const DIALER_HTML = `<!DOCTYPE html>
               });
             });
             
-            // Return local contacts directly, as we will use a hybrid full-image merge later
-            try { workerObj.terminate(); } catch(e) {}
-            return Promise.resolve(contacts.map(function(c) {
-              return {
-                name: c.name || '',
-                phone: c.phone,
-                company: c.company,
-                note: '',
-                yCenter: c.yCenter
-              };
-            }));
+            function processFallbacks(cIdx) {
+              if (cIdx >= contacts.length) {
+                try { workerObj.terminate(); } catch(e) {}
+                return contacts.map(function(c) {
+                  return {
+                    name: c.name || '客户-' + c.phone.substring(c.phone.length - 4),
+                    phone: c.phone,
+                    company: c.company,
+                    note: ''
+                  };
+                });
+              }
+              
+              var c = contacts[cIdx];
+              if (!c.name || c.name === '严' || c.minNameDist > 15) {
+                var cellDataUrl = cropCellInBrowser(img, c.yCenter);
+                return workerObj.setParameters({ tessedit_pageseg_mode: '10', tessedit_char_whitelist: '' })
+                  .then(function() { return workerObj.recognize(cellDataUrl); })
+                  .then(function(cellRes) {
+                    var fallbackName = cellRes.data.text.trim().replace(/^[新旧听一]s*/, '').replace(/[^一-龥a-zA-Z]/g, '').trim();
+                    if (fallbackName && fallbackName !== '严') {
+                      c.name = fallbackName;
+                    }
+                    return processFallbacks(cIdx + 1);
+                  })
+                  .catch(function(err) {
+                    console.error('Fallback OCR failed for index ' + cIdx, err);
+                    return processFallbacks(cIdx + 1);
+                  });
+              } else {
+                return processFallbacks(cIdx + 1);
+              }
+            }
+            
+            return processFallbacks(0);
           })
           .catch(function(err) {
             try { workerObj.terminate(); } catch(e) {}
@@ -4305,17 +2508,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
           }
           multiImageResults = multiImageResults.concat(contacts);
         }
-        
-        if (index + 1 < multiImageQueue.length) {
-          if (document.getElementById('aiLog3')) {
-            document.getElementById('aiLog3').innerHTML = '⏳ 触发防并发排队保护，等待1秒后处理下一张...';
-          }
-          setTimeout(function() {
-            processNextInQueue(index + 1);
-          }, 1000);
-        } else {
-          processNextInQueue(index + 1);
-        }
+        processNextInQueue(index + 1);
       });
     }
 
@@ -4377,67 +2570,36 @@ export const DIALER_HTML = `<!DOCTYPE html>
     }
 
     function processSingleImageLocal(file, callback) {
-      function runOcr(imageSource) {
-        getTesseractWorker(function(err, worker) {
-          if (err) { callback(err, []); return; }
-          Promise.resolve(worker.setParameters({
-            tessedit_pageseg_mode: '6'
-          })).then(function() {
-            return worker.recognize(imageSource);
-          }).then(function(result) {
-            var text = result.data.text;
-            correctOcrTextWithAI(text, typeof file === 'string' ? 'image_data' : (file.name || 'image_ocr'), function(contacts) {
-              callback(null, contacts);
-            });
-          }).catch(function(recogErr) {
-            // Worker might be stale, reset and retry once
-            _tesseractWorker = null;
-            _tesseractReady = false;
-            getTesseractWorker(function(err2, worker2) {
-              if (err2) { callback(recogErr, []); return; }
-              Promise.resolve(worker2.setParameters({
-                tessedit_pageseg_mode: '6'
-              })).then(function() {
-                return worker2.recognize(imageSource);
-              }).then(function(result2) {
-                var text2 = result2.data.text;
-                correctOcrTextWithAI(text2, typeof file === 'string' ? 'image_data' : (file.name || 'image_ocr'), function(contacts2) {
-                  callback(null, contacts2);
-                });
-              }).catch(function(e2) { callback(e2, []); });
-            });
+      getTesseractWorker(function(err, worker) {
+        if (err) { callback(err, []); return; }
+        Promise.resolve(worker.setParameters({
+          tessedit_pageseg_mode: '6'
+        })).then(function() {
+          return worker.recognize(file);
+        }).then(function(result) {
+          var text = result.data.text;
+          correctOcrTextWithAI(text, typeof file === 'string' ? 'image_data' : (file.name || 'image_ocr'), function(contacts) {
+            callback(null, contacts);
+          });
+        }).catch(function(recogErr) {
+          // Worker might be stale, reset and retry once
+          _tesseractWorker = null;
+          _tesseractReady = false;
+          getTesseractWorker(function(err2, worker2) {
+            if (err2) { callback(recogErr, []); return; }
+            Promise.resolve(worker2.setParameters({
+              tessedit_pageseg_mode: '6'
+            })).then(function() {
+              return worker2.recognize(file);
+            }).then(function(result2) {
+              var text2 = result2.data.text;
+              correctOcrTextWithAI(text2, typeof file === 'string' ? 'image_data' : (file.name || 'image_ocr'), function(contacts2) {
+                callback(null, contacts2);
+              });
+            }).catch(function(e2) { callback(e2, []); });
           });
         });
-      }
-
-      var img = new Image();
-      img.onload = function() {
-        var canvas = document.createElement('canvas');
-        var ctx = canvas.getContext('2d');
-        canvas.width = img.naturalWidth || img.width;
-        canvas.height = img.naturalHeight || img.height;
-        ctx.drawImage(img, 0, 0);
-        var imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        var data = imgData.data;
-        for (var i = 0; i < data.length; i += 4) {
-          var r = data[i], g = data[i+1], b = data[i+2];
-          if (b > r + 30 && b > g + 10 && r < 180) {
-            data[i] = 255; data[i+1] = 255; data[i+2] = 255;
-          }
-        }
-        ctx.putImageData(imgData, 0, 0);
-        runOcr(canvas.toDataURL('image/png'));
-      };
-      img.onerror = function() { runOcr(file); };
-
-      if (typeof file === 'string') {
-        img.src = file;
-      } else {
-        var reader = new FileReader();
-        reader.onload = function(e) { img.src = e.target.result; };
-        reader.onerror = function() { runOcr(file); };
-        reader.readAsDataURL(file);
-      }
+      });
     }
 
     function doTesseractLocal(file, callback) {
@@ -4613,16 +2775,11 @@ export const DIALER_HTML = `<!DOCTYPE html>
       tempImportType = 'unstructured';
       tempImportData = contacts;
       
-      if (!contacts || contacts.length === 0) {
-        if (typeof showCopyLimitToast === 'function') {
-          showCopyLimitToast('⚠️ 识别完成，但未提取到有效联系人', true);
-        }
-        resetAIImporterUI();
-        updateDashboardVisibility(true);
+      if (contacts && contacts.length > 0) {
+        executeAIImportUnstructured();
+        alert('📝 文本识别：成功自动提取 ' + contacts.length + ' 个联系人，已直接自动入库并同步至 Supabase！');
         return;
       }
-
-
 
       document.getElementById('aiImportScanning').style.display = 'none';
       document.getElementById('aiLaserLine').style.display = 'none';
@@ -4633,12 +2790,6 @@ export const DIALER_HTML = `<!DOCTYPE html>
       
       var unstContainer = document.getElementById('aiUnstructuredContainer');
       unstContainer.style.display = 'block';
-      
-      var dz = document.getElementById('dropZone');
-      if (dz) {
-        dz.style.minHeight = 'auto';
-        dz.style.padding = '8px';
-      }
       
       document.getElementById('aiReportTitle').innerHTML = 'AI 提取报告: ' + esc(fileName);
       
@@ -4702,7 +2853,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
         tdPhone.contentEditable = 'true';
         tdPhone.textContent = c.phone;
         tdPhone.addEventListener('blur', function() {
-          var val = this.textContent.trim().replace(/[-\\s]/g, '');
+          var val = this.textContent.trim().replace(/[-\s]/g, '');
           tempUnstructuredContacts[index].phone = val;
         });
         
@@ -4777,17 +2928,12 @@ export const DIALER_HTML = `<!DOCTYPE html>
         c.category = defaultCat;
         c.mobile = c.mobile || c.phone;
         c.phone = c.phone || c.mobile;
-        if (!c.fund && /^\d{4,5}$/.test((c.note || '').trim())) {
+        if (!c.fund && /^d{4,5}$/.test((c.note || '').trim())) {
           c.fund = c.note.trim();
           c.note = '';
         }
       }
-      // Append new contacts to existing ones instead of overwriting
-      if (importedClients && importedClients.length > 0) {
-        importedClients = importedClients.concat(tempUnstructuredContacts);
-      } else {
-        importedClients = tempUnstructuredContacts;
-      }
+      importedClients = tempUnstructuredContacts;
       saveState();
       updateDashboardVisibility(true);
       renderDialCards();
@@ -5039,37 +3185,37 @@ export const DIALER_HTML = `<!DOCTYPE html>
           for (var bi = 0; bi < blocks.length; bi++) {
             var blk = blocks[bi];
             var name = '';
-            var mQP = blk.match(/FN[^:]*QUOTED-PRINTABLE[^:]*:([^\\r\\n]+)/i);
-            var mU8 = blk.match(/FN;CHARSET=UTF-8:([^\\r\\n]+)/i);
-            var mFN = blk.match(/FN:([^\\r\\n]+)/i);
+            var mQP = blk.match(/FN[^:]*QUOTED-PRINTABLE[^:]*:([^\r\n]+)/i);
+            var mU8 = blk.match(/FN;CHARSET=UTF-8:([^\r\n]+)/i);
+            var mFN = blk.match(/FN:([^\r\n]+)/i);
             if (mQP) { name = decodeQPUtf8(mQP[1]).trim(); }
             else if (mU8) { name = mU8[1].trim(); }
             else if (mFN) { name = mFN[1].trim(); }
             
             var company = '';
-            var mOQ = blk.match(/ORG[^:]*QUOTED-PRINTABLE[^:]*:([^\\r\\n]+)/i);
-            var mOP = blk.match(/ORG[^:;]*:([^\\r\\n]+)/i);
+            var mOQ = blk.match(/ORG[^:]*QUOTED-PRINTABLE[^:]*:([^\r\n]+)/i);
+            var mOP = blk.match(/ORG[^:;]*:([^\r\n]+)/i);
             if (mOQ) { company = decodeQPUtf8(mOQ[1]).trim(); }
             else if (mOP) { company = mOP[1].trim(); }
 
             var note = '';
-            var mNQ = blk.match(/NOTE[^:]*QUOTED-PRINTABLE[^:]*:([^\\r\\n]+)/i);
-            var mNU = blk.match(/NOTE;CHARSET=UTF-8:([^\\r\\n]+)/i);
-            var mNP = blk.match(/NOTE[^:;]*:([^\\r\\n]+)/i);
+            var mNQ = blk.match(/NOTE[^:]*QUOTED-PRINTABLE[^:]*:([^\r\n]+)/i);
+            var mNU = blk.match(/NOTE;CHARSET=UTF-8:([^\r\n]+)/i);
+            var mNP = blk.match(/NOTE[^:;]*:([^\r\n]+)/i);
             if (mNQ) { note = decodeQPUtf8(mNQ[1]).trim(); }
             else if (mNU) { note = mNU[1].trim(); }
             else if (mNP) { note = mNP[1].trim(); }
 
-            var telLines = blk.match(/TEL[^:]*:([^\\r\\n]+)/gi) || [];
+            var telLines = blk.match(/TEL[^:]*:([^\r\n]+)/gi) || [];
             for (var ti = 0; ti < telLines.length; ti++) {
               var ci = telLines[ti].indexOf(':');
               if (ci < 0) continue;
-              var phone = telLines[ti].slice(ci+1).trim().replace(/[^\\d+]/g, '');
+              var phone = telLines[ti].slice(ci+1).trim().replace(/[^\d+]/g, '');
               if (!phone) continue;
               if (phoneSet.has(phone)) break;
               phoneSet.add(phone);
               var fundVal = '';
-              if (/^\d{4,5}$/.test(note)) {
+              if (/^d{4,5}$/.test(note)) {
                 fundVal = note;
                 note = '';
               }
@@ -5288,13 +3434,13 @@ export const DIALER_HTML = `<!DOCTYPE html>
             badgeHtml = '<span class="xls-dial-badge xls-dial-badge-success">已接通 (' + (c.duration || '00:00') + ')</span>';
             cardClass += ' dialed';
             if (phoneVal) {
-              badgeHtml += ' <button class="rec-play-btn" data-phone="' + esc(phoneVal) + '" title="播放通话录音" style="font-size:0.6rem;padding:1px 6px;border:1px solid #07c160;background:rgba(7,193,96,0.08);color:#07c160;border-radius:3px;cursor:pointer;font-weight:700;margin-left:4px;" onclick="event.stopPropagation();var p=this.dataset.phone;var a=document.createElement(\\x27audio\\x27);a.controls=true;a.style.width=\\x27100%\\x27;a.style.height=\\x2728px\\x27;a.style.marginTop=\\x274px\\x27;var w=this.nextElementSibling;if(w&&w.classList.contains(\\x27rec-audio-wrap\\x27)){w.remove();return;}var d=document.createElement(\\x27div\\x27);d.className=\\x27rec-audio-wrap\\x27;d.style.width=\\x27100%\\x27;d.appendChild(a);this.parentElement.appendChild(d);a.src=\\x27/api/local-recording?phone=\\x27+encodeURIComponent(p);a.play().catch(function(){});">▶ 录音</button>';
+              badgeHtml += ' <button class="rec-play-btn" data-phone="' + esc(phoneVal) + '" title="播放通话录音" style="font-size:0.6rem;padding:1px 6px;border:1px solid #07c160;background:rgba(7,193,96,0.08);color:#07c160;border-radius:3px;cursor:pointer;font-weight:700;margin-left:4px;" onclick="event.stopPropagation();var p=this.dataset.phone;var a=document.createElement(\x27audio\x27);a.controls=true;a.style.width=\x27100%\x27;a.style.height=\x2728px\x27;a.style.marginTop=\x274px\x27;var w=this.nextElementSibling;if(w&&w.classList.contains(\x27rec-audio-wrap\x27)){w.remove();return;}var d=document.createElement(\x27div\x27);d.className=\x27rec-audio-wrap\x27;d.style.width=\x27100%\x27;d.appendChild(a);this.parentElement.appendChild(d);a.src=\x27/api/local-recording?phone=\x27+encodeURIComponent(p);a.play().catch(function(){});">▶ 录音</button>';
             }
           } else if (c.dialedStatus === 'failed') {
             badgeHtml = '<span class="xls-dial-badge xls-dial-badge-failed">未接通</span>';
             cardClass += ' dialed';
             if (phoneVal) {
-              badgeHtml += ' <button class="rec-play-btn" data-phone="' + esc(phoneVal) + '" title="播放通话录音" style="font-size:0.6rem;padding:1px 6px;border:1px solid #e67e22;background:rgba(245,124,0,0.08);color:#e67e22;border-radius:3px;cursor:pointer;font-weight:700;margin-left:4px;" onclick="event.stopPropagation();var p=this.dataset.phone;var a=document.createElement(\\x27audio\\x27);a.controls=true;a.style.width=\\x27100%\\x27;a.style.height=\\x2728px\\x27;a.style.marginTop=\\x274px\\x27;var w=this.nextElementSibling;if(w&&w.classList.contains(\\x27rec-audio-wrap\\x27)){w.remove();return;}var d=document.createElement(\\x27div\\x27);d.className=\\x27rec-audio-wrap\\x27;d.style.width=\\x27100%\\x27;d.appendChild(a);this.parentElement.appendChild(d);a.src=\\x27/api/local-recording?phone=\\x27+encodeURIComponent(p);a.play().catch(function(){});">▶ 录音</button>';
+              badgeHtml += ' <button class="rec-play-btn" data-phone="' + esc(phoneVal) + '" title="播放通话录音" style="font-size:0.6rem;padding:1px 6px;border:1px solid #e67e22;background:rgba(245,124,0,0.08);color:#e67e22;border-radius:3px;cursor:pointer;font-weight:700;margin-left:4px;" onclick="event.stopPropagation();var p=this.dataset.phone;var a=document.createElement(\x27audio\x27);a.controls=true;a.style.width=\x27100%\x27;a.style.height=\x2728px\x27;a.style.marginTop=\x274px\x27;var w=this.nextElementSibling;if(w&&w.classList.contains(\x27rec-audio-wrap\x27)){w.remove();return;}var d=document.createElement(\x27div\x27);d.className=\x27rec-audio-wrap\x27;d.style.width=\x27100%\x27;d.appendChild(a);this.parentElement.appendChild(d);a.src=\x27/api/local-recording?phone=\x27+encodeURIComponent(p);a.play().catch(function(){});">▶ 录音</button>';
             }
           }
 
@@ -6014,7 +4160,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
           var files = Array.from(e.dataTransfer.files || []);
           if (files.length === 0) return;
           // If multiple image files dropped, queue them all
-          var imgFiles = files.filter(function(f) { return /\.(jpg|jpeg|png|bmp|webp)$/i.test(f.name); });
+          var imgFiles = files.filter(function(f) { return /.(jpg|jpeg|png|bmp|webp)$/i.test(f.name); });
           if (imgFiles.length > 1) {
             handleMultiImageOCR(imgFiles);
           } else if (files.length === 1) {
@@ -6101,7 +4247,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
             );
           });
 
-          if (exportArea) exportArea.value = lines.join('\\n');
+          if (exportArea) exportArea.value = lines.join('\n');
           if (exportModal) exportModal.classList.add('active');
         });
       }
@@ -6175,7 +4321,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
                 c.fund = obj.fund; // Restore fund to customer object
               }
               if (textPart) {
-                parsed.note = baseNote ? baseNote + '\\n' + textPart : textPart;
+                parsed.note = baseNote ? baseNote + '\n' + textPart : textPart;
               } else {
                 parsed.note = baseNote;
               }
@@ -6214,7 +4360,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
                 parsed.custom = Object.assign({}, obj.custom || {}, parsed.custom);
                 if (obj.fund && !fundVal) fundVal = obj.fund;
                 if (textPart) {
-                  parsed.note = parsed.note ? parsed.note + '\\n' + textPart : textPart;
+                  parsed.note = parsed.note ? parsed.note + '\n' + textPart : textPart;
                 }
               }
             }
@@ -6648,7 +4794,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
           '<td>' +
             '<div class="crm-phone-cell">' +
               esc(c.mobile || '-') +
-              '<button class="crm-btn-call" title="点击呼叫 / 复制" onclick="copyTextToClipboard(\\\'' + esc(c.mobile) + '\\\');showCopyLimitToast(\\\'已复制: ' + esc(c.mobile) + '\\\');">📞</button>' +
+              '<button class="crm-btn-call" title="点击呼叫 / 复制" onclick="copyTextToClipboard(\'' + esc(c.mobile) + '\');showCopyLimitToast(\'已复制: ' + esc(c.mobile) + '\');">📞</button>' +
             '</div>' +
           '</td>' +
           '<td style="white-space: normal; max-width: 300px; word-break: break-all;">' + noteDisplay + '</td>' +
@@ -6868,8 +5014,6 @@ export const DIALER_HTML = `<!DOCTYPE html>
       // Simple salted hash for localStorage (not cryptographically secure, but beats plaintext)
       var salt = 'megz_db_salt_2024';
       var combined = salt + ':' + pwd;
-
-
       var hash = 0;
       for (var i = 0; i < combined.length; i++) {
         var char = combined.charCodeAt(i);
@@ -7588,7 +5732,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
           var promises = mobiles.map(function(m) {
             var clientData = DB.allData.find(function(c) { return c.mobile === m; });
             var note = clientData ? (clientData.note || '') : '';
-            var newNote = note.replace(/\[协助人:\s*[^\]]+\]/g, '').trim();
+            var newNote = note.replace(/[协助人:s*[^]]+]/g, '').trim();
             return fetch('/api/dialer/customers', {
               method: 'PATCH',
               headers: { 'Content-Type': 'application/json' },
@@ -7834,7 +5978,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
       listEl.textContent = failed.map(function(c) {
         if (typeof c === 'string') return c;
         return c.company_name + (c.status && c.status !== '正常' ? ',' + c.status : '');
-      }).join('\\n');
+      }).join('\n');
     }
 
     function fuzzyMatch(text, query) {
@@ -7843,11 +5987,11 @@ export const DIALER_HTML = `<!DOCTYPE html>
       query = query.toLowerCase().trim();
       if (!query) return true;
       if (text.includes(query)) return true;
-      var keywords = query.split(/\s+/).filter(Boolean);
+      var keywords = query.split(/s+/).filter(Boolean);
       if (keywords.length > 1) {
         return keywords.every(function(kw) { return text.includes(kw); });
       }
-      var escapedQuery = query.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\\\$&');
+      var escapedQuery = query.replace(/[-/\^$*+?.()|[]{}]/g, '\\$&');
       var chars = escapedQuery.split('');
       var regexStr = chars.join('.*');
       try {
@@ -7965,7 +6109,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
         uploadBtn.addEventListener('click', function() {
           var text = textarea.value.trim();
           if (!text) { alert('请先粘贴企业名称'); return; }
-          var companies = text.split('\\n')
+          var companies = text.split('\n')
             .map(function(s) { return s.trim(); })
             .filter(function(s) { return s.length > 0; });
           if (companies.length === 0) { alert('请至少输入一个企业名称'); return; }
@@ -8084,7 +6228,4 @@ export const DIALER_HTML = `<!DOCTYPE html>
     safeInit('initCustViewer', initCustViewer);
 
   })();
-  </script>
-
-</body>
-</html>`;
+  
