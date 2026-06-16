@@ -7388,7 +7388,9 @@ const rid=Math.floor(Math.random()*1000);
         let text = '';
 
         const fullVisionPrompt = "请识别并提取这张表格截图中的所有文字内容，保持行对齐。\n" +
-          "特别注意：表格第一列通常为单字姓氏或姓名，可能紧邻蓝色图标，请务必精准识别并提取出原始中文字符（如温、朱、刘、严等），绝对不要将其转换为拼音或英文字母（例如：严禁将“温”提取为“Wen”），也不要进行翻译。\n" +
+          "特别注意：\n" +
+          "1. 表格第一列通常为单字姓氏或姓名，可能紧邻左上角蓝色三角标里的“新”字（或“新”）。该“新”字属于标记符号，并非姓名的一部分，请在识别提取姓名/姓氏时，务必自动清洗掉前置的“新”字（例如：将“新 蔡”或“新蔡”清洗并只保留姓氏“蔡”）。\n" +
+          "2. 必须精准识别并提取出原始中文字符（如温、朱、刘、严等），绝对不要将其转换为拼音或英文字母（例如：严禁将“温”提取为“Wen”），也不要进行翻译。\n" +
           "请以结构化的文本列表输出（每一行代表一个客户，包含姓名、手机号、公司、公积金/备注等信息）。\n" +
           "只输出提取到的文本内容，不要包含任何解释、分析或 markdown 代码块。";
 
@@ -7624,7 +7626,11 @@ const rid=Math.floor(Math.random()*1000);
                 if (cols[ci].includes(phone)) { phoneCol = ci; break; }
               }
               if (phoneCol >= 0) {
-                if (phoneCol > 0) name = cols[phoneCol - 1].replace(/^[新旧]\s*/, '').trim();
+                if (phoneCol > 0) {
+                  var rawName = cols[phoneCol - 1].trim();
+                  var cleanedName = rawName.replace(/^[新旧]\s*/, '').trim();
+                  name = cleanedName.length === 0 ? rawName : cleanedName;
+                }
                 for (var ci2 = phoneCol + 1; ci2 < cols.length; ci2++) {
                   var val = cols[ci2].trim();
                   if (val && !/^[\d.]+$/.test(val) && val !== '新增跟进' && val !== '已拨') {
@@ -7637,7 +7643,9 @@ const rid=Math.floor(Math.random()*1000);
               var before = line.substring(0, line.indexOf(phone));
               var nm = before.match(/([一-龥]{1,4})\s*$/);
               if (nm) {
-                name = nm[1].replace(/^[新旧]\s*/, '');
+                var rawNm = nm[1];
+                var cleanedNm = rawNm.replace(/^[新旧]\s*/, '');
+                name = cleanedNm.length === 0 ? rawNm : cleanedNm;
               } else {
                 // Look at previous lines for name (multi-line format)
                 for (var j = i - 1; j >= 0 && j >= i - 2; j--) {
@@ -7827,22 +7835,44 @@ const rid=Math.floor(Math.random()*1000);
             '{\n  "correctedText": "修正后的完整原文...",\n  "corrections": [{"original": "识别错的", "corrected": "正确的", "reason": "原因"}],\n' +
             '  "contacts": [{"name": "", "phone": "", "company": "", "fund": "", "note": ""}]\n}';
 
-          const aiResp = await fetch(url, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'Bearer ' + apiKey
-            },
-            body: JSON.stringify({
-              model: model,
-              messages: [
-                { role: 'system', content: systemPrompt },
-                { role: 'user', content: '请修正以下 OCR 文本并提取联系人：\n\n' + rawText.substring(0, 8000) }
-              ],
-              temperature: 0,
-              max_tokens: 4096
-            })
-          });
+          let aiResp;
+          let maxRetries = 3;
+          let retryDelay = 2000;
+          
+          for (let i = 0; i < maxRetries; i++) {
+            aiResp = await fetch(url, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + apiKey
+              },
+              body: JSON.stringify({
+                model: model,
+                messages: [
+                  { role: 'system', content: systemPrompt },
+                  { role: 'user', content: '请修正以下 OCR 文本并提取联系人：\n\n' + rawText.substring(0, 8000) }
+                ],
+                temperature: 0,
+                max_tokens: 4096
+              })
+            });
+            
+            if (aiResp.ok) {
+              break;
+            }
+            
+            if (aiResp.status === 429 || aiResp.status >= 500) {
+              if (i < maxRetries - 1) {
+                console.log(`[OCR Correct] AI API rate limited or server error (${aiResp.status}), retrying in ${retryDelay}ms...`);
+                await new Promise(r => setTimeout(r, retryDelay));
+                retryDelay *= 2; // Exponential backoff
+                continue;
+              }
+            } else {
+              // Not a retryable error (e.g. 400, 401)
+              break;
+            }
+          }
 
           if (!aiResp.ok) {
             const errText = await aiResp.text();
@@ -7879,8 +7909,13 @@ const rid=Math.floor(Math.random()*1000);
             var phone = (c.phone || '').replace(/[oOiIlLbB\s\-]/g, function(m) {
               return {o:'0',O:'0',i:'1',I:'1',l:'1',L:'1',b:'6',B:'8'}[m] || '';
             }).replace(/\D/g, '');
+            
+            // Clean name (strip leading "新", "旧", "听", "一" etc. badge characters)
+            var name = (c.name || '').trim();
+            name = name.replace(/^[新旧听一]+[\s\-\|]*/, '').replace(/[^\u4e00-\u9fa5a-zA-Z]/g, '').trim();
+            
             return {
-              name: (c.name || '').trim(),
+              name: name,
               phone: phone.length === 11 && phone[0] === '1' ? phone : '',
               company: (c.company || '').trim(),
               fund: (c.fund || '').trim(),
@@ -7986,7 +8021,20 @@ const rid=Math.floor(Math.random()*1000);
         }
 
         if (parsed && parsed.contacts) {
-          return new Response(JSON.stringify({ contacts: parsed.contacts, engine: 'hybrid_merge' }), {
+          const cleanedContacts = parsed.contacts.map(function(c) {
+            if (!c) return null;
+            var name = (c.name || '').trim();
+            name = name.replace(/^[新旧听一]+[\s\-\|]*/, '').replace(/[^\u4e00-\u9fa5a-zA-Z]/g, '').trim();
+            return {
+              name: name,
+              phone: (c.phone || '').trim(),
+              company: (c.company || '').trim(),
+              fund: (c.fund || '').trim(),
+              note: (c.note || '').trim()
+            };
+          }).filter(Boolean);
+
+          return new Response(JSON.stringify({ contacts: cleanedContacts, engine: 'hybrid_merge' }), {
             headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
           });
         }
@@ -8136,8 +8184,10 @@ const rid=Math.floor(Math.random()*1000);
           if (seenPhones[phone]) return;
           seenPhones[phone] = true;
           var name = '', company = '';
-          var before = line.substring(0, line.indexOf(phone));
-          var nm = before.match(/([一-龥]{1,4})\s*$/);
+          var before = line.substring(0, line.indexOf(phone)).trim();
+          var nm = before.match(/(?:^|\s)([一-龥]{2,4})(?=\s|$)/);
+          if (!nm) nm = before.match(/^([一-龥]{2,4})/);
+          if (!nm) nm = before.match(/([一-龥]{1,4})\s*$/);
           if (nm) name = nm[1].replace(/^[新旧听一]+[\s\-\|]*/, '');
           var after = line.substring(line.indexOf(phone) + phone.length).trim();
           company = after.replace(/[\d.]+[\d\s]*$/g, '').replace(/\s*(新增跟进|已拨|正常号|空号|停机|无法接通|挂断|意向|备注).*$/, '').trim();

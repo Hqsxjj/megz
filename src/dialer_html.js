@@ -2264,6 +2264,12 @@ export const DIALER_HTML = `<!DOCTYPE html>
       document.getElementById('aiLaserLine').style.display = 'none';
       document.getElementById('aiAdjustControls').style.display = 'none';
       
+      var dz = document.getElementById('dropZone');
+      if (dz) {
+        dz.style.minHeight = '200px';
+        dz.style.padding = ''; // Reset to CSS default
+      }
+      
       document.getElementById('aiExcelMappingPills').style.display = 'flex';
       document.getElementById('aiExcelMappingControls').style.display = 'block';
       document.getElementById('aiExcelPreviewContainer').style.display = 'block';
@@ -3024,7 +3030,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
           
           // Spatial prefix/suffix extraction
           var prefix = line.substring(0, phoneInfo.index).trim();
-          var prefixMatch = /([\\u4e00-\\u9fa5]{1,4})\\s*$/.exec(prefix);
+          var prefixMatch = /(?:^|\\s)([\\u4e00-\\u9fa5]{2,4})(?=\\s|$)/.exec(prefix) || /^([\\u4e00-\\u9fa5]{2,4})/.exec(prefix) || /([\\u4e00-\\u9fa5]{1,4})\\s*$/.exec(prefix);
           var prefixName = prefixMatch ? prefixMatch[1] : '';
           
           var suffix = line.substring(phoneInfo.index + phoneInfo.length).trim();
@@ -3937,9 +3943,8 @@ export const DIALER_HTML = `<!DOCTYPE html>
         var sX = col.startX;
         var cW = col.width;
         if (type === 'name') {
-          // Physically crop the left 25 pixels to completely eliminate the blue icon
-          sX += 25;
-          cW = Math.max(10, cW - 25);
+          // Removed physical crop to avoid cutting into surnames that are close to the edge
+          // We will use color filtering below to wash away the blue icon
         }
         
         canvas.width = cW * 2;
@@ -3960,7 +3965,10 @@ export const DIALER_HTML = `<!DOCTYPE html>
           
           if (type === 'name') {
             var val = Math.min(r, g, b);
-            if (r > g + 10 && r > b + 10) {
+            if (b > r + 30 && b > g + 10 && r < 180) {
+              // Wash away blue corner mark by making it white
+              val = 255;
+            } else if (r > g + 10 && r > b + 10) {
               var redness = r - Math.max(g, b);
               val = Math.max(0, val - redness * 2);
             }
@@ -4027,9 +4035,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
         var w = col ? col.width : 77;
         var startX = col ? col.startX : 0;
         
-        // Physically crop the left 25 pixels
-        startX += 25;
-        w = Math.max(10, w - 25);
+        // Removed physical crop to prevent cutting surnames
         
         cellCanvas.width = w * 2;
         cellCanvas.height = 48 * 2;
@@ -4052,7 +4058,10 @@ export const DIALER_HTML = `<!DOCTYPE html>
           var b = data[i+2];
           
           var val = Math.min(r, g, b);
-          if (r > g + 10 && r > b + 10) {
+          if (b > r + 30 && b > g + 10 && r < 180) {
+            // Wash away blue corner mark by making it white
+            val = 255;
+          } else if (r > g + 10 && r > b + 10) {
             var redness = r - Math.max(g, b);
             val = Math.max(0, val - redness * 2);
           }
@@ -4358,36 +4367,67 @@ export const DIALER_HTML = `<!DOCTYPE html>
     }
 
     function processSingleImageLocal(file, callback) {
-      getTesseractWorker(function(err, worker) {
-        if (err) { callback(err, []); return; }
-        Promise.resolve(worker.setParameters({
-          tessedit_pageseg_mode: '6'
-        })).then(function() {
-          return worker.recognize(file);
-        }).then(function(result) {
-          var text = result.data.text;
-          correctOcrTextWithAI(text, typeof file === 'string' ? 'image_data' : (file.name || 'image_ocr'), function(contacts) {
-            callback(null, contacts);
-          });
-        }).catch(function(recogErr) {
-          // Worker might be stale, reset and retry once
-          _tesseractWorker = null;
-          _tesseractReady = false;
-          getTesseractWorker(function(err2, worker2) {
-            if (err2) { callback(recogErr, []); return; }
-            Promise.resolve(worker2.setParameters({
-              tessedit_pageseg_mode: '6'
-            })).then(function() {
-              return worker2.recognize(file);
-            }).then(function(result2) {
-              var text2 = result2.data.text;
-              correctOcrTextWithAI(text2, typeof file === 'string' ? 'image_data' : (file.name || 'image_ocr'), function(contacts2) {
-                callback(null, contacts2);
-              });
-            }).catch(function(e2) { callback(e2, []); });
+      function runOcr(imageSource) {
+        getTesseractWorker(function(err, worker) {
+          if (err) { callback(err, []); return; }
+          Promise.resolve(worker.setParameters({
+            tessedit_pageseg_mode: '6'
+          })).then(function() {
+            return worker.recognize(imageSource);
+          }).then(function(result) {
+            var text = result.data.text;
+            correctOcrTextWithAI(text, typeof file === 'string' ? 'image_data' : (file.name || 'image_ocr'), function(contacts) {
+              callback(null, contacts);
+            });
+          }).catch(function(recogErr) {
+            // Worker might be stale, reset and retry once
+            _tesseractWorker = null;
+            _tesseractReady = false;
+            getTesseractWorker(function(err2, worker2) {
+              if (err2) { callback(recogErr, []); return; }
+              Promise.resolve(worker2.setParameters({
+                tessedit_pageseg_mode: '6'
+              })).then(function() {
+                return worker2.recognize(imageSource);
+              }).then(function(result2) {
+                var text2 = result2.data.text;
+                correctOcrTextWithAI(text2, typeof file === 'string' ? 'image_data' : (file.name || 'image_ocr'), function(contacts2) {
+                  callback(null, contacts2);
+                });
+              }).catch(function(e2) { callback(e2, []); });
+            });
           });
         });
-      });
+      }
+
+      var img = new Image();
+      img.onload = function() {
+        var canvas = document.createElement('canvas');
+        var ctx = canvas.getContext('2d');
+        canvas.width = img.naturalWidth || img.width;
+        canvas.height = img.naturalHeight || img.height;
+        ctx.drawImage(img, 0, 0);
+        var imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        var data = imgData.data;
+        for (var i = 0; i < data.length; i += 4) {
+          var r = data[i], g = data[i+1], b = data[i+2];
+          if (b > r + 30 && b > g + 10 && r < 180) {
+            data[i] = 255; data[i+1] = 255; data[i+2] = 255;
+          }
+        }
+        ctx.putImageData(imgData, 0, 0);
+        runOcr(canvas.toDataURL('image/png'));
+      };
+      img.onerror = function() { runOcr(file); };
+
+      if (typeof file === 'string') {
+        img.src = file;
+      } else {
+        var reader = new FileReader();
+        reader.onload = function(e) { img.src = e.target.result; };
+        reader.onerror = function() { runOcr(file); };
+        reader.readAsDataURL(file);
+      }
     }
 
     function doTesseractLocal(file, callback) {
@@ -4563,11 +4603,16 @@ export const DIALER_HTML = `<!DOCTYPE html>
       tempImportType = 'unstructured';
       tempImportData = contacts;
       
-      if (contacts && contacts.length > 0) {
-        executeAIImportUnstructured();
-        alert('📝 文本识别：成功自动提取 ' + contacts.length + ' 个联系人，已直接自动入库并同步至 Supabase！');
+      if (!contacts || contacts.length === 0) {
+        if (typeof showCopyLimitToast === 'function') {
+          showCopyLimitToast('⚠️ 识别完成，但未提取到有效联系人', true);
+        }
+        resetAIImporterUI();
+        updateDashboardVisibility(true);
         return;
       }
+
+
 
       document.getElementById('aiImportScanning').style.display = 'none';
       document.getElementById('aiLaserLine').style.display = 'none';
@@ -4578,6 +4623,12 @@ export const DIALER_HTML = `<!DOCTYPE html>
       
       var unstContainer = document.getElementById('aiUnstructuredContainer');
       unstContainer.style.display = 'block';
+      
+      var dz = document.getElementById('dropZone');
+      if (dz) {
+        dz.style.minHeight = 'auto';
+        dz.style.padding = '8px';
+      }
       
       document.getElementById('aiReportTitle').innerHTML = 'AI 提取报告: ' + esc(fileName);
       
@@ -4721,7 +4772,12 @@ export const DIALER_HTML = `<!DOCTYPE html>
           c.note = '';
         }
       }
-      importedClients = tempUnstructuredContacts;
+      // Append new contacts to existing ones instead of overwriting
+      if (importedClients && importedClients.length > 0) {
+        importedClients = importedClients.concat(tempUnstructuredContacts);
+      } else {
+        importedClients = tempUnstructuredContacts;
+      }
       saveState();
       updateDashboardVisibility(true);
       renderDialCards();
@@ -6802,6 +6858,8 @@ export const DIALER_HTML = `<!DOCTYPE html>
       // Simple salted hash for localStorage (not cryptographically secure, but beats plaintext)
       var salt = 'megz_db_salt_2024';
       var combined = salt + ':' + pwd;
+
+
       var hash = 0;
       for (var i = 0; i < combined.length; i++) {
         var char = combined.charCodeAt(i);
