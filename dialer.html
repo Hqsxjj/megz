@@ -150,27 +150,60 @@
       background: var(--btn-hover);
     }
     
-    /* Dashboard Area — compact horizontal */
+    /* Dashboard Area — now a modal overlay */
     .dashboard-panel {
-      padding: 10px 16px;
-      background: var(--card-bg);
-      border-bottom: 1px solid var(--border-light);
-      flex-shrink: 0;
-    }
-    .import-zone {
-      background: var(--bg-app);
-      border: 1.5px dashed var(--card-border);
-      border-radius: 6px;
-      padding: 16px 24px;
-      text-align: center;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: var(--modal-bg);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      z-index: 5000;
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.25s ease;
       display: flex;
-      flex-direction: row;
       align-items: center;
       justify-content: center;
-      gap: 16px;
-      transition: all 0.2s;
-      flex-wrap: wrap;
+      padding: 16px;
     }
+    .dashboard-panel.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .dashboard-panel .import-zone {
+      background: var(--modal-card);
+      border: 1px solid var(--card-border);
+      border-radius: 14px;
+      box-shadow: 0 15px 45px rgba(0,0,0,0.3);
+      width: 92vw;
+      max-width: 520px;
+      max-height: 85vh;
+      overflow-y: auto;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      transform: translateY(20px);
+      transition: all 0.25s cubic-bezier(0.25, 0.8, 0.25, 0.8);
+    }
+    .dashboard-panel.active .import-zone {
+      transform: translateY(0);
+    }
+    .import-close-btn {
+      position: absolute;
+      top: 12px; right: 12px;
+      width: 32px; height: 32px;
+      border: none; background: rgba(0,0,0,0.08);
+      border-radius: 50%; font-size: 1rem; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--text-soft); z-index: 10;
+      transition: all 0.2s;
+    }
+    .import-close-btn:hover { background: #e81123; color: #fff; }
+    body.dark-mode .import-close-btn { background: rgba(255,255,255,0.1); }
+    body.dark-mode .import-close-btn:hover { background: #e81123; color: #fff; }
+    /* Legacy import-zone dragover state (still used inside modal) */
     .import-zone.dragover {
       border-color: var(--accent-wechat);
       background: var(--accent-wechat-bg);
@@ -1170,9 +1203,11 @@
       </div>
       
       <!-- Dashboard -->
-      <div class="dashboard-panel" id="dashboardPanel" style="display: none;">
+      <div class="dashboard-panel" id="dashboardPanel">
         <!-- AI Drag & Drop Zone -->
         <div class="import-zone" id="dropZone" style="position: relative; overflow: hidden; min-height: 200px;">
+          <!-- Close Button -->
+          <button class="import-close-btn" id="importCloseBtn" title="关闭导入面板">✕</button>
           <!-- Animation Laser Line (Only visible during scanning) -->
           <div id="aiLaserLine" class="ai-laser-line" style="display: none;"></div>
 
@@ -2226,16 +2261,18 @@
         minimalStats.style.display = hasData ? 'flex' : 'none';
       }
       document.getElementById('controlBar').style.display = flexStyle;
-      
+
       var expBtn = document.getElementById('exportBtn');
       var clrBtn = document.getElementById('clearBtn');
       if (expBtn) expBtn.style.display = hasData ? 'flex' : 'none';
       if (clrBtn) clrBtn.style.display = hasData ? 'flex' : 'none';
-      
-      // Always hide import zone after initialization or data updates
+
+      // Import panel is now a modal overlay — always hidden from flow by CSS
+      // Just ensure it's closed when data state changes
       var panel = document.getElementById('dashboardPanel');
       if (panel) {
-        panel.style.display = 'none';
+        panel.classList.remove('active');
+        document.body.style.overflow = '';
       }
     }
 
@@ -5981,13 +6018,39 @@
         toggleBtn.addEventListener('click', function() {
           var panel = document.getElementById('dashboardPanel');
           if (panel) {
-            if (panel.style.display === 'none') {
-              panel.style.display = 'block';
+            var willOpen = !panel.classList.contains('active');
+            panel.classList.toggle('active');
+            if (willOpen) {
+              document.body.style.overflow = 'hidden';
+              resetAIImporterUI();
+              // Reset batch label with fresh timestamp
+              var blInput = document.getElementById('batchLabelInput');
+              if (blInput) {
+                blInput.value = '导入-' + new Date().toISOString().slice(0, 19).replace('T', ' ');
+              }
             } else {
-              panel.style.display = 'none';
+              document.body.style.overflow = '';
             }
           }
         });
+      }
+
+      // Close button inside the import panel
+      var importCloseBtn = document.getElementById('importCloseBtn');
+      if (importCloseBtn) {
+        importCloseBtn.addEventListener('click', closeImportModal);
+        // Also close when clicking the backdrop (outside import-zone)
+        var dp = document.getElementById('dashboardPanel');
+        if (dp) {
+          dp.addEventListener('click', function(e) {
+            if (e.target === dp) closeImportModal();
+          });
+        }
+      }
+      function closeImportModal() {
+        var panel = document.getElementById('dashboardPanel');
+        if (panel) panel.classList.remove('active');
+        document.body.style.overflow = '';
       }
 
       // Dual-SIM rotation toggle
@@ -6102,9 +6165,9 @@
 
         // Listen for paste events on the whole document to catch pastes anywhere
         document.addEventListener('paste', function(e) {
-          // Only handle if dashboardPanel is visible and we're not in an input/textarea
+          // Only handle if dashboardPanel modal is active and we're not in an input/textarea
           var dp = document.getElementById('dashboardPanel');
-          if (!dp || dp.style.display === 'none') return;
+          if (!dp || !dp.classList.contains('active')) return;
           var activeEl = document.activeElement;
           if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.isContentEditable)) return;
 
