@@ -1240,8 +1240,8 @@ export const DIALER_HTML = `<!DOCTYPE html>
               <input type="range" id="sliderSplit1" min="5" max="95" value="25" style="width: 100%; cursor: pointer; height: 4px;">
               <input type="range" id="sliderSplit2" min="5" max="95" value="60" style="width: 100%; cursor: pointer; height: 4px;">
             </div>
-            <label style="font-size: 0.75rem; color: var(--text-main); margin-top: 6px; display: flex; align-items: center; gap: 6px; cursor: pointer;">
-              <input type="checkbox" id="chkUseSlicing" style="accent-color: var(--primary-color);"> 启用表格列切片模式 (适合Excel截图，普通名片/照片请取消勾选)
+            <label style="font-size: 0.75rem; color: var(--text-main); margin-top: 6px; display: none !important; align-items: center; gap: 6px; cursor: pointer;">
+              <input type="checkbox" id="chkUseSlicing" style="accent-color: var(--primary-color);" checked> 启用表格列切片模式 (适合Excel截图，普通名片/照片请取消勾选)
             </label>
             </div>
 
@@ -3550,7 +3550,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
     }
 
     function processLocalImageOCR() {
-      var useSlicing = document.getElementById('chkUseSlicing') ? document.getElementById('chkUseSlicing').checked : false;
+      var useSlicing = document.getElementById('chkUseSlicing') ? document.getElementById('chkUseSlicing').checked : true;
       
       if (!useSlicing) {
         if (document.getElementById('aiLog2')) {
