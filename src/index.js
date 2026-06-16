@@ -7279,13 +7279,83 @@ const rid=Math.floor(Math.random()*1000);
           }
         }
 
-        const response = await env.AI.run('@cf/meta/llama-3.2-11b-vision-instruct', {
-          image: [...imgArray],
-          prompt: "Please extract the Chinese characters (usually a single surname or name) from this image. Output ONLY the exact Chinese characters you see. Do not include any other text, punctuation, or explanations. If you don't see any Chinese characters, output nothing.",
-          max_tokens: 10
-        });
+        const visionKey = await env.DATA_KV.get('config:vision_api_key') || '';
+        let text = '';
 
-        let text = (response.response || '').trim();
+        if (visionKey) {
+          try {
+            const apiBase = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
+            const resp = await fetch(apiBase, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + visionKey
+              },
+              body: JSON.stringify({
+                model: 'gemini-2.5-flash',
+                messages: [
+                  {
+                    role: 'user',
+                    content: [
+                      {
+                        type: 'text',
+                        text: "Please extract the Chinese characters (usually a single surname or name) from this image. Output ONLY the exact Chinese characters you see. Do not include any other text, punctuation, or explanations. If you don't see any Chinese characters, output nothing."
+                      },
+                      {
+                        type: 'image_url',
+                        image_url: {
+                          url: body.image
+                        }
+                      }
+                    ]
+                  }
+                ],
+                max_tokens: 10,
+                temperature: 0.1
+              })
+            });
+            if (resp.ok) {
+              const data = await resp.json();
+              if (data.choices && data.choices[0] && data.choices[0].message) {
+                text = (data.choices[0].message.content || '').trim();
+              }
+            } else {
+              console.error('Gemini vision API failed: ' + (await resp.text()));
+            }
+          } catch (geminiErr) {
+            console.error('Gemini API call error:', geminiErr);
+          }
+        }
+
+        if (!text) {
+          try {
+            const response = await env.AI.run('@cf/meta/llama-3.2-11b-vision-instruct', {
+              image: [...imgArray],
+              prompt: "Please extract the Chinese characters (usually a single surname or name) from this image. Output ONLY the exact Chinese characters you see. Do not include any other text, punctuation, or explanations. If you don't see any Chinese characters, output nothing.",
+              max_tokens: 10
+            });
+            text = (response.response || '').trim();
+          } catch (llamaErr) {
+            const errStr = String(llamaErr.message || llamaErr);
+            if (errStr.includes('terms') || errStr.includes('license') || errStr.includes('agree')) {
+              try {
+                console.log('Workers AI terms agreement needed, trying to auto-agree...');
+                await env.AI.run('@cf/meta/llama-3.2-11b-vision-instruct', { prompt: 'agree' });
+                const response = await env.AI.run('@cf/meta/llama-3.2-11b-vision-instruct', {
+                  image: [...imgArray],
+                  prompt: "Please extract the Chinese characters (usually a single surname or name) from this image. Output ONLY the exact Chinese characters you see. Do not include any other text, punctuation, or explanations. If you don't see any Chinese characters, output nothing.",
+                  max_tokens: 10
+                });
+                text = (response.response || '').trim();
+              } catch (retryErr) {
+                throw new Error('Workers AI Llama Vision retry failed: ' + retryErr.message);
+              }
+            } else {
+              throw llamaErr;
+            }
+          }
+        }
+
         // remove any AI conversational filler like "The text is:" or quotes
         text = text.replace(/^["']|["']$/g, '').replace(/The text is:?\s*/i, '').trim();
 

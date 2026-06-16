@@ -3950,11 +3950,10 @@ export const DIALER_HTML = `<!DOCTYPE html>
     }
 
     function runTesseractOnSlices(slices, img) {
-      function cropCellInBrowser(sourceImg, yCenter, col) {
+      function cropCellInBrowser(sourceImg, yCenter, col, keepColor) {
         var cellCanvas = document.createElement('canvas');
         var cellCtx = cellCanvas.getContext('2d');
         
-        var w = col ? col.width : 77;
         var w = col ? col.width : 77;
         var startX = col ? col.startX : 0;
         
@@ -3968,6 +3967,10 @@ export const DIALER_HTML = `<!DOCTYPE html>
         var imgH = sourceImg.naturalHeight || sourceImg.height;
         var yStart = Math.max(0, Math.min(Math.round(yCenter - 24), imgH - 48));
         cellCtx.drawImage(sourceImg, startX, yStart, w, 48, 0, 0, cellCanvas.width, cellCanvas.height);
+        
+        if (keepColor) {
+          return cellCanvas.toDataURL('image/png');
+        }
         
         var imgData = cellCtx.getImageData(0, 0, cellCanvas.width, cellCanvas.height);
         var data = imgData.data;
@@ -4118,23 +4121,25 @@ export const DIALER_HTML = `<!DOCTYPE html>
               });
             });
             
-            function processFallbacks(cIdx) {
-              if (cIdx >= contacts.length) {
-                try { workerObj.terminate(); } catch(e) {}
-                return contacts.map(function(c) {
-                  return {
-                    name: c.name || '客户-' + c.phone.substring(c.phone.length - 4),
-                    phone: c.phone,
-                    company: c.company,
-                    note: ''
-                  };
-                });
+            // Build visual progress logging for fallback OCR
+            var fallbackTargets = [];
+            contacts.forEach(function(c, idx) {
+              if (!c.name || c.name.length <= 1 || c.minNameDist > 15) {
+                fallbackTargets.push({ index: idx, contact: c });
               }
+            });
+
+            if (fallbackTargets.length > 0) {
+              var completedCount = 0;
+              var totalCount = fallbackTargets.length;
+              document.getElementById('aiScanStatus').innerHTML = '🤖 正在使用 Vision AI 并行识别 ' + totalCount + ' 行姓名 (0/' + totalCount + ')...';
               
-              var c = contacts[cIdx];
-              if (!c.name || c.name === '严' || c.minNameDist > 15) {
-                var nameCol = slices.find(function(s) { return s.type === 'name'; });
-                var cellDataUrl = cropCellInBrowser(img, c.yCenter, nameCol);
+              var nameCol = slices.find(function(s) { return s.type === 'name'; });
+              
+              var visionPromises = fallbackTargets.map(function(target) {
+                var c = target.contact;
+                // We pass keepColor=true to cropCellInBrowser for vision fallbacks!
+                var cellDataUrl = cropCellInBrowser(img, c.yCenter, nameCol, true);
                 
                 return fetch('/api/ocr/vision_cell', {
                   method: 'POST',
@@ -4149,31 +4154,81 @@ export const DIALER_HTML = `<!DOCTYPE html>
                   var fallbackName = (data.text || '').trim().replace(/^[新旧听一]\s*/, '').replace(/[^\u4e00-\u9fa5a-zA-Z]/g, '').trim();
                   if (fallbackName && fallbackName !== '严') {
                     c.name = fallbackName;
+                    target.success = true;
                   }
-                  return processFallbacks(cIdx + 1);
                 })
                 .catch(function(err) {
-                  console.warn('Workers AI vision fallback failed, trying Tesseract:', err);
+                  console.warn('Workers AI vision fallback failed for index ' + target.index + ', queued for Tesseract:', err);
+                  target.success = false;
+                })
+                .then(function() {
+                  completedCount++;
+                  document.getElementById('aiScanStatus').innerHTML = '🤖 正在使用 Vision AI 并行识别 ' + totalCount + ' 行姓名 (' + completedCount + '/' + totalCount + ')...';
+                });
+              });
+
+              return Promise.all(visionPromises).then(function() {
+                var tesseractTargets = fallbackTargets.filter(function(t) { return !t.success; });
+                
+                if (tesseractTargets.length === 0) {
+                  try { workerObj.terminate(); } catch(e) {}
+                  return contacts.map(function(c) {
+                    return {
+                      name: c.name || '客户-' + c.phone.substring(c.phone.length - 4),
+                      phone: c.phone,
+                      company: c.company,
+                      note: ''
+                    };
+                  });
+                }
+
+                document.getElementById('aiScanStatus').innerHTML = '📸 Vision 失败，正在使用 Tesseract 识别 ' + tesseractTargets.length + ' 行姓名...';
+                
+                function runNextTesseract(tIdx) {
+                  if (tIdx >= tesseractTargets.length) {
+                    try { workerObj.terminate(); } catch(e) {}
+                    return Promise.resolve(contacts.map(function(c) {
+                      return {
+                        name: c.name || '客户-' + c.phone.substring(c.phone.length - 4),
+                        phone: c.phone,
+                        company: c.company,
+                        note: ''
+                      };
+                    }));
+                  }
+                  
+                  var target = tesseractTargets[tIdx];
+                  var c = target.contact;
+                  var monoCellDataUrl = cropCellInBrowser(img, c.yCenter, nameCol, false);
+                  
                   return workerObj.setParameters({ tessedit_pageseg_mode: '7', tessedit_char_whitelist: '' })
-                    .then(function() { return workerObj.recognize(cellDataUrl); })
+                    .then(function() { return workerObj.recognize(monoCellDataUrl); })
                     .then(function(cellRes) {
                       var fallbackName = cellRes.data.text.trim().replace(/^[新旧听一]\s*/, '').replace(/[^\u4e00-\u9fa5a-zA-Z]/g, '').trim();
                       if (fallbackName && fallbackName !== '严') {
                         c.name = fallbackName;
                       }
-                      return processFallbacks(cIdx + 1);
+                      return runNextTesseract(tIdx + 1);
                     })
-                    .catch(function(err2) {
-                      console.error('Fallback OCR failed for index ' + cIdx, err2);
-                      return processFallbacks(cIdx + 1);
+                    .catch(function(err) {
+                      console.error('Fallback Tesseract OCR failed for index ' + target.index, err);
+                      return runNextTesseract(tIdx + 1);
                     });
-                });
-              } else {
-                return processFallbacks(cIdx + 1);
-              }
+                }
+
+                return runNextTesseract(0);
+              });
+            } else {
+              try { workerObj.terminate(); } catch(e) {}
+              return Promise.resolve(contacts.map(function(c) {
+                return {
+                  name: c.name || '客户-' + c.phone.substring(c.phone.length - 4),
+                  phone: c.phone,
+                  company: c.company,
+                  note: ''
+                };
+              }));
             }
-            
-            return processFallbacks(0);
           })
           .catch(function(err) {
             try { workerObj.terminate(); } catch(e) {}
