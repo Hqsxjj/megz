@@ -3600,41 +3600,73 @@ export const DIALER_HTML = `<!DOCTYPE html>
           document.getElementById('aiLog3').style.opacity = '1';
         }
         
-        runTesseractOnSlices(slices, img)
-          .then(function(contacts) {
-            if (contacts && contacts.length > 0) {
+        if (document.getElementById('aiLog2')) {
+          document.getElementById('aiLog2').innerHTML = '⏳ 正在并行运行本地 OCR 与云端视觉识别...';
+          document.getElementById('aiLog2').style.opacity = '1';
+        }
+        
+        var localOcrPromise = runTesseractOnSlices(slices, img);
+        
+        var cloudVisionPromise = fetch('/api/ocr', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ image: tempOcrImgDataUrl })
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) { return data.text || ''; })
+        .catch(function(err) {
+          console.warn('Cloud Vision AI failed:', err);
+          return '';
+        });
+        
+        Promise.all([localOcrPromise, cloudVisionPromise])
+          .then(function(results) {
+            var localContacts = results[0];
+            var visionText = results[1];
+            
+            if (!visionText) {
+              if (document.getElementById('aiLog3')) {
+                document.getElementById('aiLog3').innerHTML = '⚠️ 云端视觉识别不可用，仅使用本地识别结果';
+              }
+              if (localContacts && localContacts.length > 0) {
+                setTimeout(function() {
+                  renderAIUnstructuredReport(tempOcrFileName, localContacts);
+                }, 800);
+              } else {
+                alert('本地识别未检出联系人。');
+                resetAIImporterUI();
+              }
+              return;
+            }
+            
+            if (document.getElementById('aiLog3')) {
+              document.getElementById('aiLog3').innerHTML = '🤖 正在使用大模型对双通道数据进行对齐与纠错...';
+            }
+            
+            return fetch('/api/ocr/correct', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                localContacts: localContacts,
+                visionText: visionText,
+                fileName: tempOcrFileName || 'local_ocr_hybrid'
+              })
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(mergeResult) {
+              var mergedContacts = mergeResult.contacts || localContacts;
               if (document.getElementById('aiLog4')) {
-                document.getElementById('aiLog4').innerHTML = '🎉 本地识别成功，共 ' + contacts.length + ' 人';
+                document.getElementById('aiLog4').innerHTML = '🎉 双通道融合纠错完成，共 ' + mergedContacts.length + ' 人';
                 document.getElementById('aiLog4').style.opacity = '1';
               }
               setTimeout(function() {
-                renderAIUnstructuredReport(tempOcrFileName, contacts);
+                renderAIUnstructuredReport(tempOcrFileName, mergedContacts);
               }, 800);
-            } else {
-              // Slicing failed to find contacts — auto fallback to full-image Tesseract + AI correction
-              if (document.getElementById('aiLog2')) {
-                document.getElementById('aiLog2').innerHTML = '⚠️ 切片未检出，正自动尝试全图识别与 AI 修正...';
-                document.getElementById('aiLog2').style.opacity = '1';
-              }
-              doTesseractLocal(tempOcrImgDataUrl, function(err, contacts) {
-                if (err || !contacts || contacts.length === 0) {
-                  alert('本地 Tesseract 识别未检出联系人。请尝试在上方调整分割线滑块，并重新“开始本地识别”，或者直接粘贴文本。');
-                  resetAIImporterUI();
-                } else {
-                  if (document.getElementById('aiLog4')) {
-                    document.getElementById('aiLog4').innerHTML = '🎉 全图 AI 识别成功，共 ' + contacts.length + ' 人';
-                    document.getElementById('aiLog4').style.opacity = '1';
-                  }
-                  setTimeout(function() {
-                    renderAIUnstructuredReport(tempOcrFileName, contacts);
-                  }, 800);
-                }
-              });
-            }
+            });
           })
           .catch(function(err) {
-            console.error('Local Tesseract failed:', err);
-            alert('本地 Tesseract 识别失败，请重试。');
+            console.error('Hybrid OCR pipeline failed:', err);
+            alert('识别处理失败: ' + err.message);
             resetAIImporterUI();
           });
       };
@@ -3686,16 +3718,54 @@ export const DIALER_HTML = `<!DOCTYPE html>
             viewport: viewport
           }).promise.then(function() {
             var img = new Image();
-            img.src = canvas.toDataURL('image/jpeg', 0.95);
+            var imgDataUrl = canvas.toDataURL('image/jpeg', 0.95);
+            img.src = imgDataUrl;
             img.onload = function() {
               var slices = sliceAndPreprocess(img, split1, split2, order);
-              runTesseractOnSlices(slices, img)
-                .then(function(pageContacts) {
-                  allContacts = allContacts.concat(pageContacts);
-                  processPage(pageNumber + 1);
+              
+              var localOcrPromise = runTesseractOnSlices(slices, img);
+              
+              var cloudVisionPromise = fetch('/api/ocr', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ image: imgDataUrl })
+              })
+              .then(function(r) { return r.json(); })
+              .then(function(data) { return data.text || ''; })
+              .catch(function(err) {
+                console.warn('PDF page cloud vision failed:', err);
+                return '';
+              });
+              
+              Promise.all([localOcrPromise, cloudVisionPromise])
+                .then(function(results) {
+                  var localContacts = results[0];
+                  var visionText = results[1];
+                  
+                  if (!visionText) {
+                    allContacts = allContacts.concat(localContacts);
+                    processPage(pageNumber + 1);
+                    return;
+                  }
+                  
+                  return fetch('/api/ocr/correct', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      localContacts: localContacts,
+                      visionText: visionText,
+                      fileName: tempOcrFileName || 'local_pdf_hybrid'
+                    })
+                  })
+                  .then(function(r) { return r.json(); })
+                  .then(function(mergeResult) {
+                    var mergedContacts = mergeResult.contacts || localContacts;
+                    allContacts = allContacts.concat(mergedContacts);
+                    processPage(pageNumber + 1);
+                  });
                 })
                 .catch(function(err) {
-                  console.error('Page ' + pageNumber + ' local OCR failed:', err);
+                  console.error('Page ' + pageNumber + ' hybrid OCR failed:', err);
                   processPage(pageNumber + 1);
                 });
             };
@@ -4121,114 +4191,17 @@ export const DIALER_HTML = `<!DOCTYPE html>
               });
             });
             
-            // Build visual progress logging for fallback OCR
-            var fallbackTargets = [];
-            contacts.forEach(function(c, idx) {
-              if (!c.name || c.name.length <= 1 || c.minNameDist > 15) {
-                fallbackTargets.push({ index: idx, contact: c });
-              }
-            });
-
-            if (fallbackTargets.length > 0) {
-              var completedCount = 0;
-              var totalCount = fallbackTargets.length;
-              document.getElementById('aiScanStatus').innerHTML = '🤖 正在使用 Vision AI 并行识别 ' + totalCount + ' 行姓名 (0/' + totalCount + ')...';
-              
-              var nameCol = slices.find(function(s) { return s.type === 'name'; });
-              
-              var visionPromises = fallbackTargets.map(function(target) {
-                var c = target.contact;
-                // We pass keepColor=true to cropCellInBrowser for vision fallbacks!
-                var cellDataUrl = cropCellInBrowser(img, c.yCenter, nameCol, true);
-                
-                return fetch('/api/ocr/vision_cell', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ image: cellDataUrl })
-                })
-                .then(function(res) {
-                  if (res.ok) return res.json();
-                  throw new Error('Vision API fallback failed');
-                })
-                .then(function(data) {
-                  var fallbackName = (data.text || '').trim().replace(/^[新旧听一]\s*/, '').replace(/[^\u4e00-\u9fa5]/g, '').trim();
-                  if (fallbackName && fallbackName !== '严') {
-                    c.name = fallbackName;
-                    target.success = true;
-                  }
-                })
-                .catch(function(err) {
-                  console.warn('Workers AI vision fallback failed for index ' + target.index + ', queued for Tesseract:', err);
-                  target.success = false;
-                })
-                .then(function() {
-                  completedCount++;
-                  document.getElementById('aiScanStatus').innerHTML = '🤖 正在使用 Vision AI 并行识别 ' + totalCount + ' 行姓名 (' + completedCount + '/' + totalCount + ')...';
-                });
-              });
-
-              return Promise.all(visionPromises).then(function() {
-                var tesseractTargets = fallbackTargets.filter(function(t) { return !t.success; });
-                
-                if (tesseractTargets.length === 0) {
-                  try { workerObj.terminate(); } catch(e) {}
-                  return contacts.map(function(c) {
-                    return {
-                      name: c.name || '客户-' + c.phone.substring(c.phone.length - 4),
-                      phone: c.phone,
-                      company: c.company,
-                      note: ''
-                    };
-                  });
-                }
-
-                document.getElementById('aiScanStatus').innerHTML = '📸 Vision 失败，正在使用 Tesseract 识别 ' + tesseractTargets.length + ' 行姓名...';
-                
-                function runNextTesseract(tIdx) {
-                  if (tIdx >= tesseractTargets.length) {
-                    try { workerObj.terminate(); } catch(e) {}
-                    return Promise.resolve(contacts.map(function(c) {
-                      return {
-                        name: c.name || '客户-' + c.phone.substring(c.phone.length - 4),
-                        phone: c.phone,
-                        company: c.company,
-                        note: ''
-                      };
-                    }));
-                  }
-                  
-                  var target = tesseractTargets[tIdx];
-                  var c = target.contact;
-                  var monoCellDataUrl = cropCellInBrowser(img, c.yCenter, nameCol, false);
-                  
-                  return workerObj.setParameters({ tessedit_pageseg_mode: '7', tessedit_char_whitelist: '' })
-                    .then(function() { return workerObj.recognize(monoCellDataUrl); })
-                    .then(function(cellRes) {
-                      var fallbackName = cellRes.data.text.trim().replace(/^[新旧听一]\s*/, '').replace(/[^\u4e00-\u9fa5a-zA-Z]/g, '').trim();
-                      if (fallbackName && fallbackName !== '严') {
-                        c.name = fallbackName;
-                      }
-                      return runNextTesseract(tIdx + 1);
-                    })
-                    .catch(function(err) {
-                      console.error('Fallback Tesseract OCR failed for index ' + target.index, err);
-                      return runNextTesseract(tIdx + 1);
-                    });
-                }
-
-                return runNextTesseract(0);
-              });
-            } else {
-              try { workerObj.terminate(); } catch(e) {}
-              return Promise.resolve(contacts.map(function(c) {
-                return {
-                  name: c.name || '客户-' + c.phone.substring(c.phone.length - 4),
-                  phone: c.phone,
-                  company: c.company,
-                  note: ''
-                };
-              }));
-            }
+            // Return local contacts directly, as we will use a hybrid full-image merge later
+            try { workerObj.terminate(); } catch(e) {}
+            return Promise.resolve(contacts.map(function(c) {
+              return {
+                name: c.name || '',
+                phone: c.phone,
+                company: c.company,
+                note: '',
+                yCenter: c.yCenter
+              };
+            }));
           })
           .catch(function(err) {
             try { workerObj.terminate(); } catch(e) {}

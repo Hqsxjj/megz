@@ -2499,6 +2499,7 @@ export default {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes, viewport-fit=cover, shrink-to-fit=no">
   <title>每日工作</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.1.1/tesseract.min.js"></script>
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -6059,7 +6060,7 @@ const rid=Math.floor(Math.random()*1000);
         throw new Error('剪贴板中没有图片，请先截图（Win+Shift+S 或 微信截图）后重试');
       }
 
-      statusEl.textContent = '⏳ 正在 OCR 识别...（约 3-5 秒）';
+      statusEl.textContent = '⏳ 正在进行双通道智能识别...';
 
       // 转 base64
       const reader = new FileReader();
@@ -6070,19 +6071,120 @@ const rid=Math.floor(Math.random()*1000);
       reader.readAsDataURL(imageBlob);
       const base64 = await base64Promise;
 
-      // 发送到后端 OCR
-      const resp = await fetch('/api/ocr', {
+      // 定义本地提取正则辅助函数
+      const extractContactsFromText = (text) => {
+        const lines = text.split('\n');
+        const phoneRe = /1[3-9]\d{9}/g;
+        const list = [];
+        const seenPhones = {};
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i].trim();
+          if (!line) continue;
+          const phones = line.match(phoneRe);
+          if (phones) {
+            phones.forEach(p => {
+              if (seenPhones[p]) return;
+              seenPhones[p] = true;
+              const cols = line.split(/\s+/);
+              let name = '';
+              let company = '';
+              let fund = '';
+              let note = '';
+              const phoneIdx = cols.findIndex(c => c.includes(p));
+              if (phoneIdx !== -1) {
+                if (phoneIdx > 0) {
+                  name = cols[phoneIdx - 1].replace(/^[新旧听一]+[\s\-\|]*/, '').trim();
+                }
+                if (cols.length > phoneIdx + 1) {
+                  company = cols[phoneIdx + 1].trim();
+                }
+                for (let j = phoneIdx + 1; j < cols.length; j++) {
+                  if (/^\d{4,6}$/.test(cols[j])) {
+                    fund = cols[j];
+                    break;
+                  }
+                }
+                note = cols.slice(phoneIdx + 1).filter(c => c !== fund && c !== company).join(' ').trim();
+              }
+              list.push({ name: name, phone: p, company: company, fund: fund, note: note });
+            });
+          }
+        }
+        return list;
+      };
+
+      statusEl.textContent = '⏳ 正在并行运行本地 OCR 与云端视觉识别...';
+
+      // A. 云端 Vision AI
+      const cloudVisionPromise = fetch('/api/ocr', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ image: base64 })
+      })
+      .then(async r => {
+        if (!r.ok) throw new Error('Cloud OCR failed: ' + (await r.text()));
+        return r.json();
+      })
+      .then(data => data.text || '')
+      .catch(err => {
+        console.warn('Cloud Vision failed:', err);
+        return '';
       });
 
-      if (!resp.ok) {
-        const errData = await resp.json().catch(() => ({}));
-        throw new Error(errData.error || 'OCR 请求失败 HTTP ' + resp.status);
+      // B. 本地 Tesseract
+      const localOcrPromise = (async () => {
+        try {
+          const worker = await Tesseract.createWorker({
+            workerPath: window.location.origin + '/tessdata/worker.min.js',
+            corePath: window.location.origin + '/tessdata/core',
+            langPath: window.location.origin + '/tessdata'
+          });
+          await worker.load();
+          await worker.loadLanguage('chi_sim');
+          await worker.initialize('chi_sim');
+          const { data: { text } } = await worker.recognize(base64);
+          await worker.terminate();
+          return text;
+        } catch (err) {
+          console.error('Local Tesseract failed:', err);
+          return '';
+        }
+      })();
+
+      const [localText, visionText] = await Promise.all([localOcrPromise, cloudVisionPromise]);
+
+      if (!visionText && !localText) {
+        throw new Error('本地与云端 OCR 均未识别出任何内容');
       }
 
-      const result = await resp.json();
+      statusEl.textContent = '🤖 正在使用大模型对双通道数据进行融合与智能纠错...';
+
+      const localContacts = localText ? extractContactsFromText(localText) : [];
+
+      // C. 混合合并
+      const mergeResp = await fetch('/api/ocr/correct', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          localContacts: localContacts,
+          visionText: visionText || localText,
+          fileName: 'dashboard_clipboard'
+        })
+      });
+
+      if (!mergeResp.ok) {
+        const errText = await mergeResp.text();
+        throw new Error('合并纠错失败 HTTP ' + mergeResp.status + ': ' + errText.substring(0, 100));
+      }
+
+      const mergeResult = await mergeResp.json();
+      const contacts = mergeResult.contacts || [];
+
+      if (contacts.length === 0) {
+        throw new Error('未识别到有效的客户信息');
+      }
+
+      const result = contacts[0];
 
       // 自动填入表单
       if (result.name) {
@@ -6114,7 +6216,7 @@ const rid=Math.floor(Math.random()*1000);
       if (result.note) fields.push('备注: ' + result.note);
       if (result.fund) fields.push('公积金: ' + result.fund);
 
-      statusEl.innerHTML = '✅ 识别成功！' + (fields.length > 0 ? '<br>' + fields.join(' | ') : '');
+      statusEl.innerHTML = '✅ 识别与合并成功！' + (fields.length > 0 ? '<br>' + fields.join(' | ') : '');
       statusEl.style.color = 'var(--accent-wechat)';
 
       // 3秒后恢复边框颜色
@@ -7260,6 +7362,113 @@ const rid=Math.floor(Math.random()*1000);
         });
       }
     }
+    // 云端 AI 视觉 OCR 识别 (全图)
+    if (path === '/api/ocr' && request.method === 'POST') {
+      try {
+        const body = await request.json();
+        const base64 = body.image.replace(/^data:image\/\w+;base64,/, '');
+        
+        let imgArray;
+        try {
+          const { Buffer } = await import('node:buffer');
+          imgArray = Buffer.from(base64, 'base64');
+        } catch(e) {
+          const binaryString = atob(base64);
+          imgArray = new Uint8Array(binaryString.length);
+          for (let i = 0; i < binaryString.length; i++) {
+            imgArray[i] = binaryString.charCodeAt(i);
+          }
+        }
+
+        const visionKey = await env.DATA_KV.get('config:vision_api_key') || '';
+        let text = '';
+
+        const fullVisionPrompt = "Please extract all the text and table content from this image. Keep the rows aligned and format it as a structured text list (each line represents a row containing Name, Phone Number, Company, and Note). Output ONLY the extracted text you see. Do not include any other text, explanations, or code blocks.";
+
+        if (visionKey) {
+          try {
+            const apiBase = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
+            const resp = await fetch(apiBase, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + visionKey
+              },
+              body: JSON.stringify({
+                model: 'gemini-2.5-flash',
+                messages: [
+                  {
+                    role: 'user',
+                    content: [
+                      {
+                        type: 'text',
+                        text: fullVisionPrompt
+                      },
+                      {
+                        type: 'image_url',
+                        image_url: {
+                          url: body.image
+                        }
+                      }
+                    ]
+                  }
+                ],
+                max_tokens: 1500,
+                temperature: 0.1
+              })
+            });
+            if (resp.ok) {
+              const data = await resp.json();
+              if (data.choices && data.choices[0] && data.choices[0].message) {
+                text = (data.choices[0].message.content || '').trim();
+              }
+            } else {
+              console.error('Gemini full vision API failed: ' + (await resp.text()));
+            }
+          } catch (geminiErr) {
+            console.error('Gemini full vision API call error:', geminiErr);
+          }
+        }
+
+        if (!text) {
+          try {
+            const response = await env.AI.run('@cf/meta/llama-3.2-11b-vision-instruct', {
+              image: [...imgArray],
+              prompt: fullVisionPrompt,
+              max_tokens: 1000
+            });
+            text = (response.response || '').trim();
+          } catch (llamaErr) {
+            const errStr = String(llamaErr.message || llamaErr);
+            if (errStr.includes('terms') || errStr.includes('license') || errStr.includes('agree')) {
+              try {
+                console.log('Workers AI terms agreement needed for full vision, trying to auto-agree...');
+                await env.AI.run('@cf/meta/llama-3.2-11b-vision-instruct', { prompt: 'agree' });
+                const response = await env.AI.run('@cf/meta/llama-3.2-11b-vision-instruct', {
+                  image: [...imgArray],
+                  prompt: fullVisionPrompt,
+                  max_tokens: 1000
+                });
+                text = (response.response || '').trim();
+              } catch (retryErr) {
+                throw new Error('Workers AI Llama Full Vision retry failed: ' + retryErr.message);
+              }
+            } else {
+              throw llamaErr;
+            }
+          }
+        }
+
+        return new Response(JSON.stringify({ text: text }), {
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ error: e.message }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+    }
 
     // Workers AI 单细胞视觉模型识别 (Fallback)
     if (path === '/api/ocr/vision_cell' && request.method === 'POST') {
@@ -7536,20 +7745,16 @@ const rid=Math.floor(Math.random()*1000);
       }
     }
 
-    // OCR 文本修正：用文本 AI 修正本地 WASM OCR 的识别错误
-    // 优势：不限次数（文本 API 便宜/免费），积累训练数据
+    // OCR 文本修正与数据融合：用文本 AI 修正本地 WASM OCR 的识别错误，或进行双通道（本地OCR与云端视觉）数据融合纠错
     if (path === '/api/ocr/correct' && request.method === 'POST') {
       try {
         const body = await request.json();
+        const localContacts = body.localContacts || null;
+        const visionText = body.visionText || '';
         const rawText = body.rawText || '';
         const fileName = body.fileName || '';
-        if (!rawText.trim()) {
-          return new Response(JSON.stringify({ contacts: [] }), {
-            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-          });
-        }
 
-        // Get the regular AI config (text model, prioritizing gemini's vision key)
+        // Get the regular AI config
         let provider = await env.DATA_KV.get('config:ai_provider') || 'deepseek';
         const visionKey = await env.DATA_KV.get('config:vision_api_key') || '';
         const aiKey = await env.DATA_KV.get('config:ai_api_key') || await env.DATA_KV.get('config:deepseek_api_key') || env.AI_API_KEY || env.DEEPSEEK_API_KEY || '';
@@ -7571,10 +7776,143 @@ const rid=Math.floor(Math.random()*1000);
           if (!model) model = 'deepseek-chat';
         }
 
+        if (!localContacts) {
+          // ==================== Case 1: 仅修正/解析文本 (原逻辑) ====================
+          if (!rawText.trim()) {
+            return new Response(JSON.stringify({ contacts: [] }), {
+              headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+            });
+          }
+
+          if (!apiKey) {
+            var fallbackContacts = extractContactsFromRawText(rawText);
+            return new Response(JSON.stringify({ contacts: fallbackContacts, rawText: rawText, engine: 'regex_fallback' }), {
+              headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+            });
+          }
+
+          let url = apiBase;
+          if (!url.endsWith('/')) url += '/';
+          url += 'chat/completions';
+
+          const systemPrompt = '你是一个 OCR 文本修正专家。下面的文本是从图片中通过 OCR 引擎识别出来的，典型错误包括：\n' +
+            '1. 数字识别错误：0和O/o混淆、1和l/I/|混淆、8和B混淆、3和8混淆、5和6混淆、7和1混淆\n' +
+            '2. 汉字识别错误：形近字混淆（如"张"误识别为"长"或"弓长"、"葛"识别错、"莫"识别错等）\n' +
+            '3. 手机号错误：数字混入字母（如138识别为I38）\n' +
+            '4. 换行和空格导致文本断裂或错位\n\n' +
+            '【文本排版特征与重要前置说明】：\n' +
+            '源图片是一个从左往右横向排版的表格。**每一行都代表且仅代表一个独立客户的所有关联信息，每一列都是特定的类别分类。**\n' +
+            '由于缺少框线或识别误差，数据可能会发生错位、换行或断裂。你需要根据“横向为一行”的视觉逻辑，以11位手机号为核心锚点，寻找并还原与其属于同一行的所有客户信息。\n' +
+            '每一行的典型字段排列顺序通常为：【姓/姓名】 【手机号】 【公积金/金额】 【公司/单位名称】 【备注】\n' +
+            '例如 OCR 识别出的文本行为：“青 13510625191 27501 苏州热工研究院有限公司深圳分公司”，请对应地提取出各字段。\n\n' +
+            '【你的任务】：\n' +
+            '1. 逐行修正 OCR 文本中的所有识别错误，恢复拼写及排版。\n' +
+            '2. 将手机号恢复为 11 位纯数字。\n' +
+            '3. 修正明显被拆分或错别的汉字。\n' +
+            '4. 按照规则提取所有联系人信息。\n\n' +
+            '【提取规则】：\n' +
+            '- name: 中文姓名（1-4个汉字）。注意：第一列通常为单字姓氏（如常见的单字姓氏），即使只有一个汉字，也是联系人的姓名/姓氏，请务必完整提取并填充到 name 字段，绝对不要忽略、丢弃或擅自补全为其他字。\n' +
+            '- phone: 11位纯数字手机号（1开头）\n' +
+            '- company: 公司/单位名称\n' +
+            '- fund: 对应的公积金数字或金额数字（通常在手机号之后、公司名称之前，例如 27501、9660、24100 等）\n' +
+            '- note: 必须映射到此处的真实备注信息（如果识别出其他不能归类为公司或资金的文本，请放入此处）。\n\n' +
+            '输出纯JSON（禁止markdown包裹）：\n' +
+            '{\n  "correctedText": "修正后的完整原文...",\n  "corrections": [{"original": "识别错的", "corrected": "正确的", "reason": "原因"}],\n' +
+            '  "contacts": [{"name": "", "phone": "", "company": "", "fund": "", "note": ""}]\n}';
+
+          const aiResp = await fetch(url, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer ' + apiKey
+            },
+            body: JSON.stringify({
+              model: model,
+              messages: [
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: '请修正以下 OCR 文本并提取联系人：\n\n' + rawText.substring(0, 8000) }
+              ],
+              temperature: 0,
+              max_tokens: 4096
+            })
+          });
+
+          if (!aiResp.ok) {
+            const errText = await aiResp.text();
+            console.error('[OCR Correct] AI API error:', aiResp.status, errText.substring(0, 200));
+            var fbContacts = extractContactsFromRawText(rawText);
+            return new Response(JSON.stringify({ contacts: fbContacts, rawText: rawText, engine: 'regex_fallback' }), {
+              headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+            });
+          }
+
+          const aiData = await aiResp.json();
+          let content = aiData.choices[0].message.content.trim();
+          if (content.startsWith('```')) {
+            content = content.replace(/^```json\s*/i, '').replace(/```$/, '').trim();
+          }
+
+          let parsed;
+          try {
+            parsed = JSON.parse(content);
+          } catch (e) {
+            const jsonMatch = content.match(/\{[\s\S]*\}/);
+            if (jsonMatch) { try { parsed = JSON.parse(jsonMatch[0]); } catch(e2) {} }
+          }
+
+          if (!parsed || !parsed.contacts || parsed.contacts.length === 0) {
+            var fbContacts2 = extractContactsFromRawText(rawText);
+            return new Response(JSON.stringify({ contacts: fbContacts2, rawText: rawText, engine: 'regex_fallback' }), {
+              headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+            });
+          }
+
+          var contacts = parsed.contacts.map(function(c) {
+            if (!c) return null;
+            var phone = (c.phone || '').replace(/[oOiIlLbB\s\-]/g, function(m) {
+              return {o:'0',O:'0',i:'1',I:'1',l:'1',L:'1',b:'6',B:'8'}[m] || '';
+            }).replace(/\D/g, '');
+            return {
+              name: (c.name || '').trim(),
+              phone: phone.length === 11 && phone[0] === '1' ? phone : '',
+              company: (c.company || '').trim(),
+              fund: (c.fund || '').trim(),
+              note: (c.note || '').trim()
+            };
+          }).filter(function(c) { return c && c.phone; });
+
+          console.log('[OCR Correct] AI corrected ' + contacts.length + ' contacts from raw text (' + rawText.length + ' chars)');
+
+          try {
+            const sb = createSupabaseClient(env);
+            await sb.saveCorrection({
+              rawText: rawText.substring(0, 1000),
+              originalContacts: extractContactsFromRawText(rawText),
+              correctedContacts: contacts,
+              sourceFile: fileName || 'ocr_correct',
+              ocrPipeline: 'text_ai_correct',
+              ocrMode: 'bulk',
+              editCount: parsed.corrections ? parsed.corrections.length : 1,
+              metadata: { correctedText: parsed.correctedText || '', corrections: parsed.corrections || [] }
+            });
+          } catch (saveErr) {
+            console.warn('[OCR Correct] Failed to save training data:', saveErr.message);
+          }
+
+          return new Response(JSON.stringify({
+            contacts: contacts,
+            rawText: rawText,
+            correctedText: parsed.correctedText || '',
+            corrections: parsed.corrections || [],
+            engine: 'text_ai_correct'
+          }), {
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+
+        // ==================== Case 2: 本地 OCR 与云端 Vision AI 结果融合 (混合管线) ====================
         if (!apiKey) {
-          // No text AI key — fall back to regex extraction
-          var fallbackContacts = extractContactsFromRawText(rawText);
-          return new Response(JSON.stringify({ contacts: fallbackContacts, rawText: rawText, engine: 'regex_fallback' }), {
+          return new Response(JSON.stringify({ contacts: localContacts, engine: 'local_only_no_key' }), {
             headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
           });
         }
@@ -7583,30 +7921,21 @@ const rid=Math.floor(Math.random()*1000);
         if (!url.endsWith('/')) url += '/';
         url += 'chat/completions';
 
-        const systemPrompt = '你是一个 OCR 文本修正专家。下面的文本是从图片中通过 OCR 引擎识别出来的，典型错误包括：\n' +
-          '1. 数字识别错误：0和O/o混淆、1和l/I/|混淆、8和B混淆、3和8混淆、5和6混淆、7和1混淆\n' +
-          '2. 汉字识别错误：形近字混淆（如"张"误识别为"长"或"弓长"、"葛"识别错、"莫"识别错等）\n' +
-          '3. 手机号错误：数字混入字母（如138识别为I38）\n' +
-          '4. 换行和空格导致文本断裂或错位\n\n' +
-          '【文本排版特征与重要前置说明】：\n' +
-          '源图片是一个从左往右横向排版的表格。**每一行都代表且仅代表一个独立客户的所有关联信息，每一列都是特定的类别分类。**\n' +
-          '由于缺少框线或识别误差，数据可能会发生错位、换行或断裂。你需要根据“横向为一行”的视觉逻辑，以11位手机号为核心锚点，寻找并还原与其属于同一行的所有客户信息。\n' +
-          '每一行的典型字段排列顺序通常为：【姓/姓名】 【手机号】 【公积金/金额】 【公司/单位名称】 【备注】\n' +
-          '例如 OCR 识别出的文本行为：“青 13510625191 27501 苏州热工研究院有限公司深圳分公司”，请对应地提取出各字段。\n\n' +
+        const mergeSystemPrompt = '你是一个 OCR 数据融合专家。下面有两份来自同一张客户登记表格截图的识别数据：\n' +
+          '1. 【本地 OCR 提取数据】：这是通过本地 Wasm Tesseract 切片提取的，它的特征是【手机号、公司名称和公积金/金额】识别极其精准，但由于表格左侧图标干扰，【姓名/姓氏】常被误识别（如将“温”识别为“严”）、遗漏或变为乱码字符。\n' +
+          '2. 【云端视觉 AI 文本】：这是多模态大模型对原图进行完整 OCR 识别得到的原始文本，它的特征是【姓名/姓氏】识别极其精准（特别是单字姓氏），但手机号偶有细微数字错乱。\n\n' +
           '【你的任务】：\n' +
-          '1. 逐行修正 OCR 文本中的所有识别错误，恢复拼写及排版。\n' +
-          '2. 将手机号恢复为 11 位纯数字。\n' +
-          '3. 修正明显被拆分或错别的汉字。\n' +
-          '4. 按照规则提取所有联系人信息。\n\n' +
-          '【提取规则】：\n' +
-          '- name: 中文姓名（1-4个汉字）。注意：第一列通常为单字姓氏（如常见的单字姓氏），即使只有一个汉字，也是联系人的姓名/姓氏，请务必完整提取并填充到 name 字段，绝对不要忽略、丢弃或擅自补全为其他字。\n' +
-          '- phone: 11位纯数字手机号（1开头）\n' +
-          '- company: 公司/单位名称\n' +
-          '- fund: 对应的公积金数字或金额数字（通常在手机号之后、公司名称之前，例如 27501、9660、24100 等）\n' +
-          '- note: 必须映射到此处的真实备注信息（如果识别出其他不能归类为公司或资金的文本，请放入此处）。\n\n' +
-          '输出纯JSON（禁止markdown包裹）：\n' +
-          '{\n  "correctedText": "修正后的完整原文...",\n  "corrections": [{"original": "识别错的", "corrected": "正确的", "reason": "原因"}],\n' +
-          '  "contacts": [{"name": "", "phone": "", "company": "", "fund": "", "note": ""}]\n}';
+          '请利用这两份数据进行智能对齐与纠错融合：\n' +
+          '- 以手机号为核心轴，将【本地 OCR 提取数据】的每一行与【云端视觉 AI 文本】对应的行进行匹配对齐。\n' +
+          '- 姓名（name）字段：必须优先采用【云端视觉 AI 文本】中识别出的正确姓氏或姓名，纠正本地数据中因图标干扰导致的错别字（如将“严”纠正为“温/朱/刘”等原始汉字）、遗漏或多余字符。第一列通常为单字姓氏，请务必完整保留，不要过滤掉单字姓氏。\n' +
+          '- 手机号（phone）字段：必须优先采用【本地 OCR 提取数据】中精准无误的 11 位数字手机号。\n' +
+          '- 公司名称（company）、公积金（fund）和备注（note）字段：结合两份数据进行合理补充与合并。\n\n' +
+          '输出纯 JSON（不要包含 markdown 代码块包裹，只输出 JSON 本身，格式必须符合）：\n' +
+          '{\n  "contacts": [{"name": "正确姓名", "phone": "11位纯数字手机", "company": "正确公司", "fund": "公积金金额", "note": "备注"}]\n}';
+
+        const userMessage = '请将以下本地 OCR 提取的列表与云端 AI 视觉提取的原始文本进行合并纠错：\n\n' +
+          '【本地 OCR 提取数据】：\n' + JSON.stringify(localContacts, null, 2) + '\n\n' +
+          '【云端视觉 AI 文本】：\n' + visionText;
 
         const aiResp = await fetch(url, {
           method: 'POST',
@@ -7617,20 +7946,18 @@ const rid=Math.floor(Math.random()*1000);
           body: JSON.stringify({
             model: model,
             messages: [
-              { role: 'system', content: systemPrompt },
-              { role: 'user', content: '请修正以下 OCR 文本并提取联系人：\n\n' + rawText.substring(0, 8000) }
+              { role: 'system', content: mergeSystemPrompt },
+              { role: 'user', content: userMessage }
             ],
-            temperature: 0,
+            temperature: 0.1,
             max_tokens: 4096
           })
         });
 
         if (!aiResp.ok) {
           const errText = await aiResp.text();
-          console.error('[OCR Correct] AI API error:', aiResp.status, errText.substring(0, 200));
-          // Fallback to regex extraction
-          var fbContacts = extractContactsFromRawText(rawText);
-          return new Response(JSON.stringify({ contacts: fbContacts, rawText: rawText, engine: 'regex_fallback' }), {
+          console.error('[OCR Merge] AI API error:', aiResp.status, errText.substring(0, 200));
+          return new Response(JSON.stringify({ contacts: localContacts, engine: 'local_only_api_error' }), {
             headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
           });
         }
@@ -7645,62 +7972,21 @@ const rid=Math.floor(Math.random()*1000);
         try {
           parsed = JSON.parse(content);
         } catch (e) {
-          // Extract JSON from response
           const jsonMatch = content.match(/\{[\s\S]*\}/);
-          if (jsonMatch) { try { parsed = JSON.parse(jsonMatch[0]); } catch(e2) {} }
+          if (jsonMatch) {
+            try { parsed = JSON.parse(jsonMatch[0]); } catch(e2) {}
+          }
         }
 
-        if (!parsed || !parsed.contacts || parsed.contacts.length === 0) {
-          var fbContacts2 = extractContactsFromRawText(rawText);
-          return new Response(JSON.stringify({ contacts: fbContacts2, rawText: rawText, engine: 'regex_fallback' }), {
+        if (parsed && parsed.contacts) {
+          return new Response(JSON.stringify({ contacts: parsed.contacts, engine: 'hybrid_merge' }), {
             headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
           });
         }
 
-        // Clean contacts
-        var contacts = parsed.contacts.map(function(c) {
-          if (!c) return null;
-          var phone = (c.phone || '').replace(/[oOiIlLbB\s\-]/g, function(m) {
-            return {o:'0',O:'0',i:'1',I:'1',l:'1',L:'1',b:'6',B:'8'}[m] || '';
-          }).replace(/\D/g, '');
-          return {
-            name: (c.name || '').trim(),
-            phone: phone.length === 11 && phone[0] === '1' ? phone : '',
-            company: (c.company || '').trim(),
-            fund: (c.fund || '').trim(),
-            note: (c.note || '').trim()
-          };
-        }).filter(function(c) { return c && c.phone; });
-
-        console.log('[OCR Correct] AI corrected ' + contacts.length + ' contacts from raw text (' + rawText.length + ' chars)');
-
-        // Save as training data (original OCR → AI correction)
-        try {
-          const sb = createSupabaseClient(env);
-          await sb.saveCorrection({
-            rawText: rawText.substring(0, 1000),
-            originalContacts: extractContactsFromRawText(rawText),
-            correctedContacts: contacts,
-            sourceFile: fileName || 'ocr_correct',
-            ocrPipeline: 'text_ai_correct',
-            ocrMode: 'bulk',
-            editCount: parsed.corrections ? parsed.corrections.length : 1,
-            metadata: { correctedText: parsed.correctedText || '', corrections: parsed.corrections || [] }
-          });
-        } catch (saveErr) {
-          console.warn('[OCR Correct] Failed to save training data:', saveErr.message);
-        }
-
-        return new Response(JSON.stringify({
-          contacts: contacts,
-          rawText: rawText,
-          correctedText: parsed.correctedText || '',
-          corrections: parsed.corrections || [],
-          engine: 'text_ai_correct'
-        }), {
+        return new Response(JSON.stringify({ contacts: localContacts, engine: 'local_only_parse_failed' }), {
           headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
         });
-
       } catch (e) {
         console.error('[OCR Correct] error:', e.message);
         return new Response(JSON.stringify({ error: 'OCR 文本修正失败: ' + e.message }), {
