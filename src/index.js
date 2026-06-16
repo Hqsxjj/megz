@@ -7383,7 +7383,10 @@ const rid=Math.floor(Math.random()*1000);
         const visionKey = await env.DATA_KV.get('config:vision_api_key') || '';
         let text = '';
 
-        const fullVisionPrompt = "Please extract all the text and table content from this image. Keep the rows aligned and format it as a structured text list (each line represents a row containing Name, Phone Number, Company, and Note). Output ONLY the extracted text you see. Do not include any other text, explanations, or code blocks.";
+        const fullVisionPrompt = "请识别并提取这张表格截图中的所有文字内容，保持行对齐。\n" +
+          "特别注意：表格第一列通常为单字姓氏或姓名，可能紧邻蓝色图标，请务必精准识别并提取出原始中文字符（如温、朱、刘、严等），绝对不要将其转换为拼音或英文字母（例如：严禁将“温”提取为“Wen”），也不要进行翻译。\n" +
+          "请以结构化的文本列表输出（每一行代表一个客户，包含姓名、手机号、公司、公积金/备注等信息）。\n" +
+          "只输出提取到的文本内容，不要包含任何解释、分析或 markdown 代码块。";
 
         if (visionKey) {
           try {
