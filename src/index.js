@@ -6157,7 +6157,11 @@ const rid=Math.floor(Math.random()*1000);
         throw new Error('本地与云端 OCR 均未识别出任何内容');
       }
 
-      statusEl.textContent = '🤖 正在使用大模型对双通道数据进行融合与智能纠错...';
+      if (visionText) {
+        statusEl.innerHTML = '🤖 <span style="color:var(--accent-wechat);font-weight:bold;">双通道就绪：</span>已成功结合云端 AI 与本地 OCR 数据，正在智能纠错中...';
+      } else {
+        statusEl.innerHTML = '⚠️ <span style="color:#e67e22;font-weight:bold;">视觉 AI 未响应：</span>未检测到云端 AI 结果，已降级使用本地 OCR 单通道纠错...';
+      }
 
       const localContacts = localText ? extractContactsFromText(localText) : [];
 
@@ -7436,7 +7440,7 @@ const rid=Math.floor(Math.random()*1000);
         if (!text) {
           try {
             const response = await env.AI.run('@cf/meta/llama-3.2-11b-vision-instruct', {
-              image: [...imgArray],
+              image: imgArray,
               prompt: fullVisionPrompt,
               max_tokens: 1000
             });
@@ -7448,7 +7452,7 @@ const rid=Math.floor(Math.random()*1000);
                 console.log('Workers AI terms agreement needed for full vision, trying to auto-agree...');
                 await env.AI.run('@cf/meta/llama-3.2-11b-vision-instruct', { prompt: 'agree' });
                 const response = await env.AI.run('@cf/meta/llama-3.2-11b-vision-instruct', {
-                  image: [...imgArray],
+                  image: imgArray,
                   prompt: fullVisionPrompt,
                   max_tokens: 1000
                 });
