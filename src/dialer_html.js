@@ -4151,7 +4151,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
                   throw new Error('Vision API fallback failed');
                 })
                 .then(function(data) {
-                  var fallbackName = (data.text || '').trim().replace(/^[新旧听一]\s*/, '').replace(/[^\u4e00-\u9fa5a-zA-Z]/g, '').trim();
+                  var fallbackName = (data.text || '').trim().replace(/^[新旧听一]\s*/, '').replace(/[^\u4e00-\u9fa5]/g, '').trim();
                   if (fallbackName && fallbackName !== '严') {
                     c.name = fallbackName;
                     target.success = true;

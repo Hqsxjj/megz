@@ -7282,6 +7282,8 @@ const rid=Math.floor(Math.random()*1000);
         const visionKey = await env.DATA_KV.get('config:vision_api_key') || '';
         let text = '';
 
+        const visionPrompt = "Please extract the original Chinese character (usually a single surname, e.g., 温, 刘, 朱) from this image. You MUST output ONLY the original Chinese character itself. DO NOT translate to pinyin, DO NOT output English letters, and DO NOT write any explanation. If no Chinese character is found, output nothing. \n请提取图片中的中文字符（通常是单个姓氏，例如：温、刘、朱）。你必须**只输出原中文字符本身**。**严禁输出任何英文字母、拼音或解释说明**。如果没有中文字符，请输出空。";
+
         if (visionKey) {
           try {
             const apiBase = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
@@ -7299,7 +7301,7 @@ const rid=Math.floor(Math.random()*1000);
                     content: [
                       {
                         type: 'text',
-                        text: "Please extract the Chinese characters (usually a single surname or name) from this image. Output ONLY the exact Chinese characters you see. Do not include any other text, punctuation, or explanations. If you don't see any Chinese characters, output nothing."
+                        text: visionPrompt
                       },
                       {
                         type: 'image_url',
@@ -7331,7 +7333,7 @@ const rid=Math.floor(Math.random()*1000);
           try {
             const response = await env.AI.run('@cf/meta/llama-3.2-11b-vision-instruct', {
               image: [...imgArray],
-              prompt: "Please extract the Chinese characters (usually a single surname or name) from this image. Output ONLY the exact Chinese characters you see. Do not include any other text, punctuation, or explanations. If you don't see any Chinese characters, output nothing.",
+              prompt: visionPrompt,
               max_tokens: 10
             });
             text = (response.response || '').trim();
@@ -7343,7 +7345,7 @@ const rid=Math.floor(Math.random()*1000);
                 await env.AI.run('@cf/meta/llama-3.2-11b-vision-instruct', { prompt: 'agree' });
                 const response = await env.AI.run('@cf/meta/llama-3.2-11b-vision-instruct', {
                   image: [...imgArray],
-                  prompt: "Please extract the Chinese characters (usually a single surname or name) from this image. Output ONLY the exact Chinese characters you see. Do not include any other text, punctuation, or explanations. If you don't see any Chinese characters, output nothing.",
+                  prompt: visionPrompt,
                   max_tokens: 10
                 });
                 text = (response.response || '').trim();
