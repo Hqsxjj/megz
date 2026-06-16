@@ -7793,7 +7793,7 @@
           var promises = mobiles.map(function(m) {
             var clientData = DB.allData.find(function(c) { return c.mobile === m; });
             var note = clientData ? (clientData.note || '') : '';
-            var newNote = note.replace(/[协助人:s*[^]]+]/g, '').trim();
+            var newNote = note.replace(/\[协助人:\s*[^\]]+\]/g, '').trim();
             return fetch('/api/dialer/customers', {
               method: 'PATCH',
               headers: { 'Content-Type': 'application/json' },
@@ -8048,11 +8048,11 @@
       query = query.toLowerCase().trim();
       if (!query) return true;
       if (text.includes(query)) return true;
-      var keywords = query.split(/s+/).filter(Boolean);
+      var keywords = query.split(/\s+/).filter(Boolean);
       if (keywords.length > 1) {
         return keywords.every(function(kw) { return text.includes(kw); });
       }
-      var escapedQuery = query.replace(/[-/\^$*+?.()|[]{}]/g, '\\$&');
+      var escapedQuery = query.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
       var chars = escapedQuery.split('');
       var regexStr = chars.join('.*');
       try {

@@ -150,27 +150,60 @@ export const DIALER_HTML = `<!DOCTYPE html>
       background: var(--btn-hover);
     }
     
-    /* Dashboard Area — compact horizontal */
+    /* Dashboard Area — now a modal overlay */
     .dashboard-panel {
-      padding: 10px 16px;
-      background: var(--card-bg);
-      border-bottom: 1px solid var(--border-light);
-      flex-shrink: 0;
-    }
-    .import-zone {
-      background: var(--bg-app);
-      border: 1.5px dashed var(--card-border);
-      border-radius: 6px;
-      padding: 16px 24px;
-      text-align: center;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: var(--modal-bg);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      z-index: 5000;
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.25s ease;
       display: flex;
-      flex-direction: row;
       align-items: center;
       justify-content: center;
-      gap: 16px;
-      transition: all 0.2s;
-      flex-wrap: wrap;
+      padding: 16px;
     }
+    .dashboard-panel.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .dashboard-panel .import-zone {
+      background: var(--modal-card);
+      border: 1px solid var(--card-border);
+      border-radius: 14px;
+      box-shadow: 0 15px 45px rgba(0,0,0,0.3);
+      width: 92vw;
+      max-width: 520px;
+      max-height: 85vh;
+      overflow-y: auto;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      transform: translateY(20px);
+      transition: all 0.25s cubic-bezier(0.25, 0.8, 0.25, 0.8);
+    }
+    .dashboard-panel.active .import-zone {
+      transform: translateY(0);
+    }
+    .import-close-btn {
+      position: absolute;
+      top: 12px; right: 12px;
+      width: 32px; height: 32px;
+      border: none; background: rgba(0,0,0,0.08);
+      border-radius: 50%; font-size: 1rem; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--text-soft); z-index: 10;
+      transition: all 0.2s;
+    }
+    .import-close-btn:hover { background: #e81123; color: #fff; }
+    body.dark-mode .import-close-btn { background: rgba(255,255,255,0.1); }
+    body.dark-mode .import-close-btn:hover { background: #e81123; color: #fff; }
+    /* Legacy import-zone dragover state (still used inside modal) */
     .import-zone.dragover {
       border-color: var(--accent-wechat);
       background: var(--accent-wechat-bg);
@@ -901,10 +934,23 @@ export const DIALER_HTML = `<!DOCTYPE html>
     .crm-shortcut-add {
       font-size: 1.1rem; color: #ff5722; font-weight: 800; cursor: pointer; padding: 0 4px;
     }
+    .crm-shortcut-toggle {
+      margin-left: auto; font-size: 0.72rem; font-weight: 700; color: #64748b;
+      background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 4px;
+      padding: 5px 10px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;
+      transition: all 0.2s; white-space: nowrap;
+    }
+    .crm-shortcut-toggle:hover { border-color: #ff5722; color: #ff5722; }
+    body.dark-mode .crm-shortcut-toggle { background: #0f172a; border-color: #334155; color: #94a3b8; }
 
     /* CRM Search Area */
     .crm-search-card {
       background: #fff; padding: 12px 16px; border-bottom: 1px solid #e2e8f0; flex-shrink: 0;
+      transition: all 0.3s ease;
+    }
+    .crm-search-card.collapsed {
+      display: none;
+    }
     }
     body.dark-mode .crm-search-card { background: #1e293b; border-color: #334155; }
     .crm-search-grid {
@@ -970,6 +1016,9 @@ export const DIALER_HTML = `<!DOCTYPE html>
       background: #f8fafc; border-bottom: 1px solid #e2e8f0; flex-wrap: wrap;
     }
     body.dark-mode .crm-badge-bar { background: #0f172a; border-color: #334155; }
+    .crm-badge-bar.collapsed {
+      display: none;
+    }
     .crm-badge-item {
       display: inline-flex; align-items: center; gap: 6px; font-size: 0.74rem; font-weight: 700;
       color: #475569;
@@ -1154,9 +1203,11 @@ export const DIALER_HTML = `<!DOCTYPE html>
       </div>
       
       <!-- Dashboard -->
-      <div class="dashboard-panel" id="dashboardPanel" style="display: none;">
+      <div class="dashboard-panel" id="dashboardPanel">
         <!-- AI Drag & Drop Zone -->
         <div class="import-zone" id="dropZone" style="position: relative; overflow: hidden; min-height: 200px;">
+          <!-- Close Button -->
+          <button class="import-close-btn" id="importCloseBtn" title="关闭导入面板">✕</button>
           <!-- Animation Laser Line (Only visible during scanning) -->
           <div id="aiLaserLine" class="ai-laser-line" style="display: none;"></div>
 
@@ -1608,6 +1659,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
       <button class="crm-shortcut-btn" data-shortcut="never">从未跟进</button>
       <button class="crm-shortcut-btn" data-shortcut="3days">3天以上未跟进</button>
       <span class="crm-shortcut-add" title="添加快捷过滤">(+)</span>
+      <button class="crm-shortcut-toggle" id="crmToggleSearchBtn" title="展开/收起搜索区域">🔍 收起搜索</button>
     </div>
 
     <!-- CRM Search Area -->
@@ -2209,16 +2261,18 @@ export const DIALER_HTML = `<!DOCTYPE html>
         minimalStats.style.display = hasData ? 'flex' : 'none';
       }
       document.getElementById('controlBar').style.display = flexStyle;
-      
+
       var expBtn = document.getElementById('exportBtn');
       var clrBtn = document.getElementById('clearBtn');
       if (expBtn) expBtn.style.display = hasData ? 'flex' : 'none';
       if (clrBtn) clrBtn.style.display = hasData ? 'flex' : 'none';
-      
-      // Always hide import zone after initialization or data updates
+
+      // Import panel is now a modal overlay — always hidden from flow by CSS
+      // Just ensure it's closed when data state changes
       var panel = document.getElementById('dashboardPanel');
       if (panel) {
-        panel.style.display = 'none';
+        panel.classList.remove('active');
+        document.body.style.overflow = '';
       }
     }
 
@@ -2258,28 +2312,30 @@ export const DIALER_HTML = `<!DOCTYPE html>
 
     function resetAIImporterUI() {
       multiImageAborted = true;
-      document.getElementById('aiImportInit').style.display = 'flex';
-      document.getElementById('aiImportScanning').style.display = 'none';
-      document.getElementById('aiImportReport').style.display = 'none';
-      document.getElementById('aiLaserLine').style.display = 'none';
-      document.getElementById('aiAdjustControls').style.display = 'none';
-      
+      var el;
+      el = document.getElementById('aiImportInit'); if (el) el.style.display = 'flex';
+      el = document.getElementById('aiImportScanning'); if (el) el.style.display = 'none';
+      el = document.getElementById('aiImportReport'); if (el) el.style.display = 'none';
+      el = document.getElementById('aiLaserLine'); if (el) el.style.display = 'none';
+      el = document.getElementById('aiAdjustControls'); if (el) el.style.display = 'none';
+      el = document.getElementById('localOcrConfigPanel'); if (el) el.style.display = 'none';
+      el = document.getElementById('textImportPanel'); if (el) el.style.display = 'none';
+
       var dz = document.getElementById('dropZone');
       if (dz) {
         dz.style.minHeight = '200px';
         dz.style.padding = ''; // Reset to CSS default
       }
-      
-      document.getElementById('aiExcelMappingPills').style.display = 'flex';
-      document.getElementById('aiExcelMappingControls').style.display = 'block';
-      document.getElementById('aiExcelPreviewContainer').style.display = 'block';
-      document.getElementById('aiUnstructuredContainer').style.display = 'none';
-      
-      document.getElementById('xlsFileInput').value = '';
-      document.getElementById('vcfFileInput').value = '';
-      var imgFile = document.getElementById('imgFileInput');
-      if (imgFile) imgFile.value = '';
-      
+
+      el = document.getElementById('aiExcelMappingPills'); if (el) el.style.display = 'flex';
+      el = document.getElementById('aiExcelMappingControls'); if (el) el.style.display = 'block';
+      el = document.getElementById('aiExcelPreviewContainer'); if (el) el.style.display = 'block';
+      el = document.getElementById('aiUnstructuredContainer'); if (el) el.style.display = 'none';
+
+      el = document.getElementById('xlsFileInput'); if (el) el.value = '';
+      el = document.getElementById('vcfFileInput'); if (el) el.value = '';
+      el = document.getElementById('imgFileInput'); if (el) el.value = '';
+
       tempUnstructuredContacts = [];
       tempImportData = null;
       tempImportHeaders = [];
@@ -2292,46 +2348,44 @@ export const DIALER_HTML = `<!DOCTYPE html>
     }
 
     function showAIScanningUI(fileName) {
-      document.getElementById('aiImportInit').style.display = 'none';
-      document.getElementById('aiImportReport').style.display = 'none';
-      
-      var scanning = document.getElementById('aiImportScanning');
-      scanning.style.display = 'flex';
-      
-      var laser = document.getElementById('aiLaserLine');
-      laser.style.display = 'block';
+      var el;
+      el = document.getElementById('aiImportInit'); if (el) el.style.display = 'none';
+      el = document.getElementById('aiImportReport'); if (el) el.style.display = 'none';
+      el = document.getElementById('localOcrConfigPanel'); if (el) el.style.display = 'none';
 
-      // Reset logs
-      document.getElementById('aiLog1').innerHTML = '[ ] 正在读取数据流...';
-      document.getElementById('aiLog1').style.opacity = '0.5';
-      document.getElementById('aiLog2').innerHTML = '[ ] 正在评估特征维度...';
-      document.getElementById('aiLog2').style.opacity = '0.3';
-      document.getElementById('aiLog3').innerHTML = '[ ] 正在过滤杂质与噪音...';
-      document.getElementById('aiLog3').style.opacity = '0.3';
-      document.getElementById('aiLog4').innerHTML = '[ ] 正在匹配智能映射...';
-      document.getElementById('aiLog4').style.opacity = '0.3';
+      var scanning = document.getElementById('aiImportScanning');
+      if (scanning) scanning.style.display = 'flex';
+
+      var laser = document.getElementById('aiLaserLine');
+      if (laser) laser.style.display = 'block';
+
+      // Reset logs safely
+      var log1 = document.getElementById('aiLog1');
+      var log2 = document.getElementById('aiLog2');
+      var log3 = document.getElementById('aiLog3');
+      var log4 = document.getElementById('aiLog4');
+      if (log1) { log1.innerHTML = '[ ] 正在读取数据流...'; log1.style.opacity = '0.5'; }
+      if (log2) { log2.innerHTML = '[ ] 正在评估特征维度...'; log2.style.opacity = '0.3'; }
+      if (log3) { log3.innerHTML = '[ ] 正在过滤杂质与噪音...'; log3.style.opacity = '0.3'; }
+      if (log4) { log4.innerHTML = '[ ] 正在匹配智能映射...'; log4.style.opacity = '0.3'; }
 
       setTimeout(function() {
-        document.getElementById('aiLog1').innerHTML = '✅ 数据流加载完成 (' + fileName + ')';
-        document.getElementById('aiLog1').style.opacity = '1';
-        document.getElementById('aiLog2').style.opacity = '0.5';
+        if (log1) { log1.innerHTML = '✅ 数据流加载完成 (' + fileName + ')'; log1.style.opacity = '1'; }
+        if (log2) log2.style.opacity = '0.5';
       }, 300);
 
       setTimeout(function() {
-        document.getElementById('aiLog2').innerHTML = '✅ 评估行列特征成功';
-        document.getElementById('aiLog2').style.opacity = '1';
-        document.getElementById('aiLog3').style.opacity = '0.5';
+        if (log2) { log2.innerHTML = '✅ 评估行列特征成功'; log2.style.opacity = '1'; }
+        if (log3) log3.style.opacity = '0.5';
       }, 600);
 
       setTimeout(function() {
-        document.getElementById('aiLog3').innerHTML = '✅ 空列与噪音清洗完成';
-        document.getElementById('aiLog3').style.opacity = '1';
-        document.getElementById('aiLog4').style.opacity = '0.5';
+        if (log3) { log3.innerHTML = '✅ 空列与噪音清洗完成'; log3.style.opacity = '1'; }
+        if (log4) log4.style.opacity = '0.5';
       }, 900);
 
       setTimeout(function() {
-        document.getElementById('aiLog4').innerHTML = '✅ AI 智能映射匹配成功';
-        document.getElementById('aiLog4').style.opacity = '1';
+        if (log4) { log4.innerHTML = '✅ AI 智能映射匹配成功'; log4.style.opacity = '1'; }
       }, 1100);
     }
 
@@ -2741,7 +2795,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
         var noteVal = noteCol !== -1 ? String(row[noteCol] || '').trim() : '';
 
         var fundVal = '';
-        if (/^\d{4,5}$/.test(noteVal)) {
+        if (/^d{4,5}$/.test(noteVal)) {
           fundVal = noteVal;
           noteVal = '';
         }
@@ -2802,7 +2856,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
         c.category = defaultCat;
         c.mobile = c.mobile || c.phone;
         c.phone = c.phone || c.mobile;
-        if (!c.fund && /^\d{4,5}$/.test((c.note || '').trim())) {
+        if (!c.fund && /^d{4,5}$/.test((c.note || '').trim())) {
           c.fund = c.note.trim();
           c.note = '';
         }
@@ -3116,7 +3170,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
           
           var finalNote = noteParts.join(' ');
           var fund = '';
-          if (/^\d{4,5}$/.test(finalNote)) {
+          if (/^d{4,5}$/.test(finalNote)) {
             fund = finalNote;
             finalNote = '';
           }
@@ -3160,6 +3214,12 @@ export const DIALER_HTML = `<!DOCTYPE html>
     // Correct OCR text using text AI (not vision) — fixes Tesseract/WASM errors
     // Falls back to regex parsing if AI is unavailable
     function correctOcrTextWithAI(rawText, fileName, onDone) {
+      // Safe DOM helper
+      function safeLog(elId, msg) {
+        var el = document.getElementById(elId);
+        if (el) { el.innerHTML = msg; el.style.opacity = '1'; }
+      }
+
       // Check if any text AI is configured
       var aiKey = (localStorage.getItem('vision_api_key') || localStorage.getItem('ai_api_key') || localStorage.getItem('deepseek_api_key') || '').trim();
       if (!aiKey) {
@@ -3169,12 +3229,8 @@ export const DIALER_HTML = `<!DOCTYPE html>
         return;
       }
 
-      document.getElementById('aiLog3').innerHTML = '🧠 文本 AI 正在修正 OCR 识别错误...';
-      document.getElementById('aiLog3').style.opacity = '1';
-      if (document.getElementById('aiLog4')) {
-        document.getElementById('aiLog4').innerHTML = '⏳ 检测并修正：数字混淆、形近字、断裂文本...';
-        document.getElementById('aiLog4').style.opacity = '1';
-      }
+      safeLog('aiLog3', '🧠 文本 AI 正在修正 OCR 识别错误...');
+      safeLog('aiLog4', '⏳ 检测并修正：数字混淆、形近字、断裂文本...');
 
       fetch('/api/ocr/correct', {
         method: 'POST',
@@ -3184,19 +3240,14 @@ export const DIALER_HTML = `<!DOCTYPE html>
       .then(function(r) { return r.json(); })
       .then(function(result) {
         if (result.contacts && result.contacts.length > 0) {
-          if (document.getElementById('aiLog3')) {
-            document.getElementById('aiLog3').innerHTML = '✅ 文本 AI 修正完成 · 识别 ' + result.contacts.length + ' 个联系人';
-            document.getElementById('aiLog3').style.opacity = '1';
-          }
+          safeLog('aiLog3', '✅ 文本 AI 修正完成 · 识别 ' + result.contacts.length + ' 个联系人');
           // Save raw OCR text for training data
           tempOcrRawText = rawText;
           tempOcrEngine = 'text_ai_correct';
           onDone(result.contacts);
         } else {
           // AI returned no contacts — fallback to regex
-          if (document.getElementById('aiLog3')) {
-            document.getElementById('aiLog3').innerHTML = '⚠️ AI 未检出，使用本地正则解析...';
-          }
+          safeLog('aiLog3', '⚠️ AI 未检出，使用本地正则解析...');
           var fbContacts = parsePhoneContactsFromRawText(rawText);
           tempOcrEngine = 'local_tesseract';
           onDone(fbContacts);
@@ -3204,9 +3255,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
       })
       .catch(function(err) {
         console.error('[OCR Correct] API call failed, using regex fallback:', err.message);
-        if (document.getElementById('aiLog3')) {
-          document.getElementById('aiLog3').innerHTML = '⚠️ AI 不可用，使用本地正则解析...';
-        }
+        safeLog('aiLog3', '⚠️ AI 不可用，使用本地正则解析...');
         var fbContacts = parsePhoneContactsFromRawText(rawText);
         tempOcrEngine = 'local_tesseract';
         onDone(fbContacts);
@@ -4161,9 +4210,9 @@ export const DIALER_HTML = `<!DOCTYPE html>
             
             var contacts = [];
             phones.forEach(function(pItem) {
-              var phoneText = pItem.text.replace(/\s+/g, '').trim();
+              var phoneText = pItem.text.replace(/s+/g, '').trim();
               phoneText = phoneText.replace(/[OoQD]/g, '0').replace(/[lIi|!]/g, '1').replace(/[Z]/g, '2').replace(/[B]/g, '8').replace(/[S]/g, '5').replace(/[G]/g, '6').replace(/[A]/g, '4').replace(/[T]/g, '7').replace(/[g]/g, '9');
-              var phoneMatch = phoneText.match(/1[3-9]\d{9}/);
+              var phoneMatch = phoneText.match(/1[3-9]d{9}/);
               if (!phoneMatch) return;
               var cleanPhone = phoneMatch[0];
               
@@ -4187,8 +4236,8 @@ export const DIALER_HTML = `<!DOCTYPE html>
                 }
               });
               
-              bestName = bestName.replace(/^[新旧听一]\s*/, '').replace(/[^\u4e00-\u9fa5a-zA-Z]/g, '').trim();
-              bestCompany = bestCompany.replace(/^[|丨\s:]+/, '').replace(/[|丨\s:]+$/, '').trim();
+              bestName = bestName.replace(/^[新旧听一]s*/, '').replace(/[^一-龥a-zA-Z]/g, '').trim();
+              bestCompany = bestCompany.replace(/^[|丨s:]+/, '').replace(/[|丨s:]+$/, '').trim();
               
               contacts.push({
                 name: bestName,
@@ -4377,37 +4426,49 @@ export const DIALER_HTML = `<!DOCTYPE html>
     }
 
     function processSingleImageLocal(file, callback) {
-      function runOcr(imageSource) {
-        getTesseractWorker(function(err, worker) {
-          if (err) { callback(err, []); return; }
-          Promise.resolve(worker.setParameters({
-            tessedit_pageseg_mode: '6'
-          })).then(function() {
-            return worker.recognize(imageSource);
-          }).then(function(result) {
-            var text = result.data.text;
-            correctOcrTextWithAI(text, typeof file === 'string' ? 'image_data' : (file.name || 'image_ocr'), function(contacts) {
-              callback(null, contacts);
+      // Create a fresh worker for each image to avoid stale worker state issues
+      function createFreshWorker(imageSource) {
+        if (typeof Tesseract === 'undefined') {
+          loadScript('https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.1.1/tesseract.min.js')
+            .then(function() { doCreate(imageSource); })
+            .catch(function(err) { callback(err, []); });
+        } else {
+          doCreate(imageSource);
+        }
+      }
+
+      function doCreate(imageSource) {
+        Tesseract.createWorker({
+          workerPath: window.location.origin + '/tessdata/worker.min.js',
+          corePath: window.location.origin + '/tessdata/core',
+          langPath: window.location.origin + '/tessdata'
+        }).then(function(worker) {
+          return Promise.resolve(worker.load())
+            .then(function() { return Promise.resolve(worker.loadLanguage('chi_sim+eng')); })
+            .then(function() { return Promise.resolve(worker.initialize('chi_sim+eng')); })
+            .then(function() { return Promise.resolve(worker.setParameters({ tessedit_pageseg_mode: '6' })); })
+            .then(function() { return Promise.resolve(worker.recognize(imageSource)); })
+            .then(function(result) {
+              try { worker.terminate(); } catch(e) {}
+              return result;
+            })
+            .catch(function(err) {
+              try { worker.terminate(); } catch(e) {}
+              throw err;
             });
-          }).catch(function(recogErr) {
-            // Worker might be stale, reset and retry once
-            _tesseractWorker = null;
-            _tesseractReady = false;
-            getTesseractWorker(function(err2, worker2) {
-              if (err2) { callback(recogErr, []); return; }
-              Promise.resolve(worker2.setParameters({
-                tessedit_pageseg_mode: '6'
-              })).then(function() {
-                return worker2.recognize(imageSource);
-              }).then(function(result2) {
-                var text2 = result2.data.text;
-                correctOcrTextWithAI(text2, typeof file === 'string' ? 'image_data' : (file.name || 'image_ocr'), function(contacts2) {
-                  callback(null, contacts2);
-                });
-              }).catch(function(e2) { callback(e2, []); });
-            });
+        }).then(function(result) {
+          var text = result.data.text;
+          correctOcrTextWithAI(text, typeof file === 'string' ? 'image_data' : (file.name || 'image_ocr'), function(contacts) {
+            callback(null, contacts);
           });
+        }).catch(function(err) {
+          console.error('[MultiImg] OCR worker failed:', err.message);
+          callback(err, []);
         });
+      }
+
+      function runOcr(imageSource) {
+        createFreshWorker(imageSource);
       }
 
       var img = new Image();
@@ -4622,32 +4683,36 @@ export const DIALER_HTML = `<!DOCTYPE html>
         return;
       }
 
+      var el;
+      el = document.getElementById('aiImportInit'); if (el) el.style.display = 'none';
+      el = document.getElementById('localOcrConfigPanel'); if (el) el.style.display = 'none';
+      el = document.getElementById('aiImportScanning'); if (el) el.style.display = 'none';
+      el = document.getElementById('aiLaserLine'); if (el) el.style.display = 'none';
 
+      el = document.getElementById('aiExcelMappingPills'); if (el) el.style.display = 'none';
+      el = document.getElementById('aiExcelMappingControls'); if (el) el.style.display = 'none';
+      el = document.getElementById('aiExcelPreviewContainer'); if (el) el.style.display = 'none';
 
-      document.getElementById('aiImportScanning').style.display = 'none';
-      document.getElementById('aiLaserLine').style.display = 'none';
-      
-      document.getElementById('aiExcelMappingPills').style.display = 'none';
-      document.getElementById('aiExcelMappingControls').style.display = 'none';
-      document.getElementById('aiExcelPreviewContainer').style.display = 'none';
-      
       var unstContainer = document.getElementById('aiUnstructuredContainer');
-      unstContainer.style.display = 'block';
-      
+      if (unstContainer) unstContainer.style.display = 'block';
+
       var dz = document.getElementById('dropZone');
       if (dz) {
         dz.style.minHeight = 'auto';
         dz.style.padding = '8px';
       }
-      
-      document.getElementById('aiReportTitle').innerHTML = 'AI 提取报告: ' + esc(fileName);
-      
+
+      el = document.getElementById('aiReportTitle');
+      if (el) el.innerHTML = 'AI 提取报告: ' + esc(fileName);
+
       var conf = contacts.length > 0 ? 98.0 : 0.0;
-      document.getElementById('aiConfidenceBadge').innerHTML = '● AI 识别率: ' + conf.toFixed(1) + '%';
-      
+      el = document.getElementById('aiConfidenceBadge');
+      if (el) el.innerHTML = '● AI 识别率: ' + conf.toFixed(1) + '%';
+
       renderUnstructuredTableRows();
-      
-      document.getElementById('aiImportReport').style.display = 'flex';
+
+      el = document.getElementById('aiImportReport');
+      if (el) el.style.display = 'flex';
     }
 
     function renderUnstructuredTableRows() {
@@ -4777,7 +4842,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
         c.category = defaultCat;
         c.mobile = c.mobile || c.phone;
         c.phone = c.phone || c.mobile;
-        if (!c.fund && /^\d{4,5}$/.test((c.note || '').trim())) {
+        if (!c.fund && /^d{4,5}$/.test((c.note || '').trim())) {
           c.fund = c.note.trim();
           c.note = '';
         }
@@ -4802,38 +4867,50 @@ export const DIALER_HTML = `<!DOCTYPE html>
     }
 
     function initAIImporter() {
-      document.getElementById('aiToggleAdjustBtn').addEventListener('click', function(e) {
-        e.preventDefault();
-        var ctrl = document.getElementById('aiAdjustControls');
-        if (ctrl.style.display === 'none') {
-          ctrl.style.display = 'grid';
-          this.textContent = '⚙️ 收起手动修正配置 ▴';
-        } else {
-          ctrl.style.display = 'none';
-          this.textContent = '⚙️ 手动修正 AI 映射结果 ▾';
-        }
-      });
+      var el;
+      el = document.getElementById('aiToggleAdjustBtn');
+      if (el) {
+        el.addEventListener('click', function(e) {
+          e.preventDefault();
+          var ctrl = document.getElementById('aiAdjustControls');
+          if (ctrl) {
+            if (ctrl.style.display === 'none') {
+              ctrl.style.display = 'grid';
+              this.textContent = '⚙️ 收起手动修正配置 ▴';
+            } else {
+              ctrl.style.display = 'none';
+              this.textContent = '⚙️ 手动修正 AI 映射结果 ▾';
+            }
+          }
+        });
+      }
 
-      document.getElementById('aiSelName').addEventListener('change', updateAIPreviewTable);
-      document.getElementById('aiSelPhone').addEventListener('change', updateAIPreviewTable);
-      document.getElementById('aiSelCompany').addEventListener('change', updateAIPreviewTable);
-      document.getElementById('aiSelNote').addEventListener('change', updateAIPreviewTable);
+      el = document.getElementById('aiSelName'); if (el) el.addEventListener('change', updateAIPreviewTable);
+      el = document.getElementById('aiSelPhone'); if (el) el.addEventListener('change', updateAIPreviewTable);
+      el = document.getElementById('aiSelCompany'); if (el) el.addEventListener('change', updateAIPreviewTable);
+      el = document.getElementById('aiSelNote'); if (el) el.addEventListener('change', updateAIPreviewTable);
 
-      document.getElementById('aiResetImportBtn').addEventListener('click', function(e) {
-        e.preventDefault();
-        resetAIImporterUI();
-      });
+      el = document.getElementById('aiResetImportBtn');
+      if (el) {
+        el.addEventListener('click', function(e) {
+          e.preventDefault();
+          resetAIImporterUI();
+        });
+      }
 
-      document.getElementById('aiConfirmImportBtn').addEventListener('click', function(e) {
-        e.preventDefault();
-        if (tempImportType === 'xlsx') {
-          executeAIImportExcel();
-        } else if (tempImportType === 'vcf') {
-          executeAIImportVcf();
-        } else if (tempImportType === 'unstructured') {
-          executeAIImportUnstructured();
-        }
-      });
+      el = document.getElementById('aiConfirmImportBtn');
+      if (el) {
+        el.addEventListener('click', function(e) {
+          e.preventDefault();
+          if (tempImportType === 'xlsx') {
+            executeAIImportExcel();
+          } else if (tempImportType === 'vcf') {
+            executeAIImportVcf();
+          } else if (tempImportType === 'unstructured') {
+            executeAIImportUnstructured();
+          }
+        });
+      }
 
       // Text paste button: use AI correction
       var textExtractBtn = document.getElementById('textImportExtractBtn');
@@ -4844,29 +4921,41 @@ export const DIALER_HTML = `<!DOCTYPE html>
           var btn = this;
           btn.disabled = true;
           btn.textContent = '⏳ AI 修正中...';
+          // Show scanning UI for visual feedback
+          showAIScanningUI('文本粘贴识别');
+          document.getElementById('aiScanStatus').innerHTML = '📝 正在智能解析粘贴的文本...';
+          document.getElementById('aiLog1').innerHTML = '⏳ 正在分析文本格式与内容...';
+          document.getElementById('aiLog1').style.opacity = '1';
+          document.getElementById('textImportPanel').style.display = 'none';
           correctOcrTextWithAI(t, '文本粘贴', function(contacts) {
             btn.textContent = '🔍 智能识别提取';
             btn.disabled = false;
             if (contacts && contacts.length > 0) {
-              document.getElementById('textImportPanel').style.display = 'none';
               window.renderAIUnstructuredReport('文本粘贴', contacts);
             } else {
               // Fallback to server-side extraction
               btn.textContent = '本地未检出，切换云端 AI...';
+              document.getElementById('aiLog2').innerHTML = '⏳ 本地引擎未检出，尝试云端 AI 识别...';
+              document.getElementById('aiLog2').style.opacity = '1';
               fetch('/api/ocr/text', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rawText: t }) })
                 .then(function(r) { return r.json(); })
                 .then(function(d) {
                   btn.textContent = '🔍 智能识别提取';
                   btn.disabled = false;
                   if (d.contacts && d.contacts.length > 0) {
-                    document.getElementById('textImportPanel').style.display = 'none';
                     window.renderAIUnstructuredReport('云端文本解析', d.contacts);
                   } else {
+                    resetAIImporterUI();
+                    document.getElementById('textImportPanel').style.display = 'flex';
+                    document.getElementById('textImportArea').value = t;
                     alert('本地与云端 AI 均未识别到联系人，请确认文本包含有效手机号');
                   }
                 }).catch(function(e) {
                   btn.textContent = '🔍 智能识别提取';
                   btn.disabled = false;
+                  resetAIImporterUI();
+                  document.getElementById('textImportPanel').style.display = 'flex';
+                  document.getElementById('textImportArea').value = t;
                   alert('识别失败: ' + e.message);
                 });
             }
@@ -5069,7 +5158,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
               if (phoneSet.has(phone)) break;
               phoneSet.add(phone);
               var fundVal = '';
-              if (/^\d{4,5}$/.test(note)) {
+              if (/^d{4,5}$/.test(note)) {
                 fundVal = note;
                 note = '';
               }
@@ -5940,13 +6029,39 @@ export const DIALER_HTML = `<!DOCTYPE html>
         toggleBtn.addEventListener('click', function() {
           var panel = document.getElementById('dashboardPanel');
           if (panel) {
-            if (panel.style.display === 'none') {
-              panel.style.display = 'block';
+            var willOpen = !panel.classList.contains('active');
+            panel.classList.toggle('active');
+            if (willOpen) {
+              document.body.style.overflow = 'hidden';
+              resetAIImporterUI();
+              // Reset batch label with fresh timestamp
+              var blInput = document.getElementById('batchLabelInput');
+              if (blInput) {
+                blInput.value = '导入-' + new Date().toISOString().slice(0, 19).replace('T', ' ');
+              }
             } else {
-              panel.style.display = 'none';
+              document.body.style.overflow = '';
             }
           }
         });
+      }
+
+      // Close button inside the import panel
+      var importCloseBtn = document.getElementById('importCloseBtn');
+      if (importCloseBtn) {
+        importCloseBtn.addEventListener('click', closeImportModal);
+        // Also close when clicking the backdrop (outside import-zone)
+        var dp = document.getElementById('dashboardPanel');
+        if (dp) {
+          dp.addEventListener('click', function(e) {
+            if (e.target === dp) closeImportModal();
+          });
+        }
+      }
+      function closeImportModal() {
+        var panel = document.getElementById('dashboardPanel');
+        if (panel) panel.classList.remove('active');
+        document.body.style.overflow = '';
       }
 
       // Dual-SIM rotation toggle
@@ -6014,7 +6129,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
           var files = Array.from(e.dataTransfer.files || []);
           if (files.length === 0) return;
           // If multiple image files dropped, queue them all
-          var imgFiles = files.filter(function(f) { return /\.(jpg|jpeg|png|bmp|webp)$/i.test(f.name); });
+          var imgFiles = files.filter(function(f) { return /.(jpg|jpeg|png|bmp|webp)$/i.test(f.name); });
           if (imgFiles.length > 1) {
             handleMultiImageOCR(imgFiles);
           } else if (files.length === 1) {
@@ -6022,6 +6137,78 @@ export const DIALER_HTML = `<!DOCTYPE html>
           } else {
             // Mixed files - only one non-image file - dispatch it
             handleFileImportDispatch(files[0]);
+          }
+        });
+
+        // Direct paste (Ctrl+V) handler for text recognition
+        dropZone.addEventListener('paste', function(e) {
+          var clipboardData = e.clipboardData;
+          if (!clipboardData) return;
+          // Check for pasted text
+          var pastedText = clipboardData.getData('text/plain');
+          if (pastedText && pastedText.trim()) {
+            // Check if the pasted text contains phone numbers
+            var hasPhone = /1[3-9]\\d{9}/.test(pastedText.replace(/[-\\s]/g, ''));
+            if (hasPhone) {
+              e.preventDefault();
+              e.stopPropagation();
+              showAIScanningUI('剪贴板文本识别');
+              document.getElementById('aiScanStatus').innerHTML = '📝 正在识别粘贴的文本...';
+              document.getElementById('aiLog1').innerHTML = '⏳ 分析剪贴板文本内容...';
+              document.getElementById('aiLog1').style.opacity = '1';
+              correctOcrTextWithAI(pastedText.trim(), '剪贴板文本', function(contacts) {
+                if (contacts && contacts.length > 0) {
+                  window.renderAIUnstructuredReport('剪贴板文本', contacts);
+                } else {
+                  // Reset UI first, then show text panel for manual retry
+                  resetAIImporterUI();
+                  document.getElementById('textImportPanel').style.display = 'flex';
+                  document.getElementById('textImportArea').value = pastedText.trim();
+                  document.getElementById('textImportArea').focus();
+                  if (typeof showCopyLimitToast === 'function') {
+                    showCopyLimitToast('直接识别未检出，已填入文本框，可点击"智能识别提取"重试', true);
+                  }
+                }
+              });
+            }
+          }
+        });
+
+        // Listen for paste events on the whole document to catch pastes anywhere
+        document.addEventListener('paste', function(e) {
+          // Only handle if dashboardPanel modal is active and we're not in an input/textarea
+          var dp = document.getElementById('dashboardPanel');
+          if (!dp || !dp.classList.contains('active')) return;
+          var activeEl = document.activeElement;
+          if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.isContentEditable)) return;
+
+          var clipboardData = e.clipboardData;
+          if (!clipboardData) return;
+          var pastedText = clipboardData.getData('text/plain');
+          if (pastedText && pastedText.trim()) {
+            var hasPhone = /1[3-9]\\d{9}/.test(pastedText.replace(/[-\\s]/g, ''));
+            if (hasPhone) {
+              e.preventDefault();
+              e.stopPropagation();
+              showAIScanningUI('剪贴板文本识别');
+              document.getElementById('aiScanStatus').innerHTML = '📝 正在识别粘贴的文本...';
+              document.getElementById('aiLog1').innerHTML = '⏳ 分析剪贴板文本内容...';
+              document.getElementById('aiLog1').style.opacity = '1';
+              correctOcrTextWithAI(pastedText.trim(), '剪贴板文本', function(contacts) {
+                if (contacts && contacts.length > 0) {
+                  window.renderAIUnstructuredReport('剪贴板文本', contacts);
+                } else {
+                  // Reset UI first, then show text panel for manual retry
+                  resetAIImporterUI();
+                  document.getElementById('textImportPanel').style.display = 'flex';
+                  document.getElementById('textImportArea').value = pastedText.trim();
+                  document.getElementById('textImportArea').focus();
+                  if (typeof showCopyLimitToast === 'function') {
+                    showCopyLimitToast('直接识别未检出，已填入文本框，可点击"智能识别提取"重试', true);
+                  }
+                }
+              });
+            }
           }
         });
       }
@@ -6648,7 +6835,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
           '<td>' +
             '<div class="crm-phone-cell">' +
               esc(c.mobile || '-') +
-              '<button class="crm-btn-call" title="点击呼叫 / 复制" onclick="copyTextToClipboard(\\\'' + esc(c.mobile) + '\\\');showCopyLimitToast(\\\'已复制: ' + esc(c.mobile) + '\\\');">📞</button>' +
+              '<button class="crm-btn-call" title="点击呼叫 / 复制" onclick="copyTextToClipboard(\\'' + esc(c.mobile) + '\\');showCopyLimitToast(\\'已复制: ' + esc(c.mobile) + '\\');">📞</button>' +
             '</div>' +
           '</td>' +
           '<td style="white-space: normal; max-width: 300px; word-break: break-all;">' + noteDisplay + '</td>' +
@@ -6868,8 +7055,6 @@ export const DIALER_HTML = `<!DOCTYPE html>
       // Simple salted hash for localStorage (not cryptographically secure, but beats plaintext)
       var salt = 'megz_db_salt_2024';
       var combined = salt + ':' + pwd;
-
-
       var hash = 0;
       for (var i = 0; i < combined.length; i++) {
         var char = combined.charCodeAt(i);
@@ -7116,6 +7301,26 @@ export const DIALER_HTML = `<!DOCTYPE html>
           dbFetch();
         };
       });
+
+      // Toggle search area collapse
+      var toggleSearchBtn = document.getElementById('crmToggleSearchBtn');
+      var searchCard = document.querySelector('#dbOverlay .crm-search-card');
+      var badgeBar = document.querySelector('#dbOverlay .crm-badge-bar');
+      var dbSearchCollapsed = localStorage.getItem('db_search_collapsed') === '1';
+      if (dbSearchCollapsed && toggleSearchBtn && searchCard && badgeBar) {
+        searchCard.classList.add('collapsed');
+        badgeBar.classList.add('collapsed');
+        toggleSearchBtn.innerHTML = '🔍 展开搜索';
+      }
+      if (toggleSearchBtn) {
+        toggleSearchBtn.addEventListener('click', function() {
+          var isCollapsed = searchCard && searchCard.classList.contains('collapsed');
+          if (searchCard) searchCard.classList.toggle('collapsed');
+          if (badgeBar) badgeBar.classList.toggle('collapsed');
+          toggleSearchBtn.innerHTML = isCollapsed ? '🔍 收起搜索' : '🔍 展开搜索';
+          localStorage.setItem('db_search_collapsed', isCollapsed ? '0' : '1');
+        });
+      }
 
       // Search & Reset buttons wiring
       var searchBtn = document.getElementById('crmSearchBtn');
@@ -7588,7 +7793,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
           var promises = mobiles.map(function(m) {
             var clientData = DB.allData.find(function(c) { return c.mobile === m; });
             var note = clientData ? (clientData.note || '') : '';
-            var newNote = note.replace(/\[协助人:\s*[^\]]+\]/g, '').trim();
+            var newNote = note.replace(/\\[协助人:\\s*[^\\]]+\\]/g, '').trim();
             return fetch('/api/dialer/customers', {
               method: 'PATCH',
               headers: { 'Content-Type': 'application/json' },
@@ -7843,11 +8048,11 @@ export const DIALER_HTML = `<!DOCTYPE html>
       query = query.toLowerCase().trim();
       if (!query) return true;
       if (text.includes(query)) return true;
-      var keywords = query.split(/\s+/).filter(Boolean);
+      var keywords = query.split(/\\s+/).filter(Boolean);
       if (keywords.length > 1) {
         return keywords.every(function(kw) { return text.includes(kw); });
       }
-      var escapedQuery = query.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\\\$&');
+      var escapedQuery = query.replace(/[-\\/\\\\^$*+?.()|[\\]{}]/g, '\\\\$&');
       var chars = escapedQuery.split('');
       var regexStr = chars.join('.*');
       try {
