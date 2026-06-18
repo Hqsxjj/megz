@@ -1404,12 +1404,12 @@ export const DIALER_HTML = `<!DOCTYPE html>
       <div class="control-bar" id="controlBar" style="display:none; flex-wrap: wrap; gap: 6px;">
         <input type="text" class="search-input" id="searchInput" placeholder="搜索" style="flex: 1; min-width: 60px;">
         <select id="sortSelect" style="height: 28px; font-size: 0.68rem; border: 1px solid var(--card-border); border-radius: var(--radius-xs); background: var(--btn-bg); color: var(--text-soft); font-weight: 800; outline: none; padding: 0 4px; cursor: pointer; flex-shrink: 0; width: 95px;">
-          <option value="default">导入顺序</option>
+          <option value="default" selected>导入顺序</option>
           <option value="name">姓名 A-Z</option>
           <option value="company">公司 A-Z</option>
           <option value="todo">待拨优先</option>
           <option value="dialed">已拨优先</option>
-          <option value="shuffle" selected>随机打乱</option>
+          <option value="shuffle">随机打乱</option>
         </select>
         <select id="whitelistFilterSelect" style="height: 28px; font-size: 0.68rem; border: 1px solid var(--card-border); border-radius: var(--radius-xs); background: var(--btn-bg); color: var(--text-soft); font-weight: 800; outline: none; padding: 0 4px; cursor: pointer; flex-shrink: 0; width: 85px;">
           <option value="all">白名单筛选</option>
@@ -1800,7 +1800,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
     var whitelistCheckResults = null;
     var whitelistLoaded = false;
     var pageSize = 100;
-    var currentSort = 'shuffle';
+    var currentSort = 'default';
 
     // Copy Rate Limiting - configurable
     var COPY_LIMIT_K = 'standalone_dialer_copy_limit';
@@ -1974,7 +1974,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
 
     function cleanPhone(val) {
       if (!val) return '';
-      var s = String(val).trim().replace(/[^\\d+]/g, '');
+      var s = String(val).trim().replace(/[^\d+]/g, '');
       if (s.indexOf('+86') === 0) return s.slice(3);
       if (s.indexOf('86') === 0 && s.length === 13) return s.slice(2);
       return s;
@@ -1982,32 +1982,32 @@ export const DIALER_HTML = `<!DOCTYPE html>
 
     function isPhone(val) {
       var clean = cleanPhone(val);
-      return /^1[3-9]\\d{9}$/.test(clean);
+      return /^1[3-9]\d{9}$/.test(clean);
     }
 
     function nameScore(val) {
       if (!val) return 0;
       var s = String(val).trim();
       if (isPhone(s)) return 0;
-      if (/^\\d+$/.test(s)) return 0;
+      if (/^\d+$/.test(s)) return 0;
       
       // Common Chinese Surnames Regex
       var surnameRegex = /^[王李张刘陈杨黄赵吴周徐孙马朱胡郭何林罗高郑梁谢宋唐董许韩邓冯曹彭曾萧田庄潘袁于叶余魏蒋田杜丁沈姜范江傅钟卢汪戴崔]/;
       
-      if (/^[\\u4e00-\\u9fa5]{2,4}$/.test(s)) {
+      if (/^[\u4e00-\u9fa5]{2,4}$/.test(s)) {
         if (surnameRegex.test(s)) {
           return 25; // Highly weigh standard Chinese names with common surnames
         }
         return 10;
       }
-      if (/^[\\u4e00-\\u9fa5]{2,6}$/.test(s)) return 5;
-      if (/^[A-Za-z\\s]{2,15}$/.test(s)) return 3;
+      if (/^[\u4e00-\u9fa5]{2,6}$/.test(s)) return 5;
+      if (/^[A-Za-z\s]{2,15}$/.test(s)) return 3;
       if (s.length >= 2 && s.length <= 15) return 1;
       return 0;
     }
 
     function decodeQPUtf8(s) {
-      var t = s.replace(/=\\r?\\n/g, '');
+      var t = s.replace(/=\r?\n/g, '');
       var b = [];
       var i = 0;
       while (i < t.length) {
@@ -2949,7 +2949,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
     function parsePhoneContactsFromRawText(text) {
       if (!text) return [];
       
-      var lines = text.split(/\\r\\n|\\r|\\n/);
+      var lines = text.split(/\r\n|\r|\n/);
       var results = [];
       var phoneSet = new Set();
       
@@ -2959,9 +2959,9 @@ export const DIALER_HTML = `<!DOCTYPE html>
       // Strict metadata, label and corporate suffix validation to filter out noise
       function isValidNameHeuristic(str) {
         if (!str) return false;
-        var cleanStr = str.replace(/[\\s.,，。:：;；%&|()（）\\[\\]{}<>]/g, '');
+        var cleanStr = str.replace(/[\s.,，。:：;；%&|()（）\[\]{}<>]/g, '');
         // Must contain ONLY Chinese characters
-        if (!/^[\\u4e00-\\u9fa5]+$/.test(cleanStr)) {
+        if (!/^[\u4e00-\u9fa5]+$/.test(cleanStr)) {
           return false;
         }
         // Length check
@@ -3003,8 +3003,8 @@ export const DIALER_HTML = `<!DOCTYPE html>
         var line = lines[i].trim();
         if (!line) continue;
         
-        var cleanLine = line.replace(/[-\\s]/g, '').replace(/[Il|]/g, '1').replace(/[oO]/g, '0');
-        var robustPhoneRegex = /(?:1[3-9]\\d{9}|0\\d{2,3}\\d{7,8})/g;
+        var cleanLine = line.replace(/[-\s]/g, '').replace(/[Il|]/g, '1').replace(/[oO]/g, '0');
+        var robustPhoneRegex = /(?:1[3-9]\d{9}|0\d{2,3}\d{7,8})/g;
         var match;
         var foundPhonesInLine = [];
         
@@ -3022,9 +3022,9 @@ export const DIALER_HTML = `<!DOCTYPE html>
         }
         
         if (foundPhonesInLine.length === 0) {
-          var phoneRegex = /(?:1[3-9]\\d{9}|1[3-9]\\d{1,2}[-\\s]\\d{3,4}[-\\s]\\d{4}|0\\d{2,3}[-\\s]\\d{7,8}|0\\d{9,11})/g;
+          var phoneRegex = /(?:1[3-9]\d{9}|1[3-9]\d{1,2}[-\s]\d{3,4}[-\s]\d{4}|0\d{2,3}[-\s]\d{7,8}|0\d{9,11})/g;
           while ((match = phoneRegex.exec(line)) !== null) {
-            var cleanPhoneStr = match[0].replace(/[-\\s]/g, '');
+            var cleanPhoneStr = match[0].replace(/[-\s]/g, '');
             if (!phoneSet.has(cleanPhoneStr)) {
               foundPhonesInLine.push({
                 phone: cleanPhoneStr,
@@ -3052,12 +3052,12 @@ export const DIALER_HTML = `<!DOCTYPE html>
           var lineWithoutPhone = line.replace(rawPhoneStr, ' ');
           
           // Delimit segments on the line to parse columns/words
-          var delimiters = /[\\s,，:：|｜;；\\t\\-\\[\\]\\(\\)]+/;
+          var delimiters = /[\s,，:：|｜;；\t\-\[\]\(\)]+/;
           var lineParts = lineWithoutPhone.split(delimiters).map(function(p) { return p.trim(); }).filter(Boolean);
           
           // Filter out other phone tokens if any
           var remainingParts = lineParts.filter(function(part) {
-            var cleanPart = part.replace(/[-\\s]/g, '');
+            var cleanPart = part.replace(/[-\s]/g, '');
             for (var k = 0; k < foundPhonesInLine.length; k++) {
               var otherPhone = foundPhonesInLine[k];
               if (cleanPart.indexOf(otherPhone.phone) !== -1 || part.indexOf(otherPhone.raw) !== -1) {
@@ -3096,7 +3096,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
             for (var j = 0; j < remainingParts.length; j++) {
               var part = remainingParts[j];
               if (part === name) continue;
-              var isChineseNoun = /^[\\u4e00-\\u9fa5a-zA-Z0-9\\(\\)（）]+$/.test(part) && /[\\u4e00-\\u9fa5]/.test(part);
+              var isChineseNoun = /^[\u4e00-\u9fa5a-zA-Z0-9\(\)（）]+$/.test(part) && /[\u4e00-\u9fa5]/.test(part);
               if (isChineseNoun && part.length >= 2 && part.length <= 12 && !isNoteLike(part)) {
                 bestCompany = part;
                 break;
@@ -3110,11 +3110,11 @@ export const DIALER_HTML = `<!DOCTYPE html>
           
           // Spatial prefix/suffix extraction
           var prefix = line.substring(0, phoneInfo.index).trim();
-          var prefixMatch = /(?:^|\\s)([\\u4e00-\\u9fa5]{2,4})(?=\\s|$)/.exec(prefix) || /^([\\u4e00-\\u9fa5]{2,4})/.exec(prefix) || /([\\u4e00-\\u9fa5]{1,4})\\s*$/.exec(prefix);
+          var prefixMatch = /(?:^|\s)([\u4e00-\u9fa5]{2,4})(?=\s|$)/.exec(prefix) || /^([\u4e00-\u9fa5]{2,4})/.exec(prefix) || /([\u4e00-\u9fa5]{1,4})\s*$/.exec(prefix);
           var prefixName = prefixMatch ? prefixMatch[1] : '';
           
           var suffix = line.substring(phoneInfo.index + phoneInfo.length).trim();
-          var suffixMatch = /^\\s*([\\u4e00-\\u9fa5]{1,4})/.exec(suffix);
+          var suffixMatch = /^\s*([\u4e00-\u9fa5]{1,4})/.exec(suffix);
           var suffixName = suffixMatch ? suffixMatch[1] : '';
 
           // 2. Identify Name with multi-phase priority
@@ -3183,8 +3183,8 @@ export const DIALER_HTML = `<!DOCTYPE html>
               if (/姓名|电话|手机|号码|公司|备注|联系人|客户|微信|负责人|说明|介绍|详情/i.test(part) && part.length <= 5) {
                 continue;
               }
-              var cleanPart = part.replace(/[-\\s.,，。:：;；%&|()（）\\[\\]{}<>]/g, '');
-              if (cleanPart.length <= 1 && !/^\\d$/.test(cleanPart)) {
+              var cleanPart = part.replace(/[-\s.,，。:：;；%&|()（）\[\]{}<>]/g, '');
+              if (cleanPart.length <= 1 && !/^\d$/.test(cleanPart)) {
                 continue;
               }
               if (/^[a-zA-Z]+$/.test(cleanPart) && cleanPart.length < 3) {
@@ -3196,7 +3196,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
           
           var finalNote = noteParts.join(' ');
           var fund = '';
-          if (/^\\d{4,5}$/.test(finalNote)) {
+          if (/^\d{4,5}$/.test(finalNote)) {
             fund = finalNote;
             finalNote = '';
           }
@@ -3211,7 +3211,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
       }
       
       if (results.length === 0) {
-        var globalPhoneRegex = /1[3-9]\\d{9}/g;
+        var globalPhoneRegex = /1[3-9]\d{9}/g;
         var globalMatch;
         while ((globalMatch = globalPhoneRegex.exec(text)) !== null) {
           var p = globalMatch[0];
@@ -3221,7 +3221,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
             // Reverse-seek in raw text for names immediately preceding global phones
             var searchStart = Math.max(0, globalMatch.index - 15);
             var searchSlice = text.substring(searchStart, globalMatch.index);
-            var nameMatch = /([\\u4e00-\\u9fa5]{2,4})\\s*$/.exec(searchSlice);
+            var nameMatch = /([\u4e00-\u9fa5]{2,4})\s*$/.exec(searchSlice);
             var foundName = nameMatch ? nameMatch[1] : '';
             
             results.push({
@@ -3256,7 +3256,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
       }
 
       // If the text contains too many phone numbers, bypass AI to prevent timeouts and token limits
-      var phoneCount = (rawText.match(/1[3-9]\\d{9}/g) || []).length;
+      var phoneCount = (rawText.match(/1[3-9]\d{9}/g) || []).length;
       if (phoneCount > 30) {
         console.log('[OCR Correct] Large data set detected (' + phoneCount + ' phones), bypassing AI to prevent timeouts.');
         safeLog('aiLog3', '⚡ 检测到数据量较大（共 ' + phoneCount + ' 个号码），已启用本地极速解析...');
@@ -3356,7 +3356,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
           "    self.postMessage({ success: false, error: err.message });",
           "  }",
           "};"
-        ].join("\\n");
+        ].join("\n");
         
         var blob = new Blob([workerCode], { type: 'application/javascript' });
         var workerUrl = URL.createObjectURL(blob);
@@ -3481,7 +3481,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
                 return pdf.getPage(pageNumber).then(function(page) {
                   return page.getTextContent().then(function(textContent) {
                     var pageText = textContent.items.map(function(item) { return item.str; }).join(' ');
-                    extractedText += pageText + '\\n';
+                    extractedText += pageText + '\n';
                     loadedPages++;
                     
                     if (loadedPages < maxPages) {
@@ -4804,7 +4804,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
         tdPhone.contentEditable = 'true';
         tdPhone.textContent = c.phone;
         tdPhone.addEventListener('blur', function() {
-          var val = this.textContent.trim().replace(/[-\\s]/g, '');
+          var val = this.textContent.trim().replace(/[-\s]/g, '');
           tempUnstructuredContacts[index].phone = val;
         });
         
@@ -5165,32 +5165,32 @@ export const DIALER_HTML = `<!DOCTYPE html>
           for (var bi = 0; bi < blocks.length; bi++) {
             var blk = blocks[bi];
             var name = '';
-            var mQP = blk.match(/FN[^:]*QUOTED-PRINTABLE[^:]*:([^\\r\\n]+)/i);
-            var mU8 = blk.match(/FN;CHARSET=UTF-8:([^\\r\\n]+)/i);
-            var mFN = blk.match(/FN:([^\\r\\n]+)/i);
+            var mQP = blk.match(/FN[^:]*QUOTED-PRINTABLE[^:]*:([^\r\n]+)/i);
+            var mU8 = blk.match(/FN;CHARSET=UTF-8:([^\r\n]+)/i);
+            var mFN = blk.match(/FN:([^\r\n]+)/i);
             if (mQP) { name = decodeQPUtf8(mQP[1]).trim(); }
             else if (mU8) { name = mU8[1].trim(); }
             else if (mFN) { name = mFN[1].trim(); }
             
             var company = '';
-            var mOQ = blk.match(/ORG[^:]*QUOTED-PRINTABLE[^:]*:([^\\r\\n]+)/i);
-            var mOP = blk.match(/ORG[^:;]*:([^\\r\\n]+)/i);
+            var mOQ = blk.match(/ORG[^:]*QUOTED-PRINTABLE[^:]*:([^\r\n]+)/i);
+            var mOP = blk.match(/ORG[^:;]*:([^\r\n]+)/i);
             if (mOQ) { company = decodeQPUtf8(mOQ[1]).trim(); }
             else if (mOP) { company = mOP[1].trim(); }
 
             var note = '';
-            var mNQ = blk.match(/NOTE[^:]*QUOTED-PRINTABLE[^:]*:([^\\r\\n]+)/i);
-            var mNU = blk.match(/NOTE;CHARSET=UTF-8:([^\\r\\n]+)/i);
-            var mNP = blk.match(/NOTE[^:;]*:([^\\r\\n]+)/i);
+            var mNQ = blk.match(/NOTE[^:]*QUOTED-PRINTABLE[^:]*:([^\r\n]+)/i);
+            var mNU = blk.match(/NOTE;CHARSET=UTF-8:([^\r\n]+)/i);
+            var mNP = blk.match(/NOTE[^:;]*:([^\r\n]+)/i);
             if (mNQ) { note = decodeQPUtf8(mNQ[1]).trim(); }
             else if (mNU) { note = mNU[1].trim(); }
             else if (mNP) { note = mNP[1].trim(); }
 
-            var telLines = blk.match(/TEL[^:]*:([^\\r\\n]+)/gi) || [];
+            var telLines = blk.match(/TEL[^:]*:([^\r\n]+)/gi) || [];
             for (var ti = 0; ti < telLines.length; ti++) {
               var ci = telLines[ti].indexOf(':');
               if (ci < 0) continue;
-              var phone = telLines[ti].slice(ci+1).trim().replace(/[^\\d+]/g, '');
+              var phone = telLines[ti].slice(ci+1).trim().replace(/[^\d+]/g, '');
               if (!phone) continue;
               if (phoneSet.has(phone)) break;
               phoneSet.add(phone);
@@ -5414,13 +5414,13 @@ export const DIALER_HTML = `<!DOCTYPE html>
             badgeHtml = '<span class="xls-dial-badge xls-dial-badge-success">已接通 (' + (c.duration || '00:00') + ')</span>';
             cardClass += ' dialed';
             if (phoneVal) {
-              badgeHtml += ' <button class="rec-play-btn" data-phone="' + esc(phoneVal) + '" title="播放通话录音" style="font-size:0.6rem;padding:1px 6px;border:1px solid #07c160;background:rgba(7,193,96,0.08);color:#07c160;border-radius:3px;cursor:pointer;font-weight:700;margin-left:4px;" onclick="event.stopPropagation();var p=this.dataset.phone;var a=document.createElement(\\x27audio\\x27);a.controls=true;a.style.width=\\x27100%\\x27;a.style.height=\\x2728px\\x27;a.style.marginTop=\\x274px\\x27;var w=this.nextElementSibling;if(w&&w.classList.contains(\\x27rec-audio-wrap\\x27)){w.remove();return;}var d=document.createElement(\\x27div\\x27);d.className=\\x27rec-audio-wrap\\x27;d.style.width=\\x27100%\\x27;d.appendChild(a);this.parentElement.appendChild(d);a.src=\\x27/api/local-recording?phone=\\x27+encodeURIComponent(p);a.play().catch(function(){});">▶ 录音</button>';
+              badgeHtml += ' <button class="rec-play-btn" data-phone="' + esc(phoneVal) + '" title="播放通话录音" style="font-size:0.6rem;padding:1px 6px;border:1px solid #07c160;background:rgba(7,193,96,0.08);color:#07c160;border-radius:3px;cursor:pointer;font-weight:700;margin-left:4px;" onclick="event.stopPropagation();var p=this.dataset.phone;var a=document.createElement(\x27audio\x27);a.controls=true;a.style.width=\x27100%\x27;a.style.height=\x2728px\x27;a.style.marginTop=\x274px\x27;var w=this.nextElementSibling;if(w&&w.classList.contains(\x27rec-audio-wrap\x27)){w.remove();return;}var d=document.createElement(\x27div\x27);d.className=\x27rec-audio-wrap\x27;d.style.width=\x27100%\x27;d.appendChild(a);this.parentElement.appendChild(d);a.src=\x27/api/local-recording?phone=\x27+encodeURIComponent(p);a.play().catch(function(){});">▶ 录音</button>';
             }
           } else if (c.dialedStatus === 'failed') {
             badgeHtml = '<span class="xls-dial-badge xls-dial-badge-failed">未接通</span>';
             cardClass += ' dialed';
             if (phoneVal) {
-              badgeHtml += ' <button class="rec-play-btn" data-phone="' + esc(phoneVal) + '" title="播放通话录音" style="font-size:0.6rem;padding:1px 6px;border:1px solid #e67e22;background:rgba(245,124,0,0.08);color:#e67e22;border-radius:3px;cursor:pointer;font-weight:700;margin-left:4px;" onclick="event.stopPropagation();var p=this.dataset.phone;var a=document.createElement(\\x27audio\\x27);a.controls=true;a.style.width=\\x27100%\\x27;a.style.height=\\x2728px\\x27;a.style.marginTop=\\x274px\\x27;var w=this.nextElementSibling;if(w&&w.classList.contains(\\x27rec-audio-wrap\\x27)){w.remove();return;}var d=document.createElement(\\x27div\\x27);d.className=\\x27rec-audio-wrap\\x27;d.style.width=\\x27100%\\x27;d.appendChild(a);this.parentElement.appendChild(d);a.src=\\x27/api/local-recording?phone=\\x27+encodeURIComponent(p);a.play().catch(function(){});">▶ 录音</button>';
+              badgeHtml += ' <button class="rec-play-btn" data-phone="' + esc(phoneVal) + '" title="播放通话录音" style="font-size:0.6rem;padding:1px 6px;border:1px solid #e67e22;background:rgba(245,124,0,0.08);color:#e67e22;border-radius:3px;cursor:pointer;font-weight:700;margin-left:4px;" onclick="event.stopPropagation();var p=this.dataset.phone;var a=document.createElement(\x27audio\x27);a.controls=true;a.style.width=\x27100%\x27;a.style.height=\x2728px\x27;a.style.marginTop=\x274px\x27;var w=this.nextElementSibling;if(w&&w.classList.contains(\x27rec-audio-wrap\x27)){w.remove();return;}var d=document.createElement(\x27div\x27);d.className=\x27rec-audio-wrap\x27;d.style.width=\x27100%\x27;d.appendChild(a);this.parentElement.appendChild(d);a.src=\x27/api/local-recording?phone=\x27+encodeURIComponent(p);a.play().catch(function(){});">▶ 录音</button>';
             }
           }
 
@@ -5431,7 +5431,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
               '<div class="client-card-primary" style="display: flex; align-items: center; width: 100%; gap: 6px;">' +
                 '<span class="client-card-name-btn" data-name="' + esc(c.name) + '" data-idx="' + i + '" title="点击复制姓名" style="flex: 0 0 62px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block;">' + esc(c.name) + '</span>' +
                 '<span class="client-card-phone-wrap" style="flex: 0 0 110px; display: inline-flex; align-items: center;">' +
-                  '<span class="' + phoneClass + '" data-phone="' + esc(phoneVal) + '" data-idx="' + i + '" title="点击复制号码" style="font-size: 0.82rem;">' + esc(phoneVal) + '</span>' +
+                  '<span class="' + phoneClass + '" data-phone="' + esc(phoneVal) + '" data-idx="' + i + '" title="点击复制号码" style="font-size: 0.82rem;">' + esc(c.copied ? maskPhone(phoneVal) : phoneVal) + '</span>' +
                 '</span>' +
                 '<div style="margin-left: auto; display: inline-flex; align-items: center; justify-content: flex-end; flex-shrink: 0;">' +
                   badgeHtml +
@@ -5505,6 +5505,11 @@ export const DIALER_HTML = `<!DOCTYPE html>
             var phone = b.dataset.phone;
             var idx = parseInt(b.dataset.idx);
 
+            var limit = checkCopyLimit();
+            if (!limit.allowed) {
+              showCopyLimitToast(limit.message, false);
+              return;
+            }
             copyTextToClipboard(phone);
             var oldText = b.textContent;
             if (oldText === '已复制，正在打开微信...') return;
@@ -5523,7 +5528,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
             }, 100);
 
             setTimeout(function() {
-              b.textContent = phone;
+              b.textContent = maskPhone(phone);
               b.style.color = oldColor;
             }, 1500);
           });
@@ -5948,7 +5953,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
           }, 100);
 
           setTimeout(function() {
-            phoneDisp.textContent = phone;
+            phoneDisp.textContent = maskPhone(phone);
           }, 1500);
         });
       }
@@ -6185,7 +6190,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
           var pastedText = clipboardData.getData('text/plain');
           if (pastedText && pastedText.trim()) {
             // Check if the pasted text contains phone numbers
-            var hasPhone = /1[3-9]\\d{9}/.test(pastedText.replace(/[-\\s]/g, ''));
+            var hasPhone = /1[3-9]\d{9}/.test(pastedText.replace(/[-\s]/g, ''));
             if (hasPhone) {
               e.preventDefault();
               e.stopPropagation();
@@ -6223,7 +6228,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
           if (!clipboardData) return;
           var pastedText = clipboardData.getData('text/plain');
           if (pastedText && pastedText.trim()) {
-            var hasPhone = /1[3-9]\\d{9}/.test(pastedText.replace(/[-\\s]/g, ''));
+            var hasPhone = /1[3-9]\d{9}/.test(pastedText.replace(/[-\s]/g, ''));
             if (hasPhone) {
               e.preventDefault();
               e.stopPropagation();
@@ -6325,7 +6330,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
             );
           });
 
-          if (exportArea) exportArea.value = lines.join('\\n');
+          if (exportArea) exportArea.value = lines.join('\n');
           if (exportModal) exportModal.classList.add('active');
         });
       }
@@ -6399,7 +6404,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
                 c.fund = obj.fund; // Restore fund to customer object
               }
               if (textPart) {
-                parsed.note = baseNote ? baseNote + '\\n' + textPart : textPart;
+                parsed.note = baseNote ? baseNote + '\n' + textPart : textPart;
               } else {
                 parsed.note = baseNote;
               }
@@ -6438,7 +6443,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
                 parsed.custom = Object.assign({}, obj.custom || {}, parsed.custom);
                 if (obj.fund && !fundVal) fundVal = obj.fund;
                 if (textPart) {
-                  parsed.note = parsed.note ? parsed.note + '\\n' + textPart : textPart;
+                  parsed.note = parsed.note ? parsed.note + '\n' + textPart : textPart;
                 }
               }
             }
@@ -6872,7 +6877,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
           '<td>' +
             '<div class="crm-phone-cell">' +
               esc(c.mobile || '-') +
-              '<button class="crm-btn-call" title="点击呼叫 / 复制" onclick="copyTextToClipboard(\\'' + esc(c.mobile) + '\\');showCopyLimitToast(\\'已复制: ' + esc(c.mobile) + '\\');">📞</button>' +
+              '<button class="crm-btn-call" title="点击呼叫 / 复制" onclick="copyTextToClipboard(\'' + esc(c.mobile) + '\');showCopyLimitToast(\'已复制: ' + esc(c.mobile) + '\');">📞</button>' +
             '</div>' +
           '</td>' +
           '<td style="white-space: normal; max-width: 300px; word-break: break-all;">' + noteDisplay + '</td>' +
@@ -7830,7 +7835,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
           var promises = mobiles.map(function(m) {
             var clientData = DB.allData.find(function(c) { return c.mobile === m; });
             var note = clientData ? (clientData.note || '') : '';
-            var newNote = note.replace(/\\[协助人:\\s*[^\\]]+\\]/g, '').trim();
+            var newNote = note.replace(/\[协助人:\s*[^\]]+\]/g, '').trim();
             return fetch('/api/dialer/customers', {
               method: 'PATCH',
               headers: { 'Content-Type': 'application/json' },
@@ -8076,7 +8081,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
       listEl.textContent = failed.map(function(c) {
         if (typeof c === 'string') return c;
         return c.company_name + (c.status && c.status !== '正常' ? ',' + c.status : '');
-      }).join('\\n');
+      }).join('\n');
     }
 
     function fuzzyMatch(text, query) {
@@ -8085,11 +8090,11 @@ export const DIALER_HTML = `<!DOCTYPE html>
       query = query.toLowerCase().trim();
       if (!query) return true;
       if (text.includes(query)) return true;
-      var keywords = query.split(/\\s+/).filter(Boolean);
+      var keywords = query.split(/\s+/).filter(Boolean);
       if (keywords.length > 1) {
         return keywords.every(function(kw) { return text.includes(kw); });
       }
-      var escapedQuery = query.replace(/[-\\/\\\\^$*+?.()|[\\]{}]/g, '\\\\$&');
+      var escapedQuery = query.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
       var chars = escapedQuery.split('');
       var regexStr = chars.join('.*');
       try {
@@ -8207,7 +8212,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
         uploadBtn.addEventListener('click', function() {
           var text = textarea.value.trim();
           if (!text) { alert('请先粘贴企业名称'); return; }
-          var companies = text.split('\\n')
+          var companies = text.split('\n')
             .map(function(s) { return s.trim(); })
             .filter(function(s) { return s.length > 0; });
           if (companies.length === 0) { alert('请至少输入一个企业名称'); return; }

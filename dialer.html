@@ -1404,12 +1404,12 @@
       <div class="control-bar" id="controlBar" style="display:none; flex-wrap: wrap; gap: 6px;">
         <input type="text" class="search-input" id="searchInput" placeholder="搜索" style="flex: 1; min-width: 60px;">
         <select id="sortSelect" style="height: 28px; font-size: 0.68rem; border: 1px solid var(--card-border); border-radius: var(--radius-xs); background: var(--btn-bg); color: var(--text-soft); font-weight: 800; outline: none; padding: 0 4px; cursor: pointer; flex-shrink: 0; width: 95px;">
-          <option value="default">导入顺序</option>
+          <option value="default" selected>导入顺序</option>
           <option value="name">姓名 A-Z</option>
           <option value="company">公司 A-Z</option>
           <option value="todo">待拨优先</option>
           <option value="dialed">已拨优先</option>
-          <option value="shuffle" selected>随机打乱</option>
+          <option value="shuffle">随机打乱</option>
         </select>
         <select id="whitelistFilterSelect" style="height: 28px; font-size: 0.68rem; border: 1px solid var(--card-border); border-radius: var(--radius-xs); background: var(--btn-bg); color: var(--text-soft); font-weight: 800; outline: none; padding: 0 4px; cursor: pointer; flex-shrink: 0; width: 85px;">
           <option value="all">白名单筛选</option>
@@ -1800,7 +1800,7 @@
     var whitelistCheckResults = null;
     var whitelistLoaded = false;
     var pageSize = 100;
-    var currentSort = 'shuffle';
+    var currentSort = 'default';
 
     // Copy Rate Limiting - configurable
     var COPY_LIMIT_K = 'standalone_dialer_copy_limit';
@@ -5431,7 +5431,7 @@
               '<div class="client-card-primary" style="display: flex; align-items: center; width: 100%; gap: 6px;">' +
                 '<span class="client-card-name-btn" data-name="' + esc(c.name) + '" data-idx="' + i + '" title="点击复制姓名" style="flex: 0 0 62px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block;">' + esc(c.name) + '</span>' +
                 '<span class="client-card-phone-wrap" style="flex: 0 0 110px; display: inline-flex; align-items: center;">' +
-                  '<span class="' + phoneClass + '" data-phone="' + esc(phoneVal) + '" data-idx="' + i + '" title="点击复制号码" style="font-size: 0.82rem;">' + esc(phoneVal) + '</span>' +
+                  '<span class="' + phoneClass + '" data-phone="' + esc(phoneVal) + '" data-idx="' + i + '" title="点击复制号码" style="font-size: 0.82rem;">' + esc(c.copied ? maskPhone(phoneVal) : phoneVal) + '</span>' +
                 '</span>' +
                 '<div style="margin-left: auto; display: inline-flex; align-items: center; justify-content: flex-end; flex-shrink: 0;">' +
                   badgeHtml +
@@ -5505,6 +5505,11 @@
             var phone = b.dataset.phone;
             var idx = parseInt(b.dataset.idx);
 
+            var limit = checkCopyLimit();
+            if (!limit.allowed) {
+              showCopyLimitToast(limit.message, false);
+              return;
+            }
             copyTextToClipboard(phone);
             var oldText = b.textContent;
             if (oldText === '已复制，正在打开微信...') return;
@@ -5523,7 +5528,7 @@
             }, 100);
 
             setTimeout(function() {
-              b.textContent = phone;
+              b.textContent = maskPhone(phone);
               b.style.color = oldColor;
             }, 1500);
           });
@@ -5948,7 +5953,7 @@
           }, 100);
 
           setTimeout(function() {
-            phoneDisp.textContent = phone;
+            phoneDisp.textContent = maskPhone(phone);
           }, 1500);
         });
       }
