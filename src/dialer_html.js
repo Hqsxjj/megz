@@ -1624,16 +1624,12 @@ export const DIALER_HTML = `<!DOCTYPE html>
 <!-- DB Password Gate -->
 <div class="modal-overlay" id="dbPwdOverlay" style="display:none; z-index:10000; align-items:center; justify-content:center;">
   <div class="modal-card" style="text-align:center; gap:16px; max-width:340px;">
-    <div style="font-size:1.6rem;">🔐</div>
-    <span style="font-size:0.85rem; font-weight:900; color:var(--text-main);" id="dbPwdTitle">数据库访问密码</span>
-    <span style="font-size:0.65rem; color:var(--text-light);" id="dbPwdHint">请输入6位密码（字母+数字）</span>
     <input type="password" id="dbPwdInput" maxlength="6" placeholder="6位字母或数字" autocomplete="off" style="width:100%; max-width:220px; height:42px; font-size:1.4rem; text-align:center; letter-spacing:8px; border:2px solid var(--card-border); border-radius:var(--radius-xs); background:var(--card-bg); color:var(--text-main); outline:none; font-family:monospace;">
     <span id="dbPwdError" style="font-size:0.62rem; color:#e74c3c; display:none; min-height:16px;"></span>
     <div style="display:flex; gap:8px; width:100%;">
       <button id="dbPwdCancelBtn" class="btn-modal btn-danger" style="flex:1;">取消</button>
       <button id="dbPwdConfirmBtn" class="btn-modal btn-success" style="flex:1;">确认</button>
     </div>
-    <button id="dbPwdResetBtn" style="font-size:0.58rem; color:var(--text-light); background:none; border:none; cursor:pointer; text-decoration:underline; display:none;">重置密码（需验证旧密码）</button>
   </div>
 </div>
 
@@ -6132,6 +6128,44 @@ export const DIALER_HTML = `<!DOCTYPE html>
         });
       }
 
+      // Copy limit toggle and threshold sub-buttons
+      var copyLimitBtn = document.getElementById('toggleCopyLimitBtn');
+      function updateCopyLimitUI() {
+        if (!copyLimitBtn) return;
+        copyLimitBtn.textContent = '复制限制: ' + (copyLimitEnabled ? '开' : '关');
+        var subs = document.querySelectorAll('.copy-limit-sub');
+        subs.forEach(function(sub) {
+          sub.style.display = copyLimitEnabled ? '' : 'none';
+        });
+        // Update checkmarks
+        ['15','20','30'].forEach(function(k) {
+          var b = document.getElementById('toggleThreshold' + k);
+          if (b) {
+            b.textContent = '  ' + k + '次限制: ' + (copyLimitThresholds[k] ? '✓' : '✗');
+          }
+        });
+        localStorage.setItem('dialer_copy_limit_enabled', copyLimitEnabled ? '1' : '0');
+        localStorage.setItem('dialer_copy_limit_thresholds', JSON.stringify(copyLimitThresholds));
+      }
+      if (copyLimitBtn) {
+        copyLimitBtn.addEventListener('click', function() {
+          copyLimitEnabled = !copyLimitEnabled;
+          updateCopyLimitUI();
+        });
+        // Initialize UI
+        updateCopyLimitUI();
+      }
+      // Threshold sub-buttons
+      ['15','20','30'].forEach(function(k) {
+        var b = document.getElementById('toggleThreshold' + k);
+        if (b) {
+          b.addEventListener('click', function() {
+            copyLimitThresholds[k] = !copyLimitThresholds[k];
+            updateCopyLimitUI();
+          });
+        }
+      });
+
       if (xlsFile) {
         xlsFile.addEventListener('change', function(e) {
           var file = e.target.files[0];
@@ -7120,10 +7154,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
       dbPwdCallback = callback;
       var overlay = document.getElementById('dbPwdOverlay');
       var input = document.getElementById('dbPwdInput');
-      var title = document.getElementById('dbPwdTitle');
-      var hint = document.getElementById('dbPwdHint');
       var error = document.getElementById('dbPwdError');
-      var resetBtn = document.getElementById('dbPwdResetBtn');
       var cancelBtn = document.getElementById('dbPwdCancelBtn');
       var confirmBtn = document.getElementById('dbPwdConfirmBtn');
 
@@ -7132,17 +7163,12 @@ export const DIALER_HTML = `<!DOCTYPE html>
       var savedHash = getDbPassword();
       var isFirstTime = !savedHash;
 
-      if (isFirstTime) {
-        title.textContent = '🔐 设置数据库密码';
-        hint.textContent = '请设置6位密码（字母+数字混搭）';
-        resetBtn.style.display = 'none';
-      } else {
-        title.textContent = '🔐 数据库访问密码';
-        hint.textContent = '请输入6位密码';
-        resetBtn.style.display = 'inline-block';
-      }
-
       input.value = '';
+      if (isFirstTime) {
+        input.placeholder = '设置6位密码（字母+数字）';
+      } else {
+        input.placeholder = '请输入6位密码';
+      }
       error.style.display = 'none';
       overlay.style.display = 'flex';
       setTimeout(function() { overlay.classList.add('active'); input.focus(); }, 10);
@@ -7191,18 +7217,6 @@ export const DIALER_HTML = `<!DOCTYPE html>
       cancelBtn.onclick = function() {
         closeDbPasswordGate();
         dbPwdCallback = null;
-      };
-
-      resetBtn.onclick = function() {
-        // Verify old password first, then allow reset
-        if (!confirm('确认要重置数据库密码吗？需要先验证旧密码。')) return;
-        var oldPwd = prompt('请输入旧密码（6位）：');
-        if (!oldPwd || oldPwd.length !== 6) { alert('密码必须为6位！'); return; }
-        if (hashPwd(oldPwd) !== savedHash) { alert('旧密码错误！'); return; }
-        localStorage.removeItem(DB_PWD_K);
-        alert('旧密码已验证，请设置新密码。');
-        // Restart the gate flow to set new password
-        showDbPasswordGate(callback);
       };
     }
 
