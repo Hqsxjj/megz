@@ -1641,6 +1641,221 @@ export default {
       }
     }
 
+    // 2h. AI: 修正公积金字段中的公司名称（DeepSeek AI 文本检查）
+    if (path === '/api/admin/ai-correct-fund' && request.method === 'GET') {
+      try {
+        const supabaseUrl = env.SUPABASE_URL;
+        const supabaseKey = env.SUPABASE_KEY;
+        if (!supabaseUrl || !supabaseKey) {
+          throw new Error('Supabase URL or Key is not configured');
+        }
+        const hdrs = {
+          'Content-Type': 'application/json',
+          'apikey': supabaseKey,
+          'Authorization': 'Bearer ' + supabaseKey
+        };
+
+        // 1. 分页拉取所有客户
+        var all = [];
+        var pageNum = 0;
+        var pageSizeNum = 1000;
+        while (true) {
+          var fromVal = pageNum * pageSizeNum;
+          var toVal = fromVal + pageSizeNum - 1;
+          var qResp = await fetch(
+            supabaseUrl + '/rest/v1/customers?select=*',
+            { headers: Object.assign({}, hdrs, { 'Range': fromVal + '-' + toVal }) }
+          );
+          if (!qResp.ok) break;
+          var dataList = await qResp.json();
+          if (!Array.isArray(dataList) || dataList.length === 0) break;
+          all.push.apply(all, dataList);
+          if (dataList.length < pageSizeNum) break;
+          pageNum++;
+        }
+
+        // 2. 筛选可疑行: fund 非空 且 不是 4-5 位纯数字
+        var suspiciousRows = [];
+        for (var i = 0; i < all.length; i++) {
+          var c = all[i];
+          var fundVal = (c.fund || '').trim();
+          if (fundVal && !/^\d{4,5}$/.test(fundVal)) {
+            suspiciousRows.push({
+              mobile: c.mobile,
+              fund: fundVal,
+              company_name: (c.company_name || '').trim()
+            });
+          }
+        }
+
+        if (suspiciousRows.length === 0) {
+          return new Response(JSON.stringify({
+            success: true,
+            total_scanned: all.length,
+            suspicious_found: 0,
+            ai_corrected: 0,
+            corrections: [],
+            errors: [],
+            message: '没有发现需要修正的数据，所有 fund 字段均为合法的 4-5 位数字。'
+          }), {
+            headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+
+        // 3. 批量发送给 DeepSeek AI 判断 (每批最多 20 条)
+        var BATCH_SIZE = 20;
+        var corrected = 0;
+        var corrections = [];
+        var errors = [];
+
+        for (var batchStart = 0; batchStart < suspiciousRows.length; batchStart += BATCH_SIZE) {
+          var batch = suspiciousRows.slice(batchStart, batchStart + BATCH_SIZE);
+
+          // 构建 AI 提示
+          var promptRows = batch.map(function(r, idx) {
+            return '  [' + (batchStart + idx) + '] mobile=' + r.mobile + ', fund="' + r.fund + '", company_name="' + r.company_name + '"';
+          }).join('\n');
+
+          var prompt = (
+            '你是一个数据清洗助手。以下每行数据包含客户记录的 fund（公积金）字段和 company_name（单位名称）字段。\n' +
+            '判断 fund 的值是否是真正的公司名称（例如"腾讯科技"、"阿里巴巴"、"华为技术"等），而不是公积金账号（4-5位数字）。\n\n' +
+            '规则：\n' +
+            '1. 如果 fund 看起来像一个公司名称（包含中文公司标识词、人名+公司后缀、或明显是企业实体），\n' +
+            '   则它应该被移动到 company_name。输出: {"action": "move", "company_name": "<修正后的公司名称>"}\n' +
+            '2. 如果 fund 是纯文本/备注/乱码/无意义字符（不是公司名称也不是数字公积金），\n' +
+            '   则它应该被清空。输出: {"action": "clear"}\n' +
+            '3. 如果 fund 是合法的 4-5 位数字（公积金账号），不做任何操作。输出: {"action": "skip"}\n' +
+            '4. 如果不确定，输出: {"action": "skip"}\n\n' +
+            '请对以下每条记录进行分析，只输出 JSON 数组（不要 markdown 代码块包裹）：\n' +
+            '[\n' +
+            '  {"idx": 序号, "action": "move|clear|skip", "company_name": "仅在 move 时需要"},\n' +
+            '  ...\n' +
+            ']\n\n' +
+            '输入数据：\n' + promptRows
+          );
+
+          try {
+            var apiData = await callAIChat(env, [
+              { role: 'system', content: '你是一个严谨的数据清洗助手。请严格按 JSON 格式输出。' },
+              { role: 'user', content: prompt }
+            ], 0.1);
+
+            var aiContent = apiData.choices[0].message.content.trim();
+            // 去除可能的 markdown 代码块包裹
+            if (aiContent.startsWith('```')) {
+              aiContent = aiContent.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '').trim();
+            }
+
+            var decisions;
+            try {
+              decisions = JSON.parse(aiContent);
+            } catch (parseErr) {
+              errors.push('Batch ' + Math.floor(batchStart / BATCH_SIZE) + ': AI 返回格式无法解析: ' + parseErr.message);
+              continue;
+            }
+            if (!Array.isArray(decisions)) {
+              errors.push('Batch ' + Math.floor(batchStart / BATCH_SIZE) + ': AI 返回的不是数组');
+              continue;
+            }
+
+            // 4. 逐行执行修正
+            for (var d = 0; d < decisions.length; d++) {
+              var dec = decisions[d];
+              var rowIdx = dec.idx;
+              var originalRow = null;
+              for (var s = 0; s < batch.length; s++) {
+                if ((batchStart + s) === rowIdx) {
+                  originalRow = batch[s];
+                  break;
+                }
+              }
+              if (!originalRow) {
+                errors.push('行索引 ' + rowIdx + ' 在批次中未找到');
+                continue;
+              }
+
+              if (dec.action === 'move') {
+                var newCompanyName = (dec.company_name || originalRow.fund).trim();
+                if (!newCompanyName) { errors.push('行 ' + rowIdx + ' move 操作缺少 company_name'); continue; }
+                try {
+                  var patchResp = await fetch(
+                    supabaseUrl + '/rest/v1/customers?mobile=eq.' + encodeURIComponent(originalRow.mobile),
+                    {
+                      method: 'PATCH',
+                      headers: Object.assign({}, hdrs, { 'Prefer': 'return=minimal' }),
+                      body: JSON.stringify({
+                        fund: '',
+                        company_name: newCompanyName
+                      })
+                    }
+                  );
+                  if (patchResp.ok) {
+                    corrected++;
+                    corrections.push({
+                      mobile: originalRow.mobile,
+                      action: 'move',
+                      old_fund: originalRow.fund,
+                      new_company_name: newCompanyName
+                    });
+                  } else {
+                    var errText = await patchResp.text();
+                    errors.push('PATCH 失败 (' + originalRow.mobile + '): ' + errText);
+                  }
+                } catch (patchErr) {
+                  errors.push('PATCH 网络错误 (' + originalRow.mobile + '): ' + patchErr.message);
+                }
+              } else if (dec.action === 'clear') {
+                try {
+                  var patchResp2 = await fetch(
+                    supabaseUrl + '/rest/v1/customers?mobile=eq.' + encodeURIComponent(originalRow.mobile),
+                    {
+                      method: 'PATCH',
+                      headers: Object.assign({}, hdrs, { 'Prefer': 'return=minimal' }),
+                      body: JSON.stringify({ fund: '' })
+                    }
+                  );
+                  if (patchResp2.ok) {
+                    corrected++;
+                    corrections.push({
+                      mobile: originalRow.mobile,
+                      action: 'clear',
+                      old_fund: originalRow.fund
+                    });
+                  } else {
+                    var errText2 = await patchResp2.text();
+                    errors.push('PATCH clear 失败 (' + originalRow.mobile + '): ' + errText2);
+                  }
+                } catch (patchErr2) {
+                  errors.push('PATCH clear 网络错误 (' + originalRow.mobile + '): ' + patchErr2.message);
+                }
+              }
+              // action 'skip' = 不做任何操作
+            }
+          } catch (aiErr) {
+            errors.push('批次 ' + Math.floor(batchStart / BATCH_SIZE) + ' AI 调用错误: ' + aiErr.message);
+          }
+        }
+
+        return new Response(JSON.stringify({
+          success: true,
+          total_scanned: all.length,
+          suspicious_found: suspiciousRows.length,
+          ai_corrected: corrected,
+          corrections: corrections,
+          errors: errors,
+          message: '修正完成。扫描 ' + all.length + ' 条，发现 ' + suspiciousRows.length + ' 条可疑，AI 已修正 ' + corrected + ' 条。'
+        }), {
+          headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
+        });
+
+      } catch (e) {
+        return new Response(JSON.stringify({ success: false, error: e.message }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+    }
+
     // 3. 代理 SheetJS 资源以加快文件解析加载
     if (path === '/xlsx.full.min.js') {
       return fetch('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js');

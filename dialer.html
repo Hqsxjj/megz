@@ -1699,6 +1699,7 @@
       <button class="crm-tool-btn" id="crmAddHelperBtn">🤝 添加协助人</button>
       <button class="crm-tool-btn" id="crmRemoveHelperBtn">🚫 取消协助人</button>
       <button class="crm-tool-btn" id="dbBatchCatBtn" title="更多批量分类">🏷 批量分类</button>
+      <button class="crm-tool-btn blue" id="dbAiCorrectFundBtn" title="AI 扫描公积金字段，自动修正误存的公司名称">🤖 AI修正公积金</button>
       <button class="crm-tool-btn blue" id="crmManageColsBtn" title="管理自定义列">⚙️ 自定义列</button>
     </div>
 
@@ -7942,6 +7943,76 @@
           if (bcpStatus) { bcpStatus.textContent = '网络错误'; bcpStatus.style.color = '#e74c3c'; }
         });
       });
+
+      // AI 公积金修正
+      var aiFundBtn = document.getElementById('dbAiCorrectFundBtn');
+      if (aiFundBtn) {
+        aiFundBtn.addEventListener('click', function() {
+          if (!confirm('即将使用 AI 扫描所有客户记录，检查公积金字段中是否误存了公司名称。\n\n' +
+              'AI 将逐条判断：\n' +
+              '1. 如果 fund 值是公司名称 → 自动移动到「单位」字段并清空公积金\n' +
+              '2. 如果 fund 值是乱码/备注 → 直接清空公积金\n' +
+              '3. 不确定的条目将跳过，不做修改\n\n' +
+              '⚠️ 仅修改「公积金」和「单位」字段，不影响其他数据。\n' +
+              '⚠️ 所有修改按行进行，不会交叉合并数据。\n\n' +
+              '确认开始 AI 扫描修正？')) {
+            return;
+          }
+
+          var btn = aiFundBtn;
+          var originalText = btn.textContent;
+          btn.textContent = '⏳ AI 扫描修正中...';
+          btn.disabled = true;
+
+          fetch('/api/admin/ai-correct-fund')
+            .then(function(r) { return r.json(); })
+            .then(function(res) {
+              btn.textContent = originalText;
+              btn.disabled = false;
+
+              if (res.success) {
+                var msg = 'AI 公积金修正完成\n\n';
+                msg += '扫描总条数: ' + res.total_scanned + '\n';
+                msg += '发现可疑: ' + res.suspicious_found + ' 条\n';
+                msg += '已修正: ' + res.ai_corrected + ' 条\n\n';
+
+                if (res.corrections && res.corrections.length > 0) {
+                  msg += '修正详情（最多显示 20 条）：\n';
+                  var maxShow = Math.min(res.corrections.length, 20);
+                  for (var i = 0; i < maxShow; i++) {
+                    var c = res.corrections[i];
+                    if (c.action === 'move') {
+                      msg += '  ' + (i+1) + '. ' + c.mobile + ': fund「' + c.old_fund + '」→ 单位「' + c.new_company_name + '」\n';
+                    } else if (c.action === 'clear') {
+                      msg += '  ' + (i+1) + '. ' + c.mobile + ': fund「' + c.old_fund + '」→ 已清空\n';
+                    }
+                  }
+                  if (res.corrections.length > 20) {
+                    msg += '  ... 还有 ' + (res.corrections.length - 20) + ' 条（共 ' + res.corrections.length + ' 条）\n';
+                  }
+                }
+
+                if (res.errors && res.errors.length > 0) {
+                  msg += '\n⚠️ 错误（' + res.errors.length + ' 条）：\n';
+                  var maxErr = Math.min(res.errors.length, 5);
+                  for (var e = 0; e < maxErr; e++) {
+                    msg += '  ' + res.errors[e] + '\n';
+                  }
+                }
+
+                alert(msg);
+                dbFetch(); // 刷新数据
+              } else {
+                alert('AI 修正失败: ' + (res.error || '未知错误'));
+              }
+            })
+            .catch(function(err) {
+              btn.textContent = originalText;
+              btn.disabled = false;
+              alert('网络错误: ' + err.message);
+            });
+        });
+      }
     }
 
   function initHeaderMenu() {
