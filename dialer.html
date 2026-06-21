@@ -7948,12 +7948,15 @@
       var aiFundBtn = document.getElementById('dbAiCorrectFundBtn');
       if (aiFundBtn) {
         aiFundBtn.addEventListener('click', function() {
-          if (!confirm('即将使用 AI 扫描所有客户记录，检查公积金字段中是否误存了公司名称。\n\n' +
+          if (!confirm('即将使用 AI 扫描所有客户记录，检查公积金、单位、备注字段是否存错了位置。\n\n' +
               'AI 将逐条判断：\n' +
-              '1. 如果 fund 值是公司名称 → 自动移动到「单位」字段并清空公积金\n' +
-              '2. 如果 fund 值是乱码/备注 → 直接清空公积金\n' +
-              '3. 不确定的条目将跳过，不做修改\n\n' +
-              '⚠️ 仅修改「公积金」和「单位」字段，不影响其他数据。\n' +
+              '1. fund 存了公司名称 → 自动移到「单位」字段\n' +
+              '2. company_name 存了纯数字公积金 → 自动移到 fund\n' +
+              '3. fund 和 company_name 存反了 → 互换\n' +
+              '4. note 备注里误存了公司名称 → 自动移到「单位」\n' +
+              '5. fund 是乱码/无意义文字 → 清空\n' +
+              '6. 不确定的条目将跳过，不做修改\n\n' +
+              '⚠️ 仅修改「公积金」「单位」「备注」字段，不影响其他数据。\n' +
               '⚠️ 所有修改按行进行，不会交叉合并数据。\n\n' +
               '确认开始 AI 扫描修正？')) {
             return;
@@ -7981,10 +7984,18 @@
                   var maxShow = Math.min(res.corrections.length, 20);
                   for (var i = 0; i < maxShow; i++) {
                     var c = res.corrections[i];
-                    if (c.action === 'move') {
+                    if (c.action === 'move_fund_to_company') {
                       msg += '  ' + (i+1) + '. ' + c.mobile + ': fund「' + c.old_fund + '」→ 单位「' + c.new_company_name + '」\n';
-                    } else if (c.action === 'clear') {
+                    } else if (c.action === 'move_company_to_fund') {
+                      msg += '  ' + (i+1) + '. ' + c.mobile + ': 单位「' + c.old_company_name + '」→ fund「' + c.new_fund + '」\n';
+                    } else if (c.action === 'swap') {
+                      msg += '  ' + (i+1) + '. ' + c.mobile + ': fund「' + c.old_fund + '」⇄ 单位「' + c.old_company_name + '」互换\n';
+                    } else if (c.action === 'move_note_to_company') {
+                      msg += '  ' + (i+1) + '. ' + c.mobile + ': note「' + c.old_note + '」→ 单位「' + c.new_company_name + '」\n';
+                    } else if (c.action === 'clear_fund') {
                       msg += '  ' + (i+1) + '. ' + c.mobile + ': fund「' + c.old_fund + '」→ 已清空\n';
+                    } else {
+                      msg += '  ' + (i+1) + '. ' + c.mobile + ': ' + c.action + '\n';
                     }
                   }
                   if (res.corrections.length > 20) {
