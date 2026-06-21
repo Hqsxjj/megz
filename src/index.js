@@ -1734,16 +1734,17 @@ export default {
           var prompt = (
             '你是一个数据清洗助手。检查以下每条客户记录，判断 fund（公积金）、company_name（单位名称）、note（备注）字段是否存错了位置。\n\n' +
             '规则：\n' +
-            '1. 如果 fund 存的是公司名称（中文、含"公司/科技/集团/有限"等）→ 应移到 company_name。输出: {"action": "move_fund_to_company"}\n' +
+            '1. 如果 fund 存的是单位名称（公司/学校/机构等，含中文组织名）→ 应移到 company_name。输出: {"action": "move_fund_to_company"}\n' +
             '2. 如果 company_name 存的是纯数字 4-5 位（公积金账号）→ 应移到 fund。输出: {"action": "move_company_to_fund"}\n' +
-            '3. 如果 fund 存公司名 且 company_name 存数字 → 两者互换。输出: {"action": "swap"}\n' +
-            '4. 如果 note 存的是公司名称（company_name 为空时）→ 应移到 company_name。输出: {"action": "move_note_to_company"}\n' +
-            '5. 如果 fund 是乱码/备注/无意义文字（不是公司名也不是数字）→ 清空 fund。输出: {"action": "clear_fund"}\n' +
+            '3. 如果 fund 存单位名 且 company_name 存数字 → 两者互换。输出: {"action": "swap"}\n' +
+            '4. 如果 note 存的是单位名称（company_name 为空时）→ 应移到 company_name。输出: {"action": "move_note_to_company"}\n' +
+            '5. 如果 fund 是乱码/备注/无意义文字（不是单位名也不是数字）→ 清空 fund。输出: {"action": "clear_fund"}\n' +
             '6. 如果不确定 → 跳过。输出: {"action": "skip"}\n\n' +
             '注意：\n' +
-            '- 公司名示例：腾讯科技、阿里巴巴、华为技术、张三建材、某某有限公司\n' +
+            '- 单位名包括：公司（腾讯科技、华为技术）、学校（北京四中、实验小学、某某中学/小学/大学）、\n' +
+            '  机构（建设银行、人民医院、税务局、公安局）等组织实体\n' +
             '- 公积金示例：19580、8450、12345（纯4-5位数字）\n' +
-            '- 备注里只有确信是公司名称时才建议 move_note_to_company\n' +
+            '- 备注里只有确信是单位名称时才建议 move_note_to_company\n' +
             '- 如果备注是普通的跟进记录（如"已联系"、"待跟进"等）请不要移动\n' +
             '- 只在确定的情况下才建议修正，不确定就 skip\n\n' +
             '请对以下每条记录分析，只输出 JSON 数组：\n' +
