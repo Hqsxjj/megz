@@ -5481,7 +5481,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
               '<div class="client-card-body" style="margin-top: 4px;">' +
                 '<div class="client-card-content-block" style="background:rgba(255,193,7,0.05); border-left:3px solid #ffc107; padding: 6px 8px; border-radius: 0 var(--radius-xs) var(--radius-xs) 0;">' +
                   '<span class="client-card-label" style="color:#f57c00; font-weight:800; font-size:0.65rem;">最近操作</span>' +
-                  '<span class="client-card-text" style="color:var(--text-soft); display:block; margin-top:2px; font-size:0.7rem;">' +
+                  '<span class="client-card-text" style="color:var(--text-soft); display:block; margin-top:2px; font-size:0.6rem;">' +
                     TimelineDisplay.render(c.last_operation) +
                   '</span>' +
                 '</div>' +
@@ -5674,7 +5674,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
             '<td class="col-company"><span class="crm-copy-btn" data-copy="' + esc(c.company||'') + '">' + esc(c.company||'-') + '</span>' + wlBadge + '</td>' +
             '<td class="col-note">' + esc(c.note||'-') + '</td>' +
             '<td class="col-batch">' + '<span style="font-size:11px;background:rgba(74,108,247,0.08);color:#4a6cf7;padding:1px 6px;border-radius:3px;">' + (displayBatchLabel(c.batch_label) || '-') + '</span>' + '</td>' +
-            '<td class="col-lastop" style="font-size:0.72rem;">' + (c.last_operation ? TimelineDisplay.render(c.last_operation) : '-') + '</td>' +
+            '<td class="col-lastop" style="font-size:0.62rem;">' + (c.last_operation ? TimelineDisplay.render(c.last_operation) : '-') + '</td>' +
             '<td class="col-action"><a href="tel:' + esc(phoneVal) + '" style="display:inline-block;padding:3px 10px;background:linear-gradient(135deg,#07c160,#06ad56);color:#fff;border-radius:4px;text-decoration:none;font-size:12px;font-weight:700;">拨打</a></td>' +
           '</tr>';
         }).join('');
