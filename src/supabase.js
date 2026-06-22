@@ -385,7 +385,6 @@ export function createSupabaseClient(env) {
         company_name: (c.company || c.company_name || '').trim(),
         note: noteVal,
         category: (c.category || '').trim() || '公海客户',
-        fund: fundVal,
         batch_label: (c.batch_label || '').trim()
       };
     }).filter(function(r) {

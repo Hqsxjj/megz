@@ -1612,24 +1612,47 @@ export default {
           pageNum++;
         }
 
-        // 3. 筛选并执行公积金数据迁移（更新 fund 并且清理备注里的纯数字）
+        // 3. 筛选并执行公积金数据迁移（提取备注里的纯数字，嵌入 note JSON）
         let migratedCount = 0;
         let updatePromises = [];
+        // 辅助: 构建 note JSON（fund 嵌入其中）
+        function buildMigrateNoteJSON(rawNote, fundVal) {
+          var obj = { note: '', custom: {} };
+          if (rawNote && rawNote.indexOf('{') === 0) {
+            try { var p = JSON.parse(rawNote); if (p && typeof p === 'object') obj = p; } catch(e) {}
+          } else if (rawNote) {
+            obj.note = rawNote;
+          }
+          if (fundVal) { obj.fund = fundVal; } else { delete obj.fund; }
+          if (!obj.fund && Object.keys(obj.custom || {}).length === 0 && obj.note && obj.note.indexOf('{') !== 0) {
+            return obj.note;
+          }
+          return JSON.stringify(obj);
+        }
         for (var i = 0; i < all.length; i++) {
           var c = all[i];
           var noteVal = (c.note || '').trim();
+          // 提取 note 中的纯文本（如果是 JSON）
+          var plainNote = noteVal;
+          if (noteVal.indexOf('{') === 0) {
+            try { var np = JSON.parse(noteVal); plainNote = (np.note || '').trim(); } catch(e) {}
+          }
           // 匹配 4 位数或 5 位数纯数字作为公积金（如 19580, 8450）
-          var match = noteVal.match(/\b\d{4,5}\b/);
+          var match = plainNote.match(/\b\d{4,5}\b/);
           if (match) {
             var fundVal = match[0];
-            var newNote = noteVal.replace(fundVal, '').trim();
-            // 如果备注剔除数字后只剩标点或空白，直接置空
-            if (/^[，。,.\-\s]*$/.test(newNote)) {
-              newNote = '';
+            var newPlainNote = plainNote.replace(fundVal, '').trim();
+            if (/^[，。,.\-\s]*$/.test(newPlainNote)) {
+              newPlainNote = '';
             }
 
             migratedCount++;
-            const updateFields = { fund: fundVal, note: newNote };
+            var newNotePayload = buildMigrateNoteJSON(noteVal, fundVal);
+            // 如果有纯文本备注内容，覆盖进 JSON
+            if (newPlainNote && newNotePayload.indexOf('{') === 0) {
+              try { var tmp = JSON.parse(newNotePayload); tmp.note = newPlainNote; newNotePayload = JSON.stringify(tmp); } catch(e) {}
+            }
+            const updateFields = { note: newNotePayload };
             
             // 发送 PATCH 请求更新每一条记录
             updatePromises.push((async (mob, fields) => {
@@ -1683,6 +1706,23 @@ export default {
         'apikey': supabaseKey,
         'Authorization': 'Bearer ' + supabaseKey
       };
+
+      // 辅助: 构建 {note, custom, fund} JSON，fund 非空时嵌入
+      function buildFundNoteJSON(noteText, fundVal) {
+        var obj = { note: '', custom: {} };
+        // 尝试解析已有 JSON note
+        if (noteText && noteText.indexOf('{') === 0) {
+          try { var parsed = JSON.parse(noteText); if (parsed && typeof parsed === 'object') obj = parsed; } catch(e) {}
+        } else if (noteText) {
+          obj.note = noteText;
+        }
+        if (fundVal) { obj.fund = fundVal; } else { delete obj.fund; }
+        // 兜底：note 为纯文本且无其他字段时，不套 JSON
+        if (!obj.fund && Object.keys(obj.custom || {}).length === 0 && obj.note && obj.note.indexOf('{') !== 0) {
+          return obj.note;
+        }
+        return JSON.stringify(obj);
+      }
 
       // 1. 分页拉取所有客户
       var all = [];
@@ -1812,25 +1852,30 @@ export default {
             if (!originalRow) { errors.push('idx ' + rowIdx + ' not found in batch'); continue; }
 
             if (dec.action === 'move_fund_to_company') {
+              // fund 存的是公司名 → 移到 company_name（fund 值在 note JSON 里，这里只设 company_name）
               if (!originalRow.fund) { errors.push('row ' + rowIdx + ' move_fund_to_company missing value'); continue; }
               try {
                 var r1 = await fetch(supabaseUrl + '/rest/v1/customers?mobile=eq.' + encodeURIComponent(originalRow.mobile),
-                  { method: 'PATCH', headers: Object.assign({}, hdrs, { 'Prefer': 'return=minimal' }), body: JSON.stringify({ fund: '', company_name: originalRow.fund }) });
+                  { method: 'PATCH', headers: Object.assign({}, hdrs, { 'Prefer': 'return=minimal' }), body: JSON.stringify({ company_name: originalRow.fund }) });
                 if (r1.ok) { corrected++; corrections.push({ mobile: originalRow.mobile, action: 'move_fund_to_company', old_fund: originalRow.fund, new_company_name: originalRow.fund }); }
                 else { var e1 = await r1.text(); errors.push('PATCH ' + originalRow.mobile + ': ' + e1); }
               } catch (pe) { errors.push('PATCH err ' + originalRow.mobile + ': ' + pe.message); }
             } else if (dec.action === 'move_company_to_fund') {
+              // company_name 存的是公积金数字 → 嵌入 note JSON，清空 company_name
               if (!originalRow.company_name) { errors.push('row ' + rowIdx + ' move_company_to_fund missing value'); continue; }
               try {
+                var noteJson2 = buildFundNoteJSON(originalRow.note, originalRow.company_name);
                 var r2 = await fetch(supabaseUrl + '/rest/v1/customers?mobile=eq.' + encodeURIComponent(originalRow.mobile),
-                  { method: 'PATCH', headers: Object.assign({}, hdrs, { 'Prefer': 'return=minimal' }), body: JSON.stringify({ company_name: '', fund: originalRow.company_name }) });
+                  { method: 'PATCH', headers: Object.assign({}, hdrs, { 'Prefer': 'return=minimal' }), body: JSON.stringify({ company_name: '', note: noteJson2 }) });
                 if (r2.ok) { corrected++; corrections.push({ mobile: originalRow.mobile, action: 'move_company_to_fund', old_company_name: originalRow.company_name, new_fund: originalRow.company_name }); }
                 else { var e2 = await r2.text(); errors.push('PATCH ' + originalRow.mobile + ': ' + e2); }
               } catch (pe) { errors.push('PATCH err ' + originalRow.mobile + ': ' + pe.message); }
             } else if (dec.action === 'swap') {
+              // fund 和 company_name 互换（fund 嵌入 note JSON）
               try {
+                var noteJson3 = buildFundNoteJSON(originalRow.note, originalRow.company_name);
                 var r3 = await fetch(supabaseUrl + '/rest/v1/customers?mobile=eq.' + encodeURIComponent(originalRow.mobile),
-                  { method: 'PATCH', headers: Object.assign({}, hdrs, { 'Prefer': 'return=minimal' }), body: JSON.stringify({ fund: originalRow.company_name, company_name: originalRow.fund }) });
+                  { method: 'PATCH', headers: Object.assign({}, hdrs, { 'Prefer': 'return=minimal' }), body: JSON.stringify({ company_name: originalRow.fund, note: noteJson3 }) });
                 if (r3.ok) { corrected++; corrections.push({ mobile: originalRow.mobile, action: 'swap', old_fund: originalRow.fund, old_company_name: originalRow.company_name }); }
                 else { var e3 = await r3.text(); errors.push('PATCH swap ' + originalRow.mobile + ': ' + e3); }
               } catch (pe) { errors.push('PATCH swap err ' + originalRow.mobile + ': ' + pe.message); }
@@ -1843,9 +1888,11 @@ export default {
                 else { var e4 = await r4.text(); errors.push('PATCH note ' + originalRow.mobile + ': ' + e4); }
               } catch (pe) { errors.push('PATCH note err ' + originalRow.mobile + ': ' + pe.message); }
             } else if (dec.action === 'clear_fund') {
+              // 清空 fund：从 note JSON 中移除 fund
               try {
+                var noteJson5 = buildFundNoteJSON(originalRow.note, '');
                 var r5 = await fetch(supabaseUrl + '/rest/v1/customers?mobile=eq.' + encodeURIComponent(originalRow.mobile),
-                  { method: 'PATCH', headers: Object.assign({}, hdrs, { 'Prefer': 'return=minimal' }), body: JSON.stringify({ fund: '' }) });
+                  { method: 'PATCH', headers: Object.assign({}, hdrs, { 'Prefer': 'return=minimal' }), body: JSON.stringify({ note: noteJson5 }) });
                 if (r5.ok) { corrected++; corrections.push({ mobile: originalRow.mobile, action: 'clear_fund', old_fund: originalRow.fund }); }
                 else { var e5 = await r5.text(); errors.push('PATCH clear_fund ' + originalRow.mobile + ': ' + e5); }
               } catch (pe) { errors.push('PATCH clear_fund err ' + originalRow.mobile + ': ' + pe.message); }
@@ -1857,9 +1904,10 @@ export default {
               newNoteText = newNoteText.replace(/^[，。,.\-\s]+/, '').replace(/[，。,.\-\s]+$/, '').trim();
               if (!newNoteText) newNoteText = '';
               try {
+                var noteJson6 = buildFundNoteJSON(newNoteText, fundNum);
                 var r6 = await fetch(supabaseUrl + '/rest/v1/customers?mobile=eq.' + encodeURIComponent(originalRow.mobile),
-                  { method: 'PATCH', headers: Object.assign({}, hdrs, { 'Prefer': 'return=minimal' }), body: JSON.stringify({ fund: fundNum, note: newNoteText }) });
-                if (r6.ok) { corrected++; corrections.push({ mobile: originalRow.mobile, action: 'move_note_number_to_fund', fund_value: fundNum, old_note: originalRow.note, new_note: newNoteText }); }
+                  { method: 'PATCH', headers: Object.assign({}, hdrs, { 'Prefer': 'return=minimal' }), body: JSON.stringify({ note: noteJson6 }) });
+                if (r6.ok) { corrected++; corrections.push({ mobile: originalRow.mobile, action: 'move_note_number_to_fund', fund_value: fundNum, old_note: originalRow.note, new_note: noteJson6 }); }
                 else { var e6 = await r6.text(); errors.push('PATCH move_note_number_to_fund ' + originalRow.mobile + ': ' + e6); }
               } catch (pe) { errors.push('PATCH move_note_number_to_fund err ' + originalRow.mobile + ': ' + pe.message); }
             }
