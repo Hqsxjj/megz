@@ -1427,10 +1427,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
       
       <!-- Contacts List -->
       <div class="cards-content" id="cardsContainer">
-        <div style="text-align:center;padding:80px 20px;color:var(--text-light);font-size:0.82rem;display:flex;flex-direction:column;gap:12px;">
-          <span>暂无联系人数据，请在上方导入表格或通讯录文件</span>
-          <span style="font-size:0.7rem;color:var(--text-light);max-width:320px;margin:0 auto;line-height:1.5;">数据仅保存在您的浏览器本地，不经过任何后台服务器，完全保护您的客户隐私。</span>
-        </div>
+        <div style="text-align:center;padding:80px 20px;"></div>
       </div>
     </div>
   </div>
@@ -1605,7 +1602,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
 <!-- DB Password Gate -->
 <div class="modal-overlay" id="dbPwdOverlay" style="display:none; z-index:10000; align-items:center; justify-content:center;">
   <div class="modal-card" style="text-align:center; gap:16px; max-width:340px;">
-    <input type="password" id="dbPwdInput" maxlength="6" placeholder="6位字母或数字" autocomplete="off" style="width:100%; max-width:220px; height:42px; font-size:1.4rem; text-align:center; letter-spacing:8px; border:2px solid var(--card-border); border-radius:var(--radius-xs); background:var(--card-bg); color:var(--text-main); outline:none; font-family:monospace;">
+    <input type="password" id="dbPwdInput" maxlength="6" autocomplete="off" style="width:100%; max-width:220px; height:42px; font-size:1.4rem; text-align:center; letter-spacing:8px; border:2px solid var(--card-border); border-radius:var(--radius-xs); background:var(--card-bg); color:var(--text-main); outline:none; font-family:monospace;">
     <span id="dbPwdError" style="font-size:0.62rem; color:#e74c3c; display:none; min-height:16px;"></span>
     <div style="display:flex; gap:8px; width:100%;">
       <button id="dbPwdCancelBtn" class="btn-modal btn-danger" style="flex:1;">取消</button>
@@ -5273,7 +5270,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
       updateStats();
 
       if (importedClients.length === 0) {
-        container.innerHTML = '<div style="text-align:center;padding:80px 20px;color:var(--text-light);font-size:0.82rem;display:flex;flex-direction:column;gap:12px;"><span style="font-size: 2.2rem;opacity:0.6;"></span><span>暂无联系人数据，请在上方导入表格或通讯录文件</span></div>';
+        container.innerHTML = '<div style="text-align:center;padding:80px 20px;"></div>';
         return;
       }
 
@@ -7229,9 +7226,9 @@ export const DIALER_HTML = `<!DOCTYPE html>
 
       input.value = '';
       if (isFirstTime) {
-        input.placeholder = '设置6位密码（字母+数字）';
+        input.placeholder = '';
       } else {
-        input.placeholder = '请输入6位密码';
+        input.placeholder = '';
       }
       error.style.display = 'none';
       overlay.style.display = 'flex';
@@ -7240,14 +7237,12 @@ export const DIALER_HTML = `<!DOCTYPE html>
       function doConfirm() {
         var pwd = input.value.trim();
         if (pwd.length !== 6) {
-          error.textContent = '密码必须为6位';
-          error.style.display = 'block';
+          input.value = '';
           input.focus();
           return;
         }
         if (!/^[a-zA-Z0-9]+$/.test(pwd)) {
-          error.textContent = '密码只能包含字母和数字';
-          error.style.display = 'block';
+          input.value = '';
           input.focus();
           return;
         }
@@ -7265,8 +7260,6 @@ export const DIALER_HTML = `<!DOCTYPE html>
             dbPwdCallback && dbPwdCallback();
             dbPwdCallback = null;
           } else {
-            error.textContent = '密码错误，请重试';
-            error.style.display = 'block';
             input.value = '';
             input.focus();
           }
