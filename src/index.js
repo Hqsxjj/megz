@@ -1671,337 +1671,223 @@ export default {
       }
     }
 
-    // 2h. AI: 修正公积金字段中的公司名称（DeepSeek AI 文本检查）
-    if (path === '/api/admin/ai-correct-fund' && request.method === 'GET') {
-      try {
-        const supabaseUrl = env.SUPABASE_URL;
-        const supabaseKey = env.SUPABASE_KEY;
-        if (!supabaseUrl || !supabaseKey) {
-          throw new Error('Supabase URL or Key is not configured');
-        }
-        const hdrs = {
-          'Content-Type': 'application/json',
-          'apikey': supabaseKey,
-          'Authorization': 'Bearer ' + supabaseKey
-        };
+    // 共享函数：AI 修正公积金，供 HTTP 和定时任务复用
+    async function runAICorrectFund(env) {
+      const supabaseUrl = env.SUPABASE_URL;
+      const supabaseKey = env.SUPABASE_KEY;
+      if (!supabaseUrl || !supabaseKey) {
+        return { success: false, error: 'Supabase URL or Key is not configured' };
+      }
+      const hdrs = {
+        'Content-Type': 'application/json',
+        'apikey': supabaseKey,
+        'Authorization': 'Bearer ' + supabaseKey
+      };
 
-        // 1. 分页拉取所有客户
-        var all = [];
-        var pageNum = 0;
-        var pageSizeNum = 1000;
-        while (true) {
-          var fromVal = pageNum * pageSizeNum;
-          var toVal = fromVal + pageSizeNum - 1;
-          var qResp = await fetch(
-            supabaseUrl + '/rest/v1/customers?select=*',
-            { headers: Object.assign({}, hdrs, { 'Range': fromVal + '-' + toVal }) }
-          );
-          if (!qResp.ok) break;
-          var dataList = await qResp.json();
-          if (!Array.isArray(dataList) || dataList.length === 0) break;
-          all.push.apply(all, dataList);
-          if (dataList.length < pageSizeNum) break;
-          pageNum++;
-        }
+      // 1. 分页拉取所有客户
+      var all = [];
+      var pageNum = 0;
+      var pageSizeNum = 1000;
+      while (true) {
+        var fromVal = pageNum * pageSizeNum;
+        var toVal = fromVal + pageSizeNum - 1;
+        var qResp = await fetch(
+          supabaseUrl + '/rest/v1/customers?select=*',
+          { headers: Object.assign({}, hdrs, { 'Range': fromVal + '-' + toVal }) }
+        );
+        if (!qResp.ok) break;
+        var dataList = await qResp.json();
+        if (!Array.isArray(dataList) || dataList.length === 0) break;
+        all.push.apply(all, dataList);
+        if (dataList.length < pageSizeNum) break;
+        pageNum++;
+      }
 
-        // 2. 筛选可疑行: fund存了非数字(可能是单位名) / company_name存了纯数字(可能是公积金) / note可能有单位名且company_name为空
-        var suspiciousRows = [];
-        for (var i = 0; i < all.length; i++) {
-          var c = all[i];
-          var fundVal = (c.fund || '').trim();
-          var companyVal = (c.company_name || '').trim();
-          var noteRaw = (c.note || '').trim();
-          // 解析 note 中的纯文本（可能包含 JSON）
-          var noteText = noteRaw;
-          if (noteRaw.indexOf('{') === 0) {
-            try {
-              var noteObj = JSON.parse(noteRaw);
-              noteText = (noteObj.note || '').trim();
-            } catch(e) { noteText = noteRaw; }
-          }
-          var isFundSuspicious = fundVal && !/^\d{4,5}$/.test(fundVal);
-          var isCompanySuspicious = companyVal && /^\d{4,5}$/.test(companyVal);
-          // note 有内容且不长(可能是单位名误存) 且 company_name 为空
-          var isNoteSuspicious = !companyVal && noteText && noteText.length <= 80 && /[一-龥]/.test(noteText) && !/已联系|已拨打|未接|关机|空号|停机|加微信|意向|跟进|备注/.test(noteText);
-          // note 里包含 1-49999 之间的阿拉伯数字，可能是公积金
-          var noteNumMatch = noteText.match(/\b(\d{1,5})\b/g);
-          var isNoteHasFundNumber = false;
-          if (noteNumMatch && !fundVal) {
-            for (var nm = 0; nm < noteNumMatch.length; nm++) {
-              var n = parseInt(noteNumMatch[nm], 10);
-              if (n >= 1 && n <= 49999) { isNoteHasFundNumber = true; break; }
-            }
-          }
-          if (isFundSuspicious || isCompanySuspicious || isNoteSuspicious || isNoteHasFundNumber) {
-            suspiciousRows.push({
-              mobile: c.mobile,
-              fund: fundVal,
-              company_name: companyVal,
-              note: noteText
-            });
+      // 2. 筛选可疑行
+      var suspiciousRows = [];
+      for (var i = 0; i < all.length; i++) {
+        var c = all[i];
+        var fundVal = (c.fund || '').trim();
+        var companyVal = (c.company_name || '').trim();
+        var noteRaw = (c.note || '').trim();
+        var noteText = noteRaw;
+        if (noteRaw.indexOf('{') === 0) {
+          try {
+            var noteObj = JSON.parse(noteRaw);
+            noteText = (noteObj.note || '').trim();
+          } catch(e) { noteText = noteRaw; }
+        }
+        var isFundSuspicious = fundVal && !/^\d{4,5}$/.test(fundVal);
+        var isCompanySuspicious = companyVal && /^\d{4,5}$/.test(companyVal);
+        var isNoteSuspicious = !companyVal && noteText && noteText.length <= 80 && /[一-龥]/.test(noteText) && !/已联系|已拨打|未接|关机|空号|停机|加微信|意向|跟进|备注/.test(noteText);
+        var noteNumMatch = noteText.match(/\b(\d{1,5})\b/g);
+        var isNoteHasFundNumber = false;
+        if (noteNumMatch && !fundVal) {
+          for (var nm = 0; nm < noteNumMatch.length; nm++) {
+            var n = parseInt(noteNumMatch[nm], 10);
+            if (n >= 1 && n <= 49999) { isNoteHasFundNumber = true; break; }
           }
         }
-
-        if (suspiciousRows.length === 0) {
-          return new Response(JSON.stringify({
-            success: true,
-            total_scanned: all.length,
-            suspicious_found: 0,
-            ai_corrected: 0,
-            corrections: [],
-            errors: [],
-            message: '没有发现需要修正的数据，fund、company_name 和 note 字段均正常。'
-          }), {
-            headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
+        if (isFundSuspicious || isCompanySuspicious || isNoteSuspicious || isNoteHasFundNumber) {
+          suspiciousRows.push({
+            mobile: c.mobile,
+            fund: fundVal,
+            company_name: companyVal,
+            note: noteText
           });
         }
+      }
 
-        // 3. 批量发送给 DeepSeek AI 判断 (每批最多 20 条)
-        var BATCH_SIZE = 20;
-        var corrected = 0;
-        var corrections = [];
-        var errors = [];
-
-        for (var batchStart = 0; batchStart < suspiciousRows.length; batchStart += BATCH_SIZE) {
-          var batch = suspiciousRows.slice(batchStart, batchStart + BATCH_SIZE);
-
-          // 构建 AI 提示
-          var promptRows = batch.map(function(r, idx) {
-            return '  [' + (batchStart + idx) + '] mobile=' + r.mobile + ', fund="' + r.fund + '", company_name="' + r.company_name + '", note="' + (r.note || '') + '"';
-          }).join('\n');
-
-          var prompt = (
-            '你是一个数据清洗助手。检查以下每条客户记录，判断 fund（公积金）、company_name（单位名称）、note（备注）字段是否存错了位置。\n\n' +
-            '规则：\n' +
-            '1. 如果 fund 存的是单位名称（公司/学校/机构等，含中文组织名）→ 应移到 company_name。输出: {"action": "move_fund_to_company"}\n' +
-            '2. 如果 company_name 存的是纯数字 4-5 位（公积金账号）→ 应移到 fund。输出: {"action": "move_company_to_fund"}\n' +
-            '3. 如果 fund 存单位名 且 company_name 存数字 → 两者互换。输出: {"action": "swap"}\n' +
-            '4. 如果 note 存的是单位名称（company_name 为空时）→ 应移到 company_name。输出: {"action": "move_note_to_company"}\n' +
-            '5. 如果 fund 是乱码/备注/无意义文字（不是单位名也不是数字）→ 清空 fund。输出: {"action": "clear_fund"}\n' +
-            '6. 如果 note（备注）中包含阿拉伯数字且在 1-49999 之间（如 8000、15000、30000），且 fund 为空 → 应将数字移到 fund，备注中删除该数字。输出: {"action": "move_note_number_to_fund", "fund_value": "<提取的数字>"}\n' +
-            '7. 如果不确定 → 跳过。输出: {"action": "skip"}\n\n' +
-            '注意：\n' +
-            '- 单位名包括：公司（腾讯科技、华为技术）、学校（北京四中、实验小学、某某幼儿园/小学/中学/大学）、\n' +
-            '  机构（建设银行、人民医院、税务局、公安局）等组织实体\n' +
-            '- 公积金示例：19580、8450、12345（纯4-5位数字）\n' +
-            '- 备注里只有确信是单位名称时才建议 move_note_to_company\n' +
-            '- 如果备注是普通的跟进记录（如"已联系"、"待跟进"等）请不要移动\n' +
-            '- 如果备注中有多个数字，优先提取看起来像公积金金额的（通常 1000-49999 之间，整数）\n' +
-            '- 公积金数字通常单独出现或与文字间隔（如"公积金8000"、"余额15000"），不要提取电话号码中的数字\n' +
-            '- 只在确定的情况下才建议修正，不确定就 skip\n\n' +
-            '请对以下每条记录分析，只输出 JSON 数组：\n' +
-            '[\n' +
-            '  {"idx": 序号, "action": "move_fund_to_company|move_company_to_fund|swap|move_note_to_company|clear_fund|move_note_number_to_fund|skip"},\n' +
-            '  ...\n' +
-            ']\n\n' +
-            '输入数据：\n' + promptRows
-          );
-
-          try {
-            var apiData = await callAIChat(env, [
-              { role: 'system', content: '你是一个严谨的数据清洗助手。请严格按 JSON 格式输出。' },
-              { role: 'user', content: prompt }
-            ], 0.1);
-
-            var aiContent = apiData.choices[0].message.content.trim();
-            // 去除可能的 markdown 代码块包裹
-            if (aiContent.startsWith('```')) {
-              aiContent = aiContent.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '').trim();
-            }
-
-            var decisions;
-            try {
-              decisions = JSON.parse(aiContent);
-            } catch (parseErr) {
-              errors.push('Batch ' + Math.floor(batchStart / BATCH_SIZE) + ': AI 返回格式无法解析: ' + parseErr.message);
-              continue;
-            }
-            if (!Array.isArray(decisions)) {
-              errors.push('Batch ' + Math.floor(batchStart / BATCH_SIZE) + ': AI 返回的不是数组');
-              continue;
-            }
-
-            // 4. 逐行执行修正
-            for (var d = 0; d < decisions.length; d++) {
-              var dec = decisions[d];
-              var rowIdx = dec.idx;
-              var originalRow = null;
-              for (var s = 0; s < batch.length; s++) {
-                if ((batchStart + s) === rowIdx) {
-                  originalRow = batch[s];
-                  break;
-                }
-              }
-              if (!originalRow) {
-                errors.push('行索引 ' + rowIdx + ' 在批次中未找到');
-                continue;
-              }
-
-              if (dec.action === 'move_fund_to_company') {
-                // fund 存的是公司名，移到 company_name
-                var newCompanyName = originalRow.fund;
-                if (!newCompanyName) { errors.push('行 ' + rowIdx + ' move_fund_to_company 缺少值'); continue; }
-                try {
-                  var patchResp = await fetch(
-                    supabaseUrl + '/rest/v1/customers?mobile=eq.' + encodeURIComponent(originalRow.mobile),
-                    {
-                      method: 'PATCH',
-                      headers: Object.assign({}, hdrs, { 'Prefer': 'return=minimal' }),
-                      body: JSON.stringify({ fund: '', company_name: newCompanyName })
-                    }
-                  );
-                  if (patchResp.ok) {
-                    corrected++;
-                    corrections.push({ mobile: originalRow.mobile, action: 'move_fund_to_company', old_fund: originalRow.fund, new_company_name: newCompanyName });
-                  } else {
-                    var errText = await patchResp.text();
-                    errors.push('PATCH 失败 (' + originalRow.mobile + '): ' + errText);
-                  }
-                } catch (patchErr) {
-                  errors.push('PATCH 网络错误 (' + originalRow.mobile + '): ' + patchErr.message);
-                }
-              } else if (dec.action === 'move_company_to_fund') {
-                // company_name 存的是公积金数字，移到 fund
-                var newFund = originalRow.company_name;
-                if (!newFund) { errors.push('行 ' + rowIdx + ' move_company_to_fund 缺少值'); continue; }
-                try {
-                  var patchResp2 = await fetch(
-                    supabaseUrl + '/rest/v1/customers?mobile=eq.' + encodeURIComponent(originalRow.mobile),
-                    {
-                      method: 'PATCH',
-                      headers: Object.assign({}, hdrs, { 'Prefer': 'return=minimal' }),
-                      body: JSON.stringify({ company_name: '', fund: newFund })
-                    }
-                  );
-                  if (patchResp2.ok) {
-                    corrected++;
-                    corrections.push({ mobile: originalRow.mobile, action: 'move_company_to_fund', old_company_name: originalRow.company_name, new_fund: newFund });
-                  } else {
-                    var errText2 = await patchResp2.text();
-                    errors.push('PATCH 失败 (' + originalRow.mobile + '): ' + errText2);
-                  }
-                } catch (patchErr2) {
-                  errors.push('PATCH 网络错误 (' + originalRow.mobile + '): ' + patchErr2.message);
-                }
-              } else if (dec.action === 'swap') {
-                // fund 和 company_name 互换
-                var swapFund = originalRow.fund;
-                var swapCompany = originalRow.company_name;
-                try {
-                  var patchResp3 = await fetch(
-                    supabaseUrl + '/rest/v1/customers?mobile=eq.' + encodeURIComponent(originalRow.mobile),
-                    {
-                      method: 'PATCH',
-                      headers: Object.assign({}, hdrs, { 'Prefer': 'return=minimal' }),
-                      body: JSON.stringify({ fund: swapCompany, company_name: swapFund })
-                    }
-                  );
-                  if (patchResp3.ok) {
-                    corrected++;
-                    corrections.push({ mobile: originalRow.mobile, action: 'swap', old_fund: swapFund, old_company_name: swapCompany });
-                  } else {
-                    var errText3 = await patchResp3.text();
-                    errors.push('PATCH swap 失败 (' + originalRow.mobile + '): ' + errText3);
-                  }
-                } catch (patchErr3) {
-                  errors.push('PATCH swap 网络错误 (' + originalRow.mobile + '): ' + patchErr3.message);
-                }
-              } else if (dec.action === 'move_note_to_company') {
-                // note 存的是公司名，移到 company_name，清空 note
-                var noteCompanyName = originalRow.note;
-                if (!noteCompanyName) { errors.push('行 ' + rowIdx + ' move_note_to_company 缺少值'); continue; }
-                try {
-                  var patchRespN = await fetch(
-                    supabaseUrl + '/rest/v1/customers?mobile=eq.' + encodeURIComponent(originalRow.mobile),
-                    {
-                      method: 'PATCH',
-                      headers: Object.assign({}, hdrs, { 'Prefer': 'return=minimal' }),
-                      body: JSON.stringify({ note: '', company_name: noteCompanyName })
-                    }
-                  );
-                  if (patchRespN.ok) {
-                    corrected++;
-                    corrections.push({ mobile: originalRow.mobile, action: 'move_note_to_company', old_note: originalRow.note, new_company_name: noteCompanyName });
-                  } else {
-                    var errTextN = await patchRespN.text();
-                    errors.push('PATCH move_note_to_company 失败 (' + originalRow.mobile + '): ' + errTextN);
-                  }
-                } catch (patchErrN) {
-                  errors.push('PATCH move_note_to_company 网络错误 (' + originalRow.mobile + '): ' + patchErrN.message);
-                }
-              } else if (dec.action === 'clear_fund') {
-                // fund 是乱码，清空
-                try {
-                  var patchResp4 = await fetch(
-                    supabaseUrl + '/rest/v1/customers?mobile=eq.' + encodeURIComponent(originalRow.mobile),
-                    {
-                      method: 'PATCH',
-                      headers: Object.assign({}, hdrs, { 'Prefer': 'return=minimal' }),
-                      body: JSON.stringify({ fund: '' })
-                    }
-                  );
-                  if (patchResp4.ok) {
-                    corrected++;
-                    corrections.push({ mobile: originalRow.mobile, action: 'clear_fund', old_fund: originalRow.fund });
-                  } else {
-                    var errText4 = await patchResp4.text();
-                    errors.push('PATCH clear_fund 失败 (' + originalRow.mobile + '): ' + errText4);
-                  }
-                } catch (patchErr4) {
-                  errors.push('PATCH clear_fund 网络错误 (' + originalRow.mobile + '): ' + patchErr4.message);
-                }
-              } else if (dec.action === 'move_note_number_to_fund') {
-                // note 中包含 1-49999 的数字，移到 fund
-                var fundNum = dec.fund_value || '';
-                if (!fundNum) {
-                  // AI 没给具体数字，自己从 note 里提取
-                  var autoMatch = originalRow.note.match(/\b(\d{1,5})\b/);
-                  if (autoMatch) fundNum = autoMatch[1];
-                }
-                if (!fundNum) { errors.push('行 ' + rowIdx + ' move_note_number_to_fund 缺少 fund_value'); continue; }
-                var newNoteText = originalRow.note.replace(new RegExp('\\b' + fundNum + '\\b'), '').trim();
-                // 去掉多余的空白和标点
-                newNoteText = newNoteText.replace(/^[，。,.\-\s]+/, '').replace(/[，。,.\-\s]+$/, '').trim();
-                if (!newNoteText) newNoteText = '';
-                try {
-                  var patchResp5 = await fetch(
-                    supabaseUrl + '/rest/v1/customers?mobile=eq.' + encodeURIComponent(originalRow.mobile),
-                    {
-                      method: 'PATCH',
-                      headers: Object.assign({}, hdrs, { 'Prefer': 'return=minimal' }),
-                      body: JSON.stringify({ fund: fundNum, note: newNoteText })
-                    }
-                  );
-                  if (patchResp5.ok) {
-                    corrected++;
-                    corrections.push({ mobile: originalRow.mobile, action: 'move_note_number_to_fund', fund_value: fundNum, old_note: originalRow.note, new_note: newNoteText });
-                  } else {
-                    var errText5 = await patchResp5.text();
-                    errors.push('PATCH move_note_number_to_fund 失败 (' + originalRow.mobile + '): ' + errText5);
-                  }
-                } catch (patchErr5) {
-                  errors.push('PATCH move_note_number_to_fund 网络错误 (' + originalRow.mobile + '): ' + patchErr5.message);
-                }
-              }
-              // action 'skip' = 不做任何操作
-            }
-          } catch (aiErr) {
-            errors.push('批次 ' + Math.floor(batchStart / BATCH_SIZE) + ' AI 调用错误: ' + aiErr.message);
-          }
-        }
-
-        return new Response(JSON.stringify({
+      if (suspiciousRows.length === 0) {
+        return {
           success: true,
           total_scanned: all.length,
-          suspicious_found: suspiciousRows.length,
-          ai_corrected: corrected,
-          corrections: corrections,
-          errors: errors,
-          message: '修正完成。扫描 ' + all.length + ' 条，发现 ' + suspiciousRows.length + ' 条可疑，AI 已修正 ' + corrected + ' 条。'
-        }), {
-          headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
-        });
+          suspicious_found: 0,
+          ai_corrected: 0,
+          corrections: [],
+          errors: [],
+          message: '没有发现需要修正的数据，fund、company_name 和 note 字段均正常。'
+        };
+      }
 
+      // 3. 批量发送给 AI 判断 (每批最多 20 条)
+      var BATCH_SIZE = 20;
+      var corrected = 0;
+      var corrections = [];
+      var errors = [];
+
+      for (var batchStart = 0; batchStart < suspiciousRows.length; batchStart += BATCH_SIZE) {
+        var batch = suspiciousRows.slice(batchStart, batchStart + BATCH_SIZE);
+        var promptRows = batch.map(function(r, idx) {
+          return '  [' + (batchStart + idx) + '] mobile=' + r.mobile + ', fund="' + r.fund + '", company_name="' + r.company_name + '", note="' + (r.note || '') + '"';
+        }).join('\n');
+
+        var prompt = (
+          '你是一个数据清洗助手。检查以下每条客户记录，判断 fund（公积金）、company_name（单位名称）、note（备注）字段是否存错了位置。\n\n' +
+          '规则：\n' +
+          '1. 如果 fund 存的是单位名称（公司/学校/机构等，含中文组织名）→ 应移到 company_name。输出: {"action": "move_fund_to_company"}\n' +
+          '2. 如果 company_name 存的是纯数字 4-5 位（公积金账号）→ 应移到 fund。输出: {"action": "move_company_to_fund"}\n' +
+          '3. 如果 fund 存单位名 且 company_name 存数字 → 两者互换。输出: {"action": "swap"}\n' +
+          '4. 如果 note 存的是单位名称（company_name 为空时）→ 应移到 company_name。输出: {"action": "move_note_to_company"}\n' +
+          '5. 如果 fund 是乱码/备注/无意义文字（不是单位名也不是数字）→ 清空 fund。输出: {"action": "clear_fund"}\n' +
+          '6. 如果 note（备注）中包含阿拉伯数字且在 1-49999 之间（如 8000、15000），且 fund 为空 → 应将数字移到 fund。输出: {"action": "move_note_number_to_fund", "fund_value": "<数字>"}\n' +
+          '7. 如果不确定 → 跳过。输出: {"action": "skip"}\n\n' +
+          '注意：\n' +
+          '- 单位名包括：公司（腾讯科技）、学校（实验小学、某某幼儿园/小学/中学/大学）、机构（建设银行、人民医院）\n' +
+          '- 备注里只有确信是单位名称时才建议 move_note_to_company\n' +
+          '- 如果备注是普通的跟进记录（"已联系"等）请不要移动\n' +
+          '- 公积金数字通常单独出现（如"公积金8000"、"余额15000"），不要提取电话号码中的数字\n' +
+          '- 只在确定的情况下才建议修正，不确定就 skip\n\n' +
+          '请对以下每条记录分析，只输出 JSON 数组：\n' +
+          '[\n' +
+          '  {"idx": 序号, "action": "move_fund_to_company|move_company_to_fund|swap|move_note_to_company|clear_fund|move_note_number_to_fund|skip"},\n' +
+          '  ...\n' +
+          ']\n\n' +
+          '输入数据：\n' + promptRows
+        );
+
+        try {
+          var apiData = await callAIChat(env, [
+            { role: 'system', content: '你是一个严谨的数据清洗助手。请严格按 JSON 格式输出。' },
+            { role: 'user', content: prompt }
+          ], 0.1);
+
+          var aiContent = apiData.choices[0].message.content.trim();
+          if (aiContent.startsWith('```')) {
+            aiContent = aiContent.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '').trim();
+          }
+
+          var decisions;
+          try { decisions = JSON.parse(aiContent); }
+          catch (parseErr) { errors.push('Batch ' + Math.floor(batchStart / BATCH_SIZE) + ': AI JSON parse error: ' + parseErr.message); continue; }
+          if (!Array.isArray(decisions)) { errors.push('Batch ' + Math.floor(batchStart / BATCH_SIZE) + ': AI returned non-array'); continue; }
+
+          for (var d = 0; d < decisions.length; d++) {
+            var dec = decisions[d];
+            var rowIdx = dec.idx;
+            var originalRow = null;
+            for (var s = 0; s < batch.length; s++) {
+              if ((batchStart + s) === rowIdx) { originalRow = batch[s]; break; }
+            }
+            if (!originalRow) { errors.push('idx ' + rowIdx + ' not found in batch'); continue; }
+
+            if (dec.action === 'move_fund_to_company') {
+              if (!originalRow.fund) { errors.push('row ' + rowIdx + ' move_fund_to_company missing value'); continue; }
+              try {
+                var r1 = await fetch(supabaseUrl + '/rest/v1/customers?mobile=eq.' + encodeURIComponent(originalRow.mobile),
+                  { method: 'PATCH', headers: Object.assign({}, hdrs, { 'Prefer': 'return=minimal' }), body: JSON.stringify({ fund: '', company_name: originalRow.fund }) });
+                if (r1.ok) { corrected++; corrections.push({ mobile: originalRow.mobile, action: 'move_fund_to_company', old_fund: originalRow.fund, new_company_name: originalRow.fund }); }
+                else { var e1 = await r1.text(); errors.push('PATCH ' + originalRow.mobile + ': ' + e1); }
+              } catch (pe) { errors.push('PATCH err ' + originalRow.mobile + ': ' + pe.message); }
+            } else if (dec.action === 'move_company_to_fund') {
+              if (!originalRow.company_name) { errors.push('row ' + rowIdx + ' move_company_to_fund missing value'); continue; }
+              try {
+                var r2 = await fetch(supabaseUrl + '/rest/v1/customers?mobile=eq.' + encodeURIComponent(originalRow.mobile),
+                  { method: 'PATCH', headers: Object.assign({}, hdrs, { 'Prefer': 'return=minimal' }), body: JSON.stringify({ company_name: '', fund: originalRow.company_name }) });
+                if (r2.ok) { corrected++; corrections.push({ mobile: originalRow.mobile, action: 'move_company_to_fund', old_company_name: originalRow.company_name, new_fund: originalRow.company_name }); }
+                else { var e2 = await r2.text(); errors.push('PATCH ' + originalRow.mobile + ': ' + e2); }
+              } catch (pe) { errors.push('PATCH err ' + originalRow.mobile + ': ' + pe.message); }
+            } else if (dec.action === 'swap') {
+              try {
+                var r3 = await fetch(supabaseUrl + '/rest/v1/customers?mobile=eq.' + encodeURIComponent(originalRow.mobile),
+                  { method: 'PATCH', headers: Object.assign({}, hdrs, { 'Prefer': 'return=minimal' }), body: JSON.stringify({ fund: originalRow.company_name, company_name: originalRow.fund }) });
+                if (r3.ok) { corrected++; corrections.push({ mobile: originalRow.mobile, action: 'swap', old_fund: originalRow.fund, old_company_name: originalRow.company_name }); }
+                else { var e3 = await r3.text(); errors.push('PATCH swap ' + originalRow.mobile + ': ' + e3); }
+              } catch (pe) { errors.push('PATCH swap err ' + originalRow.mobile + ': ' + pe.message); }
+            } else if (dec.action === 'move_note_to_company') {
+              if (!originalRow.note) { errors.push('row ' + rowIdx + ' move_note_to_company missing value'); continue; }
+              try {
+                var r4 = await fetch(supabaseUrl + '/rest/v1/customers?mobile=eq.' + encodeURIComponent(originalRow.mobile),
+                  { method: 'PATCH', headers: Object.assign({}, hdrs, { 'Prefer': 'return=minimal' }), body: JSON.stringify({ note: '', company_name: originalRow.note }) });
+                if (r4.ok) { corrected++; corrections.push({ mobile: originalRow.mobile, action: 'move_note_to_company', old_note: originalRow.note, new_company_name: originalRow.note }); }
+                else { var e4 = await r4.text(); errors.push('PATCH note ' + originalRow.mobile + ': ' + e4); }
+              } catch (pe) { errors.push('PATCH note err ' + originalRow.mobile + ': ' + pe.message); }
+            } else if (dec.action === 'clear_fund') {
+              try {
+                var r5 = await fetch(supabaseUrl + '/rest/v1/customers?mobile=eq.' + encodeURIComponent(originalRow.mobile),
+                  { method: 'PATCH', headers: Object.assign({}, hdrs, { 'Prefer': 'return=minimal' }), body: JSON.stringify({ fund: '' }) });
+                if (r5.ok) { corrected++; corrections.push({ mobile: originalRow.mobile, action: 'clear_fund', old_fund: originalRow.fund }); }
+                else { var e5 = await r5.text(); errors.push('PATCH clear_fund ' + originalRow.mobile + ': ' + e5); }
+              } catch (pe) { errors.push('PATCH clear_fund err ' + originalRow.mobile + ': ' + pe.message); }
+            } else if (dec.action === 'move_note_number_to_fund') {
+              var fundNum = dec.fund_value || '';
+              if (!fundNum) { var autoMatch = originalRow.note.match(/\b(\d{1,5})\b/); if (autoMatch) fundNum = autoMatch[1]; }
+              if (!fundNum) { errors.push('row ' + rowIdx + ' move_note_number_to_fund missing fund_value'); continue; }
+              var newNoteText = originalRow.note.replace(new RegExp('\\b' + fundNum + '\\b'), '').trim();
+              newNoteText = newNoteText.replace(/^[，。,.\-\s]+/, '').replace(/[，。,.\-\s]+$/, '').trim();
+              if (!newNoteText) newNoteText = '';
+              try {
+                var r6 = await fetch(supabaseUrl + '/rest/v1/customers?mobile=eq.' + encodeURIComponent(originalRow.mobile),
+                  { method: 'PATCH', headers: Object.assign({}, hdrs, { 'Prefer': 'return=minimal' }), body: JSON.stringify({ fund: fundNum, note: newNoteText }) });
+                if (r6.ok) { corrected++; corrections.push({ mobile: originalRow.mobile, action: 'move_note_number_to_fund', fund_value: fundNum, old_note: originalRow.note, new_note: newNoteText }); }
+                else { var e6 = await r6.text(); errors.push('PATCH move_note_number_to_fund ' + originalRow.mobile + ': ' + e6); }
+              } catch (pe) { errors.push('PATCH move_note_number_to_fund err ' + originalRow.mobile + ': ' + pe.message); }
+            }
+          }
+        } catch (aiErr) {
+          errors.push('Batch ' + Math.floor(batchStart / BATCH_SIZE) + ' AI error: ' + aiErr.message);
+        }
+      }
+
+      return {
+        success: true,
+        total_scanned: all.length,
+        suspicious_found: suspiciousRows.length,
+        ai_corrected: corrected,
+        corrections: corrections,
+        errors: errors,
+        message: '修正完成。扫描 ' + all.length + ' 条，发现 ' + suspiciousRows.length + ' 条可疑，AI 已修正 ' + corrected + ' 条。'
+      };
+    }
+
+    // 2h. AI: 修正公积金字段（可手动触发或定时任务自动调用）
+    if (path === '/api/admin/ai-correct-fund' && request.method === 'GET') {
+      try {
+        const result = await runAICorrectFund(env);
+        return new Response(JSON.stringify(result), {
+          headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' },
+          status: result.success ? 200 : 500
+        });
       } catch (e) {
         return new Response(JSON.stringify({ success: false, error: e.message }), {
           status: 500,
@@ -8806,9 +8692,25 @@ const rid=Math.floor(Math.random()*1000);
     });
   },
 
-  // Cron 定时任务：每天早上 8:00 (北京时间，UTC+8) 自动生成 30 条朋友圈文案（励志生活·热点·财经电报·股市热点·贷款回访·日常招呼各5条）并推送到企业微信
+  // Cron 定时任务：每天早上 8:00 (北京时间，UTC+8)
+  // 1. 自动生成朋友圈文案并推送到企业微信
+  // 2. 自动扫描 Supabase 客户数据，AI 修正公积金/单位/备注字段
   async scheduled(event, env, ctx) {
     await doMomentsPush(env, '[Cron]');
+
+    // AI 公积金自动修正（每天全量扫描）
+    try {
+      console.log('[Cron] 开始 AI 公积金自动修正...');
+      const result = await runAICorrectFund(env);
+      console.log('[Cron] AI 修正完成:', JSON.stringify({
+        total: result.total_scanned,
+        suspicious: result.suspicious_found,
+        corrected: result.ai_corrected,
+        errors: (result.errors || []).length
+      }));
+    } catch (e) {
+      console.error('[Cron] AI 修正异常:', e.message);
+    }
   }
 };
 
