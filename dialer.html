@@ -5575,7 +5575,7 @@
             '<td class="col-phone"><span class="crm-copy-btn" data-copy="' + esc(phoneVal) + '" title="点击复制">' + esc(phoneVal || '-') + '</span></td>' +
             '<td class="col-company"><span class="crm-copy-btn" data-copy="' + esc(c.company||'') + '">' + esc(c.company||'-') + '</span>' + wlBadge + '</td>' +
             '<td class="col-note">' + esc(c.note||'-') + '</td>' +
-            '<td class="col-batch">' + '<span style="font-size:11px;background:rgba(74,108,247,0.08);color:#4a6cf7;padding:1px 6px;border-radius:3px;">' + (c.batch_label || (c.created_at ? c.created_at.slice(5, 19).replace('T', ' ') : '-')) + '</span>' + '</td>' +
+            '<td class="col-batch">' + '<span style="font-size:11px;background:rgba(74,108,247,0.08);color:#4a6cf7;padding:1px 6px;border-radius:3px;">' + (c.batch_label || '-') + '</span>' + '</td>' +
             '<td class="col-action"><a href="tel:' + esc(phoneVal) + '" style="display:inline-block;padding:3px 10px;background:linear-gradient(135deg,#07c160,#06ad56);color:#fff;border-radius:4px;text-decoration:none;font-size:12px;font-weight:700;">拨打</a></td>' +
           '</tr>';
         }).join('');
