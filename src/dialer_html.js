@@ -6811,6 +6811,15 @@ export const DIALER_HTML = `<!DOCTYPE html>
         });
       }
 
+      // 4. 冷却期客户自动排到最后（避免添加到待拨打时误勾选）
+      filtered.sort(function(a, b) {
+        var aCool = !canAddToDialList(a.mobile);
+        var bCool = !canAddToDialList(b.mobile);
+        if (aCool && !bCool) return 1;
+        if (!aCool && bCool) return -1;
+        return 0;
+      });
+
       return filtered;
     }
 
