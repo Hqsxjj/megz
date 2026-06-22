@@ -1894,7 +1894,6 @@ export const DIALER_HTML = `<!DOCTYPE html>
 
     // Returns {allowed: bool, message: string}
     function checkCopyLimit() {
-      if (isMobileDevice) return { allowed: true, message: '' };
       // If copy limit feature is disabled, always allow
       if (copyLimitEnabled === false) return { allowed: true, message: '' };
 
