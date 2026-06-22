@@ -5544,7 +5544,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
             e.stopPropagation();
             var name = b.dataset.name;
             var idx = parseInt(b.dataset.idx);
-            copyTextToClipboard(name);
+            copyTextToClipboard(' ' + name + ' ');
 
             var client = importedClients[idx];
             if (client) recordTimeline(client.phone || client.mobile, 'copy_name');
@@ -5692,12 +5692,13 @@ export const DIALER_HTML = `<!DOCTYPE html>
                 return;
               }
             }
-            navigator.clipboard.writeText(text).then(function() {
+            var parentTd = btn.closest('td');
+            var copyType = 'copy_phone';
+            if (parentTd && parentTd.classList.contains('col-name')) copyType = 'copy_name';
+            else if (parentTd && parentTd.classList.contains('col-company')) copyType = 'copy_company';
+            var copyText = (copyType === 'copy_name') ? ' ' + text + ' ' : text;
+            navigator.clipboard.writeText(copyText).then(function() {
               // Record timeline based on column
-              var parentTd = btn.closest('td');
-              var copyType = 'copy_phone';
-              if (parentTd && parentTd.classList.contains('col-name')) copyType = 'copy_name';
-              else if (parentTd && parentTd.classList.contains('col-company')) copyType = 'copy_company';
               var tr = btn.closest('tr');
               var trIdx = tr ? parseInt(tr.getAttribute('data-idx')) : -1;
               if (trIdx !== -1 && importedClients[trIdx]) {
