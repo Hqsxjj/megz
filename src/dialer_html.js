@@ -7285,6 +7285,44 @@ export const DIALER_HTML = `<!DOCTYPE html>
       }
     }
 
+    // 批量删除独立密码
+    var DELETE_PWD_K = 'delete_pwd_hash';
+
+    function getDeletePassword() {
+      return localStorage.getItem(DELETE_PWD_K) || '';
+    }
+
+    function verifyDeletePassword(callback) {
+      var savedHash = getDeletePassword();
+      if (!savedHash) {
+        // First time: set password
+        var pwd = prompt('首次使用批量删除，请设置删除密码（6位字母+数字）:');
+        if (!pwd) return;
+        if (pwd.length !== 6 || !/^[a-zA-Z0-9]+$/.test(pwd)) {
+          alert('密码必须为6位字母或数字');
+          return;
+        }
+        var confirmPwd = prompt('请再次输入密码确认:');
+        if (pwd !== confirmPwd) {
+          alert('两次密码不一致');
+          return;
+        }
+        localStorage.setItem(DELETE_PWD_K, hashPwd(pwd));
+        alert('删除密码已设置！请牢记。');
+        callback();
+        return;
+      }
+
+      // Verify existing password
+      var input = prompt('请输入删除密码以确认批量删除:');
+      if (!input) return;
+      if (hashPwd(input) !== savedHash) {
+        alert('密码错误');
+        return;
+      }
+      callback();
+    }
+
     function openDBDashboard(){
       var ov=document.getElementById('dbOverlay'); if(!ov)return;
       if (dbPwdSessionAuthed) {
@@ -7808,11 +7846,20 @@ export const DIALER_HTML = `<!DOCTYPE html>
         batchDeleteBtn.onclick = function() {
           var mobiles = Object.keys(DB.selectedIds);
           if (mobiles.length === 0) { alert('请先勾选需要删除的客户'); return; }
-          
+
           if (!confirm('警告：确认删除选中的 ' + mobiles.length + ' 个客户吗？该操作不可逆，将从数据库彻底移除！')) return;
-          
-          batchDeleteBtn.disabled = true;
-          batchDeleteBtn.textContent = '删除中...';
+
+          // 删除密码验证
+          verifyDeletePassword(function() {
+            doBatchDelete(mobiles);
+          });
+        };
+      }
+
+      function doBatchDelete(mobiles) {
+        var batchDeleteBtn = document.getElementById('crmBatchDeleteBtn');
+        batchDeleteBtn.disabled = true;
+        batchDeleteBtn.textContent = '删除中...';
           
           fetch('/api/dialer/customers', {
             method: 'DELETE',
@@ -7835,10 +7882,11 @@ export const DIALER_HTML = `<!DOCTYPE html>
             alert('删除出错: ' + err.message);
           })
           .then(function() {
-            batchDeleteBtn.disabled = false;
-            batchDeleteBtn.textContent = '批量删除';
+            if (batchDeleteBtn) {
+              batchDeleteBtn.disabled = false;
+              batchDeleteBtn.textContent = '批量删除';
+            }
           });
-        };
       }
 
       // Toolbar action: 转入公海
