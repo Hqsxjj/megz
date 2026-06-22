@@ -7141,6 +7141,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
         var curBatch = batchS.value;
         var bh = '<option value="">全部批次</option>';
         Object.keys(bs).sort().forEach(function(k) {
+          if (isAutoBatchLabel(k)) return;
           bh += '<option value="' + esc(k) + '"' + (k === curBatch ? ' selected' : '') + '>' + esc(k) + '</option>';
         });
         batchS.innerHTML = bh;
