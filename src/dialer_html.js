@@ -1737,9 +1737,9 @@ export const DIALER_HTML = `<!DOCTYPE html>
       <div class="crm-pager-right">
         <select class="crm-select-page" id="dbPageSize">
           <option value="30">30条/页</option>
-          <option value="50">50条/页</option>
+          <option value="50" selected>50条/页</option>
           <option value="100">100条/页</option>
-          <option value="300" selected>300条/页</option>
+          <option value="300">300条/页</option>
         </select>
       </div>
     </div>
@@ -7356,7 +7356,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
       if (phoneInp) phoneInp.value = '';
       if (noteInp) noteInp.value = '';
       
-      DB.pageSize=parseInt((document.getElementById('dbPageSize')||{}).value||'300');
+      DB.pageSize=parseInt((document.getElementById('dbPageSize')||{}).value||'50');
       DB.selectedIds = {}; // Reset selections
       var selectAllCb = document.getElementById('crmSelectAll');
       if (selectAllCb) selectAllCb.checked = false;
