@@ -1174,7 +1174,7 @@
         <!-- Auto Dial Toggle -->
         <button id="autoDialBtn" title="自动拨打" style="font-size: 0.78rem; padding: 4px 10px; border: 1px solid var(--accent-wechat); background: var(--accent-wechat-bg); color: var(--accent-wechat); cursor: pointer; outline: none; font-weight: 700; border-radius: var(--radius-xs); white-space: nowrap;">自动拨打</button>
         <!-- Database Viewer -->
-        <button id="custViewerBtn2" title="查看 Supabase 客户数据库" onclick="if(window.openDBDashboard)window.openDBDashboard();else{document.getElementById('dbOverlay').classList.add('active');alert('看板已打开，数据加载中...');}" style="font-size: 0.78rem; padding: 4px 10px; border: 1px solid #4a6cf7; background: rgba(74,108,247,0.08); color: #4a6cf7; cursor: pointer; outline: none; font-weight: 700; border-radius: var(--radius-xs); margin-right: 8px; white-space: nowrap;">📋 数据库</button>
+        <button id="custViewerBtn2" title="查看 Supabase 客户数据库" onclick="if(window.openDBDashboard)window.openDBDashboard();else{document.getElementById('dbOverlay').classList.add('active');alert('看板已打开，数据加载中...');}" style="font-size: 0.78rem; padding: 4px 10px; border: 1px solid #4a6cf7; background: rgba(74,108,247,0.08); color: #4a6cf7; cursor: pointer; outline: none; font-weight: 700; border-radius: var(--radius-xs); margin-right: 8px; white-space: nowrap;">数据库</button>
         <!-- Dropdown Menu Trigger on the Right -->
         <div style="position: relative; display: inline-block;">
           <button id="headerMenuBtn" title="更多设置" style="font-size: 0.8rem; padding: 6px 10px; border: none; background: transparent; cursor: pointer; outline: none; font-weight: 800; color: var(--text-soft); min-width: 44px; min-height: 34px; -webkit-tap-highlight-color: transparent; touch-action: manipulation;">更多</button>
@@ -1185,12 +1185,12 @@
             <button class="dropdown-item" id="toggleDualSimBtn">双卡轮换: 开</button>
             <button class="dropdown-item" id="toggleRotationBtn">轮换频率: 10通</button>
             <button class="dropdown-item" id="toggleCopyLimitBtn">复制限制: 开</button>
-            <button class="dropdown-item copy-limit-sub" id="toggleThreshold15">  15次限制: ✓</button>
-            <button class="dropdown-item copy-limit-sub" id="toggleThreshold20">  20次限制: ✓</button>
-            <button class="dropdown-item copy-limit-sub" id="toggleThreshold30">  30次限制: ✓</button>
+            <button class="dropdown-item copy-limit-sub" id="toggleThreshold15">  15次限制: 开</button>
+            <button class="dropdown-item copy-limit-sub" id="toggleThreshold20">  20次限制: 开</button>
+            <button class="dropdown-item copy-limit-sub" id="toggleThreshold30">  30次限制: 开</button>
             <button class="dropdown-item" id="exportBtn" style="display:none;">导出记录</button>
             <button class="dropdown-item" id="clearBtn" style="display:none; color: #e74c3c;">清空数据</button>
-            <button class="dropdown-item" id="custViewerBtn">📋 客户数据</button>
+            <button class="dropdown-item" id="custViewerBtn">客户数据</button>
             <button class="dropdown-item" id="darkToggleBtn">切换主题</button>
           </div>
         </div>
@@ -1206,7 +1206,7 @@
         <!-- AI Drag & Drop Zone -->
         <div class="import-zone" id="dropZone" style="position: relative; overflow: hidden; min-height: 200px;">
           <!-- Close Button -->
-          <button class="import-close-btn" id="importCloseBtn" title="关闭导入面板">✕</button>
+          <button class="import-close-btn" id="importCloseBtn" title="关闭导入面板">关闭</button>
           <!-- Animation Laser Line (Only visible during scanning) -->
           <div id="aiLaserLine" class="ai-laser-line" style="display: none;"></div>
 
@@ -1215,24 +1215,24 @@
             <!-- Pulsing AI Brain Core SVG -->
             <div style="position: relative; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; margin-bottom: 2px;">
               <div style="position: absolute; width: 44px; height: 44px; border-radius: 50%; border: 2px solid rgba(7, 193, 96, 0.4); animation: pulse-ring 2s infinite ease-in-out;"></div>
-              <div style="position: absolute; width: 30px; height: 30px; border-radius: 50%; background: var(--wechat-gradient); display: flex; align-items: center; justify-content: center; color: white; font-size: 1.1rem; box-shadow: 0 0 10px rgba(7, 193, 96, 0.4);">🤖</div>
+              <div style="position: absolute; width: 30px; height: 30px; border-radius: 50%; background: var(--wechat-gradient); display: flex; align-items: center; justify-content: center; color: white; font-size: 1.1rem; box-shadow: 0 0 10px rgba(7, 193, 96, 0.4);"></div>
             </div>
             <span style="font-size: 0.88rem; color: var(--text-main); font-weight: 900; letter-spacing: 0.5px;">BH-AI 智能双引擎导入助手</span>
             <span style="font-size: 0.7rem; color: var(--text-light); max-width: 320px; line-height: 1.4; margin-top: -4px;">搭载启发式文字密度与特征识别算法，自动检测表头、过滤噪音，100% 本地隐私安全。</span>
-            <button id="ocrTrainingDataBtn" style="background:transparent; border:1px solid var(--card-border); font-size:0.62rem; color:var(--text-soft); cursor:pointer; display:inline-flex; align-items:center; gap:3px; padding:2px 8px; border-radius:10px; margin-top:-2px;">📊 训练数据 (<span id="trainingCountBadge" style="color:var(--accent-wechat);font-weight:800;">0</span>)</button>
+            <button id="ocrTrainingDataBtn" style="background:transparent; border:1px solid var(--card-border); font-size:0.62rem; color:var(--text-soft); cursor:pointer; display:inline-flex; align-items:center; gap:3px; padding:2px 8px; border-radius:10px; margin-top:-2px;">训练数据 (<span id="trainingCountBadge" style="color:var(--accent-wechat);font-weight:800;">0</span>)</button>
 
             
             
             <div class="import-buttons" style="margin-top: 6px; display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; width: 100%;">
-              <label class="btn-primary" for="xlsFileInput" id="xlsSelectBtn" style="cursor:pointer; display:inline-flex; align-items:center; justify-content:center; padding: 8px 16px; font-size: 0.76rem; flex: 1; min-width: 130px; text-align: center;">📂 导入表格 / 文档</label>
-              <label class="btn-primary" for="imgFileInput" id="imgSelectBtn" style="cursor:pointer; display:inline-flex; align-items:center; justify-content:center; padding: 8px 16px; font-size: 0.76rem; flex: 1; min-width: 130px; text-align: center; background: var(--revisit-gradient) !important; color: white;">📸 智能图片 OCR (可多选)</label>
-              <label class="btn-secondary" for="vcfFileInput" id="vcfSelectBtn" style="cursor:pointer; display:inline-flex; align-items:center; justify-content:center; padding: 8px 16px; font-size: 0.76rem; flex: 1; min-width: 130px; text-align: center;">👤 导入 VCF 通录</label>
-              <button class="btn-secondary" id="textImportBtn" style="cursor:pointer; display:inline-flex; align-items:center; justify-content:center; padding: 8px 16px; font-size: 0.76rem; flex: 1; min-width: 130px; text-align: center; background: linear-gradient(135deg,#667eea,#764ba2); color:white; border:none; font-weight:700;" onclick="document.getElementById('textImportPanel').style.display='flex';document.getElementById('textImportArea').value='';document.getElementById('textImportArea').focus();">📝 粘贴文本识别</button>
+              <label class="btn-primary" for="xlsFileInput" id="xlsSelectBtn" style="cursor:pointer; display:inline-flex; align-items:center; justify-content:center; padding: 8px 16px; font-size: 0.76rem; flex: 1; min-width: 130px; text-align: center;">导入表格 / 文档</label>
+              <label class="btn-primary" for="imgFileInput" id="imgSelectBtn" style="cursor:pointer; display:inline-flex; align-items:center; justify-content:center; padding: 8px 16px; font-size: 0.76rem; flex: 1; min-width: 130px; text-align: center; background: var(--revisit-gradient) !important; color: white;">智能图片 OCR (可多选)</label>
+              <label class="btn-secondary" for="vcfFileInput" id="vcfSelectBtn" style="cursor:pointer; display:inline-flex; align-items:center; justify-content:center; padding: 8px 16px; font-size: 0.76rem; flex: 1; min-width: 130px; text-align: center;">导入 VCF 通录</label>
+              <button class="btn-secondary" id="textImportBtn" style="cursor:pointer; display:inline-flex; align-items:center; justify-content:center; padding: 8px 16px; font-size: 0.76rem; flex: 1; min-width: 130px; text-align: center; background: linear-gradient(135deg,#667eea,#764ba2); color:white; border:none; font-weight:700;" onclick="document.getElementById('textImportPanel').style.display='flex';document.getElementById('textImportArea').value='';document.getElementById('textImportArea').focus();">粘贴文本识别</button>
             </div>
             <div id="textImportPanel" style="display:none; flex-direction:column; gap:6px; width:100%; margin-top:6px;">
               <textarea id="textImportArea" placeholder="在此粘贴文本，如：张三 13800138000 腾讯科技 备注" style="width:100%; height:120px; padding:8px; font-size:0.72rem; border:1px solid var(--card-border); border-radius:var(--radius-xs); background:var(--card-bg); color:var(--text-main); resize:vertical; outline:none; font-family:monospace;"></textarea>
               <div style="display:flex; gap:6px;">
-                <button class="btn-primary" id="textImportExtractBtn" style="flex:1; padding:6px; font-size:0.72rem; background:var(--wechat-gradient); color:white; border:none; border-radius:var(--radius-xs); font-weight:700;">🔍 智能识别提取</button>
+                <button class="btn-primary" id="textImportExtractBtn" style="flex:1; padding:6px; font-size:0.72rem; background:var(--wechat-gradient); color:white; border:none; border-radius:var(--radius-xs); font-weight:700;">智能识别提取</button>
                 <button class="btn-secondary" style="padding:6px 12px; font-size:0.72rem; background:var(--btn-bg); color:var(--text-soft); border:1px solid var(--card-border); border-radius:var(--radius-xs);" onclick="document.getElementById('textImportPanel').style.display='none';">取消</button>
               </div>
             </div>
@@ -1240,11 +1240,11 @@
             <input type="file" id="imgFileInput" accept="image/*" multiple style="display:none;">
             <input type="file" id="vcfFileInput" accept=".vcf,.vcard" style="display:none;">
             <div style="display: flex; gap: 6px; align-items: center; margin-top: 6px; width: 100%;">
-              <span style="font-size: 0.68rem; color: var(--text-soft); font-weight: 800; white-space: nowrap;">🏷️ 批次标签</span>
+              <span style="font-size: 0.68rem; color: var(--text-soft); font-weight: 800; white-space: nowrap;">批次标签</span>
               <input type="text" id="batchLabelInput" placeholder="如: 6月展会名单" value="" style="flex:1; height:28px; padding:0 8px; font-size:0.72rem; border:1px solid var(--card-border); border-radius:var(--radius-xs); background:var(--card-bg); color:var(--text-main); outline:none;">
             </div>
             <div style="display: flex; gap: 6px; align-items: center; margin-top: 6px; width: 100%;">
-              <span style="font-size: 0.68rem; color: var(--text-soft); font-weight: 800; white-space: nowrap;">🗂️ 默认分类</span>
+              <span style="font-size: 0.68rem; color: var(--text-soft); font-weight: 800; white-space: nowrap;">默认分类</span>
               <select id="importCategorySelect" style="flex:1; height:28px; padding:0 8px; font-size:0.72rem; border:1px solid var(--card-border); border-radius:var(--radius-xs); background:var(--card-bg); color:var(--text-main); outline:none; cursor:pointer;">
                 <option value="待跟进">待跟进</option>
                 <option value="潜在客户">潜在客户</option>
@@ -1262,7 +1262,7 @@
 
           <!-- 2. SCANNING STATE -->
           <div id="aiImportScanning" style="display: none; flex-direction: column; align-items: center; gap: 12px; width: 100%; padding: 10px 0;">
-            <div style="font-size: 1.6rem; animation: pulse-ring 1s infinite alternate; margin-bottom: 2px;">🧠</div>
+            <div style="font-size: 1.6rem; animation: pulse-ring 1s infinite alternate; margin-bottom: 2px;"></div>
             <span style="font-size: 0.8rem; color: var(--text-main); font-weight: 800;" id="aiScanStatus">BH-AI 深度模型解析中...</span>
             <div style="display: flex; flex-direction: column; gap: 4px; text-align: left; font-size: 0.65rem; color: var(--text-soft); font-family: monospace; width: 100%; max-width: 260px; background: rgba(0,0,0,0.02); padding: 8px; border-radius: var(--radius-xs); border: 0.5px solid var(--card-border);">
               <div id="aiLog1" style="opacity: 0.4;">[ ] 正在读取数据流...</div>
@@ -1274,7 +1274,7 @@
 
           <!-- 4. LOCAL OCR SLICING CONFIG STATE -->
           <div id="localOcrConfigPanel" style="display: none; flex-direction: column; align-items: center; gap: 10px; width: 100%; padding: 10px 0;">
-            <span style="font-size: 0.8rem; font-weight: 900; color: var(--text-main);">📸 本地离线识别 - 栏目切分微调</span>
+            <span style="font-size: 0.8rem; font-weight: 900; color: var(--text-main);">本地离线识别 - 栏目切分微调</span>
             <span style="font-size: 0.65rem; color: var(--text-light); text-align: center; max-width: 300px; margin-top: -6px;">请调整边界线，确保手机号列、姓名列被虚线分离开，以达到 100% 识别精准度。</span>
             
             <div style="position: relative; border: 1px solid var(--card-border); border-radius: var(--radius-xs); background: #eee; overflow: hidden; display: flex; justify-content: center; align-items: center; max-height: 180px; width: 100%; max-width: 360px;">
@@ -1305,7 +1305,7 @@
             </div>
 
             <div style="display: flex; gap: 10px; width: 100%; max-width: 320px; margin-top: 4px;">
-              <button id="btnStartLocalOcr" class="btn-primary" style="flex: 1; padding: 6px; font-size: 0.75rem; background: var(--wechat-gradient) !important; color: white;">⚡ 开始本地识别</button>
+              <button id="btnStartLocalOcr" class="btn-primary" style="flex: 1; padding: 6px; font-size: 0.75rem; background: var(--wechat-gradient) !important; color: white;">开始本地识别</button>
               <button id="btnCancelLocalOcr" class="btn-secondary" style="padding: 6px 14px; font-size: 0.75rem;">取消</button>
             </div>
           </div>
@@ -1320,15 +1320,15 @@
             <!-- Mapped Pillars -->
             <div id="aiExcelMappingPills" style="display: flex; flex-wrap: wrap; gap: 4px; background: var(--btn-bg); padding: 6px; border-radius: var(--radius-xs);">
               <div style="font-size: 0.65rem; font-weight: 800; color: var(--text-soft); width: 100%; margin-bottom: 2px;">AI 智能列映射映射关系：</div>
-              <div class="client-card-tag" id="pillName" style="background: rgba(7,193,96,0.08); color: var(--accent-wechat);">姓名 ➔ 未识别</div>
-              <div class="client-card-tag" id="pillPhone" style="background: rgba(7,193,96,0.08); color: var(--accent-wechat);">电话 ➔ 未识别</div>
-              <div class="client-card-tag" id="pillCompany" style="background: rgba(74,108,247,0.08); color: #4a6cf7;">公司 ➔ 无</div>
-              <div class="client-card-tag" id="pillNote" style="background: rgba(245,124,0,0.08); color: #f57c00;">备注 ➔ 无</div>
+              <div class="client-card-tag" id="pillName" style="background: rgba(7,193,96,0.08); color: var(--accent-wechat);">姓名 → 未识别</div>
+              <div class="client-card-tag" id="pillPhone" style="background: rgba(7,193,96,0.08); color: var(--accent-wechat);">电话 → 未识别</div>
+              <div class="client-card-tag" id="pillCompany" style="background: rgba(74,108,247,0.08); color: #4a6cf7;">公司 → 无</div>
+              <div class="client-card-tag" id="pillNote" style="background: rgba(245,124,0,0.08); color: #f57c00;">备注 → 无</div>
             </div>
 
             <!-- Manual Override Button & Selectors (Collapsed by default) -->
             <div id="aiExcelMappingControls" style="width: 100%;">
-              <button id="aiToggleAdjustBtn" style="background: transparent; border: none; font-size: 0.65rem; font-weight: 800; color: var(--text-soft); cursor: pointer; display: inline-flex; align-items: center; gap: 4px; padding: 2px 0; outline: none;">⚙️ 手动修正 AI 映射结果 ▾</button>
+              <button id="aiToggleAdjustBtn" style="background: transparent; border: none; font-size: 0.65rem; font-weight: 800; color: var(--text-soft); cursor: pointer; display: inline-flex; align-items: center; gap: 4px; padding: 2px 0; outline: none;">手动修正 AI 映射结果 ▾</button>
               <div id="aiAdjustControls" style="display: none; grid-template-columns: repeat(2, 1fr); gap: 6px; margin-top: 4px; border: 1px dashed var(--card-border); padding: 8px; border-radius: var(--radius-xs); background: var(--card-bg);">
                 <div style="display: flex; flex-direction: column; gap: 2px;">
                   <label style="font-size: 0.6rem; color: var(--text-light); font-weight: 800;">姓名数据列</label>
@@ -1415,8 +1415,8 @@
           <option value="yes">白名单</option>
           <option value="no">非白名单</option>
         </select>
-        <button id="whitelistCheckBtn" title="对照白名单检查客户单位" style="height:28px; padding:0 8px; font-size:0.65rem; border:1px solid var(--accent-wechat); background:var(--accent-wechat-bg); color:var(--accent-wechat); border-radius:var(--radius-xs); cursor:pointer; font-weight:800; outline:none; white-space:nowrap; flex-shrink:0;">☑ 白名单</button>
-        <button id="dbSyncBtn" title="将本地修改与呼叫进度同步上传到 Supabase 数据库" style="height:28px; padding:0 8px; font-size:0.65rem; border:1px solid #4a6cf7; background:rgba(74,108,247,0.08); color:#4a6cf7; border-radius:var(--radius-xs); cursor:pointer; font-weight:800; outline:none; white-space:nowrap; flex-shrink:0;">📤 同步到数据库</button>
+        <button id="whitelistCheckBtn" title="对照白名单检查客户单位" style="height:28px; padding:0 8px; font-size:0.65rem; border:1px solid var(--accent-wechat); background:var(--accent-wechat-bg); color:var(--accent-wechat); border-radius:var(--radius-xs); cursor:pointer; font-weight:800; outline:none; white-space:nowrap; flex-shrink:0;">白名单</button>
+        <button id="dbSyncBtn" title="将本地修改与呼叫进度同步上传到 Supabase 数据库" style="height:28px; padding:0 8px; font-size:0.65rem; border:1px solid #4a6cf7; background:rgba(74,108,247,0.08); color:#4a6cf7; border-radius:var(--radius-xs); cursor:pointer; font-weight:800; outline:none; white-space:nowrap; flex-shrink:0;">同步到数据库</button>
         <div class="filter-group" style="flex-shrink: 0;">
           <button class="filter-tab active" data-filter="all">全部</button>
           <button class="filter-tab" data-filter="todo">待拨打</button>
@@ -1484,7 +1484,7 @@
     <div class="modal-card export-modal-card">
       <div style="font-size:0.95rem;font-weight:900;color:var(--text-main);display:flex;justify-content:space-between;align-items:center;">
         <span>导出拨号记录</span>
-        <button id="closeExportBtn" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:var(--text-soft);">✕</button>
+        <button id="closeExportBtn" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:var(--text-soft);">关闭</button>
       </div>
       <div style="font-size:0.7rem;color:var(--text-light);font-weight:700;">包含通话时长、拨号状态与通话小记</div>
       <textarea id="exportTextarea" class="export-textarea" readonly></textarea>
@@ -1492,32 +1492,13 @@
     </div>
   </div>
 
-  <!-- Sync Conflict Dialog Modal -->
-  <div id="syncConflictModal" class="modal-overlay" style="z-index:4000;">
-    <div class="modal-card" style="text-align:center;">
-      <div style="font-size:0.95rem;font-weight:900;color:var(--text-main);margin-top:4px;">同步冲突检测</div>
-      <div style="font-size:0.75rem;color:var(--text-soft);line-height:1.5;margin-top:6px;text-align:left;">
-        云端检测到与您本地不同的拨号进度记录：
-        <ul style="padding-left:16px;margin-top:6px;list-style:disc;display:flex;flex-direction:column;gap:4px;">
-          <li>本地有 <strong id="conflictLocalCount" style="color:var(--accent-intent);">0</strong> 位联系人</li>
-          <li>云端有 <strong id="conflictCloudCount" style="color:#4a6cf7;">0</strong> 位联系人</li>
-        </ul>
-        请选择同步冲突解决方式：
-      </div>
-      <div style="display:flex;flex-direction:column;gap:10px;width:100%;margin-top:12px;">
-        <button id="syncUseLocalBtn" class="btn-modal btn-success" style="width:100%;">保留本地，覆写云端</button>
-        <button id="syncUseCloudBtn" class="btn-modal btn-secondary" style="width:100%;">拉取云端，覆写本地</button>
-        <button id="syncCancelBtn" class="btn-modal btn-neutral" style="width:100%;">稍后处理 (保持离线)</button>
-      </div>
-    </div>
-  </div>
 
   <!-- Note Details Modal -->
   <div id="noteModal" class="modal-overlay" style="z-index:100005;">
     <div class="modal-card" style="text-align:left; gap:12px;">
       <div style="font-size:0.95rem; font-weight:900; color:var(--text-main); display:flex; justify-content:space-between; align-items:center;">
         <span>客户资料备注</span>
-        <button id="closeNoteModalBtn" style="background:none; border:none; font-size:1.2rem; cursor:pointer; color:var(--text-soft); padding:0;">✕</button>
+        <button id="closeNoteModalBtn" style="background:none; border:none; font-size:1.2rem; cursor:pointer; color:var(--text-soft); padding:0;">关闭</button>
       </div>
       <div style="border-top:1px dashed var(--border-light); padding-top:8px;">
         <p id="noteModalContent" style="font-size:0.8rem; color:var(--text-soft); line-height:1.5; white-space:pre-wrap; font-weight:700; word-break:break-all;"></p>
@@ -1530,7 +1511,7 @@
     <div class="modal-card" style="max-width: 400px; gap: 12px; text-align: left;">
       <div style="font-size:0.95rem; font-weight:900; color:var(--text-main); display:flex; justify-content:space-between; align-items:center;">
         <span>自定义列管理</span>
-        <button id="closeCustomColumnsBtn" style="background:none; border:none; font-size:1.2rem; cursor:pointer; color:var(--text-soft); padding:0;">✕</button>
+        <button id="closeCustomColumnsBtn" style="background:none; border:none; font-size:1.2rem; cursor:pointer; color:var(--text-soft); padding:0;">关闭</button>
       </div>
       <div style="font-size:0.7rem; color:var(--text-light); font-weight:700; margin-bottom: 4px;">
         您可以添加或删除 CRM 数据库的自定义数据列。自定义列的值可在 Excel 导入时手动映射关联，或在跟进备注时作为关联字段保存。
@@ -1548,7 +1529,7 @@
     <div class="modal-card" style="max-width: 480px; gap: 12px;">
       <div style="font-size:0.95rem; font-weight:900; color:var(--text-main); display:flex; justify-content:space-between; align-items:center;">
         <span>建易贷白名单管理</span>
-        <button id="closeWhitelistBtn" style="background:none; border:none; font-size:1.2rem; cursor:pointer; color:var(--text-soft); padding:0;">✕</button>
+        <button id="closeWhitelistBtn" style="background:none; border:none; font-size:1.2rem; cursor:pointer; color:var(--text-soft); padding:0;">关闭</button>
       </div>
       <div class="whitelist-status" id="whitelistStatus" style="font-size:0.7rem; color:var(--text-soft); font-weight:700;">未加载白名单</div>
 
@@ -1567,7 +1548,7 @@
       <!-- Failed Uploads retry area -->
       <div id="whitelistFailedArea" style="display:none; border:1px solid #e74c3c; background:rgba(231,76,60,0.05); border-radius:var(--radius-xs); padding:10px;">
         <div style="font-size:0.72rem; font-weight:800; color:#e74c3c; margin-bottom:6px; display:flex; justify-content:space-between; align-items:center;">
-          <span>⚠️ 上次上传失败的企业 (<span id="whitelistFailedCount">0</span>)</span>
+          <span>上次上传失败的企业 (<span id="whitelistFailedCount">0</span>)</span>
           <a href="#" id="whitelistFailedClearBtn" style="color:#e74c3c; text-decoration:underline; font-size:0.65rem;">清除</a>
         </div>
         <div id="whitelistFailedList" style="max-height:80px; overflow-y:auto; font-size:0.68rem; color:var(--text-soft); border:1px solid rgba(231,76,60,0.2); border-radius:4px; padding:4px; background:#fff; margin-bottom:8px; text-align:left; white-space:pre-wrap;"></div>
@@ -1595,16 +1576,16 @@
 <div class="modal-overlay" id="ocrCorrectionModal" style="z-index: 5000;">
   <div class="modal-card" style="max-width: 640px; gap: 10px; max-height: 80vh; overflow-y: auto; width: 94vw;">
     <div style="display:flex; justify-content:space-between; align-items:center; position:sticky; top:0; background:var(--modal-card); padding-bottom: 6px; border-bottom:1px solid var(--card-border);">
-      <span style="font-size:0.9rem; font-weight:900; color:var(--text-main);">🧠 OCR 训练数据收集</span>
-      <button id="closeOcrCorrectionBtn" style="background:none; border:none; font-size:1.2rem; cursor:pointer; color:var(--text-soft); line-height:1;">✕</button>
+      <span style="font-size:0.9rem; font-weight:900; color:var(--text-main);">OCR 训练数据收集</span>
+      <button id="closeOcrCorrectionBtn" style="background:none; border:none; font-size:1.2rem; cursor:pointer; color:var(--text-soft); line-height:1;">关闭</button>
     </div>
     <div id="ocrCorrectionStats" style="font-size:0.72rem; color:var(--text-soft); padding:0 2px;">
       已收集 <strong id="ocrCorrectionCount" style="color:var(--accent-wechat);">0</strong> 条修正记录
-      <span id="ocrCorrectionBadge" style="display:none; margin-left:8px; padding:1px 8px; border-radius:10px; background:#07c160; color:white; font-size:0.6rem; font-weight:700;">🎯 可用于提示改进</span>
+      <span id="ocrCorrectionBadge" style="display:none; margin-left:8px; padding:1px 8px; border-radius:10px; background:#07c160; color:white; font-size:0.6rem; font-weight:700;">可用于提示改进</span>
     </div>
     <div style="display:flex; gap:6px; flex-wrap:wrap; align-items:center;">
-      <button id="ocrExportJsonlBtn" class="btn-secondary" style="flex:1; min-width:90px; padding:6px 10px; font-size:0.68rem;">📥 导出 JSONL</button>
-      <button id="ocrRefreshCorrectionsBtn" class="btn-secondary" style="padding:6px 10px; font-size:0.68rem;">🔄 刷新</button>
+      <button id="ocrExportJsonlBtn" class="btn-secondary" style="flex:1; min-width:90px; padding:6px 10px; font-size:0.68rem;">导出 JSONL</button>
+      <button id="ocrRefreshCorrectionsBtn" class="btn-secondary" style="padding:6px 10px; font-size:0.68rem;">刷新</button>
       <label style="font-size:0.6rem; color:var(--text-light); cursor:pointer; display:flex; align-items:center; gap:4px; white-space:nowrap;">
         <input type="checkbox" id="ocrFilterEditsOnly" checked style="cursor:pointer;">
         仅显示有修改
@@ -1638,11 +1619,11 @@
     <!-- CRM Top Tabs -->
     <div class="crm-tabs">
       <div class="crm-tab active" data-tab="all">首页</div>
-      <div class="crm-tab" data-tab="意向客户">意向客户 <span class="crm-tab-close">✕</span></div>
-      <div class="crm-tab" data-tab="线索池">线索池 <span class="crm-tab-close">✕</span></div>
-      <div class="crm-tab" data-tab="公海客户">公海客户 <span class="crm-tab-close">✕</span></div>
+      <div class="crm-tab" data-tab="意向客户">意向客户 <span class="crm-tab-close">关闭</span></div>
+      <div class="crm-tab" data-tab="线索池">线索池 <span class="crm-tab-close">关闭</span></div>
+      <div class="crm-tab" data-tab="公海客户">公海客户 <span class="crm-tab-close">关闭</span></div>
       <div class="crm-tabs-right">
-        <button class="db-close" id="dbClose">✕</button>
+        <button class="db-close" id="dbClose">关闭</button>
       </div>
     </div>
 
@@ -1653,7 +1634,7 @@
       <button class="crm-shortcut-btn" data-shortcut="never">从未跟进</button>
       <button class="crm-shortcut-btn" data-shortcut="3days">3天以上未跟进</button>
       <span class="crm-shortcut-add" title="添加快捷过滤">(+)</span>
-      <button class="crm-shortcut-toggle" id="crmToggleSearchBtn" title="展开/收起搜索区域">🔍 收起搜索</button>
+      <button class="crm-shortcut-toggle" id="crmToggleSearchBtn" title="展开/收起搜索区域">收起搜索</button>
     </div>
 
     <!-- CRM Search Area -->
@@ -1681,26 +1662,26 @@
         </div>
       </div>
       <div class="crm-search-actions">
-        <button class="crm-btn-search" id="crmSearchBtn">🔍 搜索</button>
-        <button class="crm-btn-reset" id="crmResetBtn">🔄 重置</button>
+        <button class="crm-btn-search" id="crmSearchBtn">搜索</button>
+        <button class="crm-btn-reset" id="crmResetBtn">重置</button>
         <input type="text" id="dbSearch" style="display:none;" placeholder="隐式兼容搜索">
       </div>
     </div>
 
     <!-- Action Toolbar -->
     <div class="crm-toolbar">
-      <button class="crm-tool-btn green" id="crmAddCustBtn">➕ 添加客户</button>
-      <button class="crm-tool-btn orange" id="crmAddToDialBtn">📞 添加到待拨打</button>
-      <button class="crm-tool-btn orange" id="crmPullFilteredBtn" title="将当前分类和批次下的所有客户一键拉取到待拨打列表">📥 按分类一键拉取</button>
-      <button class="crm-tool-btn blue" id="crmMoveLeadsBtn" title="转入线索池">👤 转入线索池</button>
-      <button class="crm-tool-btn blue" id="crmMoveIntentBtn">👤 转入意向客户</button>
-      <button class="crm-tool-btn" id="crmMovePublicBtn">🌐 转入公海</button>
-      <button class="crm-tool-btn red" id="crmBatchDeleteBtn" title="删除勾选的客户">🗑️ 批量删除</button>
-      <button class="crm-tool-btn" id="crmAddHelperBtn">🤝 添加协助人</button>
-      <button class="crm-tool-btn" id="crmRemoveHelperBtn">🚫 取消协助人</button>
-      <button class="crm-tool-btn" id="dbBatchCatBtn" title="更多批量分类">🏷 批量分类</button>
-      <button class="crm-tool-btn blue" id="dbAiCorrectFundBtn" title="AI 扫描公积金字段，自动修正误存的公司名称">🤖 AI修正公积金</button>
-      <button class="crm-tool-btn blue" id="crmManageColsBtn" title="管理自定义列">⚙️ 自定义列</button>
+      <button class="crm-tool-btn green" id="crmAddCustBtn">添加客户</button>
+      <button class="crm-tool-btn orange" id="crmAddToDialBtn">添加到待拨打</button>
+      <button class="crm-tool-btn orange" id="crmPullFilteredBtn" title="将当前分类和批次下的所有客户一键拉取到待拨打列表">按分类一键拉取</button>
+      <button class="crm-tool-btn blue" id="crmMoveLeadsBtn" title="转入线索池">转入线索池</button>
+      <button class="crm-tool-btn blue" id="crmMoveIntentBtn">转入意向客户</button>
+      <button class="crm-tool-btn" id="crmMovePublicBtn">转入公海</button>
+      <button class="crm-tool-btn red" id="crmBatchDeleteBtn" title="删除勾选的客户">批量删除</button>
+      <button class="crm-tool-btn" id="crmAddHelperBtn">添加协助人</button>
+      <button class="crm-tool-btn" id="crmRemoveHelperBtn">取消协助人</button>
+      <button class="crm-tool-btn" id="dbBatchCatBtn" title="更多批量分类">批量分类</button>
+      <button class="crm-tool-btn blue" id="dbAiCorrectFundBtn" title="AI 扫描公积金字段，自动修正误存的公司名称">AI修正公积金</button>
+      <button class="crm-tool-btn blue" id="crmManageColsBtn" title="管理自定义列">自定义列</button>
     </div>
 
     <!-- Batch category mini-panel -->
@@ -1730,21 +1711,21 @@
         <thead>
           <tr id="dbHeaderRow">
             <th style="width: 40px; text-align: center; cursor: default;"><input type="checkbox" id="crmSelectAll"></th>
-            <th data-sort="name" style="width: 140px;">客户名称 <span class="sort-arrow">▲</span></th>
-            <th data-sort="mobile" style="width: 160px;">联系号码 <span class="sort-arrow">▲</span></th>
-            <th data-sort="note" style="min-width: 120px;">备注 <span class="sort-arrow">▲</span></th>
-            <th data-sort="company_name" style="min-width: 200px;">单位 <span class="sort-arrow">▲</span></th>
-            <th data-sort="category" style="width: 100px;">分类 <span class="sort-arrow">▲</span></th>
-            <th data-sort="created_at" style="width: 150px;">入库时间 <span class="sort-arrow">▲</span></th>
+            <th data-sort="name" style="width: 140px;">客户名称 <span class="sort-arrow"></span></th>
+            <th data-sort="mobile" style="width: 160px;">联系号码 <span class="sort-arrow"></span></th>
+            <th data-sort="note" style="min-width: 120px;">备注 <span class="sort-arrow"></span></th>
+            <th data-sort="company_name" style="min-width: 200px;">单位 <span class="sort-arrow"></span></th>
+            <th data-sort="category" style="width: 100px;">分类 <span class="sort-arrow"></span></th>
+            <th data-sort="created_at" style="width: 150px;">入库时间 <span class="sort-arrow"></span></th>
             <th style="width: 100px; cursor: default;">操作</th>
           </tr>
         </thead>
         <tbody id="dbTbody">
-          <tr><td colspan="20" class="db-loading">⏳ 加载中...</td></tr>
+          <tr><td colspan="20" class="db-loading">加载中...</td></tr>
         </tbody>
       </table>
       <div class="db-empty" id="dbEmpty" style="display:none;">
-        <div style="font-size:2.5rem;margin-bottom:12px;">📭</div>
+        <div style="font-size:2.5rem;margin-bottom:12px;"></div>
         <div>暂无客户数据</div>
         <div style="font-size:0.72rem;color:#aaa;margin-top:4px;">导入客户或检查 Supabase 连接</div>
       </div>
@@ -1812,6 +1793,62 @@
     }
     var copyLimitState = null;
 
+    // 待拨打添加历史记录 - 防止4天内重复添加到待拨打
+    var ADD_HISTORY_K = 'standalone_dialer_add_history';
+    var ADD_COOLDOWN_MS = 4 * 24 * 60 * 60 * 1000; // 4天冷却期
+
+    function getAddHistory() {
+      try {
+        var raw = localStorage.getItem(ADD_HISTORY_K);
+        return raw ? JSON.parse(raw) : {};
+      } catch (e) { return {}; }
+    }
+
+    function saveAddHistory(history) {
+      // 清理超过4天的旧记录，避免存储膨胀
+      var now = Date.now();
+      var cleaned = {};
+      var keys = Object.keys(history);
+      for (var i = 0; i < keys.length; i++) {
+        var k = keys[i];
+        if (now - new Date(history[k]).getTime() < ADD_COOLDOWN_MS) {
+          cleaned[k] = history[k];
+        }
+      }
+      localStorage.setItem(ADD_HISTORY_K, JSON.stringify(cleaned));
+      return cleaned;
+    }
+
+    function canAddToDialList(mobile) {
+      if (!mobile) return false;
+      var history = getAddHistory();
+      var ts = history[mobile];
+      if (!ts) return true;
+      var elapsed = Date.now() - new Date(ts).getTime();
+      return elapsed >= ADD_COOLDOWN_MS;
+    }
+
+    function recordAddToDialList(mobile) {
+      if (!mobile) return;
+      var history = getAddHistory();
+      history[mobile] = new Date().toISOString();
+      saveAddHistory(history);
+    }
+
+    function getCooldownRemaining(mobile) {
+      if (!mobile) return null;
+      var history = getAddHistory();
+      var ts = history[mobile];
+      if (!ts) return null;
+      var elapsed = Date.now() - new Date(ts).getTime();
+      var remaining = ADD_COOLDOWN_MS - elapsed;
+      if (remaining <= 0) return null;
+      var days = Math.floor(remaining / 86400000);
+      var hours = Math.floor((remaining % 86400000) / 3600000);
+      if (days > 0) return days + '天' + hours + '小时';
+      return hours + '小时' + Math.floor((remaining % 3600000) / 60000) + '分钟';
+    }
+
     function loadCopyLimitState() {
       if (copyLimitState) return;
       try {
@@ -1868,7 +1905,7 @@
       // Check if currently restricted
       if (copyLimitState.restrictedUntil && now < copyLimitState.restrictedUntil) {
         var remainingMin = Math.ceil((copyLimitState.restrictedUntil - now) / 60000);
-        return { allowed: false, message: '⏳ 已达到复制上限，请等待 ' + remainingMin + ' 分钟后再试' };
+        return { allowed: false, message: '已达到复制上限，请等待 ' + remainingMin + ' 分钟后再试' };
       }
 
       // Clear expired restriction but keep count for cumulative tracking
@@ -1895,7 +1932,7 @@
         var restrictionMinutes = 30 + Math.floor(Math.random() * 31); // 30-60 min
         copyLimitState.restrictedUntil = now + restrictionMinutes * 60 * 1000;
         saveCopyLimitState();
-        return { allowed: false, message: '🚫 已复制 ' + copyLimitState.count + ' 个号码（第' + hitThreshold + '个触发），限制 ' + restrictionMinutes + ' 分钟' };
+        return { allowed: false, message: '已复制 ' + copyLimitState.count + ' 个号码（第' + hitThreshold + '个触发），限制 ' + restrictionMinutes + ' 分钟' };
       }
 
       saveCopyLimitState();
@@ -2031,9 +2068,6 @@
       } catch (err) {
         console.error('Failed to load state:', err);
       }
-      setTimeout(function() {
-        syncWithCloud();
-      }, 500);
     }
 
     function saveState() {
@@ -2042,163 +2076,74 @@
       } catch (err) {
         console.error('Failed to save state:', err);
       }
-      syncWithCloud(true);
     }
 
-    // Cloud Sync Logic
-    var isSyncing = false;
-    var lastCloudData = null;
-
+    // Status display (used by Supabase upload operations)
     function setSyncStatus(status, title) {
-      var badge = document.getElementById('syncStatusBadge');
+      var badge = document.getElementById("syncStatusBadge");
       if (!badge) return;
-      badge.className = 'icon-btn sync-badge ' + status;
-      badge.title = title || '';
-      if (status === 'online-synced') {
-        badge.innerHTML = '已同步';
-      } else if (status === 'online-unsynced') {
-        badge.innerHTML = '未同步';
+      badge.className = "icon-btn sync-badge " + status;
+      badge.title = title || "";
+      if (status === "online-synced") {
+        badge.innerHTML = "已同步";
+      } else if (status === "online-unsynced") {
+        badge.innerHTML = "未同步";
       } else {
-        badge.innerHTML = '离线模式';
+        badge.innerHTML = "本地模式";
       }
     }
 
-    function syncWithCloud(forcePost) {
-      if (isSyncing) return;
-      isSyncing = true;
-      var apiUrl = '/api/dialer/data';
-
-      fetch(apiUrl)
-        .then(function(res) {
-          if (!res.ok) {
-            throw new Error('KV API not available');
-          }
-          return res.json();
-        })
-        .then(function(data) {
-          isSyncing = false;
-          lastCloudData = data;
-          var cloudClients = data.clients || [];
-
-          var localStr = JSON.stringify(importedClients);
-          var cloudStr = JSON.stringify(cloudClients);
-
-          if (localStr === cloudStr) {
-            setSyncStatus('online-synced', '云端与本地数据一致，已完全同步');
-            return;
-          }
-
-          if (forcePost) {
-            uploadLocalToCloud();
-          } else {
-            if (importedClients.length === 0 && cloudClients.length > 0) {
-              importedClients = cloudClients;
-              localStorage.setItem(CLIENTS_K, JSON.stringify(importedClients));
-              updateDashboardVisibility(true);
-              renderDialCards();
-              setSyncStatus('online-synced', '已自动拉取云端进度');
-            } else if (importedClients.length > 0 && cloudClients.length === 0) {
-              uploadLocalToCloud();
-            } else {
-              showSyncConflictModal(importedClients.length, cloudClients.length);
-            }
-          }
-        })
-        .catch(function(err) {
-          isSyncing = false;
-          setSyncStatus('offline-mode', '无法连接云端 (离线状态 / 未绑定 KV 空间)');
-        });
-    }
-
-    function uploadLocalToCloud() {
-      var apiUrl = '/api/dialer/data';
-      setSyncStatus('online-unsynced', '正在上传最新进度...');
-      fetch(apiUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ clients: importedClients })
-      })
-      .then(function(res) {
-        if (res.ok) {
-          setSyncStatus('online-synced', '最新拨号进度已同步保存至 KV 空间');
-        } else {
-          setSyncStatus('online-unsynced', '进度上传失败');
-        }
-      })
-      .catch(function(err) {
-        setSyncStatus('offline-mode', '连接中断，保存至本地缓存');
-      });
-    }
-
-    // Upload imported customers to Supabase via Worker proxy
     function uploadCustomersToSupabase(customers, batchLabel) {
       if (!customers || customers.length === 0) return;
-      var label = batchLabel || ('导入-' + new Date().toISOString().slice(0, 19).replace('T', ' '));
-      setSyncStatus('online-unsynced', '正在上传到云端数据库...');
+      var label = batchLabel || ("导入-" + new Date().toISOString().slice(0, 19).replace("T", " "));
+      setSyncStatus("online-unsynced", "正在上传到云端数据库...");
       var payload = serializeCustomersForSupabase(customers);
-      fetch('/api/dialer/upload-customers', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      fetch("/api/dialer/upload-customers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ customers: payload, batch_label: label })
       })
       .then(function(res) { return res.json(); })
       .then(function(data) {
         if (data.success) {
-          setSyncStatus('online-synced', '已上传 ' + data.count + ' 条客户数据至 Supabase [批次: ' + label + ']');
+          setSyncStatus("online-synced", "已上传 " + data.count + " 条客户数据至 Supabase [批次: " + label + "]");
         } else {
-          setSyncStatus('online-unsynced', 'Supabase 上传失败: ' + (data.error || '未知错误'));
+          setSyncStatus("online-unsynced", "Supabase 上传失败: " + (data.error || "未知错误"));
         }
       })
       .catch(function(err) {
-        console.error('Supabase upload error:', err);
-        setSyncStatus('online-unsynced', 'Supabase 连接失败，数据已保存在本地和 KV');
+        console.error("Supabase upload error:", err);
+        setSyncStatus("online-unsynced", "Supabase 连接失败，数据已保存在本地");
       });
     }
 
-    function showSyncConflictModal(localLen, cloudLen) {
-      document.getElementById('conflictLocalCount').textContent = localLen;
-      document.getElementById('conflictCloudCount').textContent = cloudLen;
-      document.getElementById('syncConflictModal').classList.add('active');
-    }
-
-    function hideSyncConflictModal() {
-      document.getElementById('syncConflictModal').classList.remove('active');
-    }
-
     function initSyncHandlers() {
-      var badge = document.getElementById('syncStatusBadge');
-      if (badge) {
-        badge.addEventListener('click', function() {
-          syncWithCloud();
-        });
-      }
-
-      var syncBtn = document.getElementById('dbSyncBtn');
+      var syncBtn = document.getElementById("dbSyncBtn");
       if (syncBtn) {
         syncBtn.onclick = function() {
           if (!importedClients || importedClients.length === 0) {
-            alert('当前拨号盘中没有客户数据需要同步！');
+            alert("当前拨号盘中没有客户数据需要同步！");
             return;
           }
-          if (!confirm('确认将当前拨号盘中的 ' + importedClients.length + ' 条客户数据与跟进进度同步上传到 Supabase 数据库吗？(已存在的记录将被覆盖更新)')) return;
-          
+          if (!confirm("确认将当前拨号盘中的 " + importedClients.length + " 条客户数据与跟进进度同步上传到 Supabase 数据库吗？(已存在的记录将被覆盖更新)")) return;
+
           syncBtn.disabled = true;
           var originalText = syncBtn.textContent;
-          syncBtn.textContent = '⏳ 同步中...';
-          
-          var defaultBatch = '拨号同步';
+          syncBtn.textContent = "同步中...";
+
+          var defaultBatch = "拨号同步";
           var batchMap = {};
           importedClients.forEach(function(c) {
             if (c.batch_label) batchMap[c.batch_label] = (batchMap[c.batch_label] || 0) + 1;
           });
           var batches = Object.keys(batchMap);
-          var chosenBatch = batches.length === 1 ? batches[0] : (batches.length > 1 ? batches.join(',') : defaultBatch);
-          
-          setSyncStatus('online-unsynced', '正在上传到云端数据库...');
+          var chosenBatch = batches.length === 1 ? batches[0] : (batches.length > 1 ? batches.join(",") : defaultBatch);
+
+          setSyncStatus("online-unsynced", "正在上传到云端数据库...");
           var payload = serializeCustomersForSupabase(importedClients);
-          fetch('/api/dialer/upload-customers', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+          fetch("/api/dialer/upload-customers", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ customers: payload, batch_label: chosenBatch })
           })
           .then(function(res) { return res.json(); })
@@ -2206,49 +2151,27 @@
             syncBtn.disabled = false;
             syncBtn.textContent = originalText;
             if (data.success) {
-              setSyncStatus('online-synced', '已同步 ' + data.count + ' 条数据');
-              alert('同步成功！共保存 ' + data.count + ' 条客户进度至 Supabase 数据库。');
-              if (document.getElementById('dbOverlay') && document.getElementById('dbOverlay').classList.contains('active')) {
+              setSyncStatus("online-synced", "已同步 " + data.count + " 条数据");
+              alert("同步成功！共保存 " + data.count + " 条客户进度至 Supabase 数据库。");
+              if (document.getElementById("dbOverlay") && document.getElementById("dbOverlay").classList.contains("active")) {
                 dbFetch();
               }
             } else {
-              setSyncStatus('online-unsynced', '同步失败');
-              alert('同步失败: ' + (data.error || '未知错误'));
+              setSyncStatus("online-unsynced", "同步失败");
+              alert("同步失败: " + (data.error || "未知错误"));
             }
           })
           .catch(function(err) {
             syncBtn.disabled = false;
             syncBtn.textContent = originalText;
-            setSyncStatus('online-unsynced', '连接失败');
-            alert('网络连接失败，请检查 Worker 配置或 API 连接！');
+            setSyncStatus("online-unsynced", "连接失败");
+            alert("网络连接失败，请检查 Worker 配置或 API 连接！");
           });
         };
       }
-
-      document.getElementById('syncUseLocalBtn').addEventListener('click', function() {
-        hideSyncConflictModal();
-        uploadLocalToCloud();
-      });
-
-      document.getElementById('syncUseCloudBtn').addEventListener('click', function() {
-        hideSyncConflictModal();
-        if (lastCloudData && lastCloudData.clients) {
-          importedClients = lastCloudData.clients;
-          localStorage.setItem(CLIENTS_K, JSON.stringify(importedClients));
-          updateDashboardVisibility(importedClients.length > 0);
-          renderDialCards();
-          setSyncStatus('online-synced', '已覆写并同步云端数据');
-        }
-      });
-
-      document.getElementById('syncCancelBtn').addEventListener('click', function() {
-        hideSyncConflictModal();
-        setSyncStatus('online-unsynced', '已跳过同步，保留本地差异');
-      });
     }
 
-
-    function updateDashboardVisibility(hasData) {
+        function updateDashboardVisibility(hasData) {
       var flexStyle = hasData ? 'flex' : 'none';
       var minimalStats = document.getElementById('headerStatsMinimal');
       if (minimalStats) {
@@ -2364,22 +2287,22 @@
       if (log4) { log4.innerHTML = '[ ] 正在匹配智能映射...'; log4.style.opacity = '0.3'; }
 
       setTimeout(function() {
-        if (log1) { log1.innerHTML = '✅ 数据流加载完成 (' + fileName + ')'; log1.style.opacity = '1'; }
+        if (log1) { log1.innerHTML = '数据流加载完成 (' + fileName + ')'; log1.style.opacity = '1'; }
         if (log2) log2.style.opacity = '0.5';
       }, 300);
 
       setTimeout(function() {
-        if (log2) { log2.innerHTML = '✅ 评估行列特征成功'; log2.style.opacity = '1'; }
+        if (log2) { log2.innerHTML = '评估行列特征成功'; log2.style.opacity = '1'; }
         if (log3) log3.style.opacity = '0.5';
       }, 600);
 
       setTimeout(function() {
-        if (log3) { log3.innerHTML = '✅ 空列与噪音清洗完成'; log3.style.opacity = '1'; }
+        if (log3) { log3.innerHTML = '空列与噪音清洗完成'; log3.style.opacity = '1'; }
         if (log4) log4.style.opacity = '0.5';
       }, 900);
 
       setTimeout(function() {
-        if (log4) { log4.innerHTML = '✅ AI 智能映射匹配成功'; log4.style.opacity = '1'; }
+        if (log4) { log4.innerHTML = 'AI 智能映射匹配成功'; log4.style.opacity = '1'; }
       }, 1100);
     }
 
@@ -2586,28 +2509,28 @@
       document.getElementById('pillName').className = 'client-card-tag';
       document.getElementById('pillName').style.background = detected.nameIdx !== -1 ? 'rgba(7,193,96,0.08)' : 'rgba(231,76,60,0.08)';
       document.getElementById('pillName').style.color = detected.nameIdx !== -1 ? 'var(--accent-wechat)' : '#e74c3c';
-      document.getElementById('pillName').innerHTML = '姓名 ➔ ' + (detected.nameIdx !== -1 ? headersList[detected.nameIdx].label : '未识别');
+      document.getElementById('pillName').innerHTML = '姓名' + (detected.nameIdx !== -1 ? headersList[detected.nameIdx].label : '未识别');
 
       document.getElementById('pillPhone').className = 'client-card-tag';
       document.getElementById('pillPhone').style.background = detected.phoneIdx !== -1 ? 'rgba(7,193,96,0.08)' : 'rgba(231,76,60,0.08)';
       document.getElementById('pillPhone').style.color = detected.phoneIdx !== -1 ? 'var(--accent-wechat)' : '#e74c3c';
-      document.getElementById('pillPhone').innerHTML = '电话 ➔ ' + (detected.phoneIdx !== -1 ? headersList[detected.phoneIdx].label : '未识别');
+      document.getElementById('pillPhone').innerHTML = '电话' + (detected.phoneIdx !== -1 ? headersList[detected.phoneIdx].label : '未识别');
 
       document.getElementById('pillCompany').className = 'client-card-tag';
       document.getElementById('pillCompany').style.background = detected.companyIdx !== -1 ? 'rgba(74,108,247,0.08)' : 'rgba(0,0,0,0.04)';
       document.getElementById('pillCompany').style.color = detected.companyIdx !== -1 ? '#4a6cf7' : 'var(--text-light)';
-      document.getElementById('pillCompany').innerHTML = '公司 ➔ ' + (detected.companyIdx !== -1 ? headersList[detected.companyIdx].label : '无');
+      document.getElementById('pillCompany').innerHTML = '公司' + (detected.companyIdx !== -1 ? headersList[detected.companyIdx].label : '无');
 
       document.getElementById('pillNote').className = 'client-card-tag';
       document.getElementById('pillNote').style.background = detected.noteIdx !== -1 ? 'rgba(245,124,0,0.08)' : 'rgba(0,0,0,0.04)';
       document.getElementById('pillNote').style.color = detected.noteIdx !== -1 ? '#f57c00' : 'var(--text-light)';
-      document.getElementById('pillNote').innerHTML = '备注 ➔ ' + (detected.noteIdx !== -1 ? headersList[detected.noteIdx].label : '无');
+      document.getElementById('pillNote').innerHTML = '备注' + (detected.noteIdx !== -1 ? headersList[detected.noteIdx].label : '无');
 
       renderImportMappingControls(headersList, detected);
 
       if (detected.nameIdx !== -1 && detected.phoneIdx !== -1) {
         executeAIImportExcel();
-        alert('📊 Excel 识别：自动对应姓名列「' + headersList[detected.nameIdx].label + '」与电话列「' + headersList[detected.phoneIdx].label + '」成功，已自动入库并同步至 Supabase！');
+        alert('Excel 识别：自动对应姓名列「' + headersList[detected.nameIdx].label + '」与电话列「' + headersList[detected.phoneIdx].label + '」成功，已自动入库并同步至 Supabase！');
         return;
       }
 
@@ -2872,29 +2795,29 @@
       
       if (contactsList && contactsList.length > 0) {
         executeAIImportVcf();
-        alert('📇 VCF 识别：成功自动识别 ' + contactsList.length + ' 个联系人，已直接自动入库并同步至 Supabase！');
+        alert('VCF 识别：成功自动识别 ' + contactsList.length + ' 个联系人，已直接自动入库并同步至 Supabase！');
         return;
       }
 
       document.getElementById('pillName').className = 'client-card-tag';
       document.getElementById('pillName').style.background = 'rgba(7,193,96,0.08)';
       document.getElementById('pillName').style.color = 'var(--accent-wechat)';
-      document.getElementById('pillName').innerHTML = '姓名 ➔ VCF (FN)';
+      document.getElementById('pillName').innerHTML = '姓名 VCF (FN)';
 
       document.getElementById('pillPhone').className = 'client-card-tag';
       document.getElementById('pillPhone').style.background = 'rgba(7,193,96,0.08)';
       document.getElementById('pillPhone').style.color = 'var(--accent-wechat)';
-      document.getElementById('pillPhone').innerHTML = '电话 ➔ VCF (TEL)';
+      document.getElementById('pillPhone').innerHTML = '电话 VCF (TEL)';
 
       document.getElementById('pillCompany').className = 'client-card-tag';
       document.getElementById('pillCompany').style.background = 'rgba(74,108,247,0.08)';
       document.getElementById('pillCompany').style.color = '#4a6cf7';
-      document.getElementById('pillCompany').innerHTML = '公司 ➔ VCF (ORG)';
+      document.getElementById('pillCompany').innerHTML = '公司 VCF (ORG)';
 
       document.getElementById('pillNote').className = 'client-card-tag';
       document.getElementById('pillNote').style.background = 'rgba(0,0,0,0.04)';
       document.getElementById('pillNote').style.color = 'var(--text-light)';
-      document.getElementById('pillNote').innerHTML = '备注 ➔ VCF (NOTE)';
+      document.getElementById('pillNote').innerHTML = '备注 VCF (NOTE)';
 
       document.getElementById('aiAdjustControls').style.display = 'none';
       document.getElementById('aiToggleAdjustBtn').style.display = 'none';
@@ -3254,15 +3177,15 @@
       var phoneCount = (rawText.match(/1[3-9]\d{9}/g) || []).length;
       if (phoneCount > 30) {
         console.log('[OCR Correct] Large data set detected (' + phoneCount + ' phones), bypassing AI to prevent timeouts.');
-        safeLog('aiLog3', '⚡ 检测到数据量较大（共 ' + phoneCount + ' 个号码），已启用本地极速解析...');
+        safeLog('aiLog3', '检测到数据量较大（共 ' + phoneCount + ' 个号码），已启用本地极速解析...');
         var contacts = parsePhoneContactsFromRawText(rawText);
         tempOcrEngine = 'local_tesseract_large';
         setTimeout(function() { onDone(contacts); }, 500); // 500ms delay for visual feedback
         return;
       }
 
-      safeLog('aiLog3', '🧠 文本 AI 正在修正 OCR 识别错误...');
-      safeLog('aiLog4', '⏳ 检测并修正：数字混淆、形近字、断裂文本...');
+      safeLog('aiLog3', '文本 AI 正在修正 OCR 识别错误...');
+      safeLog('aiLog4', '检测并修正：数字混淆、形近字、断裂文本...');
 
       fetch('/api/ocr/correct', {
         method: 'POST',
@@ -3272,14 +3195,14 @@
       .then(function(r) { return r.json(); })
       .then(function(result) {
         if (result.contacts && result.contacts.length > 0) {
-          safeLog('aiLog3', '✅ 文本 AI 修正完成 · 识别 ' + result.contacts.length + ' 个联系人');
+          safeLog('aiLog3', '文本 AI 修正完成 · 识别 ' + result.contacts.length + ' 个联系人');
           // Save raw OCR text for training data
           tempOcrRawText = rawText;
           tempOcrEngine = 'text_ai_correct';
           onDone(result.contacts);
         } else {
           // AI returned no contacts — fallback to regex
-          safeLog('aiLog3', '⚠️ AI 未检出，使用本地正则解析...');
+          safeLog('aiLog3', 'AI 未检出，使用本地正则解析...');
           var fbContacts = parsePhoneContactsFromRawText(rawText);
           tempOcrEngine = 'local_tesseract';
           onDone(fbContacts);
@@ -3287,7 +3210,7 @@
       })
       .catch(function(err) {
         console.error('[OCR Correct] API call failed, using regex fallback:', err.message);
-        safeLog('aiLog3', '⚠️ AI 不可用，使用本地正则解析...');
+        safeLog('aiLog3', 'AI 不可用，使用本地正则解析...');
         var fbContacts = parsePhoneContactsFromRawText(rawText);
         tempOcrEngine = 'local_tesseract';
         onDone(fbContacts);
@@ -3327,9 +3250,9 @@
 
     function handleExcelLargeFileWorker(file) {
       showAIScanningUI(file.name);
-      document.getElementById('aiScanStatus').innerHTML = '⚡ 智能大文件多线程加速解析中...';
+      document.getElementById('aiScanStatus').innerHTML = '智能大文件多线程加速解析中...';
       if (document.getElementById('aiLog1')) {
-        document.getElementById('aiLog1').innerHTML = '⏳ 正在加载 Web Worker 解析引擎...';
+        document.getElementById('aiLog1').innerHTML = '正在加载 Web Worker 解析引擎...';
         document.getElementById('aiLog1').style.opacity = '1';
       }
       
@@ -3369,7 +3292,7 @@
               return;
             }
             if (document.getElementById('aiLog3')) {
-              document.getElementById('aiLog3').innerHTML = '✅ 大数据读取与过滤清洗完成';
+              document.getElementById('aiLog3').innerHTML = '大数据读取与过滤清洗完成';
               document.getElementById('aiLog3').style.opacity = '1';
             }
             var detected = runAIColumnMapping(json);
@@ -3389,19 +3312,19 @@
     function handleDocxImport(file) {
       tempOcrEngine = 'text_fallback';
       showAIScanningUI(file.name);
-      document.getElementById('aiScanStatus').innerHTML = '⚙️ AI 正在载入 Word 解析引擎...';
+      document.getElementById('aiScanStatus').innerHTML = 'AI 正在载入 Word 解析引擎...';
       if (document.getElementById('aiLog1')) {
-        document.getElementById('aiLog1').innerHTML = '⏳ 正在加载 mammoth.js 脚本库...';
+        document.getElementById('aiLog1').innerHTML = '正在加载 mammoth.js 脚本库...';
         document.getElementById('aiLog1').style.opacity = '1';
       }
       
       loadScript('https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js')
         .then(function() {
           if (document.getElementById('aiLog2')) {
-            document.getElementById('aiLog2').innerHTML = '✅ Word 解析引擎载入成功';
+            document.getElementById('aiLog2').innerHTML = 'Word 解析引擎载入成功';
             document.getElementById('aiLog2').style.opacity = '1';
           }
-          document.getElementById('aiScanStatus').innerHTML = '📄 正在深度分析 Word 文档数据流...';
+          document.getElementById('aiScanStatus').innerHTML = '� 正在深度分析 Word 文档数据流...';
           
           var reader = new FileReader();
           reader.onload = function(e) {
@@ -3409,12 +3332,12 @@
             window.mammoth.extractRawText({ arrayBuffer: arrayBuffer })
               .then(function(result) {
                 if (document.getElementById('aiLog3')) {
-                  document.getElementById('aiLog3').innerHTML = '✅ 提取纯文本内容完成';
+                  document.getElementById('aiLog3').innerHTML = '提取纯文本内容完成';
                   document.getElementById('aiLog3').style.opacity = '1';
                 }
                 var text = result.value;
                 if (document.getElementById('aiLog4')) {
-                  document.getElementById('aiLog4').innerHTML = '⏳ AI 正在运行模式启发式提取...';
+                  document.getElementById('aiLog4').innerHTML = 'AI 正在运行模式启发式提取...';
                   document.getElementById('aiLog4').style.opacity = '1';
                 }
                 setTimeout(function() {
@@ -3439,9 +3362,9 @@
     function handlePdfImport(file) {
       tempOcrEngine = 'text_fallback';
       showAIScanningUI(file.name);
-      document.getElementById('aiScanStatus').innerHTML = '⚙️ AI 正在载入 PDF 解析引擎...';
+      document.getElementById('aiScanStatus').innerHTML = 'AI 正在载入 PDF 解析引擎...';
       if (document.getElementById('aiLog1')) {
-        document.getElementById('aiLog1').innerHTML = '⏳ 正在加载 pdf.js 脚本库...';
+        document.getElementById('aiLog1').innerHTML = '正在加载 pdf.js 脚本库...';
         document.getElementById('aiLog1').style.opacity = '1';
       }
       
@@ -3450,10 +3373,10 @@
           window['pdfjs-dist/build/pdf'].GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
           
           if (document.getElementById('aiLog2')) {
-            document.getElementById('aiLog2').innerHTML = '✅ PDF 引擎初始化完成';
+            document.getElementById('aiLog2').innerHTML = 'PDF 引擎初始化完成';
             document.getElementById('aiLog2').style.opacity = '1';
           }
-          document.getElementById('aiScanStatus').innerHTML = '📄 正在深度分析 PDF 文档页面...';
+          document.getElementById('aiScanStatus').innerHTML = '� 正在深度分析 PDF 文档页面...';
           
           var reader = new FileReader();
           reader.onload = function(e) {
@@ -3466,12 +3389,12 @@
               var loadedPages = 0;
               
               if (document.getElementById('aiLog3')) {
-                document.getElementById('aiLog3').innerHTML = '⏳ 正在并行扫描 ' + maxPages + ' 个页面...';
+                document.getElementById('aiLog3').innerHTML = '正在并行扫描 ' + maxPages + ' 个页面...';
                 document.getElementById('aiLog3').style.opacity = '1';
               }
               
               function loadPageText(pageNumber) {
-                document.getElementById('aiScanStatus').innerHTML = '📄 正在扫描 PDF 页面 (' + pageNumber + '/' + maxPages + ')...';
+                document.getElementById('aiScanStatus').innerHTML = '� 正在扫描 PDF 页面 (' + pageNumber + '/' + maxPages + ')...';
                 
                 return pdf.getPage(pageNumber).then(function(page) {
                   return page.getTextContent().then(function(textContent) {
@@ -3483,10 +3406,10 @@
                       return loadPageText(pageNumber + 1);
                     } else {
                       if (document.getElementById('aiLog3')) {
-                        document.getElementById('aiLog3').innerHTML = '✅ PDF 页面文本提取完毕';
+                        document.getElementById('aiLog3').innerHTML = 'PDF 页面文本提取完毕';
                       }
                       if (document.getElementById('aiLog4')) {
-                        document.getElementById('aiLog4').innerHTML = '⏳ AI 正在运行特征神经网络分析...';
+                        document.getElementById('aiLog4').innerHTML = 'AI 正在运行特征神经网络分析...';
                         document.getElementById('aiLog4').style.opacity = '1';
                       }
                       setTimeout(function() {
@@ -3614,15 +3537,15 @@
       if (configPanel) configPanel.style.display = 'none';
       
       showAIScanningUI(tempOcrFileName);
-      document.getElementById('aiScanStatus').innerHTML = '📸 正在加载本地 Wasm 神经网络...';
+      document.getElementById('aiScanStatus').innerHTML = '正在加载本地 Wasm 神经网络...';
       if (document.getElementById('aiLog1')) {
-        document.getElementById('aiLog1').innerHTML = '⏳ 正在拉取 tesseract.js 识别引擎...';
+        document.getElementById('aiLog1').innerHTML = '正在拉取 tesseract.js 识别引擎...';
         document.getElementById('aiLog1').style.opacity = '1';
       }
       
       loadScript('https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.1.1/tesseract.min.js')
         .then(function() {
-          if (document.getElementById('aiLog1')) document.getElementById('aiLog1').innerHTML = '✅ Wasm 视觉解析库就绪';
+          if (document.getElementById('aiLog1')) document.getElementById('aiLog1').innerHTML = 'Wasm 视觉解析库就绪';
           
           if (tempOcrPdf) {
             processLocalPdfOCR(tempOcrPdf);
@@ -3641,11 +3564,11 @@
       
       if (!useSlicing) {
         if (document.getElementById('aiLog2')) {
-          document.getElementById('aiLog2').innerHTML = '⏳ 正在进行全图 AI 识别，取消切片优化...';
+          document.getElementById('aiLog2').innerHTML = '正在进行全图 AI 识别，取消切片优化...';
           document.getElementById('aiLog2').style.opacity = '1';
         }
         if (document.getElementById('aiLog3')) {
-          document.getElementById('aiLog3').innerHTML = '⏳ 正在加载语言模型包...';
+          document.getElementById('aiLog3').innerHTML = '正在加载语言模型包...';
           document.getElementById('aiLog3').style.opacity = '1';
         }
         
@@ -3656,7 +3579,7 @@
             resetAIImporterUI();
           } else {
             if (document.getElementById('aiLog4')) {
-              document.getElementById('aiLog4').innerHTML = '🎉 本地识别成功，共 ' + contacts.length + ' 人';
+              document.getElementById('aiLog4').innerHTML = '� 本地识别成功，共' + contacts.length + ' 人';
               document.getElementById('aiLog4').style.opacity = '1';
             }
             setTimeout(function() {
@@ -3671,7 +3594,7 @@
       img.src = tempOcrImgDataUrl;
       img.onload = function() {
         if (document.getElementById('aiLog2')) {
-          document.getElementById('aiLog2').innerHTML = '⏳ 正在进行列拆片预处理...';
+          document.getElementById('aiLog2').innerHTML = '正在进行列拆片预处理...';
           document.getElementById('aiLog2').style.opacity = '1';
         }
         
@@ -3681,14 +3604,14 @@
         
         var slices = sliceAndPreprocess(img, split1, split2, order);
         
-        if (document.getElementById('aiLog2')) document.getElementById('aiLog2').innerHTML = '✅ 图像二值化与 2x 缩放完成';
+        if (document.getElementById('aiLog2')) document.getElementById('aiLog2').innerHTML = '图像二值化与 2x 缩放完成';
         if (document.getElementById('aiLog3')) {
-          document.getElementById('aiLog3').innerHTML = '⏳ 正在初始化中英文语言模型包...';
+          document.getElementById('aiLog3').innerHTML = '正在初始化中英文语言模型包...';
           document.getElementById('aiLog3').style.opacity = '1';
         }
         
         if (document.getElementById('aiLog2')) {
-          document.getElementById('aiLog2').innerHTML = '⏳ 正在并行运行本地 OCR 与云端视觉识别...';
+          document.getElementById('aiLog2').innerHTML = '正在并行运行本地 OCR 与云端视觉识别...';
           document.getElementById('aiLog2').style.opacity = '1';
         }
         
@@ -3713,7 +3636,7 @@
             
             if (!visionText) {
               if (document.getElementById('aiLog3')) {
-                document.getElementById('aiLog3').innerHTML = '⚠️ 云端视觉识别不可用，仅使用本地识别结果';
+                document.getElementById('aiLog3').innerHTML = '云端视觉识别不可用，仅使用本地识别结果';
               }
               if (localContacts && localContacts.length > 0) {
                 setTimeout(function() {
@@ -3727,7 +3650,7 @@
             }
             
             if (document.getElementById('aiLog3')) {
-              document.getElementById('aiLog3').innerHTML = '🤖 正在使用大模型对双通道数据进行对齐与纠错...';
+              document.getElementById('aiLog3').innerHTML = '正在使用大模型对双通道数据进行对齐与纠错...';
             }
             
             return fetch('/api/ocr/correct', {
@@ -3743,7 +3666,7 @@
             .then(function(mergeResult) {
               var mergedContacts = mergeResult.contacts || localContacts;
               if (document.getElementById('aiLog4')) {
-                document.getElementById('aiLog4').innerHTML = '🎉 双通道融合纠错完成，共 ' + mergedContacts.length + ' 人';
+                document.getElementById('aiLog4').innerHTML = '� 双通道融合纠错完成，共' + mergedContacts.length + ' 人';
                 document.getElementById('aiLog4').style.opacity = '1';
               }
               setTimeout(function() {
@@ -3774,10 +3697,10 @@
         if (pageNumber > maxPages) {
           if (allContacts.length > 0) {
             if (document.getElementById('aiScanStatus')) {
-              document.getElementById('aiScanStatus').innerHTML = '✅ 本地 PDF 识别完成';
+              document.getElementById('aiScanStatus').innerHTML = '本地 PDF 识别完成';
             }
             if (document.getElementById('aiLog4')) {
-              document.getElementById('aiLog4').innerHTML = '🎉 共识别到 ' + allContacts.length + ' 个联系人';
+              document.getElementById('aiLog4').innerHTML = '� 共识别到' + allContacts.length + ' 个联系人';
             }
             setTimeout(function() {
               renderAIUnstructuredReport(tempOcrFileName, allContacts);
@@ -3789,9 +3712,9 @@
           return;
         }
         
-        document.getElementById('aiScanStatus').innerHTML = '📄 本地 Wasm 识别第 ' + pageNumber + '/' + maxPages + ' 页...';
+        document.getElementById('aiScanStatus').innerHTML = '� 本地 Wasm 识别第' + pageNumber + '/' + maxPages + ' 页...';
         if (document.getElementById('aiLog4')) {
-          document.getElementById('aiLog4').innerHTML = '⏳ 正在识别第 ' + pageNumber + ' 页...';
+          document.getElementById('aiLog4').innerHTML = '正在识别第 ' + pageNumber + ' 页...';
           document.getElementById('aiLog4').style.opacity = '1';
         }
         
@@ -3861,7 +3784,7 @@
       }
       
       if (document.getElementById('aiLog3')) {
-        document.getElementById('aiLog3').innerHTML = '✅ 初始化本地识别队列成功';
+        document.getElementById('aiLog3').innerHTML = '初始化本地识别队列成功';
         document.getElementById('aiLog3').style.opacity = '1';
       }
       
@@ -3883,13 +3806,13 @@
       
       showAIScanningUI(fileName);
       if (document.getElementById('aiScanStatus')) {
-        document.getElementById('aiScanStatus').innerHTML = '🤖 本地未检出，正切换为云端 AI 视觉识别...';
+        document.getElementById('aiScanStatus').innerHTML = '本地未检出，正切换为云端 AI 视觉识别...';
       }
       if (document.getElementById('aiLog3')) {
-        document.getElementById('aiLog3').innerHTML = '⏳ 正在通过 Canvas 渲染多模态图像...';
+        document.getElementById('aiLog3').innerHTML = '正在通过 Canvas 渲染多模态图像...';
       }
       if (document.getElementById('aiLog4')) {
-        document.getElementById('aiLog4').innerHTML = '⏳ 准备识别第 1/' + maxPages + ' 页...';
+        document.getElementById('aiLog4').innerHTML = '准备识别第 1/' + maxPages + ' 页...';
         document.getElementById('aiLog4').style.opacity = '1';
       }
 
@@ -3899,10 +3822,10 @@
       function processPageOCR(pageNumber) {
         if (pageNumber > maxPages) {
           if (document.getElementById('aiScanStatus')) {
-            document.getElementById('aiScanStatus').innerHTML = '✅ 扫描版 PDF 识别完成';
+            document.getElementById('aiScanStatus').innerHTML = '扫描版 PDF 识别完成';
           }
           if (document.getElementById('aiLog4')) {
-            document.getElementById('aiLog4').innerHTML = '🎉 共识别到 ' + allContacts.length + ' 个联系人';
+            document.getElementById('aiLog4').innerHTML = '� 共识别到' + allContacts.length + ' 个联系人';
           }
           setTimeout(function() {
             renderAIUnstructuredReport(fileName, allContacts);
@@ -3911,7 +3834,7 @@
         }
 
         if (document.getElementById('aiLog4')) {
-          document.getElementById('aiLog4').innerHTML = '⏳ 正在通过 AI 识别第 ' + pageNumber + '/' + maxPages + ' 页...';
+          document.getElementById('aiLog4').innerHTML = '正在通过 AI 识别第 ' + pageNumber + '/' + maxPages + ' 页...';
         }
 
         pdf.getPage(pageNumber).then(function(page) {
@@ -3978,7 +3901,7 @@
             .catch(function(err) {
               console.error('Page ' + pageNumber + ' OCR failed:', err.message);
               if (document.getElementById('aiLog3')) {
-                document.getElementById('aiLog3').innerHTML = '⚠️ 第 ' + pageNumber + ' 页识别失败: ' + err.message + '，尝试下一页...';
+                document.getElementById('aiLog3').innerHTML = '第 ' + pageNumber + ' 页识别失败: ' + err.message + '，尝试下一页...';
               }
               processPageOCR(pageNumber + 1);
             });
@@ -4189,10 +4112,10 @@
         logger: function(m) {
           if (m.status === 'recognizing text') {
             var pct = Math.round(m.progress * 100);
-            document.getElementById('aiScanStatus').innerHTML = '📸 本地 OCR 进行中: ' + pct + '%';
+            document.getElementById('aiScanStatus').innerHTML = '本地 OCR 进行中: ' + pct + '%';
           } else if (m.status === 'loading chi_sim.traineddata' || m.status === 'loading eng.traineddata') {
             var loadPct = m.progress ? ' (' + Math.round(m.progress * 100) + '%)' : '';
-            document.getElementById('aiScanStatus').innerHTML = '🧠 正在载入语言模型包' + loadPct + '...';
+            document.getElementById('aiScanStatus').innerHTML = '正在载入语言模型包' + loadPct + '...';
           }
         }
       }).then(function(worker) {
@@ -4218,7 +4141,7 @@
                 params.tessedit_char_whitelist = '0123456789- ';
               }
               
-              document.getElementById('aiScanStatus').innerHTML = '🔍 正在识别列: ' + (slice.type === 'name' ? '姓名' : (slice.type === 'phone' ? '电话' : '单位/备注')) + '...';
+              document.getElementById('aiScanStatus').innerHTML = '正在识别列: ' + (slice.type === 'name' ? '姓名' : (slice.type === 'phone' ? '电话' : '单位/备注')) + '...';
               
               return Promise.resolve(workerObj.setParameters(params))
                 .then(function() { return Promise.resolve(workerObj.recognize(slice.dataUrl)); })
@@ -4341,11 +4264,11 @@
       document.getElementById('aiImportReport').style.display = 'none';
       document.getElementById('aiImportScanning').style.display = 'flex';
       document.getElementById('aiLaserLine').style.display = 'block';
-      document.getElementById('aiScanStatus').innerHTML = '🖼️ 多图排队识别 · 共 ' + total + ' 张';
-      document.getElementById('aiLog1').innerHTML = '📋 队列就绪，准备逐张识别...'; document.getElementById('aiLog1').style.opacity = '1';
-      document.getElementById('aiLog2').innerHTML = '⏳ 等待处理第 1/' + total + ' 张...'; document.getElementById('aiLog2').style.opacity = '1';
-      document.getElementById('aiLog3').innerHTML = '🔧 引擎: 本地离线 (Wasm)'; document.getElementById('aiLog3').style.opacity = '0.8';
-      document.getElementById('aiLog4').innerHTML = '⚡ 进度: 0/' + total; document.getElementById('aiLog4').style.opacity = '0.8';
+      document.getElementById('aiScanStatus').innerHTML = '多图排队识别 · 共 ' + total + ' 张';
+      document.getElementById('aiLog1').innerHTML = '队列就绪，准备逐张识别...'; document.getElementById('aiLog1').style.opacity = '1';
+      document.getElementById('aiLog2').innerHTML = '等待处理第 1/' + total + ' 张...'; document.getElementById('aiLog2').style.opacity = '1';
+      document.getElementById('aiLog3').innerHTML = '引擎: 本地离线 (Wasm)'; document.getElementById('aiLog3').style.opacity = '0.8';
+      document.getElementById('aiLog4').innerHTML = '进度: 0/' + total; document.getElementById('aiLog4').style.opacity = '0.8';
 
       processNextInQueue(0);
     }
@@ -4362,26 +4285,26 @@
       var current = index + 1;
 
       if (document.getElementById('aiScanStatus')) {
-        document.getElementById('aiScanStatus').innerHTML = '🖼️ 正在识别 第 ' + current + '/' + total + ' 张: ' + esc(file.name);
+        document.getElementById('aiScanStatus').innerHTML = '正在识别 第 ' + current + '/' + total + ' 张: ' + esc(file.name);
       }
       if (document.getElementById('aiLog2')) {
-        document.getElementById('aiLog2').innerHTML = '⏳ 处理中: ' + esc(file.name) + ' (' + current + '/' + total + ')';
+        document.getElementById('aiLog2').innerHTML = '处理中: ' + esc(file.name) + ' (' + current + '/' + total + ')';
         document.getElementById('aiLog2').style.opacity = '1';
       }
       if (document.getElementById('aiLog4')) {
-        document.getElementById('aiLog4').innerHTML = '⚡ 进度: ' + current + '/' + total;
+        document.getElementById('aiLog4').innerHTML = '进度: ' + current + '/' + total;
         document.getElementById('aiLog4').style.opacity = '1';
       }
 
       processSingleImageLocal(file, function(err, contacts) {
         if (err) {
           if (document.getElementById('aiLog3')) {
-            document.getElementById('aiLog3').innerHTML = '⚠️ ' + esc(file.name) + ' 本地识别失败: ' + err.message + '，继续下一张...';
+            document.getElementById('aiLog3').innerHTML = '' + esc(file.name) + ' 本地识别失败: ' + err.message + '，继续下一张...';
             document.getElementById('aiLog3').style.opacity = '1';
           }
         } else {
           if (document.getElementById('aiLog3')) {
-            document.getElementById('aiLog3').innerHTML = '✅ ' + esc(file.name) + ' 本地识别完成 (' + contacts.length + ' 个联系人)';
+            document.getElementById('aiLog3').innerHTML = '' + esc(file.name) + ' 本地识别完成 (' + contacts.length + ' 个联系人)';
             document.getElementById('aiLog3').style.opacity = '1';
           }
           multiImageResults = multiImageResults.concat(contacts);
@@ -4389,7 +4312,7 @@
         
         if (index + 1 < multiImageQueue.length) {
           if (document.getElementById('aiLog3')) {
-            document.getElementById('aiLog3').innerHTML = '⏳ 触发防并发排队保护，等待1秒后处理下一张...';
+            document.getElementById('aiLog3').innerHTML = '触发防并发排队保护，等待1秒后处理下一张...';
           }
           setTimeout(function() {
             processNextInQueue(index + 1);
@@ -4540,14 +4463,14 @@
     function finishMultiImageOCR() {
       var total = multiImageQueue.length;
       if (document.getElementById('aiScanStatus')) {
-        document.getElementById('aiScanStatus').innerHTML = '✅ 多图排队识别完成 · 共 ' + total + ' 张图片';
+        document.getElementById('aiScanStatus').innerHTML = '多图排队识别完成 · 共 ' + total + ' 张图片';
       }
       if (document.getElementById('aiLog2')) {
-        document.getElementById('aiLog2').innerHTML = '🎉 全部处理完毕';
+        document.getElementById('aiLog2').innerHTML = '� 全部处理完毕';
         document.getElementById('aiLog2').style.opacity = '1';
       }
       if (document.getElementById('aiLog4')) {
-        document.getElementById('aiLog4').innerHTML = '📊 合计识别: ' + multiImageResults.length + ' 个联系人';
+        document.getElementById('aiLog4').innerHTML = '合计识别: ' + multiImageResults.length + ' 个联系人';
         document.getElementById('aiLog4').style.opacity = '1';
       }
 
@@ -4588,22 +4511,22 @@
 
 
     function runTesseractOCR(file) {
-      document.getElementById('aiScanStatus').innerHTML = '⚙️ AI 正在载入视觉 OCR 引擎...';
+      document.getElementById('aiScanStatus').innerHTML = 'AI 正在载入视觉 OCR 引擎...';
       if (document.getElementById('aiLog1')) {
-        document.getElementById('aiLog1').innerHTML = '⏳ 正在加载 tesseract.js 视觉分析库...';
+        document.getElementById('aiLog1').innerHTML = '正在加载 tesseract.js 视觉分析库...';
         document.getElementById('aiLog1').style.opacity = '1';
       }
 
       loadScript('https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.1.1/tesseract.min.js')
         .then(function() {
           if (document.getElementById('aiLog2')) {
-            document.getElementById('aiLog2').innerHTML = '✅ 视觉神经网络就绪';
+            document.getElementById('aiLog2').innerHTML = '视觉神经网络就绪';
             document.getElementById('aiLog2').style.opacity = '1';
           }
-          document.getElementById('aiScanStatus').innerHTML = '📸 正在下载中英文语言模型包...';
+          document.getElementById('aiScanStatus').innerHTML = '正在下载中英文语言模型包...';
 
           if (document.getElementById('aiLog3')) {
-            document.getElementById('aiLog3').innerHTML = '⏳ 正在从 CDN 获取高精 chi_sim+eng 模型...';
+            document.getElementById('aiLog3').innerHTML = '正在从 CDN 获取高精 chi_sim+eng 模型...';
             document.getElementById('aiLog3').style.opacity = '1';
           }
 
@@ -4614,17 +4537,17 @@
             logger: function(m) {
               if (m.status === 'recognizing text') {
                 var pct = Math.round(m.progress * 100);
-                document.getElementById('aiScanStatus').innerHTML = '📸 图像文字 AI 深度识别中：' + pct + '%';
+                document.getElementById('aiScanStatus').innerHTML = '图像文字 AI 深度识别中：' + pct + '%';
                 if (document.getElementById('aiLog3')) {
-                  document.getElementById('aiLog3').innerHTML = '✅ 模型载入成功，识别进行中...';
+                  document.getElementById('aiLog3').innerHTML = '模型载入成功，识别进行中...';
                 }
                 if (document.getElementById('aiLog4')) {
-                  document.getElementById('aiLog4').innerHTML = '⚡ OCR 进度: ' + pct + '%';
+                  document.getElementById('aiLog4').innerHTML = 'OCR 进度:' + pct + '%';
                   document.getElementById('aiLog4').style.opacity = '1';
                 }
               } else if (m.status === 'loading chi_sim.traineddata' || m.status === 'loading eng.traineddata') {
                 var loadPct = m.progress ? ' (' + Math.round(m.progress * 100) + '%)' : '';
-                document.getElementById('aiScanStatus').innerHTML = '🧠 正在载入语言模型包' + loadPct + '...';
+                document.getElementById('aiScanStatus').innerHTML = '正在载入语言模型包' + loadPct + '...';
               }
             }
           }).then(function(worker) {
@@ -4647,7 +4570,7 @@
               });
           }).then(function(result) {
             if (document.getElementById('aiLog4')) {
-              document.getElementById('aiLog4').innerHTML = '✅ 图像文字识别与神经特征映射完毕';
+              document.getElementById('aiLog4').innerHTML = '图像文字识别与神经特征映射完毕';
             }
             var text = result.data.text;
             correctOcrTextWithAI(text, file.name, function(contacts) {
@@ -4667,25 +4590,25 @@
     function handleTxtImport(file) {
       tempOcrEngine = 'text_fallback';
       showAIScanningUI(file.name);
-      document.getElementById('aiScanStatus').innerHTML = '📄 正在读取文本文档...';
+      document.getElementById('aiScanStatus').innerHTML = '� 正在读取文本文档...';
       if (document.getElementById('aiLog1')) {
-        document.getElementById('aiLog1').innerHTML = '✅ 文件读取通道建立';
+        document.getElementById('aiLog1').innerHTML = '文件读取通道建立';
         document.getElementById('aiLog1').style.opacity = '1';
       }
       
       var reader = new FileReader();
       reader.onload = function(e) {
         if (document.getElementById('aiLog2')) {
-          document.getElementById('aiLog2').innerHTML = '✅ 文档原始二进制流读取成功';
+          document.getElementById('aiLog2').innerHTML = '文档原始二进制流读取成功';
           document.getElementById('aiLog2').style.opacity = '1';
         }
         var text = e.target.result;
         if (document.getElementById('aiLog3')) {
-          document.getElementById('aiLog3').innerHTML = '✅ UTF-8 编码文本清洗完毕';
+          document.getElementById('aiLog3').innerHTML = 'UTF-8 编码文本清洗完毕';
           document.getElementById('aiLog3').style.opacity = '1';
         }
         if (document.getElementById('aiLog4')) {
-          document.getElementById('aiLog4').innerHTML = '⏳ AI 正在运行特征分析提取模型...';
+          document.getElementById('aiLog4').innerHTML = 'AI 正在运行特征分析提取模型...';
           document.getElementById('aiLog4').style.opacity = '1';
         }
         setTimeout(function() {
@@ -4708,7 +4631,7 @@
       
       if (!contacts || contacts.length === 0) {
         if (typeof showCopyLimitToast === 'function') {
-          showCopyLimitToast('⚠️ 识别完成，但未提取到有效联系人', true);
+          showCopyLimitToast('识别完成，但未提取到有效联系人', true);
         }
         resetAIImporterUI();
         updateDashboardVisibility(true);
@@ -4770,7 +4693,7 @@
         tdDel.style.padding = '4px 6px';
         tdDel.style.textAlign = 'center';
         var delBtn = document.createElement('button');
-        delBtn.innerHTML = '🗑️';
+        delBtn.innerHTML = '删除';
         delBtn.style.background = 'transparent';
         delBtn.style.border = 'none';
         delBtn.style.cursor = 'pointer';
@@ -4880,176 +4803,176 @@
         }
       }
       // Append new contacts to existing ones instead of overwriting
-      if (importedClients && importedClients.length > 0) {
-        importedClients = importedClients.concat(tempUnstructuredContacts);
-      } else {
-        importedClients = tempUnstructuredContacts;
-      }
-      saveState();
-      updateDashboardVisibility(true);
-      renderDialCards();
+      if (importedClients && importedClients.length >0) {
+ importedClients = importedClients.concat(tempUnstructuredContacts);
+ } else {
+ importedClients = tempUnstructuredContacts;
+ }
+ saveState();
+ updateDashboardVisibility(true);
+ renderDialCards();
 
-      // Auto-upload to Supabase
-      uploadCustomersToSupabase(tempUnstructuredContacts, batchLabel);
+ // Auto-upload to Supabase
+ uploadCustomersToSupabase(tempUnstructuredContacts, batchLabel);
 
-      // Save OCR correction for training feedback loop (before reset clears state)
-      saveOcrCorrection();
+ // Save OCR correction for training feedback loop (before reset clears state)
+ saveOcrCorrection();
 
-      resetAIImporterUI();
-    }
+ resetAIImporterUI();
+ }
 
-    function initAIImporter() {
-      var el;
-      el = document.getElementById('aiToggleAdjustBtn');
-      if (el) {
-        el.addEventListener('click', function(e) {
-          e.preventDefault();
-          var ctrl = document.getElementById('aiAdjustControls');
-          if (ctrl) {
-            if (ctrl.style.display === 'none') {
-              ctrl.style.display = 'grid';
-              this.textContent = '⚙️ 收起手动修正配置 ▴';
-            } else {
-              ctrl.style.display = 'none';
-              this.textContent = '⚙️ 手动修正 AI 映射结果 ▾';
-            }
-          }
-        });
-      }
+ function initAIImporter() {
+ var el;
+ el = document.getElementById('aiToggleAdjustBtn');
+ if (el) {
+ el.addEventListener('click', function(e) {
+ e.preventDefault();
+ var ctrl = document.getElementById('aiAdjustControls');
+ if (ctrl) {
+ if (ctrl.style.display === 'none') {
+ ctrl.style.display = 'grid';
+ this.textContent = '收起手动修正配置 ▴';
+ } else {
+ ctrl.style.display = 'none';
+ this.textContent = '手动修正 AI 映射结果 ▾';
+ }
+ }
+ });
+ }
 
-      el = document.getElementById('aiSelName'); if (el) el.addEventListener('change', updateAIPreviewTable);
-      el = document.getElementById('aiSelPhone'); if (el) el.addEventListener('change', updateAIPreviewTable);
-      el = document.getElementById('aiSelCompany'); if (el) el.addEventListener('change', updateAIPreviewTable);
-      el = document.getElementById('aiSelNote'); if (el) el.addEventListener('change', updateAIPreviewTable);
+ el = document.getElementById('aiSelName'); if (el) el.addEventListener('change', updateAIPreviewTable);
+ el = document.getElementById('aiSelPhone'); if (el) el.addEventListener('change', updateAIPreviewTable);
+ el = document.getElementById('aiSelCompany'); if (el) el.addEventListener('change', updateAIPreviewTable);
+ el = document.getElementById('aiSelNote'); if (el) el.addEventListener('change', updateAIPreviewTable);
 
-      el = document.getElementById('aiResetImportBtn');
-      if (el) {
-        el.addEventListener('click', function(e) {
-          e.preventDefault();
-          resetAIImporterUI();
-        });
-      }
+ el = document.getElementById('aiResetImportBtn');
+ if (el) {
+ el.addEventListener('click', function(e) {
+ e.preventDefault();
+ resetAIImporterUI();
+ });
+ }
 
-      el = document.getElementById('aiConfirmImportBtn');
-      if (el) {
-        el.addEventListener('click', function(e) {
-          e.preventDefault();
-          if (tempImportType === 'xlsx') {
-            executeAIImportExcel();
-          } else if (tempImportType === 'vcf') {
-            executeAIImportVcf();
-          } else if (tempImportType === 'unstructured') {
-            executeAIImportUnstructured();
-          }
-        });
-      }
+ el = document.getElementById('aiConfirmImportBtn');
+ if (el) {
+ el.addEventListener('click', function(e) {
+ e.preventDefault();
+ if (tempImportType === 'xlsx') {
+ executeAIImportExcel();
+ } else if (tempImportType === 'vcf') {
+ executeAIImportVcf();
+ } else if (tempImportType === 'unstructured') {
+ executeAIImportUnstructured();
+ }
+ });
+ }
 
-      // Text paste button: use AI correction
-      var textExtractBtn = document.getElementById('textImportExtractBtn');
-      if (textExtractBtn) {
-        textExtractBtn.addEventListener('click', function() {
-          var t = document.getElementById('textImportArea').value.trim();
-          if (!t) { alert('请先粘贴文本'); return; }
-          var btn = this;
-          btn.disabled = true;
-          btn.textContent = '⏳ AI 修正中...';
-          // Show scanning UI for visual feedback
-          showAIScanningUI('文本粘贴识别');
-          document.getElementById('aiScanStatus').innerHTML = '📝 正在智能解析粘贴的文本...';
-          document.getElementById('aiLog1').innerHTML = '⏳ 正在分析文本格式与内容...';
-          document.getElementById('aiLog1').style.opacity = '1';
-          document.getElementById('textImportPanel').style.display = 'none';
-          correctOcrTextWithAI(t, '文本粘贴', function(contacts) {
-            btn.textContent = '🔍 智能识别提取';
-            btn.disabled = false;
-            if (contacts && contacts.length > 0) {
-              window.renderAIUnstructuredReport('文本粘贴', contacts);
-            } else {
-              // Fallback to server-side extraction
-              btn.textContent = '本地未检出，切换云端 AI...';
-              document.getElementById('aiLog2').innerHTML = '⏳ 本地引擎未检出，尝试云端 AI 识别...';
-              document.getElementById('aiLog2').style.opacity = '1';
-              fetch('/api/ocr/text', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rawText: t }) })
-                .then(function(r) { return r.json(); })
-                .then(function(d) {
-                  btn.textContent = '🔍 智能识别提取';
-                  btn.disabled = false;
-                  if (d.contacts && d.contacts.length > 0) {
-                    window.renderAIUnstructuredReport('云端文本解析', d.contacts);
-                  } else {
-                    resetAIImporterUI();
-                    document.getElementById('textImportPanel').style.display = 'flex';
-                    document.getElementById('textImportArea').value = t;
-                    alert('本地与云端 AI 均未识别到联系人，请确认文本包含有效手机号');
-                  }
-                }).catch(function(e) {
-                  btn.textContent = '🔍 智能识别提取';
-                  btn.disabled = false;
-                  resetAIImporterUI();
-                  document.getElementById('textImportPanel').style.display = 'flex';
-                  document.getElementById('textImportArea').value = t;
-                  alert('识别失败: ' + e.message);
-                });
-            }
-          });
-        });
-      }
+ // Text paste button: use AI correction
+ var textExtractBtn = document.getElementById('textImportExtractBtn');
+ if (textExtractBtn) {
+ textExtractBtn.addEventListener('click', function() {
+ var t = document.getElementById('textImportArea').value.trim();
+ if (!t) { alert('请先粘贴文本'); return; }
+ var btn = this;
+ btn.disabled = true;
+ btn.textContent = 'AI 修正中...';
+ // Show scanning UI for visual feedback
+ showAIScanningUI('文本粘贴识别');
+ document.getElementById('aiScanStatus').innerHTML = '正在智能解析粘贴的文本...';
+ document.getElementById('aiLog1').innerHTML = ' 正在分析文本格式与内容...';
+ document.getElementById('aiLog1').style.opacity = '1';
+ document.getElementById('textImportPanel').style.display = 'none';
+ correctOcrTextWithAI(t, '文本粘贴', function(contacts) {
+ btn.textContent = '智能识别提取';
+ btn.disabled = false;
+ if (contacts && contacts.length > 0) {
+ window.renderAIUnstructuredReport('文本粘贴', contacts);
+ } else {
+ // Fallback to server-side extraction
+ btn.textContent = '本地未检出，切换云端 AI...';
+ document.getElementById('aiLog2').innerHTML = '本地引擎未检出，尝试云端 AI 识别...';
+ document.getElementById('aiLog2').style.opacity = '1';
+ fetch('/api/ocr/text', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rawText: t }) })
+ .then(function(r) { return r.json(); })
+ .then(function(d) {
+ btn.textContent = '智能识别提取';
+ btn.disabled = false;
+ if (d.contacts && d.contacts.length > 0) {
+ window.renderAIUnstructuredReport('云端文本解析', d.contacts);
+ } else {
+ resetAIImporterUI();
+ document.getElementById('textImportPanel').style.display = 'flex';
+ document.getElementById('textImportArea').value = t;
+ alert('本地与云端 AI 均未识别到联系人，请确认文本包含有效手机号');
+ }
+ }).catch(function(e) {
+ btn.textContent = '智能识别提取';
+ btn.disabled = false;
+ resetAIImporterUI();
+ document.getElementById('textImportPanel').style.display = 'flex';
+ document.getElementById('textImportArea').value = t;
+ alert('识别失败: ' + e.message);
+ });
+ }
+ });
+ });
+ }
 
-      // Init OCR training data UI
-      initOcrCorrectionUI();
-    }
+ // Init OCR training data UI
+ initOcrCorrectionUI();
+ }
 
-    // ====== OCR Training Data Review UI ======
+ // ====== OCR Training Data Review UI ======
 
-    function initOcrCorrectionUI() {
-      var btn = document.getElementById('ocrTrainingDataBtn');
-      var modal = document.getElementById('ocrCorrectionModal');
-      var closeBtn = document.getElementById('closeOcrCorrectionBtn');
-      var exportBtn = document.getElementById('ocrExportJsonlBtn');
-      var refreshBtn = document.getElementById('ocrRefreshCorrectionsBtn');
-      var filterCheckbox = document.getElementById('ocrFilterEditsOnly');
+ function initOcrCorrectionUI() {
+ var btn = document.getElementById('ocrTrainingDataBtn');
+ var modal = document.getElementById('ocrCorrectionModal');
+ var closeBtn = document.getElementById('closeOcrCorrectionBtn');
+ var exportBtn = document.getElementById('ocrExportJsonlBtn');
+ var refreshBtn = document.getElementById('ocrRefreshCorrectionsBtn');
+ var filterCheckbox = document.getElementById('ocrFilterEditsOnly');
 
-      // Open modal
-      if (btn && modal) {
-        btn.addEventListener('click', function() {
-          modal.classList.add('active');
-          loadOcrCorrections();
-        });
-      }
+ // Open modal
+ if (btn && modal) {
+ btn.addEventListener('click', function() {
+ modal.classList.add('active');
+ loadOcrCorrections();
+ });
+ }
 
-      // Close modal
-      if (closeBtn && modal) {
-        closeBtn.addEventListener('click', function() { modal.classList.remove('active'); });
-        modal.addEventListener('click', function(e) {
-          if (e.target === modal) modal.classList.remove('active');
-        });
-      }
+ // Close modal
+ if (closeBtn && modal) {
+ closeBtn.addEventListener('click', function() { modal.classList.remove('active'); });
+ modal.addEventListener('click', function(e) {
+ if (e.target === modal) modal.classList.remove('active');
+ });
+ }
 
-      // Export JSONL
-      if (exportBtn) {
-        exportBtn.addEventListener('click', function() {
-          window.open('/api/ocr/corrections/export?limit=500', '_blank');
-        });
-      }
+ // Export JSONL
+ if (exportBtn) {
+ exportBtn.addEventListener('click', function() {
+ window.open('/api/ocr/corrections/export?limit=500', '_blank');
+ });
+ }
 
-      // Refresh
-      if (refreshBtn) {
-        refreshBtn.addEventListener('click', loadOcrCorrections);
-      }
+ // Refresh
+ if (refreshBtn) {
+ refreshBtn.addEventListener('click', loadOcrCorrections);
+ }
 
-      // Filter toggle
-      if (filterCheckbox) {
-        filterCheckbox.addEventListener('change', loadOcrCorrections);
-      }
+ // Filter toggle
+ if (filterCheckbox) {
+ filterCheckbox.addEventListener('change', loadOcrCorrections);
+ }
 
-      // Initial count fetch
-      fetchTrainingDataCount();
-    }
+ // Initial count fetch
+ fetchTrainingDataCount();
+ }
 
-    function loadOcrCorrections() {
-      var container = document.getElementById('ocrCorrectionList');
-      if (!container) return;
-      container.innerHTML = '<div style="text-align:center;padding:24px;font-size:0.7rem;color:var(--text-light);">⏳ 加载中...</div>';
+ function loadOcrCorrections() {
+ var container = document.getElementById('ocrCorrectionList');
+ if (!container) return;
+ container.innerHTML = '<div style="text-align:center;padding:24px;font-size:0.7rem;color:var(--text-light);">加载中...</div>';
 
       var minEdits = 0;
       var filterEl = document.getElementById('ocrFilterEditsOnly');
@@ -5059,7 +4982,7 @@
         .then(function(r) { return r.json(); })
         .then(function(data) {
           if (!data.data || data.data.length === 0) {
-            container.innerHTML = '<div style="text-align:center;padding:28px;font-size:0.72rem;color:var(--text-light);">📭 暂无记录<br><span style="font-size:0.58rem;">导入并修正联系人后，修正记录会自动收集</span></div>';
+            container.innerHTML = '<div style="text-align:center;padding:28px;font-size:0.72rem;color:var(--text-light);"> 暂无记录<br><span style="font-size:0.58rem;">导入并修正联系人后，修正记录会自动收集</span></div>';
             return;
           }
           var countEl = document.getElementById('ocrCorrectionCount');
@@ -5084,13 +5007,13 @@
                 '<span style="color:var(--text-soft);">原始: </span><span style="color:#999;">' + esc(origStr) + '</span><br>' +
                 '<span style="color:var(--text-soft);">修正: </span><span style="color:' + (hasEdits ? 'var(--accent-wechat)' : 'var(--text-main)') + ';">' + esc(corrStr) + '</span>' +
               '</div>' +
-              '<div style="font-size:0.55rem; color:var(--text-light); margin-top:2px;">🔧 ' + esc(c.ocr_pipeline || 'unknown') + ' · ' + esc(c.ocr_mode || 'bulk') + '</div>' +
+              '<div style="font-size:0.55rem; color:var(--text-light); margin-top:2px;">' + esc(c.ocr_pipeline || 'unknown') + ' · ' + esc(c.ocr_mode || 'bulk') + '</div>' +
             '</div>';
           });
           container.innerHTML = html;
         })
         .catch(function(err) {
-          container.innerHTML = '<div style="text-align:center;padding:24px;font-size:0.7rem;color:#e74c3c;">⚠️ 加载失败: ' + esc(err.message) + '</div>';
+          container.innerHTML = '<div style="text-align:center;padding:24px;font-size:0.7rem;color:#e74c3c;">加载失败: ' + esc(err.message) + '</div>';
         });
     }
 
@@ -5268,7 +5191,7 @@
       updateStats();
 
       if (importedClients.length === 0) {
-        container.innerHTML = '<div style="text-align:center;padding:80px 20px;color:var(--text-light);font-size:0.82rem;display:flex;flex-direction:column;gap:12px;"><span style="font-size: 2.2rem;opacity:0.6;">📇</span><span>暂无联系人数据，请在上方导入表格或通讯录文件</span></div>';
+        container.innerHTML = '<div style="text-align:center;padding:80px 20px;color:var(--text-light);font-size:0.82rem;display:flex;flex-direction:column;gap:12px;"><span style="font-size: 2.2rem;opacity:0.6;"></span><span>暂无联系人数据，请在上方导入表格或通讯录文件</span></div>';
         return;
       }
 
@@ -5369,7 +5292,7 @@
         pagHtml += '</select>';
         
         var prevDisabled = (currentPage === 1) ? ' disabled style="opacity: 0.4; cursor: not-allowed;"' : '';
-        pagHtml += '<button class="btn-secondary" id="pagPrevBtn"' + prevDisabled + ' style="padding: 4px 8px; font-size: 0.68rem; border-radius: var(--radius-xs); height: 24px; cursor: pointer; display: inline-flex; align-items: center; font-weight: 800;">◀</button>';
+        pagHtml += '<button class="btn-secondary" id="pagPrevBtn"' + prevDisabled + ' style="padding: 4px 8px; font-size: 0.68rem; border-radius: var(--radius-xs); height: 24px; cursor: pointer; display: inline-flex; align-items: center; font-weight: 800;"></button>';
         
         var startPage = Math.max(1, currentPage - 2);
         var endPage = Math.min(totalPages, currentPage + 2);
@@ -5393,7 +5316,7 @@
         }
         
         var nextDisabled = (currentPage === totalPages) ? ' disabled style="opacity: 0.4; cursor: not-allowed;"' : '';
-        pagHtml += '<button class="btn-secondary" id="pagNextBtn"' + nextDisabled + ' style="padding: 4px 8px; font-size: 0.68rem; border-radius: var(--radius-xs); height: 24px; cursor: pointer; display: inline-flex; align-items: center; font-weight: 800;">▶</button>';
+        pagHtml += '<button class="btn-secondary" id="pagNextBtn"' + nextDisabled + ' style="padding: 4px 8px; font-size: 0.68rem; border-radius: var(--radius-xs); height: 24px; cursor: pointer; display: inline-flex; align-items: center; font-weight: 800;"></button>';
         pagHtml += '</div>';
       }
 
@@ -5409,13 +5332,13 @@
             badgeHtml = '<span class="xls-dial-badge xls-dial-badge-success">已接通 (' + (c.duration || '00:00') + ')</span>';
             cardClass += ' dialed';
             if (phoneVal) {
-              badgeHtml += ' <button class="rec-play-btn" data-phone="' + esc(phoneVal) + '" title="播放通话录音" style="font-size:0.6rem;padding:1px 6px;border:1px solid #07c160;background:rgba(7,193,96,0.08);color:#07c160;border-radius:3px;cursor:pointer;font-weight:700;margin-left:4px;" onclick="event.stopPropagation();var p=this.dataset.phone;var a=document.createElement(\x27audio\x27);a.controls=true;a.style.width=\x27100%\x27;a.style.height=\x2728px\x27;a.style.marginTop=\x274px\x27;var w=this.nextElementSibling;if(w&&w.classList.contains(\x27rec-audio-wrap\x27)){w.remove();return;}var d=document.createElement(\x27div\x27);d.className=\x27rec-audio-wrap\x27;d.style.width=\x27100%\x27;d.appendChild(a);this.parentElement.appendChild(d);a.src=\x27/api/local-recording?phone=\x27+encodeURIComponent(p);a.play().catch(function(){});">▶ 录音</button>';
+              badgeHtml += ' <button class="rec-play-btn" data-phone="' + esc(phoneVal) + '" title="播放通话录音" style="font-size:0.6rem;padding:1px 6px;border:1px solid #07c160;background:rgba(7,193,96,0.08);color:#07c160;border-radius:3px;cursor:pointer;font-weight:700;margin-left:4px;" onclick="event.stopPropagation();var p=this.dataset.phone;var a=document.createElement(\x27audio\x27);a.controls=true;a.style.width=\x27100%\x27;a.style.height=\x2728px\x27;a.style.marginTop=\x274px\x27;var w=this.nextElementSibling;if(w&&w.classList.contains(\x27rec-audio-wrap\x27)){w.remove();return;}var d=document.createElement(\x27div\x27);d.className=\x27rec-audio-wrap\x27;d.style.width=\x27100%\x27;d.appendChild(a);this.parentElement.appendChild(d);a.src=\x27/api/local-recording?phone=\x27+encodeURIComponent(p);a.play().catch(function(){});">录音</button>';
             }
           } else if (c.dialedStatus === 'failed') {
             badgeHtml = '<span class="xls-dial-badge xls-dial-badge-failed">未接通</span>';
             cardClass += ' dialed';
             if (phoneVal) {
-              badgeHtml += ' <button class="rec-play-btn" data-phone="' + esc(phoneVal) + '" title="播放通话录音" style="font-size:0.6rem;padding:1px 6px;border:1px solid #e67e22;background:rgba(245,124,0,0.08);color:#e67e22;border-radius:3px;cursor:pointer;font-weight:700;margin-left:4px;" onclick="event.stopPropagation();var p=this.dataset.phone;var a=document.createElement(\x27audio\x27);a.controls=true;a.style.width=\x27100%\x27;a.style.height=\x2728px\x27;a.style.marginTop=\x274px\x27;var w=this.nextElementSibling;if(w&&w.classList.contains(\x27rec-audio-wrap\x27)){w.remove();return;}var d=document.createElement(\x27div\x27);d.className=\x27rec-audio-wrap\x27;d.style.width=\x27100%\x27;d.appendChild(a);this.parentElement.appendChild(d);a.src=\x27/api/local-recording?phone=\x27+encodeURIComponent(p);a.play().catch(function(){});">▶ 录音</button>';
+              badgeHtml += ' <button class="rec-play-btn" data-phone="' + esc(phoneVal) + '" title="播放通话录音" style="font-size:0.6rem;padding:1px 6px;border:1px solid #e67e22;background:rgba(245,124,0,0.08);color:#e67e22;border-radius:3px;cursor:pointer;font-weight:700;margin-left:4px;" onclick="event.stopPropagation();var p=this.dataset.phone;var a=document.createElement(\x27audio\x27);a.controls=true;a.style.width=\x27100%\x27;a.style.height=\x2728px\x27;a.style.marginTop=\x274px\x27;var w=this.nextElementSibling;if(w&&w.classList.contains(\x27rec-audio-wrap\x27)){w.remove();return;}var d=document.createElement(\x27div\x27);d.className=\x27rec-audio-wrap\x27;d.style.width=\x27100%\x27;d.appendChild(a);this.parentElement.appendChild(d);a.src=\x27/api/local-recording?phone=\x27+encodeURIComponent(p);a.play().catch(function(){});">录音</button>';
             }
           }
 
@@ -5435,8 +5358,8 @@
             '</div>' +
             '<div class="client-card-tags" style="margin-top: 2px;">' +
               (c.company ? '<span class="client-card-tag client-card-tag-company" data-company="' + esc(c.company) + '" data-idx="' + i + '" title="点击复制单位名称">' + esc(c.company) + '</span>' : '') +
-              (c.batch_label ? '<span class="client-card-tag" style="background:rgba(74,108,247,0.08);color:#4a6cf7;font-weight:700;" title="导入批次">🏷 ' + esc(c.batch_label) + '</span>' : '') +
-              (c.fund ? '<span class="client-card-tag crm-fund-tag" style="background:rgba(255,152,0,0.08);color:#f57c00;font-weight:700;" title="公积金">💰 公积金: ' + esc(c.fund) + '</span>' : '') +
+              (c.batch_label ? '<span class="client-card-tag" style="background:rgba(74,108,247,0.08);color:#4a6cf7;font-weight:700;" title="导入批次">' + esc(c.batch_label) + '</span>' : '') +
+              (c.fund ? '<span class="client-card-tag crm-fund-tag" style="background:rgba(255,152,0,0.08);color:#f57c00;font-weight:700;" title="公积金">公积金: ' + esc(c.fund) + '</span>' : '') +
               (function() {
                 var customHtml = '';
                 if (c.custom && typeof c.custom === 'object') {
@@ -5832,487 +5755,487 @@
               var hasRec = (typeof AndroidDialer !== 'undefined' && AndroidDialer.hasRecording(phoneVal));
               if (hasRec) {
                 audioWrapper.innerHTML = '<audio src="/api/local-recording?phone=' + encodeURIComponent(phoneVal) + '" controls style="width: 100%; height: 32px; outline: none; margin-top: 4px; display: block;"></audio>';
-                recContainer.style.display = 'flex';
-              }
-            }
-          }
-        }
-      };
+ recContainer.style.display = 'flex';
+ }
+ }
+ }
+ }
+ };
 
-      function saveProgress(status) {
-        var c = importedClients[currentCallIdx];
-        if (!c) return false;
+ function saveProgress(status) {
+ var c = importedClients[currentCallIdx];
+ if (!c) return false;
 
-        c.callNote = document.getElementById('callLogNote').value.trim();
-        c.dialedStatus = status;
-        c.duration = '-';
-        return true;
-      }
+ c.callNote = document.getElementById('callLogNote').value.trim();
+ c.dialedStatus = status;
+ c.duration = '-';
+ return true;
+ }
 
-      var autoDialActive = false;
-      function handleOutcome(status) {
-        if (!saveProgress(status)) return;
-        saveState();
-        renderDialCards();
+ var autoDialActive = false;
+ function handleOutcome(status) {
+ if (!saveProgress(status)) return;
+ saveState();
+ renderDialCards();
 
-        var nextIdx = getNextClientIndex(currentCallIdx);
-        if (nextIdx !== -1) {
-          startCallAssistant(nextIdx);
-          if (autoDialActive) {
-            setTimeout(function() {
-              var link = document.getElementById('callAssistDialLink');
-              if (link && link.href) window.location.href = link.href;
-            }, 800);
-          }
-        } else {
-          if (autoDialActive) {
-            autoDialActive = false;
-            updateAutoDialBtn();
-          }
-          alert('已经是当前筛选列表的最后一位客户了！');
-          overlay.classList.remove('active');
-        }
-      }
+ var nextIdx = getNextClientIndex(currentCallIdx);
+ if (nextIdx !== -1) {
+ startCallAssistant(nextIdx);
+ if (autoDialActive) {
+ setTimeout(function() {
+ var link = document.getElementById('callAssistDialLink');
+ if (link && link.href) window.location.href = link.href;
+ }, 800);
+ }
+ } else {
+ if (autoDialActive) {
+ autoDialActive = false;
+ updateAutoDialBtn();
+ }
+ alert('已经是当前筛选列表的最后一位客户了！');
+ overlay.classList.remove('active');
+ }
+ }
 
-      function updateAutoDialBtn() {
-        var btn = document.getElementById('autoDialBtn');
-        if (autoDialActive) {
-          btn.textContent = '暂停拨打';
-          btn.style.background = '#e74c3c';
-          btn.style.color = '#fff';
-          btn.style.borderColor = '#e74c3c';
-        } else {
-          btn.textContent = '自动拨打';
-          btn.style.background = '';
-          btn.style.color = '';
-          btn.style.borderColor = '';
-        }
-      }
+ function updateAutoDialBtn() {
+ var btn = document.getElementById('autoDialBtn');
+ if (autoDialActive) {
+ btn.textContent = '暂停拨打';
+ btn.style.background = '#e74c3c';
+ btn.style.color = '#fff';
+ btn.style.borderColor = '#e74c3c';
+ } else {
+ btn.textContent = '自动拨打';
+ btn.style.background = '';
+ btn.style.color = '';
+ btn.style.borderColor = '';
+ }
+ }
 
-      document.getElementById('autoDialBtn').addEventListener('click', function() {
-        autoDialActive = !autoDialActive;
-        updateAutoDialBtn();
-        if (autoDialActive) {
-          if (currentCallIdx === -1) {
-            var firstIdx = getNextClientIndex(-1);
-            if (firstIdx !== -1) {
-              startCallAssistant(firstIdx);
-              setTimeout(function() {
-                var link = document.getElementById('callAssistDialLink');
-                if (link && link.href) window.location.href = link.href;
-              }, 800);
-            }
-          } else {
-            var link = document.getElementById('callAssistDialLink');
-            if (link && link.href) window.location.href = link.href;
-          }
-        }
-      });
+ document.getElementById('autoDialBtn').addEventListener('click', function() {
+ autoDialActive = !autoDialActive;
+ updateAutoDialBtn();
+ if (autoDialActive) {
+ if (currentCallIdx === -1) {
+ var firstIdx = getNextClientIndex(-1);
+ if (firstIdx !== -1) {
+ startCallAssistant(firstIdx);
+ setTimeout(function() {
+ var link = document.getElementById('callAssistDialLink');
+ if (link && link.href) window.location.href = link.href;
+ }, 800);
+ }
+ } else {
+ var link = document.getElementById('callAssistDialLink');
+ if (link && link.href) window.location.href = link.href;
+ }
+ }
+ });
 
-      successBtn.addEventListener('click', function() {
-        handleOutcome('success');
-      });
+ successBtn.addEventListener('click', function() {
+ handleOutcome('success');
+ });
 
-      failedBtn.addEventListener('click', function() {
-        handleOutcome('failed');
-      });
+ failedBtn.addEventListener('click', function() {
+ handleOutcome('failed');
+ });
 
-      if (phoneDisp) {
-        phoneDisp.addEventListener('click', function(e) {
-          e.stopPropagation();
-          var phone = phoneDisp.dataset.phone;
+ if (phoneDisp) {
+ phoneDisp.addEventListener('click', function(e) {
+ e.stopPropagation();
+ var phone = phoneDisp.dataset.phone;
 
-          // Rate limit check
-          var limit = checkCopyLimit();
-          if (!limit.allowed) {
-            showCopyLimitToast(limit.message, false);
-            return;
-          }
+ // Rate limit check
+ var limit = checkCopyLimit();
+ if (!limit.allowed) {
+ showCopyLimitToast(limit.message, false);
+ return;
+ }
 
-          copyTextToClipboard(phone);
+ copyTextToClipboard(phone);
 
-          var oldText = phoneDisp.textContent;
-          if (oldText === '已复制，正在打开微信...') return;
-          phoneDisp.textContent = '已复制，正在打开微信...';
+ var oldText = phoneDisp.textContent;
+ if (oldText === '已复制，正在打开微信...') return;
+ phoneDisp.textContent = '已复制，正在打开微信...';
 
-          var client = importedClients[currentCallIdx];
-          if (client) {
-            client.copied = true;
-            saveState();
-          }
+ var client = importedClients[currentCallIdx];
+ if (client) {
+ client.copied = true;
+ saveState();
+ }
 
-          phoneDisp.classList.add('copied');
+ phoneDisp.classList.add('copied');
 
-          var card = document.getElementById('xdc_' + currentCallIdx);
-          if (card) {
-            var cardPhoneBtn = card.querySelector('.client-phone-btn');
-            if (cardPhoneBtn) {
-              cardPhoneBtn.classList.add('copied');
-            }
-          }
+ var card = document.getElementById('xdc_' + currentCallIdx);
+ if (card) {
+ var cardPhoneBtn = card.querySelector('.client-phone-btn');
+ if (cardPhoneBtn) {
+ cardPhoneBtn.classList.add('copied');
+ }
+ }
 
-          setTimeout(function() {
-            jumpToWechat();
-          }, 100);
+ setTimeout(function() {
+ jumpToWechat();
+ }, 100);
 
-          setTimeout(function() {
-            phoneDisp.textContent = maskPhone(phone);
-          }, 1500);
-        });
-      }
+ setTimeout(function() {
+ phoneDisp.textContent = maskPhone(phone);
+ }, 1500);
+ });
+ }
 
-      if (nameDisp) {
-        nameDisp.addEventListener('click', function(e) {
-          e.stopPropagation();
-          var name = nameDisp.dataset.name;
-          copyTextToClipboard(name);
-          
-          var oldText = nameDisp.textContent;
-          if (oldText === '已复制') return;
-          nameDisp.textContent = '已复制';
-          
-          var client = importedClients[currentCallIdx];
-          if (client) {
-            client.copied = true;
-            saveState();
-          }
+ if (nameDisp) {
+ nameDisp.addEventListener('click', function(e) {
+ e.stopPropagation();
+ var name = nameDisp.dataset.name;
+ copyTextToClipboard(name);
+ 
+ var oldText = nameDisp.textContent;
+ if (oldText === '已复制') return;
+ nameDisp.textContent = '已复制';
+ 
+ var client = importedClients[currentCallIdx];
+ if (client) {
+ client.copied = true;
+ saveState();
+ }
 
-          if (phoneDisp) {
-            phoneDisp.classList.add('copied');
-          }
+ if (phoneDisp) {
+ phoneDisp.classList.add('copied');
+ }
 
-          var card = document.getElementById('xdc_' + currentCallIdx);
-          if (card) {
-            var cardPhoneBtn = card.querySelector('.client-phone-btn');
-            if (cardPhoneBtn) {
-              cardPhoneBtn.classList.add('copied');
-            }
-          }
+ var card = document.getElementById('xdc_' + currentCallIdx);
+ if (card) {
+ var cardPhoneBtn = card.querySelector('.client-phone-btn');
+ if (cardPhoneBtn) {
+ cardPhoneBtn.classList.add('copied');
+ }
+ }
 
-          setTimeout(function() {
-            nameDisp.textContent = name;
-          }, 1000);
-        });
-      }
+ setTimeout(function() {
+ nameDisp.textContent = name;
+ }, 1000);
+ });
+ }
 
-      var companyDisp = document.getElementById('callAssistCompany');
-      if (companyDisp) {
-        companyDisp.addEventListener('click', function(e) {
-          e.stopPropagation();
-          var company = companyDisp.dataset.company || companyDisp.textContent;
-          if (!company || company === '-') return;
-          copyTextToClipboard(company);
-          
-          var oldText = companyDisp.textContent;
-          if (oldText === '已复制') return;
-          companyDisp.textContent = '已复制';
-          
-          setTimeout(function() {
-            companyDisp.textContent = company;
-          }, 1000);
-        });
-      }
+ var companyDisp = document.getElementById('callAssistCompany');
+ if (companyDisp) {
+ companyDisp.addEventListener('click', function(e) {
+ e.stopPropagation();
+ var company = companyDisp.dataset.company || companyDisp.textContent;
+ if (!company || company === '-') return;
+ copyTextToClipboard(company);
+ 
+ var oldText = companyDisp.textContent;
+ if (oldText === '已复制') return;
+ companyDisp.textContent = '已复制';
+ 
+ setTimeout(function() {
+ companyDisp.textContent = company;
+ }, 1000);
+ });
+ }
 
-      // Close modal when clicking blank area outside
-      overlay.addEventListener('click', function(e) {
-        if (e.target === this) {
-          overlay.classList.remove('active');
-        }
-      });
-    }
+ // Close modal when clicking blank area outside
+ overlay.addEventListener('click', function(e) {
+ if (e.target === this) {
+ overlay.classList.remove('active');
+ }
+ });
+ }
 
-    function initFilters() {
-      document.querySelectorAll('.filter-tab').forEach(function(tab) {
-        tab.addEventListener('click', function() {
-          document.querySelectorAll('.filter-tab').forEach(function(t) { t.classList.remove('active'); });
-          tab.classList.add('active');
-          currentFilter = tab.dataset.filter;
-          currentPage = 1; // Reset to page 1
-          renderDialCards();
-        });
-      });
+ function initFilters() {
+ document.querySelectorAll('.filter-tab').forEach(function(tab) {
+ tab.addEventListener('click', function() {
+ document.querySelectorAll('.filter-tab').forEach(function(t) { t.classList.remove('active'); });
+ tab.classList.add('active');
+ currentFilter = tab.dataset.filter;
+ currentPage = 1; // Reset to page 1
+ renderDialCards();
+ });
+ });
 
-      document.getElementById('searchInput').addEventListener('input', function() {
-        currentPage = 1; // Reset to page 1
-        renderDialCards();
-      });
+ document.getElementById('searchInput').addEventListener('input', function() {
+ currentPage = 1; // Reset to page 1
+ renderDialCards();
+ });
 
-      var sortSel = document.getElementById('sortSelect');
-      if (sortSel) {
-        sortSel.addEventListener('change', function() {
-          currentSort = this.value;
-          currentPage = 1; // Reset to page 1
-          renderDialCards();
-        });
-      }
+ var sortSel = document.getElementById('sortSelect');
+ if (sortSel) {
+ sortSel.addEventListener('change', function() {
+ currentSort = this.value;
+ currentPage = 1; // Reset to page 1
+ renderDialCards();
+ });
+ }
 
-      var wlFilterSel = document.getElementById('whitelistFilterSelect');
-      if (wlFilterSel) {
-        wlFilterSel.addEventListener('change', function() {
-          var val = this.value;
-          currentPage = 1; // Reset to page 1
-          if (val !== 'all' && !whitelistCheckResults) {
-            checkWhitelist().then(function() {
-              renderDialCards();
-            });
-          } else {
-            renderDialCards();
-          }
-        });
-      }
-    }
+ var wlFilterSel = document.getElementById('whitelistFilterSelect');
+ if (wlFilterSel) {
+ wlFilterSel.addEventListener('change', function() {
+ var val = this.value;
+ currentPage = 1; // Reset to page 1
+ if (val !== 'all' && !whitelistCheckResults) {
+ checkWhitelist().then(function() {
+ renderDialCards();
+ });
+ } else {
+ renderDialCards();
+ }
+ });
+ }
+ }
 
-    function initFileInputs() {
-      var xlsSelect = document.getElementById('xlsSelectBtn');
-      var xlsFile = document.getElementById('xlsFileInput');
-      var vcfSelect = document.getElementById('vcfSelectBtn');
-      var vcfFile = document.getElementById('vcfFileInput');
-      var dropZone = document.getElementById('dropZone');
-      var toggleBtn = document.getElementById('toggleImportBtn');
+ function initFileInputs() {
+ var xlsSelect = document.getElementById('xlsSelectBtn');
+ var xlsFile = document.getElementById('xlsFileInput');
+ var vcfSelect = document.getElementById('vcfSelectBtn');
+ var vcfFile = document.getElementById('vcfFileInput');
+ var dropZone = document.getElementById('dropZone');
+ var toggleBtn = document.getElementById('toggleImportBtn');
 
-      if (toggleBtn) {
-        toggleBtn.addEventListener('click', function() {
-          var panel = document.getElementById('dashboardPanel');
-          if (panel) {
-            var willOpen = !panel.classList.contains('active');
-            panel.classList.toggle('active');
-            if (willOpen) {
-              document.body.style.overflow = 'hidden';
-              resetAIImporterUI();
-              // Reset batch label with fresh timestamp
-              var blInput = document.getElementById('batchLabelInput');
-              if (blInput) {
-                blInput.value = '导入-' + new Date().toISOString().slice(0, 19).replace('T', ' ');
-              }
-            } else {
-              document.body.style.overflow = '';
-            }
-          }
-        });
-      }
+ if (toggleBtn) {
+ toggleBtn.addEventListener('click', function() {
+ var panel = document.getElementById('dashboardPanel');
+ if (panel) {
+ var willOpen = !panel.classList.contains('active');
+ panel.classList.toggle('active');
+ if (willOpen) {
+ document.body.style.overflow = 'hidden';
+ resetAIImporterUI();
+ // Reset batch label with fresh timestamp
+ var blInput = document.getElementById('batchLabelInput');
+ if (blInput) {
+ blInput.value = '导入-' + new Date().toISOString().slice(0, 19).replace('T', ' ');
+ }
+ } else {
+ document.body.style.overflow = '';
+ }
+ }
+ });
+ }
 
-      // Close button inside the import panel
-      var importCloseBtn = document.getElementById('importCloseBtn');
-      if (importCloseBtn) {
-        importCloseBtn.addEventListener('click', closeImportModal);
-        // Also close when clicking the backdrop (outside import-zone)
-        var dp = document.getElementById('dashboardPanel');
-        if (dp) {
-          dp.addEventListener('click', function(e) {
-            if (e.target === dp) closeImportModal();
-          });
-        }
-      }
-      function closeImportModal() {
-        var panel = document.getElementById('dashboardPanel');
-        if (panel) panel.classList.remove('active');
-        document.body.style.overflow = '';
-      }
+ // Close button inside the import panel
+ var importCloseBtn = document.getElementById('importCloseBtn');
+ if (importCloseBtn) {
+ importCloseBtn.addEventListener('click', closeImportModal);
+ // Also close when clicking the backdrop (outside import-zone)
+ var dp = document.getElementById('dashboardPanel');
+ if (dp) {
+ dp.addEventListener('click', function(e) {
+ if (e.target === dp) closeImportModal();
+ });
+ }
+ }
+ function closeImportModal() {
+ var panel = document.getElementById('dashboardPanel');
+ if (panel) panel.classList.remove('active');
+ document.body.style.overflow = '';
+ }
 
-      // Dual-SIM rotation toggle
-      var dualSimBtn = document.getElementById('toggleDualSimBtn');
-      var dualSimOn = true;
-      var rotationCount = 10;
-      if (dualSimBtn) {
-        dualSimBtn.addEventListener('click', function() {
-          dualSimOn = !dualSimOn;
-          dualSimBtn.textContent = '双卡轮换: ' + (dualSimOn ? '开' : '关');
-          localStorage.setItem('dialer_dual_sim', dualSimOn ? '1' : '0');
-        });
-      }
-      var rotationBtn = document.getElementById('toggleRotationBtn');
-      if (rotationBtn) {
-        rotationBtn.addEventListener('click', function() {
-          rotationCount = rotationCount === 10 ? 5 : 10;
-          rotationBtn.textContent = '轮换频率: ' + rotationCount + '通';
-          localStorage.setItem('dialer_rotation', String(rotationCount));
-        });
-      }
+ // Dual-SIM rotation toggle
+ var dualSimBtn = document.getElementById('toggleDualSimBtn');
+ var dualSimOn = true;
+ var rotationCount = 10;
+ if (dualSimBtn) {
+ dualSimBtn.addEventListener('click', function() {
+ dualSimOn = !dualSimOn;
+ dualSimBtn.textContent = '双卡轮换: ' + (dualSimOn ? '开' : '关');
+ localStorage.setItem('dialer_dual_sim', dualSimOn ? '1' : '0');
+ });
+ }
+ var rotationBtn = document.getElementById('toggleRotationBtn');
+ if (rotationBtn) {
+ rotationBtn.addEventListener('click', function() {
+ rotationCount = rotationCount === 10 ? 5 : 10;
+ rotationBtn.textContent = '轮换频率: ' + rotationCount + '通';
+ localStorage.setItem('dialer_rotation', String(rotationCount));
+ });
+ }
 
-      // Copy limit toggle and threshold sub-buttons
-      var copyLimitBtn = document.getElementById('toggleCopyLimitBtn');
-      function updateCopyLimitUI() {
-        if (!copyLimitBtn) return;
-        copyLimitBtn.textContent = '复制限制: ' + (copyLimitEnabled ? '开' : '关');
-        var subs = document.querySelectorAll('.copy-limit-sub');
-        subs.forEach(function(sub) {
-          sub.style.display = copyLimitEnabled ? '' : 'none';
-        });
-        // Update checkmarks
-        ['15','20','30'].forEach(function(k) {
-          var b = document.getElementById('toggleThreshold' + k);
-          if (b) {
-            b.textContent = '  ' + k + '次限制: ' + (copyLimitThresholds[k] ? '✓' : '✗');
-          }
-        });
-        localStorage.setItem('dialer_copy_limit_enabled', copyLimitEnabled ? '1' : '0');
-        localStorage.setItem('dialer_copy_limit_thresholds', JSON.stringify(copyLimitThresholds));
-      }
-      if (copyLimitBtn) {
-        copyLimitBtn.addEventListener('click', function() {
-          copyLimitEnabled = !copyLimitEnabled;
-          updateCopyLimitUI();
-        });
-        // Initialize UI
-        updateCopyLimitUI();
-      }
-      // Threshold sub-buttons
-      ['15','20','30'].forEach(function(k) {
-        var b = document.getElementById('toggleThreshold' + k);
-        if (b) {
-          b.addEventListener('click', function() {
-            copyLimitThresholds[k] = !copyLimitThresholds[k];
-            updateCopyLimitUI();
-          });
-        }
-      });
+ // Copy limit toggle and threshold sub-buttons
+ var copyLimitBtn = document.getElementById('toggleCopyLimitBtn');
+ function updateCopyLimitUI() {
+ if (!copyLimitBtn) return;
+ copyLimitBtn.textContent = '复制限制: ' + (copyLimitEnabled ? '开' : '关');
+ var subs = document.querySelectorAll('.copy-limit-sub');
+ subs.forEach(function(sub) {
+ sub.style.display = copyLimitEnabled ? '' : 'none';
+ });
+ // Update checkmarks
+ ['15','20','30'].forEach(function(k) {
+ var b = document.getElementById('toggleThreshold' + k);
+ if (b) {
+ b.textContent = ' ' + k + '次限制: ' + (copyLimitThresholds[k] ? '' : '');
+ }
+ });
+ localStorage.setItem('dialer_copy_limit_enabled', copyLimitEnabled ? '1' : '0');
+ localStorage.setItem('dialer_copy_limit_thresholds', JSON.stringify(copyLimitThresholds));
+ }
+ if (copyLimitBtn) {
+ copyLimitBtn.addEventListener('click', function() {
+ copyLimitEnabled = !copyLimitEnabled;
+ updateCopyLimitUI();
+ });
+ // Initialize UI
+ updateCopyLimitUI();
+ }
+ // Threshold sub-buttons
+ ['15','20','30'].forEach(function(k) {
+ var b = document.getElementById('toggleThreshold' + k);
+ if (b) {
+ b.addEventListener('click', function() {
+ copyLimitThresholds[k] = !copyLimitThresholds[k];
+ updateCopyLimitUI();
+ });
+ }
+ });
 
-      if (xlsFile) {
-        xlsFile.addEventListener('change', function(e) {
-          var file = e.target.files[0];
-          if (file) handleFileImportDispatch(file);
-          e.target.value = '';
-        });
-      }
+ if (xlsFile) {
+ xlsFile.addEventListener('change', function(e) {
+ var file = e.target.files[0];
+ if (file) handleFileImportDispatch(file);
+ e.target.value = '';
+ });
+ }
 
-      if (vcfFile) {
-        vcfFile.addEventListener('change', function(e) {
-          var file = e.target.files[0];
-          if (file) handleFileImportDispatch(file);
-          e.target.value = '';
-        });
-      }
+ if (vcfFile) {
+ vcfFile.addEventListener('change', function(e) {
+ var file = e.target.files[0];
+ if (file) handleFileImportDispatch(file);
+ e.target.value = '';
+ });
+ }
 
-      var imgFile = document.getElementById('imgFileInput');
-      if (imgFile) {
-        imgFile.addEventListener('change', function(e) {
-          var files = Array.from(e.target.files || []);
-          if (files.length === 0) { e.target.value = ''; return; }
-          if (files.length === 1) {
-            handleFileImportDispatch(files[0]);
-          } else {
-            handleMultiImageOCR(files);
-          }
-          e.target.value = '';
-        });
-      }
+ var imgFile = document.getElementById('imgFileInput');
+ if (imgFile) {
+ imgFile.addEventListener('change', function(e) {
+ var files = Array.from(e.target.files || []);
+ if (files.length === 0) { e.target.value = ''; return; }
+ if (files.length === 1) {
+ handleFileImportDispatch(files[0]);
+ } else {
+ handleMultiImageOCR(files);
+ }
+ e.target.value = '';
+ });
+ }
 
-      // Drag & Drop
-      if (dropZone) {
-        dropZone.addEventListener('dragover', function(e) {
-          e.preventDefault();
-          dropZone.classList.add('dragover');
-        });
-        dropZone.addEventListener('dragleave', function() {
-          dropZone.classList.remove('dragover');
-        });
-        dropZone.addEventListener('drop', function(e) {
-          e.preventDefault();
-          dropZone.classList.remove('dragover');
-          var files = Array.from(e.dataTransfer.files || []);
-          if (files.length === 0) return;
-          // If multiple image files dropped, queue them all
-          var imgFiles = files.filter(function(f) { return /.(jpg|jpeg|png|bmp|webp)$/i.test(f.name); });
-          if (imgFiles.length > 1) {
-            handleMultiImageOCR(imgFiles);
-          } else if (files.length === 1) {
-            handleFileImportDispatch(files[0]);
-          } else {
-            // Mixed files - only one non-image file - dispatch it
-            handleFileImportDispatch(files[0]);
-          }
-        });
+ // Drag & Drop
+ if (dropZone) {
+ dropZone.addEventListener('dragover', function(e) {
+ e.preventDefault();
+ dropZone.classList.add('dragover');
+ });
+ dropZone.addEventListener('dragleave', function() {
+ dropZone.classList.remove('dragover');
+ });
+ dropZone.addEventListener('drop', function(e) {
+ e.preventDefault();
+ dropZone.classList.remove('dragover');
+ var files = Array.from(e.dataTransfer.files || []);
+ if (files.length === 0) return;
+ // If multiple image files dropped, queue them all
+ var imgFiles = files.filter(function(f) { return /.(jpg|jpeg|png|bmp|webp)$/i.test(f.name); });
+ if (imgFiles.length > 1) {
+ handleMultiImageOCR(imgFiles);
+ } else if (files.length === 1) {
+ handleFileImportDispatch(files[0]);
+ } else {
+ // Mixed files - only one non-image file - dispatch it
+ handleFileImportDispatch(files[0]);
+ }
+ });
 
-        // Direct paste (Ctrl+V) handler for text recognition
-        dropZone.addEventListener('paste', function(e) {
-          var clipboardData = e.clipboardData;
-          if (!clipboardData) return;
-          // Check for pasted text
-          var pastedText = clipboardData.getData('text/plain');
-          if (pastedText && pastedText.trim()) {
-            // Check if the pasted text contains phone numbers
-            var hasPhone = /1[3-9]\d{9}/.test(pastedText.replace(/[-\s]/g, ''));
-            if (hasPhone) {
-              e.preventDefault();
-              e.stopPropagation();
-              showAIScanningUI('剪贴板文本识别');
-              document.getElementById('aiScanStatus').innerHTML = '📝 正在识别粘贴的文本...';
-              document.getElementById('aiLog1').innerHTML = '⏳ 分析剪贴板文本内容...';
-              document.getElementById('aiLog1').style.opacity = '1';
-              correctOcrTextWithAI(pastedText.trim(), '剪贴板文本', function(contacts) {
-                if (contacts && contacts.length > 0) {
-                  window.renderAIUnstructuredReport('剪贴板文本', contacts);
-                } else {
-                  // Reset UI first, then show text panel for manual retry
-                  resetAIImporterUI();
-                  document.getElementById('textImportPanel').style.display = 'flex';
-                  document.getElementById('textImportArea').value = pastedText.trim();
-                  document.getElementById('textImportArea').focus();
-                  if (typeof showCopyLimitToast === 'function') {
-                    showCopyLimitToast('直接识别未检出，已填入文本框，可点击"智能识别提取"重试', true);
-                  }
-                }
-              });
-            }
-          }
-        });
+ // Direct paste (Ctrl+V) handler for text recognition
+ dropZone.addEventListener('paste', function(e) {
+ var clipboardData = e.clipboardData;
+ if (!clipboardData) return;
+ // Check for pasted text
+ var pastedText = clipboardData.getData('text/plain');
+ if (pastedText && pastedText.trim()) {
+ // Check if the pasted text contains phone numbers
+ var hasPhone = /1[3-9]\d{9}/.test(pastedText.replace(/[-\s]/g, ''));
+ if (hasPhone) {
+ e.preventDefault();
+ e.stopPropagation();
+ showAIScanningUI('剪贴板文本识别');
+ document.getElementById('aiScanStatus').innerHTML = '正在识别粘贴的文本...';
+ document.getElementById('aiLog1').innerHTML = '分析剪贴板文本内容...';
+ document.getElementById('aiLog1').style.opacity = '1';
+ correctOcrTextWithAI(pastedText.trim(), '剪贴板文本', function(contacts) {
+ if (contacts && contacts.length > 0) {
+ window.renderAIUnstructuredReport('剪贴板文本', contacts);
+ } else {
+ // Reset UI first, then show text panel for manual retry
+ resetAIImporterUI();
+ document.getElementById('textImportPanel').style.display = 'flex';
+ document.getElementById('textImportArea').value = pastedText.trim();
+ document.getElementById('textImportArea').focus();
+ if (typeof showCopyLimitToast === 'function') {
+ showCopyLimitToast('直接识别未检出，已填入文本框，可点击"智能识别提取"重试', true);
+ }
+ }
+ });
+ }
+ }
+ });
 
-        // Listen for paste events on the whole document to catch pastes anywhere
-        document.addEventListener('paste', function(e) {
-          // Only handle if dashboardPanel modal is active and we're not in an input/textarea
-          var dp = document.getElementById('dashboardPanel');
-          if (!dp || !dp.classList.contains('active')) return;
-          var activeEl = document.activeElement;
-          if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.isContentEditable)) return;
+ // Listen for paste events on the whole document to catch pastes anywhere
+ document.addEventListener('paste', function(e) {
+ // Only handle if dashboardPanel modal is active and we're not in an input/textarea
+ var dp = document.getElementById('dashboardPanel');
+ if (!dp || !dp.classList.contains('active')) return;
+ var activeEl = document.activeElement;
+ if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.isContentEditable)) return;
 
-          var clipboardData = e.clipboardData;
-          if (!clipboardData) return;
-          var pastedText = clipboardData.getData('text/plain');
-          if (pastedText && pastedText.trim()) {
-            var hasPhone = /1[3-9]\d{9}/.test(pastedText.replace(/[-\s]/g, ''));
-            if (hasPhone) {
-              e.preventDefault();
-              e.stopPropagation();
-              showAIScanningUI('剪贴板文本识别');
-              document.getElementById('aiScanStatus').innerHTML = '📝 正在识别粘贴的文本...';
-              document.getElementById('aiLog1').innerHTML = '⏳ 分析剪贴板文本内容...';
-              document.getElementById('aiLog1').style.opacity = '1';
-              correctOcrTextWithAI(pastedText.trim(), '剪贴板文本', function(contacts) {
-                if (contacts && contacts.length > 0) {
-                  window.renderAIUnstructuredReport('剪贴板文本', contacts);
-                } else {
-                  // Reset UI first, then show text panel for manual retry
-                  resetAIImporterUI();
-                  document.getElementById('textImportPanel').style.display = 'flex';
-                  document.getElementById('textImportArea').value = pastedText.trim();
-                  document.getElementById('textImportArea').focus();
-                  if (typeof showCopyLimitToast === 'function') {
-                    showCopyLimitToast('直接识别未检出，已填入文本框，可点击"智能识别提取"重试', true);
-                  }
-                }
-              });
-            }
-          }
-        });
-      }
+ var clipboardData = e.clipboardData;
+ if (!clipboardData) return;
+ var pastedText = clipboardData.getData('text/plain');
+ if (pastedText && pastedText.trim()) {
+ var hasPhone = /1[3-9]\d{9}/.test(pastedText.replace(/[-\s]/g, ''));
+ if (hasPhone) {
+ e.preventDefault();
+ e.stopPropagation();
+ showAIScanningUI('剪贴板文本识别');
+ document.getElementById('aiScanStatus').innerHTML = '正在识别粘贴的文本...';
+ document.getElementById('aiLog1').innerHTML = '分析剪贴板文本内容...';
+ document.getElementById('aiLog1').style.opacity = '1';
+ correctOcrTextWithAI(pastedText.trim(), '剪贴板文本', function(contacts) {
+ if (contacts && contacts.length > 0) {
+ window.renderAIUnstructuredReport('剪贴板文本', contacts);
+ } else {
+ // Reset UI first, then show text panel for manual retry
+ resetAIImporterUI();
+ document.getElementById('textImportPanel').style.display = 'flex';
+ document.getElementById('textImportArea').value = pastedText.trim();
+ document.getElementById('textImportArea').focus();
+ if (typeof showCopyLimitToast === 'function') {
+ showCopyLimitToast('直接识别未检出，已填入文本框，可点击"智能识别提取"重试', true);
+ }
+ }
+ });
+ }
+ }
+ });
+ }
 
-      // Local OCR Slicing Config Bindings
-      var slider1 = document.getElementById('sliderSplit1');
-      var slider2 = document.getElementById('sliderSplit2');
-      var orderSelect = document.getElementById('ocrColumnOrder');
-      if (slider1 && slider2) {
-        slider1.oninput = function() {
-          var s1 = parseInt(slider1.value);
-          var s2 = parseInt(slider2.value);
-          if (s1 >= s2) {
-            slider1.value = s2 - 2;
-          }
-          drawOcrSlicingPreviewLines();
-        };
-        slider2.oninput = function() {
-          var s1 = parseInt(slider1.value);
-          var s2 = parseInt(slider2.value);
-          if (s2 <= s1) {
+ // Local OCR Slicing Config Bindings
+ var slider1 = document.getElementById('sliderSplit1');
+ var slider2 = document.getElementById('sliderSplit2');
+ var orderSelect = document.getElementById('ocrColumnOrder');
+ if (slider1 && slider2) {
+ slider1.oninput = function() {
+ var s1 = parseInt(slider1.value);
+ var s2 = parseInt(slider2.value);
+ if (s1 >= s2) {
+ slider1.value = s2 - 2;
+ }
+ drawOcrSlicingPreviewLines();
+ };
+ slider2.oninput = function() {
+ var s1 = parseInt(slider1.value);
+ var s2 = parseInt(slider2.value);
+ if (s2<= s1) {
             slider2.value = s1 + 2;
           }
           drawOcrSlicingPreviewLines();
@@ -6386,7 +6309,7 @@
         copyExport.addEventListener('click', function() {
           exportArea.select();
           document.execCommand('copy');
-          copyExport.textContent = '✅ 已成功复制！';
+          copyExport.textContent = '已成功复制！';
           setTimeout(function() {
             copyExport.textContent = '复制记录到剪贴板';
           }, 1500);
@@ -6510,16 +6433,16 @@
       var headerRow = document.getElementById('dbHeaderRow');
       if (!headerRow) return;
       var html = '<th style="width: 40px; text-align: center; cursor: default;"><input type="checkbox" id="crmSelectAll"></th>' +
-        '<th data-sort="name" style="width: 140px; cursor: pointer;">客户名称 <span class="sort-arrow">▲</span></th>' +
-        '<th data-sort="mobile" style="width: 160px; cursor: pointer;">联系号码 <span class="sort-arrow">▲</span></th>' +
-        '<th data-sort="note" style="min-width: 120px; cursor: pointer;">备注 <span class="sort-arrow">▲</span></th>';
+        '<th data-sort="name" style="width: 140px; cursor: pointer;">客户名称 <span class="sort-arrow"></span></th>' +
+        '<th data-sort="mobile" style="width: 160px; cursor: pointer;">联系号码 <span class="sort-arrow"></span></th>' +
+        '<th data-sort="note" style="min-width: 120px; cursor: pointer;">备注 <span class="sort-arrow"></span></th>';
       var customCols = DB.customColumns || [];
       customCols.forEach(function(col) {
-        html += '<th data-sort="custom_' + esc(col) + '" style="min-width: 100px; cursor: pointer;">' + esc(col) + ' <span class="sort-arrow">▲</span></th>';
+        html += '<th data-sort="custom_' + esc(col) + '" style="min-width: 100px; cursor: pointer;">' + esc(col) + '<span class="sort-arrow"></span></th>';
       });
-      html += '<th data-sort="company_name" style="min-width: 200px; cursor: pointer;">单位 <span class="sort-arrow">▲</span></th>' +
-        '<th data-sort="category" style="width: 100px; cursor: pointer;">分类 <span class="sort-arrow">▲</span></th>' +
-        '<th data-sort="created_at" style="width: 150px; cursor: pointer;">入库时间 <span class="sort-arrow">▲</span></th>' +
+      html += '<th data-sort="company_name" style="min-width: 200px; cursor: pointer;">单位 <span class="sort-arrow"></span></th>' +
+        '<th data-sort="category" style="width: 100px; cursor: pointer;">分类 <span class="sort-arrow"></span></th>' +
+        '<th data-sort="created_at" style="width: 150px; cursor: pointer;">入库时间 <span class="sort-arrow"></span></th>' +
         '<th style="width: 100px; cursor: default;">操作</th>';
       headerRow.innerHTML = html;
       dbWireSortHeaders();
@@ -6556,7 +6479,7 @@
       cols.forEach(function(col, idx) {
         html += '<div style="display:flex; justify-content:space-between; align-items:center; background:var(--card-bg); padding:6px 8px; border-radius:4px; border:1px solid var(--card-border); font-size:0.75rem; font-weight:bold;">' +
           '<span>' + esc(col) + '</span>' +
-          '<button class="delete-custom-col-btn" data-idx="' + idx + '" style="background:none; border:none; color:#e74c3c; cursor:pointer; font-weight:bold; font-size:0.9rem; padding:0 4px;">🗑️</button>' +
+          '<button class="delete-custom-col-btn" data-idx="' + idx + '" style="background:none; border:none; color:#e74c3c; cursor:pointer; font-weight:bold; font-size:0.9rem; padding:0 4px;"></button>' +
           '</div>';
       });
       container.innerHTML = html;
@@ -6777,13 +6700,13 @@
 
       var colCount = 8 + (DB.customColumns || []).length;
       var tbody = document.getElementById('dbTbody');
-      if (tbody) tbody.innerHTML = '<tr><td colspan="' + colCount + '" class="db-loading">⏳ 数据加载中...</td></tr>';
+      if (tbody) tbody.innerHTML = '<tr><td colspan="' + colCount + '" class="db-loading">数据加载中...</td></tr>';
       
       fetch(url)
         .then(function(r) { return r.json(); })
         .then(function(res) {
           if (res.error) {
-            if (tbody) tbody.innerHTML = '<tr><td colspan="' + colCount + '" style="text-align:center;padding:40px;color:#e74c3c;">⚠ Supabase 查询出错: ' + esc(res.error) + '</td></tr>';
+            if (tbody) tbody.innerHTML = '<tr><td colspan="' + colCount + '" style="text-align:center;padding:40px;color:#e74c3c;">Supabase 查询出错: ' + esc(res.error) + '</td></tr>';
             return;
           }
           var rawData = res.data || [];
@@ -6801,7 +6724,7 @@
           if (totalEl) totalEl.textContent = '共 ' + DB.total + ' 条';
         })
         .catch(function(err) {
-          if (tbody) tbody.innerHTML = '<tr><td colspan="' + colCount + '" style="text-align:center;padding:40px;color:#e74c3c;">⚠ 数据加载失败: ' + esc(err.message) + '</td></tr>';
+          if (tbody) tbody.innerHTML = '<tr><td colspan="' + colCount + '" style="text-align:center;padding:40px;color:#e74c3c;">数据加载失败: ' + esc(err.message) + '</td></tr>';
         });
     }
 
@@ -6872,7 +6795,7 @@
         var noteDisplay = '';
         if (c.fund) {
           noteDisplay = '<div style="display:flex; flex-direction:column; gap:4px; align-items:flex-start;">' +
-            '<span class="crm-fund-tag" style="background:rgba(255,152,0,0.12); color:#e65100; font-weight:900; font-size:11px; padding:2px 6px; border-radius:4px; display:inline-flex; align-items:center; border: 1px solid rgba(255,152,0,0.25);">💰 公积金: ' + esc(c.fund) + '</span>' +
+            '<span class="crm-fund-tag" style="background:rgba(255,152,0,0.12); color:#e65100; font-weight:900; font-size:11px; padding:2px 6px; border-radius:4px; display:inline-flex; align-items:center; border: 1px solid rgba(255,152,0,0.25);">公积金: ' + esc(c.fund) + '</span>' +
             (realNote ? '<span style="color:var(--text-soft); font-weight:normal;">' + esc(realNote) + '</span>' : '') +
             '</div>';
         } else {
@@ -6918,7 +6841,7 @@
           '<td>' +
             '<div class="crm-phone-cell">' +
               esc(c.mobile || '-') +
-              '<button class="crm-btn-call" title="点击呼叫 / 复制" onclick="copyTextToClipboard(\'' + esc(c.mobile) + '\');showCopyLimitToast(\'已复制: ' + esc(c.mobile) + '\');">📞</button>' +
+              '<button class="crm-btn-call" title="点击呼叫 / 复制" onclick="copyTextToClipboard(\'' + esc(c.mobile) + '\');showCopyLimitToast(\'已复制: ' + esc(c.mobile) + '\');"></button>' +
             '</div>' +
           '</td>' +
           '<td style="white-space: normal; max-width: 300px; word-break: break-all;">' + noteDisplay + '</td>' +
@@ -6982,7 +6905,7 @@
           newNote = newNote.trim();
           if (newNote === oldNote) return; // no change
           
-          btn.textContent = '⏳..';
+          btn.textContent = '...';
           
           var clientObj = DB.allData.find(function(c) { return c.mobile === mobile; });
           var rawNoteStr = clientObj ? (clientObj.note || '') : '';
@@ -7118,10 +7041,10 @@
           var arrow = th.querySelector('.sort-arrow');
           if (arrow) {
             if (DB.sortBy === col) {
-              arrow.textContent = DB.sortDir === 'asc' ? '▲' : '▼';
+              arrow.textContent = DB.sortDir === 'asc' ? '' : '';
               th.classList.add('sorted');
             } else {
-              arrow.textContent = '▲';
+              arrow.textContent = '';
               th.classList.remove('sorted');
             }
           }
@@ -7373,14 +7296,14 @@
       if (dbSearchCollapsed && toggleSearchBtn && searchCard && badgeBar) {
         searchCard.classList.add('collapsed');
         badgeBar.classList.add('collapsed');
-        toggleSearchBtn.innerHTML = '🔍 展开搜索';
+        toggleSearchBtn.innerHTML = '展开搜索';
       }
       if (toggleSearchBtn) {
         toggleSearchBtn.addEventListener('click', function() {
           var isCollapsed = searchCard && searchCard.classList.contains('collapsed');
           if (searchCard) searchCard.classList.toggle('collapsed');
           if (badgeBar) badgeBar.classList.toggle('collapsed');
-          toggleSearchBtn.innerHTML = isCollapsed ? '🔍 收起搜索' : '🔍 展开搜索';
+          toggleSearchBtn.innerHTML = isCollapsed ? '收起搜索' : '展开搜索';
           localStorage.setItem('db_search_collapsed', isCollapsed ? '0' : '1');
         });
       }
@@ -7430,7 +7353,7 @@
         }
       });
 
-      // Toolbar action: ➕ 添加客户
+      // Toolbar action: 添加客户
       var addCustBtn = document.getElementById('crmAddCustBtn');
       if (addCustBtn) {
         addCustBtn.onclick = function() {
@@ -7455,7 +7378,7 @@
           cat = cat.trim();
           
           addCustBtn.disabled = true;
-          addCustBtn.textContent = '⏳ 添加中...';
+          addCustBtn.textContent = '添加中...';
           
           fetch('/api/dialer/upload-customers', {
             method: 'POST',
@@ -7501,56 +7424,72 @@
           })
           .then(function() {
             addCustBtn.disabled = false;
-            addCustBtn.textContent = '➕ 添加客户';
+            addCustBtn.textContent = '添加客户';
           });
         };
       }
 
-      // Toolbar action: 📞 添加到待拨打
+      // Toolbar action: 添加到待拨打
       var addToDialBtn = document.getElementById('crmAddToDialBtn');
       if (addToDialBtn) {
         addToDialBtn.onclick = function() {
           var selectedMobiles = Object.keys(DB.selectedIds);
           if (selectedMobiles.length === 0) { alert('请先勾选需要添加到待拨打的客户'); return; }
-          
+
           var addedCount = 0;
+          var skippedCooldown = 0;
+          var skippedExists = 0;
           selectedMobiles.forEach(function(m) {
             var clientData = DB.allData.find(function(c) { return c.mobile === m; });
             if (clientData) {
               var exists = importedClients.some(function(ic) { return (ic.mobile || ic.phone) === m; });
-              if (!exists) {
-                var parsed = parseCustomerNote(clientData);
-                importedClients.push({
-                  name: clientData.name || '未知',
-                  phone: clientData.mobile,
-                  mobile: clientData.mobile,
-                  company: clientData.company_name || '',
-                  note: parsed.note,
-                  custom: parsed.custom,
-                  fund: clientData.fund || '',
-                  category: clientData.category || '',
-                  batch_label: clientData.batch_label || ''
-                });
-                addedCount++;
+              if (exists) {
+                skippedExists++;
+                return;
               }
+              if (!canAddToDialList(m)) {
+                skippedCooldown++;
+                return;
+              }
+              var parsed = parseCustomerNote(clientData);
+              importedClients.push({
+                name: clientData.name || '未知',
+                phone: clientData.mobile,
+                mobile: clientData.mobile,
+                company: clientData.company_name || '',
+                note: parsed.note,
+                custom: parsed.custom,
+                fund: clientData.fund || '',
+                category: clientData.category || '',
+                batch_label: clientData.batch_label || ''
+              });
+              recordAddToDialList(m);
+              addedCount++;
             }
           });
-          
+
           if (addedCount > 0) {
             localStorage.setItem(CLIENTS_K, JSON.stringify(importedClients));
             renderDialCards();
-            alert('成功添加 ' + addedCount + ' 个客户到待拨打列表');
+            var msg = '成功添加 ' + addedCount + ' 个客户到待拨打列表';
+            if (skippedCooldown > 0) msg += '，' + skippedCooldown + ' 个因4天内已添加被跳过';
+            if (skippedExists > 0) msg += '，' + skippedExists + ' 个已在列表中';
+            alert(msg);
             DB.selectedIds = {};
             var selectAllCb = document.getElementById('crmSelectAll');
             if (selectAllCb) selectAllCb.checked = false;
             dbTable(crmFilterData(DB.allData));
           } else {
-            alert('选中的客户已在待拨打列表中');
+            var msg2 = '没有客户被添加';
+            if (skippedCooldown > 0) msg2 += '（' + skippedCooldown + ' 个在4天冷却期内）';
+            if (skippedExists > 0) msg2 += '（' + skippedExists + ' 个已在列表中）';
+            if (skippedCooldown === 0 && skippedExists === 0) msg2 = '选中的客户已在待拨打列表中';
+            alert(msg2);
           }
         };
       }
 
-      // Toolbar action: 📥 按分类一键拉取
+      // Toolbar action: 按分类一键拉取
       var pullFilteredBtn = document.getElementById('crmPullFilteredBtn');
       if (pullFilteredBtn) {
         pullFilteredBtn.onclick = function() {
@@ -7569,12 +7508,12 @@
           if (category) confirmMsg += '「' + category + '」分类';
           if (batchFilter) confirmMsg += '「' + batchFilter + '」批次';
           if (!category && !batchFilter) confirmMsg += '所有';
-          confirmMsg += '的客户到拨号盘吗？(已存在在拨号盘中的手机号将自动跳过，最大拉取5000条)';
+          confirmMsg += '的客户到拨号盘吗？(已存在或4天内已添加的将自动跳过，最大拉取5000条)';
           
           if (!confirm(confirmMsg)) return;
           
           pullFilteredBtn.disabled = true;
-          pullFilteredBtn.textContent = '⏳ 拉取中...';
+          pullFilteredBtn.textContent = '拉取中...';
           
           var pullUrl = '/api/dialer/customers?page=1&pageSize=5000';
           if (category) pullUrl += '&category=' + encodeURIComponent(category);
@@ -7584,7 +7523,7 @@
             .then(function(r) { return r.json(); })
             .then(function(res) {
               pullFilteredBtn.disabled = false;
-              pullFilteredBtn.textContent = '📥 按分类一键拉取';
+              pullFilteredBtn.textContent = '按分类一键拉取';
               if (res.error) {
                 alert('拉取失败: ' + res.error);
                 return;
@@ -7596,46 +7535,56 @@
               }
               
               var addedCount = 0;
+              var skippedCooldown = 0;
               dbClients.forEach(function(c) {
                 var m = c.mobile;
                 if (!m) return;
                 var exists = importedClients.some(function(ic) { return (ic.mobile || ic.phone) === m; });
-                if (!exists) {
-                  var parsed = parseCustomerNote(c);
-                  importedClients.push({
-                    name: c.name || '未知',
-                    phone: c.mobile,
-                    mobile: c.mobile,
-                    company: c.company_name || '',
-                    note: parsed.note,
-                    custom: parsed.custom,
-                    fund: c.fund || '',
-                    category: c.category || '',
-                    batch_label: c.batch_label || ''
-                  });
-                  addedCount++;
+                if (exists) return;
+                if (!canAddToDialList(m)) {
+                  skippedCooldown++;
+                  return;
                 }
+                var parsed = parseCustomerNote(c);
+                importedClients.push({
+                  name: c.name || '未知',
+                  phone: c.mobile,
+                  mobile: c.mobile,
+                  company: c.company_name || '',
+                  note: parsed.note,
+                  custom: parsed.custom,
+                  fund: c.fund || '',
+                  category: c.category || '',
+                  batch_label: c.batch_label || ''
+                });
+                recordAddToDialList(m);
+                addedCount++;
               });
               
               if (addedCount > 0) {
                 localStorage.setItem(CLIENTS_K, JSON.stringify(importedClients));
                 renderDialCards();
                 updateDashboardVisibility(true);
-                alert('成功从数据库拉取了 ' + addedCount + ' 个客户到拨号盘列表！');
+                var msg = '成功从数据库拉取了 ' + addedCount + ' 个客户到拨号盘列表！';
+                if (skippedCooldown > 0) msg += '（' + skippedCooldown + ' 个在4天冷却期内已跳过）';
+                alert(msg);
                 document.getElementById('dbOverlay').classList.remove('active');
               } else {
-                alert('拉取了 ' + dbClients.length + ' 个客户，但已全部存在在拨号盘列表中！');
+                var msg2 = '拉取了 ' + dbClients.length + ' 个客户';
+                if (skippedCooldown > 0) msg2 += '，其中 ' + skippedCooldown + ' 个在4天冷却期内';
+                msg2 += '已全部存在在拨号盘列表中！';
+                alert(msg2);
               }
             })
             .catch(function(err) {
               pullFilteredBtn.disabled = false;
-              pullFilteredBtn.textContent = '📥 按分类一键拉取';
+              pullFilteredBtn.textContent = '按分类一键拉取';
               alert('拉取失败: ' + err.message);
             });
         };
       }
 
-      // Toolbar action: 👤 转入意向客户
+      // Toolbar action: 转入意向客户
       var moveIntentBtn = document.getElementById('crmMoveIntentBtn');
       if (moveIntentBtn) {
         moveIntentBtn.onclick = function() {
@@ -7645,7 +7594,7 @@
           if (!confirm('确认将选中的 ' + mobiles.length + ' 个客户转入「意向客户」吗？')) return;
           
           moveIntentBtn.disabled = true;
-          moveIntentBtn.textContent = '⏳ 处理中...';
+          moveIntentBtn.textContent = '处理中...';
           
           var promises = mobiles.map(function(m) {
             return fetch('/api/dialer/customers', {
@@ -7672,12 +7621,12 @@
           })
           .then(function() {
             moveIntentBtn.disabled = false;
-            moveIntentBtn.textContent = '👤 转入意向客户';
+            moveIntentBtn.textContent = '转入意向客户';
           });
         };
       }
 
-      // Toolbar action: 👤 转入线索池
+      // Toolbar action: 转入线索池
       var moveLeadsBtn = document.getElementById('crmMoveLeadsBtn');
       if (moveLeadsBtn) {
         moveLeadsBtn.onclick = function() {
@@ -7687,7 +7636,7 @@
           if (!confirm('确认将选中的 ' + mobiles.length + ' 个客户转入「线索池」吗？')) return;
           
           moveLeadsBtn.disabled = true;
-          moveLeadsBtn.textContent = '⏳ 处理中...';
+          moveLeadsBtn.textContent = '处理中...';
           
           var promises = mobiles.map(function(m) {
             return fetch('/api/dialer/customers', {
@@ -7714,22 +7663,22 @@
           })
           .then(function() {
             moveLeadsBtn.disabled = false;
-            moveLeadsBtn.textContent = '👤 转入线索池';
+            moveLeadsBtn.textContent = '转入线索池';
           });
         };
       }
 
-      // Toolbar action: 🗑️ 批量删除
+      // Toolbar action: 批量删除
       var batchDeleteBtn = document.getElementById('crmBatchDeleteBtn');
       if (batchDeleteBtn) {
         batchDeleteBtn.onclick = function() {
           var mobiles = Object.keys(DB.selectedIds);
           if (mobiles.length === 0) { alert('请先勾选需要删除的客户'); return; }
           
-          if (!confirm('🚨 警告：确认删除选中的 ' + mobiles.length + ' 个客户吗？该操作不可逆，将从数据库彻底移除！')) return;
+          if (!confirm('警告：确认删除选中的 ' + mobiles.length + ' 个客户吗？该操作不可逆，将从数据库彻底移除！')) return;
           
           batchDeleteBtn.disabled = true;
-          batchDeleteBtn.textContent = '⏳ 删除中...';
+          batchDeleteBtn.textContent = '删除中...';
           
           fetch('/api/dialer/customers', {
             method: 'DELETE',
@@ -7753,12 +7702,12 @@
           })
           .then(function() {
             batchDeleteBtn.disabled = false;
-            batchDeleteBtn.textContent = '🗑️ 批量删除';
+            batchDeleteBtn.textContent = '批量删除';
           });
         };
       }
 
-      // Toolbar action: 🌐 转入公海
+      // Toolbar action: 转入公海
       var movePublicBtn = document.getElementById('crmMovePublicBtn');
       if (movePublicBtn) {
         movePublicBtn.onclick = function() {
@@ -7768,7 +7717,7 @@
           if (!confirm('确认将选中的 ' + mobiles.length + ' 个客户转入「公海客户」吗？')) return;
           
           movePublicBtn.disabled = true;
-          movePublicBtn.textContent = '⏳ 处理中...';
+          movePublicBtn.textContent = '处理中...';
           
           var promises = mobiles.map(function(m) {
             return fetch('/api/dialer/customers', {
@@ -7795,12 +7744,12 @@
           })
           .then(function() {
             movePublicBtn.disabled = false;
-            movePublicBtn.textContent = '🌐 转入公海';
+            movePublicBtn.textContent = '转入公海';
           });
         };
       }
 
-      // Toolbar action: 🤝 添加协助人
+      // Toolbar action: 添加协助人
       var addHelperBtn = document.getElementById('crmAddHelperBtn');
       if (addHelperBtn) {
         addHelperBtn.onclick = function() {
@@ -7844,7 +7793,7 @@
         };
       }
 
-      // Toolbar action: 🚫 取消协助人
+      // Toolbar action: 取消协助人
       var removeHelperBtn = document.getElementById('crmRemoveHelperBtn');
       if (removeHelperBtn) {
         removeHelperBtn.onclick = function() {
@@ -7908,81 +7857,81 @@
             if (bf2) {
               var bfOpts = bf2.querySelectorAll('option');
               bfOpts.forEach(function(o) { if (o.value) opts += '<option value="' + esc(o.value) + '">' + esc(o.textContent) + '</option>'; });
-            }
-            bcpSel.innerHTML = opts;
-          }
-          if (bcpStatus) bcpStatus.style.display = 'none';
-        } else {
-          bcpPanel.style.display = 'none';
-        }
-      });
+ }
+ bcpSel.innerHTML = opts;
+ }
+ if (bcpStatus) bcpStatus.style.display = 'none';
+ } else {
+ bcpPanel.style.display = 'none';
+ }
+ });
 
-      if (bcpCancel) bcpCancel.addEventListener('click', function() { bcpPanel.style.display = 'none'; });
+ if (bcpCancel) bcpCancel.addEventListener('click', function() { bcpPanel.style.display = 'none'; });
 
-      if (bcpApply) bcpApply.addEventListener('click', function() {
-        var batch = bcpSel ? bcpSel.value : '';
-        var cat = bcpTarget ? bcpTarget.value : '';
-        if (!batch || !cat) { alert('请选择批次和目标分类'); return; }
-        if (bcpStatus) { bcpStatus.style.display = 'inline'; bcpStatus.textContent = '⏳ 更新中...'; bcpStatus.style.color = '#f57c00'; }
-        fetch('/api/dialer/customers/batch-category', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ batch_label: batch, category: cat })
-        })
-        .then(function(r) { return r.json(); })
-        .then(function(d) {
-          if (d.success) {
-            if (bcpStatus) { bcpStatus.textContent = '已更新 ' + d.updated + ' 条'; bcpStatus.style.color = '#07c160'; }
-            bcpPanel.style.display = 'none';
-            dbFetch();
-          } else {
-            if (bcpStatus) { bcpStatus.textContent = '失败: ' + (d.error || '未知'); bcpStatus.style.color = '#e74c3c'; }
-          }
-        })
-        .catch(function(err) {
-          if (bcpStatus) { bcpStatus.textContent = '网络错误'; bcpStatus.style.color = '#e74c3c'; }
-        });
-      });
+ if (bcpApply) bcpApply.addEventListener('click', function() {
+ var batch = bcpSel ? bcpSel.value : '';
+ var cat = bcpTarget ? bcpTarget.value : '';
+ if (!batch || !cat) { alert('请选择批次和目标分类'); return; }
+ if (bcpStatus) { bcpStatus.style.display = 'inline'; bcpStatus.textContent = '更新中...'; bcpStatus.style.color = '#f57c00'; }
+ fetch('/api/dialer/customers/batch-category', {
+ method: 'POST',
+ headers: { 'Content-Type': 'application/json' },
+ body: JSON.stringify({ batch_label: batch, category: cat })
+ })
+ .then(function(r) { return r.json(); })
+ .then(function(d) {
+ if (d.success) {
+ if (bcpStatus) { bcpStatus.textContent = '已更新 ' + d.updated + ' 条'; bcpStatus.style.color = '#07c160'; }
+ bcpPanel.style.display = 'none';
+ dbFetch();
+ } else {
+ if (bcpStatus) { bcpStatus.textContent = '失败: ' + (d.error || '未知'); bcpStatus.style.color = '#e74c3c'; }
+ }
+ })
+ .catch(function(err) {
+ if (bcpStatus) { bcpStatus.textContent = '网络错误'; bcpStatus.style.color = '#e74c3c'; }
+ });
+ });
 
-      // AI 公积金修正
-      var aiFundBtn = document.getElementById('dbAiCorrectFundBtn');
-      if (aiFundBtn) {
-        aiFundBtn.addEventListener('click', function() {
-          if (!confirm('即将使用 AI 扫描所有客户记录，检查公积金、单位、备注字段是否存错了位置。\n\n' +
-              'AI 将逐条判断：\n' +
-              '1. fund 存了公司名称 → 自动移到「单位」字段\n' +
-              '2. company_name 存了纯数字公积金 → 自动移到 fund\n' +
-              '3. fund 和 company_name 存反了 → 互换\n' +
-              '4. note 备注里误存了公司名称 → 自动移到「单位」\n' +
-              '5. fund 是乱码/无意义文字 → 清空\n' +
-              '6. 不确定的条目将跳过，不做修改\n\n' +
-              '⚠️ 仅修改「公积金」「单位」「备注」字段，不影响其他数据。\n' +
-              '⚠️ 所有修改按行进行，不会交叉合并数据。\n\n' +
-              '确认开始 AI 扫描修正？')) {
-            return;
-          }
+ // AI 公积金修正
+ var aiFundBtn = document.getElementById('dbAiCorrectFundBtn');
+ if (aiFundBtn) {
+ aiFundBtn.addEventListener('click', function() {
+ if (!confirm('即将使用 AI 扫描所有客户记录，检查公积金、单位、备注字段是否存错了位置。\n\n' +
+ 'AI 将逐条判断：\n' +
+ '1. fund 存了公司名称 → 自动移到「单位」字段\n' +
+ '2. company_name 存了纯数字公积金 → 自动移到 fund\n' +
+ '3. fund 和 company_name 存反了 → 互换\n' +
+ '4. note 备注里误存了公司名称 → 自动移到「单位」\n' +
+ '5. fund 是乱码/无意义文字 → 清空\n' +
+ '6. 不确定的条目将跳过，不做修改\n\n' +
+ '仅修改「公积金」「单位」「备注」字段，不影响其他数据。\n' +
+ ' 所有修改按行进行，不会交叉合并数据。\n\n' +
+ '确认开始 AI 扫描修正？')) {
+ return;
+ }
 
-          var btn = aiFundBtn;
-          var originalText = btn.textContent;
-          btn.textContent = '⏳ AI 扫描修正中...';
-          btn.disabled = true;
+ var btn = aiFundBtn;
+ var originalText = btn.textContent;
+ btn.textContent = 'AI 扫描修正中...';
+ btn.disabled = true;
 
-          fetch('/api/admin/ai-correct-fund')
-            .then(function(r) { return r.json(); })
-            .then(function(res) {
-              btn.textContent = originalText;
-              btn.disabled = false;
+ fetch('/api/admin/ai-correct-fund')
+ .then(function(r) { return r.json(); })
+ .then(function(res) {
+ btn.textContent = originalText;
+ btn.disabled = false;
 
-              if (res.success) {
-                var msg = 'AI 公积金修正完成\n\n';
-                msg += '扫描总条数: ' + res.total_scanned + '\n';
-                msg += '发现可疑: ' + res.suspicious_found + ' 条\n';
-                msg += '已修正: ' + res.ai_corrected + ' 条\n\n';
+ if (res.success) {
+ var msg = 'AI 公积金修正完成\n\n';
+ msg += '扫描总条数: ' + res.total_scanned + '\n';
+ msg += '发现可疑: ' + res.suspicious_found + ' 条\n';
+ msg += '已修正: ' + res.ai_corrected + ' 条\n\n';
 
-                if (res.corrections && res.corrections.length > 0) {
-                  msg += '修正详情（最多显示 20 条）：\n';
-                  var maxShow = Math.min(res.corrections.length, 20);
-                  for (var i = 0; i < maxShow; i++) {
+ if (res.corrections && res.corrections.length > 0) {
+ msg += '修正详情（最多显示 20 条）：\n';
+ var maxShow = Math.min(res.corrections.length, 20);
+ for (var i = 0; i< maxShow; i++) {
                     var c = res.corrections[i];
                     if (c.action === 'move_fund_to_company') {
                       msg += '  ' + (i+1) + '. ' + c.mobile + ': fund「' + c.old_fund + '」→ 单位「' + c.new_company_name + '」\n';
@@ -8004,7 +7953,7 @@
                 }
 
                 if (res.errors && res.errors.length > 0) {
-                  msg += '\n⚠️ 错误（' + res.errors.length + ' 条）：\n';
+                  msg += '\n错误（' + res.errors.length + ' 条）：\n';
                   var maxErr = Math.min(res.errors.length, 5);
                   for (var e = 0; e < maxErr; e++) {
                     msg += '  ' + res.errors[e] + '\n';
@@ -8399,7 +8348,7 @@
             .then(function() { return checkWhitelist(); })
             .catch(function() {})
             .then(function() {
-              checkBtn.textContent = '☑ 白名单';
+              checkBtn.textContent = '白名单';
               checkBtn.disabled = false;
             });
         });

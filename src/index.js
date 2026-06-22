@@ -5,6 +5,21 @@ import { DIALER_HTML } from './dialer_html.js';
 import { createSupabaseClient } from './supabase.js';
 import { WeComCrypt } from './wecom_crypt.js';
 
+// KV 读取缓存 - 减少子请求数量（同一 invocation 内有效）
+const kvCache = new Map();
+function getKVCached(env, key, ttlMs = 60000) {
+  const entry = kvCache.get(key);
+  if (entry && (Date.now() - entry.ts) < ttlMs) {
+    return entry.value;
+  }
+  const p = env.DATA_KV.get(key).then(v => {
+    kvCache.set(key, { value: Promise.resolve(v), ts: Date.now() });
+    return v;
+  });
+  kvCache.set(key, { value: p, ts: Date.now() });
+  return p;
+}
+
 async function getAllKVKeys(env, prefix) {
   let keys = [];
   let cursor = undefined;
@@ -273,18 +288,18 @@ async function doWebSearch(env, query) {
 }
 
 async function callAIChat(env, messages, temperature = 0.5, apiKeyOverride = '') {
-  let provider = await env.DATA_KV.get('config:ai_provider') || 'deepseek';
-  const visionKey = await env.DATA_KV.get('config:vision_api_key') || '';
-  const aiKey = await env.DATA_KV.get('config:ai_api_key') || await env.DATA_KV.get('config:deepseek_api_key') || env.AI_API_KEY || env.DEEPSEEK_API_KEY;
-  
+  let provider = await getKVCached(env, 'config:ai_provider') || 'deepseek';
+  const visionKey = await getKVCached(env, 'config:vision_api_key') || '';
+  const aiKey = await getKVCached(env, 'config:ai_api_key') || await getKVCached(env, 'config:deepseek_api_key') || env.AI_API_KEY || env.DEEPSEEK_API_KEY;
+
   let apiKey = apiKeyOverride || aiKey;
   if (!apiKeyOverride && (provider === 'gemini' || (visionKey && !aiKey))) {
     provider = 'gemini';
     apiKey = visionKey || aiKey;
   }
-  
-  let apiBase = await env.DATA_KV.get('config:ai_api_base') || env.AI_API_BASE;
-  let model = await env.DATA_KV.get('config:ai_model') || env.AI_API_MODEL;
+
+  let apiBase = await getKVCached(env, 'config:ai_api_base') || env.AI_API_BASE;
+  let model = await getKVCached(env, 'config:ai_model') || env.AI_API_MODEL;
 
   // Defaults based on provider if not explicitly configured
   if (provider === 'gemini') {
