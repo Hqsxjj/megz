@@ -1970,7 +1970,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
     // 判断是否为自动生成的时间戳批次名（如 "导入-2026-06-22 04:40:56"）
     function isAutoBatchLabel(label) {
       if (!label) return true;
-      return /^导入-\d{4}-\d{2}-\d{2}/.test(label);
+      return label.indexOf('导入-') === 0;
     }
 
     // 返回可显示的批次名，自动生成的时间戳返回空
