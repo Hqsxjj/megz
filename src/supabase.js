@@ -300,8 +300,8 @@ export function createSupabaseClient(env) {
 
       // Try column sets from most to least specific
       var colSets = [
-        'name,mobile,company_name,category,note,fund,batch_label,created_at',
-        'name,mobile,company_name,category,note,fund,created_at',
+        'name,mobile,company_name,category,note,fund,batch_label,created_at,last_operation',
+        'name,mobile,company_name,category,note,fund,created_at,last_operation',
         'name,mobile,company_name,category,note,batch_label,created_at',
         'name,mobile,company_name,category,note,created_at',
         'name,mobile,company_name,created_at',

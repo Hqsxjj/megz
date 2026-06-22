@@ -1389,6 +1389,36 @@ export default {
       }
     }
 
+    // 2d2. 记录客户最新操作时间线
+    if (path === '/api/dialer/timeline' && request.method === 'POST') {
+      try {
+        const body = await request.json();
+        const { mobile, entry } = body;
+        if (!mobile || !entry || !entry.type) {
+          return new Response(JSON.stringify({ success: false, error: '缺少 mobile 或 entry.type' }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+        const sb = createSupabaseClient(env);
+        const result = await sb.updateCustomer(mobile, { last_operation: entry });
+        return new Response(JSON.stringify({ success: true, data: result }), {
+          headers: {
+            'Content-Type': 'application/json; charset=UTF-8',
+            'Access-Control-Allow-Origin': '*'
+          }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ success: false, error: e.message }), {
+          status: 500,
+          headers: {
+            'Content-Type': 'application/json; charset=UTF-8',
+            'Access-Control-Allow-Origin': '*'
+          }
+        });
+      }
+    }
+
     // 2e. 更新单个客户分类标签
     if (path === '/api/dialer/customers' && request.method === 'PATCH') {
       try {

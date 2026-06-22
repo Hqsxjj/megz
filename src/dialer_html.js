@@ -1958,6 +1958,79 @@ export const DIALER_HTML = `<!DOCTYPE html>
       document.body.removeChild(textarea);
     }
 
+    // 记录客户操作时间线（最新覆盖）
+    function recordTimeline(mobile, type, detail) {
+      if (!mobile) return;
+      var payload = {
+        mobile: mobile,
+        entry: {
+          type: type,
+          ts: new Date().toISOString(),
+          detail: (detail || '').slice(0, 200)
+        }
+      };
+      // 同步更新内存中的 importedClients
+      for (var i = 0; i < importedClients.length; i++) {
+        var c = importedClients[i];
+        if ((c.phone || c.mobile) === mobile) {
+          c.last_operation = payload.entry;
+          break;
+        }
+      }
+      // 异步写入 Supabase（fire-and-forget）
+      fetch('/api/dialer/timeline', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      }).catch(function(err) {
+        console.warn('[timeline] record failed:', err);
+      });
+    }
+
+    // 操作记录格式化显示
+    var TimelineDisplay = {
+      typeLabels: {
+        'copy_phone': '已复制号码',
+        'copy_name': '已复制姓名',
+        'copy_company': '已复制公司',
+        'dial': '已拨打电话',
+        'call_success': '通话成功',
+        'call_failed': '未接通'
+      },
+      typeIcons: {
+        'copy_phone': '📋',
+        'copy_name': '📋',
+        'copy_company': '📋',
+        'dial': '📞',
+        'call_success': '✅',
+        'call_failed': '❌'
+      },
+      formatTime: function(ts) {
+        if (!ts) return '';
+        var d = new Date(ts);
+        if (isNaN(d.getTime())) return ts;
+        var now = new Date();
+        var diffMs = now - d;
+        var diffMin = Math.floor(diffMs / 60000);
+        if (diffMin < 1) return '刚刚';
+        if (diffMin < 60) return diffMin + '分钟前';
+        var diffHour = Math.floor(diffMin / 60);
+        if (diffHour < 24) return diffHour + '小时前';
+        var month = String(d.getMonth() + 1).padStart(2, '0');
+        var day = String(d.getDate()).padStart(2, '0');
+        var hour = String(d.getHours()).padStart(2, '0');
+        var min = String(d.getMinutes()).padStart(2, '0');
+        return month + '-' + day + ' ' + hour + ':' + min;
+      },
+      render: function(op) {
+        if (!op || !op.type) return '';
+        var icon = this.typeIcons[op.type] || '📌';
+        var label = this.typeLabels[op.type] || op.type;
+        var timeStr = this.formatTime(op.ts);
+        return icon + ' ' + label + ' <span style="font-size:0.6rem;color:var(--text-light);">' + timeStr + '</span>';
+      }
+    };
+
     function maskPhone(p) {
       if (!p) return '';
       var s = String(p).trim();
@@ -5475,7 +5548,16 @@ export const DIALER_HTML = `<!DOCTYPE html>
                   '<span class="client-card-text" style="color:var(--accent-wechat);">' + esc(c.callNote) + '</span>' +
                 '</div>' +
               '</div>' : '') +
-            (typeof AndroidDialer !== 'undefined' && AndroidDialer.hasRecording(phoneVal) ? 
+            (c.last_operation ?
+              '<div class="client-card-body" style="margin-top: 4px;">' +
+                '<div class="client-card-content-block" style="background:rgba(255,193,7,0.05); border-left:3px solid #ffc107; padding: 6px 8px; border-radius: 0 var(--radius-xs) var(--radius-xs) 0;">' +
+                  '<span class="client-card-label" style="color:#f57c00; font-weight:800; font-size:0.65rem;">最近操作</span>' +
+                  '<span class="client-card-text" style="color:var(--text-soft); display:block; margin-top:2px; font-size:0.7rem;">' +
+                    TimelineDisplay.render(c.last_operation) +
+                  '</span>' +
+                '</div>' +
+              '</div>' : '') +
+            (typeof AndroidDialer !== 'undefined' && AndroidDialer.hasRecording(phoneVal) ?
               '<div class="client-card-body" style="margin-top: 4px;">' +
                 '<div class="client-card-content-block" style="background:rgba(9,187,7,0.03); border-left:3px solid var(--accent-wechat); padding: 6px 8px; border-radius: 0 var(--radius-xs) var(--radius-xs) 0;">' +
                   '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px;">' +
@@ -5506,6 +5588,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
               return;
             }
             copyTextToClipboard(phone);
+            recordTimeline(phone, 'copy_phone');
             var oldText = b.textContent;
             if (oldText === '已复制，正在打开微信...') return;
             b.textContent = '已复制，正在打开微信...';
@@ -5536,14 +5619,15 @@ export const DIALER_HTML = `<!DOCTYPE html>
             var name = b.dataset.name;
             var idx = parseInt(b.dataset.idx);
             copyTextToClipboard(name);
-            
+
+            var client = importedClients[idx];
+            if (client) recordTimeline(client.phone || client.mobile, 'copy_name');
+
             var oldText = b.textContent;
             if (oldText === '已复制') return;
             b.textContent = '已复制';
             var oldColor = b.style.color;
             b.style.color = 'var(--accent-wechat)';
-            
-            var client = importedClients[idx];
             if (client) {
               client.copied = true;
               saveState();
@@ -5570,7 +5654,12 @@ export const DIALER_HTML = `<!DOCTYPE html>
             e.stopPropagation();
             var company = b.dataset.company;
             copyTextToClipboard(company);
-            
+
+            var cardEl = b.closest('.xls-dial-card');
+            var cardIdx = cardEl ? parseInt(cardEl.id.replace('xdc_', '')) : -1;
+            var clientComp = importedClients[cardIdx];
+            if (clientComp) recordTimeline(clientComp.phone || clientComp.mobile, 'copy_company');
+
             var oldText = b.textContent;
             if (oldText === '已复制') return;
             b.textContent = '已复制';
@@ -5606,6 +5695,8 @@ export const DIALER_HTML = `<!DOCTYPE html>
             var idx = parseInt(this.dataset.idx);
             // Delay opening the modal by 200ms to allow Safari to natively trigger the tel: anchor navigation first
             setTimeout(function() {
+              var client = importedClients[idx];
+              if (client) recordTimeline(client.phone || client.mobile, 'dial');
               startCallAssistant(idx);
             }, 200);
           });
@@ -5620,6 +5711,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
           '<th class="col-company">公司</th>' +
           '<th class="col-note">备注/金额</th>' +
           '<th class="col-batch">批次</th>' +
+          '<th class="col-lastop">最后操作</th>' +
           '<th class="col-action">操作</th>' +
         '</tr></thead><tbody>';
 
@@ -5653,6 +5745,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
             '<td class="col-company"><span class="crm-copy-btn" data-copy="' + esc(c.company||'') + '">' + esc(c.company||'-') + '</span>' + wlBadge + '</td>' +
             '<td class="col-note">' + esc(c.note||'-') + '</td>' +
             '<td class="col-batch">' + '<span style="font-size:11px;background:rgba(74,108,247,0.08);color:#4a6cf7;padding:1px 6px;border-radius:3px;">' + (c.batch_label || (c.created_at ? c.created_at.slice(5, 19).replace('T', ' ') : '-')) + '</span>' + '</td>' +
+            '<td class="col-lastop" style="font-size:0.72rem;">' + (c.last_operation ? TimelineDisplay.render(c.last_operation) : '-') + '</td>' +
             '<td class="col-action"><a href="tel:' + esc(phoneVal) + '" style="display:inline-block;padding:3px 10px;background:linear-gradient(135deg,#07c160,#06ad56);color:#fff;border-radius:4px;text-decoration:none;font-size:12px;font-weight:700;">拨打</a></td>' +
           '</tr>';
         }).join('');
@@ -5674,6 +5767,16 @@ export const DIALER_HTML = `<!DOCTYPE html>
               }
             }
             navigator.clipboard.writeText(text).then(function() {
+              // Record timeline based on column
+              var parentTd = btn.closest('td');
+              var copyType = 'copy_phone';
+              if (parentTd && parentTd.classList.contains('col-name')) copyType = 'copy_name';
+              else if (parentTd && parentTd.classList.contains('col-company')) copyType = 'copy_company';
+              var tr = btn.closest('tr');
+              var trIdx = tr ? parseInt(tr.getAttribute('data-idx')) : -1;
+              if (trIdx !== -1 && importedClients[trIdx]) {
+                recordTimeline(importedClients[trIdx].phone || importedClients[trIdx].mobile, copyType);
+              }
               // Brief flash
               var orig = btn.style.color;
               btn.style.color = '#07c160';
@@ -5688,6 +5791,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
             // Let the tel: link work natively
             var client = sliced[idx];
             if (client) {
+              recordTimeline(client.phone || client.mobile, 'dial');
               setTimeout(function() {
                 startCallAssistant(importedClients.indexOf(client));
               }, 300);
@@ -5852,6 +5956,11 @@ export const DIALER_HTML = `<!DOCTYPE html>
       var autoDialActive = false;
       function handleOutcome(status) {
         if (!saveProgress(status)) return;
+        var c = importedClients[currentCallIdx];
+        if (c) {
+          var note = document.getElementById('callLogNote').value.trim();
+          recordTimeline(c.phone || c.mobile, 'call_' + status, note);
+        }
         saveState();
         renderDialCards();
 
@@ -5917,6 +6026,15 @@ export const DIALER_HTML = `<!DOCTYPE html>
         handleOutcome('failed');
       });
 
+      // Record dial action when clicking the dial link
+      var dialLink = document.getElementById('callAssistDialLink');
+      if (dialLink) {
+        dialLink.addEventListener('click', function() {
+          var client = importedClients[currentCallIdx];
+          if (client) recordTimeline(client.phone || client.mobile, 'dial');
+        });
+      }
+
       if (phoneDisp) {
         phoneDisp.addEventListener('click', function(e) {
           e.stopPropagation();
@@ -5931,11 +6049,13 @@ export const DIALER_HTML = `<!DOCTYPE html>
 
           copyTextToClipboard(phone);
 
+          var client = importedClients[currentCallIdx];
+          if (client) recordTimeline(client.phone || client.mobile, 'copy_phone');
+
           var oldText = phoneDisp.textContent;
           if (oldText === '已复制，正在打开微信...') return;
           phoneDisp.textContent = '已复制，正在打开微信...';
 
-          var client = importedClients[currentCallIdx];
           if (client) {
             client.copied = true;
             saveState();
@@ -5966,12 +6086,14 @@ export const DIALER_HTML = `<!DOCTYPE html>
           e.stopPropagation();
           var name = nameDisp.dataset.name;
           copyTextToClipboard(name);
-          
+
+          var client = importedClients[currentCallIdx];
+          if (client) recordTimeline(client.phone || client.mobile, 'copy_name');
+
           var oldText = nameDisp.textContent;
           if (oldText === '已复制') return;
           nameDisp.textContent = '已复制';
-          
-          var client = importedClients[currentCallIdx];
+
           if (client) {
             client.copied = true;
             saveState();
@@ -6002,7 +6124,10 @@ export const DIALER_HTML = `<!DOCTYPE html>
           var company = companyDisp.dataset.company || companyDisp.textContent;
           if (!company || company === '-') return;
           copyTextToClipboard(company);
-          
+
+          var client = importedClients[currentCallIdx];
+          if (client) recordTimeline(client.phone || client.mobile, 'copy_company');
+
           var oldText = companyDisp.textContent;
           if (oldText === '已复制') return;
           companyDisp.textContent = '已复制';
@@ -6502,6 +6627,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
           copy.note = parsed.note;
         }
         copy.mobile = copy.mobile || copy.phone;
+        delete copy.last_operation; // 不通过 upsert 覆盖操作记录
         return copy;
       });
     }
@@ -6918,7 +7044,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
           '<td>' +
             '<div class="crm-phone-cell">' +
               esc(c.mobile || '-') +
-              '<button class="crm-btn-call" title="点击呼叫 / 复制" onclick="copyTextToClipboard(\\'' + esc(c.mobile) + '\\');showCopyLimitToast(\\'已复制: ' + esc(c.mobile) + '\\');">📞</button>' +
+              '<button class="crm-btn-call" title="点击呼叫 / 复制" onclick="copyTextToClipboard(\\'' + esc(c.mobile) + '\\');showCopyLimitToast(\\'已复制: ' + esc(c.mobile) + '\\');recordTimeline(\\'' + esc(c.mobile) + '\\',\\'copy_phone\\');">📞</button>' +
             '</div>' +
           '</td>' +
           '<td style="white-space: normal; max-width: 300px; word-break: break-all;">' + noteDisplay + '</td>' +
@@ -7611,7 +7737,8 @@ export const DIALER_HTML = `<!DOCTYPE html>
                     custom: parsed.custom,
                     fund: c.fund || '',
                     category: c.category || '',
-                    batch_label: c.batch_label || ''
+                    batch_label: c.batch_label || '',
+                    last_operation: c.last_operation || null
                   });
                   addedCount++;
                 }
