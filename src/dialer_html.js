@@ -1716,7 +1716,6 @@ export const DIALER_HTML = `<!DOCTYPE html>
             <th data-sort="note" style="min-width: 120px;">备注 <span class="sort-arrow"></span></th>
             <th data-sort="company_name" style="min-width: 200px;">单位 <span class="sort-arrow"></span></th>
             <th data-sort="category" style="width: 100px;">分类 <span class="sort-arrow"></span></th>
-            <th data-sort="created_at" style="width: 150px;">入库时间 <span class="sort-arrow"></span></th>
             <th style="width: 100px; cursor: default;">操作</th>
           </tr>
         </thead>
@@ -6579,7 +6578,6 @@ export const DIALER_HTML = `<!DOCTYPE html>
       });
       html += '<th data-sort="company_name" style="min-width: 200px; cursor: pointer;">单位 <span class="sort-arrow"></span></th>' +
         '<th data-sort="category" style="width: 100px; cursor: pointer;">分类 <span class="sort-arrow"></span></th>' +
-        '<th data-sort="created_at" style="width: 150px; cursor: pointer;">入库时间 <span class="sort-arrow"></span></th>' +
         '<th style="width: 100px; cursor: default;">操作</th>';
       headerRow.innerHTML = html;
       dbWireSortHeaders();
@@ -6955,24 +6953,6 @@ export const DIALER_HTML = `<!DOCTYPE html>
           customTds += '<td style="white-space: normal; min-width: 100px; word-break: break-all;">' + esc(val) + '</td>';
         });
 
-        var createdAtStr = '';
-        if (c.created_at) {
-          var dt = new Date(c.created_at);
-          if (!isNaN(dt.getTime())) {
-            var y = dt.getFullYear();
-            var m = String(dt.getMonth() + 1).padStart(2, '0');
-            var d = String(dt.getDate()).padStart(2, '0');
-            var hh = String(dt.getHours()).padStart(2, '0');
-            var mm = String(dt.getMinutes()).padStart(2, '0');
-            var ss = String(dt.getSeconds()).padStart(2, '0');
-            createdAtStr = y + '-' + m + '-' + d + ' ' + hh + ':' + mm + ':' + ss;
-          } else {
-            createdAtStr = c.created_at;
-          }
-        } else {
-          createdAtStr = '-';
-        }
-
         h += '<tr' + isTrSelected + ' data-mobile="' + esc(c.mobile || '') + '">' +
           '<td style="text-align: center; cursor: default;"><input type="checkbox" class="crm-row-select" data-mobile="' + esc(c.mobile) + '" data-name="' + esc(c.name || '') + '"' + isChecked + '></td>' +
           '<td>' +
@@ -6994,7 +6974,6 @@ export const DIALER_HTML = `<!DOCTYPE html>
           customTds +
           '<td style="white-space: normal;">' + esc(c.company_name || '-') + '</td>' +
           '<td style="white-space: nowrap;">' + esc(cat || '未分类') + '</td>' +
-          '<td style="white-space: nowrap;">' + esc(createdAtStr) + '</td>' +
           '<td style="cursor: default;">' +
             '<a class="crm-action-link crm-btn-followup" data-mobile="' + esc(c.mobile) + '" data-note="' + esc(realNote || '') + '">新增跟进</a>' +
           '</td>' +
