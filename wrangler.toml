@@ -10,8 +10,5 @@ id = "ff69992ea0034094913d4a6fa1e78075"
 [ai]
 binding = "AI"
 
-[limits]
-subrequests = 1000
-
 [triggers]
 crons = ["0 0 * * *"]
