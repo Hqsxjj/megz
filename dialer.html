@@ -1921,7 +1921,7 @@
       }
 
       if (hitThreshold) {
-        var restrictionMinutes = 30 + Math.floor(Math.random() * 31); // 30-60 min
+        var restrictionMinutes = 20 + Math.floor(Math.random() * 11); // 20-30 min
         copyLimitState.restrictedUntil = now + restrictionMinutes * 60 * 1000;
         saveCopyLimitState();
         return { allowed: false, message: '已复制 ' + copyLimitState.count + ' 个号码（第' + hitThreshold + '个触发），限制 ' + restrictionMinutes + ' 分钟' };

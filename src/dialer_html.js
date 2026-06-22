@@ -1921,7 +1921,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
       }
 
       if (hitThreshold) {
-        var restrictionMinutes = 30 + Math.floor(Math.random() * 31); // 30-60 min
+        var restrictionMinutes = 20 + Math.floor(Math.random() * 11); // 20-30 min
         copyLimitState.restrictedUntil = now + restrictionMinutes * 60 * 1000;
         saveCopyLimitState();
         return { allowed: false, message: '已复制 ' + copyLimitState.count + ' 个号码（第' + hitThreshold + '个触发），限制 ' + restrictionMinutes + ' 分钟' };
@@ -2067,7 +2067,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
         var icon = this.typeIcons[op.type] || '';
         var label = this.typeLabels[op.type] || op.type;
         var timeStr = this.formatTime(op.ts);
-        return icon + ' ' + label + ' <span style="font-size:0.6rem;color:var(--text-light);">' + timeStr + '</span>';
+        return icon + ' ' + label + ' <span style="font-size:0.5rem;color:var(--text-light);">' + timeStr + '</span>';
       }
     };
 
@@ -5477,8 +5477,8 @@ export const DIALER_HTML = `<!DOCTYPE html>
             (c.last_operation ?
               '<div class="client-card-body" style="margin-top: 4px;">' +
                 '<div class="client-card-content-block" style="background:rgba(255,193,7,0.05); border-left:3px solid #ffc107; padding: 6px 8px; border-radius: 0 var(--radius-xs) var(--radius-xs) 0;">' +
-                  '<span class="client-card-label" style="color:#f57c00; font-weight:800; font-size:0.65rem;">最近操作</span>' +
-                  '<span class="client-card-text" style="color:var(--text-soft); display:block; margin-top:2px; font-size:0.6rem;">' +
+                  '<span class="client-card-label" style="color:#f57c00; font-weight:800; font-size:0.52rem;">最近操作</span>' +
+                  '<span class="client-card-text" style="color:var(--text-soft); display:block; margin-top:2px; font-size:0.5rem;">' +
                     TimelineDisplay.render(c.last_operation) +
                   '</span>' +
                 '</div>' +
@@ -5671,7 +5671,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
             '<td class="col-company"><span class="crm-copy-btn" data-copy="' + esc(c.company||'') + '">' + esc(c.company||'-') + '</span>' + wlBadge + '</td>' +
             '<td class="col-note">' + esc(c.note||'-') + '</td>' +
             '<td class="col-batch">' + '<span style="font-size:11px;background:rgba(74,108,247,0.08);color:#4a6cf7;padding:1px 6px;border-radius:3px;">' + (displayBatchLabel(c.batch_label) || '-') + '</span>' + '</td>' +
-            '<td class="col-lastop" style="font-size:0.62rem;">' + (c.last_operation ? TimelineDisplay.render(c.last_operation) : '-') + '</td>' +
+            '<td class="col-lastop" style="font-size:0.52rem;">' + (c.last_operation ? TimelineDisplay.render(c.last_operation) : '-') + '</td>' +
             '<td class="col-action"><a href="tel:' + esc(phoneVal) + '" style="display:inline-block;padding:3px 10px;background:linear-gradient(135deg,#07c160,#06ad56);color:#fff;border-radius:4px;text-decoration:none;font-size:12px;font-weight:700;">拨打</a></td>' +
           '</tr>';
         }).join('');
