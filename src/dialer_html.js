@@ -1968,6 +1968,17 @@ export const DIALER_HTML = `<!DOCTYPE html>
         .replace(/'/g, '&#039;');
     }
 
+    // 判断是否为自动生成的时间戳批次名（如 "导入-2026-06-22 04:40:56"）
+    function isAutoBatchLabel(label) {
+      if (!label) return true;
+      return /^导入-\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(label);
+    }
+
+    // 返回可显示的批次名，自动生成的时间戳返回空
+    function displayBatchLabel(label) {
+      return isAutoBatchLabel(label) ? '' : label;
+    }
+
     // Cross-platform WeChat jump
     var isAndroid = /Android/.test(navigator.userAgent) && !/iPhone|iPad|iPod/.test(navigator.userAgent);
     function jumpToWechat() {
@@ -5431,7 +5442,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
             '</div>' +
             '<div class="client-card-tags" style="margin-top: 2px;">' +
               (c.company ? '<span class="client-card-tag client-card-tag-company" data-company="' + esc(c.company) + '" data-idx="' + i + '" title="点击复制单位名称">' + esc(c.company) + '</span>' : '') +
-              (c.batch_label ? '<span class="client-card-tag" style="background:rgba(74,108,247,0.08);color:#4a6cf7;font-weight:700;" title="导入批次">' + esc(c.batch_label) + '</span>' : '') +
+              (displayBatchLabel(c.batch_label) ? '<span class="client-card-tag" style="background:rgba(74,108,247,0.08);color:#4a6cf7;font-weight:700;" title="导入批次">' + esc(c.batch_label) + '</span>' : '') +
               (c.fund ? '<span class="client-card-tag crm-fund-tag" style="background:rgba(255,152,0,0.08);color:#f57c00;font-weight:700;" title="公积金">公积金: ' + esc(c.fund) + '</span>' : '') +
               (function() {
                 var customHtml = '';
@@ -5667,7 +5678,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
             '<td class="col-phone"><span class="crm-copy-btn" data-copy="' + esc(phoneVal) + '" title="点击复制">' + esc(phoneVal || '-') + '</span></td>' +
             '<td class="col-company"><span class="crm-copy-btn" data-copy="' + esc(c.company||'') + '">' + esc(c.company||'-') + '</span>' + wlBadge + '</td>' +
             '<td class="col-note">' + esc(c.note||'-') + '</td>' +
-            '<td class="col-batch">' + '<span style="font-size:11px;background:rgba(74,108,247,0.08);color:#4a6cf7;padding:1px 6px;border-radius:3px;">' + (c.batch_label || '-') + '</span>' + '</td>' +
+            '<td class="col-batch">' + '<span style="font-size:11px;background:rgba(74,108,247,0.08);color:#4a6cf7;padding:1px 6px;border-radius:3px;">' + (displayBatchLabel(c.batch_label) || '-') + '</span>' + '</td>' +
             '<td class="col-lastop" style="font-size:0.72rem;">' + (c.last_operation ? TimelineDisplay.render(c.last_operation) : '-') + '</td>' +
             '<td class="col-action"><a href="tel:' + esc(phoneVal) + '" style="display:inline-block;padding:3px 10px;background:linear-gradient(135deg,#07c160,#06ad56);color:#fff;border-radius:4px;text-decoration:none;font-size:12px;font-weight:700;">拨打</a></td>' +
           '</tr>';
