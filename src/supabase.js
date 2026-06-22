@@ -260,9 +260,7 @@ export function createSupabaseClient(env) {
 
     try {
       var p = page || 1;
-      var ps = pageSize || 50;
-      var from = (p - 1) * ps;
-      var to = from + ps - 1;
+      var ps = Math.min(pageSize || 50, 5000); // cap at 5000
 
       var baseSearch = '';
       if (search) {
@@ -293,11 +291,6 @@ export function createSupabaseClient(env) {
         }
       }
 
-      var headersWithCount = Object.assign({}, headers(), {
-        'Range': from + '-' + to,
-        'Prefer': 'count=exact'
-      });
-
       // Try column sets from most to least specific
       var colSets = [
         'name,mobile,company_name,category,note,fund,batch_label,created_at,last_operation',
@@ -307,31 +300,57 @@ export function createSupabaseClient(env) {
         'name,mobile,company_name,created_at',
         '*'
       ];
-      var resp = null;
-      var data = null;
 
-      for (var ci = 0; ci < colSets.length; ci++) {
-        var url2 = baseUrl + '/rest/v1/customers?select=' + colSets[ci] + orderClause + baseSearch + filterParams;
-        resp = await fetch(url2, { headers: headersWithCount });
-        if (resp.ok) {
-          data = await resp.json();
-          break;
+      // Supabase max 1000 rows/request. Loop if more needed.
+      var SUPABASE_MAX = 1000;
+      var allData = [];
+      var totalCount = 0;
+      var from = (p - 1) * ps;
+      var remaining = ps;
+      var currentFrom = from;
+
+      while (remaining > 0) {
+        var fetchSize = Math.min(remaining, SUPABASE_MAX);
+        var currentTo = currentFrom + fetchSize - 1;
+
+        var headersWithCount = Object.assign({}, headers(), {
+          'Range': currentFrom + '-' + currentTo,
+          'Prefer': 'count=exact'
+        });
+
+        var resp = null;
+        var batch = null;
+
+        for (var ci = 0; ci < colSets.length; ci++) {
+          var url2 = baseUrl + '/rest/v1/customers?select=' + colSets[ci] + orderClause + baseSearch + filterParams;
+          resp = await fetch(url2, { headers: headersWithCount });
+          if (resp.ok) {
+            batch = await resp.json();
+            break;
+          }
         }
+
+        if (!batch || !Array.isArray(batch)) break;
+
+        allData = allData.concat(batch);
+
+        var contentRange = resp.headers.get('Content-Range');
+        if (contentRange) {
+          var parts = contentRange.split('/');
+          if (parts.length === 2) totalCount = parseInt(parts[1], 10) || totalCount;
+        }
+
+        if (batch.length < fetchSize) break; // no more data
+        currentFrom += fetchSize;
+        remaining -= fetchSize;
       }
 
-      if (!data) {
+      if (allData.length === 0) {
         console.error('[supabase] getAllCustomers failed, returning empty');
         return { data: [], total: 0, page: p, pageSize: ps };
       }
 
-      var total = data.length;
-      var contentRange = resp.headers.get('Content-Range');
-      if (contentRange) {
-        var parts = contentRange.split('/');
-        if (parts.length === 2) total = parseInt(parts[1], 10) || total;
-      }
-
-      return { data: Array.isArray(data) ? data : [], total: total, page: p, pageSize: ps };
+      return { data: allData, total: totalCount || allData.length, page: p, pageSize: ps };
     } catch (e) {
       console.error('[supabase] getAllCustomers error:', e.message);
       return { data: [], total: 0, page: page || 1, pageSize: pageSize || 50 };
