@@ -6836,7 +6836,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
         category = catFilter;
       }
 
-      var url = '/api/dialer/customers?page=' + DB.page + '&pageSize=' + DB.pageSize;
+      var url = '/api/dialer/customers?page=1&pageSize=5000';
       if (q) url += '&search=' + encodeURIComponent(q);
       if (category) url += '&category=' + encodeURIComponent(category);
       if (batchFilter) url += '&batch_label=' + encodeURIComponent(batchFilter);
@@ -6857,7 +6857,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
           DB.allData = rawData; // 存入前端缓存
           
           var filtered = crmFilterData(rawData);
-          DB.total = res.total || filtered.length;
+          DB.total = filtered.length;
           
           dbTable(filtered);
           dbPager(filtered);
@@ -6872,7 +6872,15 @@ export const DIALER_HTML = `<!DOCTYPE html>
         });
     }
 
-
+    // 从缓存数据重新渲染（翻页时用，不重新请求API）
+    function dbRenderCached() {
+      var filtered = crmFilterData(DB.allData);
+      DB.total = filtered.length;
+      dbTable(filtered);
+      dbPager(filtered);
+      var totalEl = document.getElementById('dbTotal');
+      if (totalEl) totalEl.textContent = '共 ' + DB.total + ' 条';
+    }
 
     // 统计状态栏更新
     function crmUpdateBadgeCounts(data) {
@@ -6908,7 +6916,14 @@ export const DIALER_HTML = `<!DOCTYPE html>
       var tb = document.getElementById('dbTbody');
       var em = document.getElementById('dbEmpty');
       if (!tb) return;
-      
+
+      // 客户端分页：仅渲染当前页数据
+      if (data && data.length > 0) {
+        var sliceStart = (DB.page - 1) * DB.pageSize;
+        var sliceEnd = Math.min(sliceStart + DB.pageSize, data.length);
+        data = data.slice(sliceStart, sliceEnd);
+      }
+
       if (!data || data.length === 0) {
         tb.innerHTML = '';
         if (em) em.style.display = 'block';
@@ -7154,7 +7169,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
       } else {
         DB.sortBy = col; DB.sortDir = 'asc';
       }
-      DB.page = 1; dbFetch();
+      DB.page = 1; dbRenderCached();
     }
 
     function dbWireSortHeaders(){
@@ -7337,9 +7352,9 @@ export const DIALER_HTML = `<!DOCTYPE html>
       var si=document.getElementById('dbSearch'); if(si)si.addEventListener('input',function(){clearTimeout(DB.timer);DB.timer=setTimeout(function(){DB.page=1;dbFetch();},400);});
       var cf=document.getElementById('dbCatFilter'); if(cf)cf.addEventListener('change',function(){DB.page=1;dbFetch();});
       var bf=document.getElementById('dbBatchFilter'); if(bf)bf.addEventListener('change',function(){DB.page=1;dbFetch();});
-      var ps=document.getElementById('dbPageSize'); if(ps)ps.addEventListener('change',function(){DB.pageSize=parseInt(ps.value);DB.page=1;dbFetch();});
-      var pr=document.getElementById('dbPrev'); if(pr)pr.addEventListener('click',function(){if(DB.page>1){DB.page--;dbFetch();}});
-      var nx=document.getElementById('dbNext'); if(nx)nx.addEventListener('click',function(){var tp=Math.max(1,Math.ceil(DB.total/DB.pageSize));if(DB.page<tp){DB.page++;dbFetch();}});
+      var ps=document.getElementById('dbPageSize'); if(ps)ps.addEventListener('change',function(){DB.pageSize=parseInt(ps.value);DB.page=1;dbRenderCached();});
+      var pr=document.getElementById('dbPrev'); if(pr)pr.addEventListener('click',function(){if(DB.page>1){DB.page--;dbRenderCached();}});
+      var nx=document.getElementById('dbNext'); if(nx)nx.addEventListener('click',function(){var tp=Math.max(1,Math.ceil(DB.total/DB.pageSize));if(DB.page<tp){DB.page++;dbRenderCached();}});
       
       var pageInput = document.getElementById('dbPageInput');
       if (pageInput) {
@@ -7353,7 +7368,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
           }
           if (val !== DB.page) {
             DB.page = val;
-            dbFetch();
+            dbRenderCached();
           } else {
             pageInput.value = DB.page;
           }
