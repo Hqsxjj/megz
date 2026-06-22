@@ -1723,7 +1723,16 @@ export default {
           var isCompanySuspicious = companyVal && /^\d{4,5}$/.test(companyVal);
           // note 有内容且不长(可能是单位名误存) 且 company_name 为空
           var isNoteSuspicious = !companyVal && noteText && noteText.length <= 80 && /[一-龥]/.test(noteText) && !/已联系|已拨打|未接|关机|空号|停机|加微信|意向|跟进|备注/.test(noteText);
-          if (isFundSuspicious || isCompanySuspicious || isNoteSuspicious) {
+          // note 里包含 1-49999 之间的阿拉伯数字，可能是公积金
+          var noteNumMatch = noteText.match(/\b(\d{1,5})\b/g);
+          var isNoteHasFundNumber = false;
+          if (noteNumMatch && !fundVal) {
+            for (var nm = 0; nm < noteNumMatch.length; nm++) {
+              var n = parseInt(noteNumMatch[nm], 10);
+              if (n >= 1 && n <= 49999) { isNoteHasFundNumber = true; break; }
+            }
+          }
+          if (isFundSuspicious || isCompanySuspicious || isNoteSuspicious || isNoteHasFundNumber) {
             suspiciousRows.push({
               mobile: c.mobile,
               fund: fundVal,
@@ -1769,17 +1778,20 @@ export default {
             '3. 如果 fund 存单位名 且 company_name 存数字 → 两者互换。输出: {"action": "swap"}\n' +
             '4. 如果 note 存的是单位名称（company_name 为空时）→ 应移到 company_name。输出: {"action": "move_note_to_company"}\n' +
             '5. 如果 fund 是乱码/备注/无意义文字（不是单位名也不是数字）→ 清空 fund。输出: {"action": "clear_fund"}\n' +
-            '6. 如果不确定 → 跳过。输出: {"action": "skip"}\n\n' +
+            '6. 如果 note（备注）中包含阿拉伯数字且在 1-49999 之间（如 8000、15000、30000），且 fund 为空 → 应将数字移到 fund，备注中删除该数字。输出: {"action": "move_note_number_to_fund", "fund_value": "<提取的数字>"}\n' +
+            '7. 如果不确定 → 跳过。输出: {"action": "skip"}\n\n' +
             '注意：\n' +
             '- 单位名包括：公司（腾讯科技、华为技术）、学校（北京四中、实验小学、某某幼儿园/小学/中学/大学）、\n' +
             '  机构（建设银行、人民医院、税务局、公安局）等组织实体\n' +
             '- 公积金示例：19580、8450、12345（纯4-5位数字）\n' +
             '- 备注里只有确信是单位名称时才建议 move_note_to_company\n' +
             '- 如果备注是普通的跟进记录（如"已联系"、"待跟进"等）请不要移动\n' +
+            '- 如果备注中有多个数字，优先提取看起来像公积金金额的（通常 1000-49999 之间，整数）\n' +
+            '- 公积金数字通常单独出现或与文字间隔（如"公积金8000"、"余额15000"），不要提取电话号码中的数字\n' +
             '- 只在确定的情况下才建议修正，不确定就 skip\n\n' +
             '请对以下每条记录分析，只输出 JSON 数组：\n' +
             '[\n' +
-            '  {"idx": 序号, "action": "move_fund_to_company|move_company_to_fund|swap|move_note_to_company|clear_fund|skip"},\n' +
+            '  {"idx": 序号, "action": "move_fund_to_company|move_company_to_fund|swap|move_note_to_company|clear_fund|move_note_number_to_fund|skip"},\n' +
             '  ...\n' +
             ']\n\n' +
             '输入数据：\n' + promptRows
@@ -1937,6 +1949,38 @@ export default {
                   }
                 } catch (patchErr4) {
                   errors.push('PATCH clear_fund 网络错误 (' + originalRow.mobile + '): ' + patchErr4.message);
+                }
+              } else if (dec.action === 'move_note_number_to_fund') {
+                // note 中包含 1-49999 的数字，移到 fund
+                var fundNum = dec.fund_value || '';
+                if (!fundNum) {
+                  // AI 没给具体数字，自己从 note 里提取
+                  var autoMatch = originalRow.note.match(/\b(\d{1,5})\b/);
+                  if (autoMatch) fundNum = autoMatch[1];
+                }
+                if (!fundNum) { errors.push('行 ' + rowIdx + ' move_note_number_to_fund 缺少 fund_value'); continue; }
+                var newNoteText = originalRow.note.replace(new RegExp('\\b' + fundNum + '\\b'), '').trim();
+                // 去掉多余的空白和标点
+                newNoteText = newNoteText.replace(/^[，。,.\-\s]+/, '').replace(/[，。,.\-\s]+$/, '').trim();
+                if (!newNoteText) newNoteText = '';
+                try {
+                  var patchResp5 = await fetch(
+                    supabaseUrl + '/rest/v1/customers?mobile=eq.' + encodeURIComponent(originalRow.mobile),
+                    {
+                      method: 'PATCH',
+                      headers: Object.assign({}, hdrs, { 'Prefer': 'return=minimal' }),
+                      body: JSON.stringify({ fund: fundNum, note: newNoteText })
+                    }
+                  );
+                  if (patchResp5.ok) {
+                    corrected++;
+                    corrections.push({ mobile: originalRow.mobile, action: 'move_note_number_to_fund', fund_value: fundNum, old_note: originalRow.note, new_note: newNoteText });
+                  } else {
+                    var errText5 = await patchResp5.text();
+                    errors.push('PATCH move_note_number_to_fund 失败 (' + originalRow.mobile + '): ' + errText5);
+                  }
+                } catch (patchErr5) {
+                  errors.push('PATCH move_note_number_to_fund 网络错误 (' + originalRow.mobile + '): ' + patchErr5.message);
                 }
               }
               // action 'skip' = 不做任何操作

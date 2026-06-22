@@ -1699,7 +1699,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
       <button class="crm-tool-btn" id="crmAddHelperBtn">🤝 添加协助人</button>
       <button class="crm-tool-btn" id="crmRemoveHelperBtn">🚫 取消协助人</button>
       <button class="crm-tool-btn" id="dbBatchCatBtn" title="更多批量分类">🏷 批量分类</button>
-      <button class="crm-tool-btn blue" id="dbAiCorrectFundBtn" title="AI 扫描公积金字段，自动修正误存的公司名称">🤖 AI修正公积金</button>
+      <button class="crm-tool-btn blue" id="dbAiCorrectFundBtn" title="AI 扫描公积金字段，自动识别并修正存错位置的数据">🤖 AI修正公积金</button>
       <button class="crm-tool-btn blue" id="crmManageColsBtn" title="管理自定义列">⚙️ 自定义列</button>
     </div>
 
@@ -8082,7 +8082,8 @@ export const DIALER_HTML = `<!DOCTYPE html>
               '3. fund 和 company_name 存反了 → 互换\\n' +
               '4. note 备注里误存了公司名称 → 自动移到「单位」\\n' +
               '5. fund 是乱码/无意义文字 → 清空\\n' +
-              '6. 不确定的条目将跳过，不做修改\\n\\n' +
+              '6. note 备注里含阿拉伯数字（1~49999）→ 自动提取到公积金\\n' +
+              '7. 不确定的条目将跳过，不做修改\\n\\n' +
               '⚠️ 仅修改「公积金」「单位」「备注」字段，不影响其他数据。\\n' +
               '⚠️ 所有修改按行进行，不会交叉合并数据。\\n\\n' +
               '确认开始 AI 扫描修正？')) {
@@ -8121,6 +8122,8 @@ export const DIALER_HTML = `<!DOCTYPE html>
                       msg += '  ' + (i+1) + '. ' + c.mobile + ': note「' + c.old_note + '」→ 单位「' + c.new_company_name + '」\\n';
                     } else if (c.action === 'clear_fund') {
                       msg += '  ' + (i+1) + '. ' + c.mobile + ': fund「' + c.old_fund + '」→ 已清空\\n';
+                    } else if (c.action === 'move_note_number_to_fund') {
+                      msg += '  ' + (i+1) + '. ' + c.mobile + ': note 数字「' + c.fund_value + '」→ fund\\n';
                     } else {
                       msg += '  ' + (i+1) + '. ' + c.mobile + ': ' + c.action + '\\n';
                     }
