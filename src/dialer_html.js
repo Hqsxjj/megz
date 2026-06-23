@@ -6817,8 +6817,8 @@ export const DIALER_HTML = `<!DOCTYPE html>
         category = catFilter;
       }
 
-      // 服务端分页：每次请求只获取当前页
-      var url = '/api/dialer/customers?page=' + DB.page + '&pageSize=' + DB.pageSize;
+      // 拉取大量数据到本地缓存，再客户端分页（保证冷却期排序跨全部数据生效）
+      var url = '/api/dialer/customers?page=1&pageSize=5000';
       if (q) url += '&search=' + encodeURIComponent(q);
       if (category) url += '&category=' + encodeURIComponent(category);
       if (batchFilter) url += '&batch_label=' + encodeURIComponent(batchFilter);
@@ -6836,11 +6836,11 @@ export const DIALER_HTML = `<!DOCTYPE html>
             return;
           }
           var rawData = res.data || [];
-          DB.allData = rawData;
+          DB.allData = rawData; // 存入全部缓存
 
-          // 客户端二次过滤（快捷筛选等）
+          // 客户端过滤+排序（冷却期客户排到最后）
           var filtered = crmFilterData(rawData);
-          DB.total = res.total || filtered.length;
+          DB.total = filtered.length;
 
           dbTable(filtered);
           dbPager();
@@ -6855,9 +6855,14 @@ export const DIALER_HTML = `<!DOCTYPE html>
         });
     }
 
-    // 翻页时重新请求服务端（不再依赖客户端缓存）
+    // 客户端分页：从缓存中翻页，保证冷却期排序生效
     function dbRenderCached() {
-      dbFetch();
+      var filtered = crmFilterData(DB.allData);
+      DB.total = filtered.length;
+      dbTable(filtered);
+      dbPager();
+      var totalEl = document.getElementById('dbTotal');
+      if (totalEl) totalEl.textContent = '共 ' + DB.total + ' 条';
     }
 
     // 统计状态栏更新
@@ -6895,7 +6900,13 @@ export const DIALER_HTML = `<!DOCTYPE html>
       var em = document.getElementById('dbEmpty');
       if (!tb) return;
 
-      // 服务端已分页，直接渲染（不再客户端切片）
+      // 客户端分页：仅渲染当前页数据
+      if (data && data.length > 0) {
+        var sliceStart = (DB.page - 1) * DB.pageSize;
+        var sliceEnd = Math.min(sliceStart + DB.pageSize, data.length);
+        data = data.slice(sliceStart, sliceEnd);
+      }
+
       if (!data || data.length === 0) {
         tb.innerHTML = '';
         if (em) em.style.display = 'block';
