@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: megz-wechat-bridge
+    env: node
+    buildCommand: cd bridge && npm install
+    startCommand: node bridge/index.js
+    envVars:
+      - key: WORKER_URL
+        sync: false
+      - key: BRIDGE_PORT
+        value: "3080"
+      - key: NODE_VERSION
+        value: "22"
+    plan: free

@@ -22,3 +22,16 @@ No build step, no package.json, no tests.
 **Frontend**: Inline SPA with no frameworks. Features PIN-lock privacy screen (default PIN `8520`), +/- counters with gradient cards, weekly/monthly stats, compact calendar, client registration with edit/delete, today/tomorrow todo lists with daily auto-rollover, dark mode toggle, and dynamic wallpaper from picsum.photos with daily cache. Keyboard shortcuts: `+`/`-` to increment/decrement WeChat count, `Ctrl+Z` to lock the page.
 
 **Deployment**: GitHub Actions triggers `wrangler deploy` on push to `main` (requires `CF_API_TOKEN` and `CF_ACCOUNT_ID` secrets).
+
+## WeChat Bridge (bridge/)
+
+The `bridge/` directory contains a local Node.js service that connects Claude AI to WeChat via the iLink ClawBot protocol. It is integrated with the learning management feature: WeChat conversations can be imported as learning cards.
+
+- **Start everything**: `npm start` — runs both `wrangler dev` and the bridge
+- **Bridge only**: `npm run bridge`
+- **Login only**: `npm run bridge:login`
+- **HTTP API**: `http://localhost:3080` (status, conversations, learning extraction)
+
+The bridge must run locally (persistent long-poll, file I/O). It cannot run on Cloudflare Workers.
+
+**Setup**: `cd bridge && npm install` first. Copy `bridge/.env.example` to `bridge/.env` and configure API keys.

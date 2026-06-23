@@ -1,4 +1,11 @@
 {
+  "scripts": {
+    "dev": "npx wrangler dev",
+    "deploy": "npx wrangler deploy",
+    "bridge": "node bridge/index.js",
+    "bridge:login": "node bridge/index.js --login-only",
+    "start": "node bridge/scripts/start-all.js"
+  },
   "dependencies": {
     "aes-js": "^3.1.2",
     "jimp": "^1.6.1",

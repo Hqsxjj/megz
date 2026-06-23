@@ -2950,6 +2950,7 @@ export default {
     .timer-btn-reset:hover { background: rgba(0,0,0,0.08); }
     .timer-display.completed { animation: pulse 0.6s ease-in-out; }
     @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+    @keyframes bridgePulse { 0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(250,157,59,0.4); } 50% { opacity: 0.6; box-shadow: 0 0 0 4px rgba(250,157,59,0); } }
     .notify-bar { position: fixed; top: 0; left: 0; right: 0; background: var(--accent-intent); color: #fff; padding: 12px 20px; font-size: 0.85rem; font-weight: 700; z-index: 10000; transform: translateY(-100%); transition: transform 0.3s ease; text-align: center; box-shadow: 0 4px 20px rgba(0,0,0,0.2); cursor: pointer; }
     .notify-bar.show { transform: translateY(0); }
     .notify-bar .notify-close { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); font-size: 1.1rem; opacity: 0.7; }
@@ -3605,6 +3606,16 @@ export default {
       <div class="action-group">
         <button class="icon-simple" id="loanCalcBtn" title="贷款利息计算器">计算器</button>
         <button class="sync-indicator" id="syncBtn" title="点击手动同步"><span class="sync-icon" id="syncIcon">⇅</span><span id="syncLabel">同步中</span><div class="sync-tooltip" id="syncTooltip">正在连接...</div></button>
+        <button class="icon-simple" id="bridgeStatusBtn" title="微信桥接状态" style="padding:0 3px;font-size:0.6rem;position:relative;"><span id="bridgeStatusDot" style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#999;vertical-align:middle;"></span></button>
+        <div id="bridgeLoginPanel" class="bridge-login-panel" style="display:none; position:fixed; top:60px; right:100px; background:var(--card-bg); border:1px solid var(--card-border); border-radius:12px; padding:16px; z-index:200; box-shadow:0 8px 30px rgba(0,0,0,0.2); min-width:260px; max-width:320px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+            <span style="font-weight:800; font-size:0.8rem;">🤖 微信桥接</span>
+            <button id="closeBridgePanelBtn" style="background:none;border:none;cursor:pointer;font-size:1.1rem;color:var(--text-light);">&times;</button>
+          </div>
+          <div id="bridgePanelContent">
+            <div style="text-align:center;color:var(--text-soft);font-size:0.75rem;padding:10px;">检查中...</div>
+          </div>
+        </div>
         <button class="icon-simple" id="allClientsBtn" title="意向客户全量表">全量</button>
         <button class="icon-simple" id="dialerBtn" title="快捷拨号助手" onclick="window.open('/dialer', '_blank')">拨号</button>
         <button class="icon-simple" id="hideBtn" title="一键隐藏 (Ctrl+Z)">锁屏</button>
@@ -3722,7 +3733,17 @@ export default {
     </div>
 
     <textarea id="newLearnInput" placeholder="在此输入或粘贴原始材料（如：微信聊天记录、录音文字转写、批贷案例描述、白名单政策等）..." style="min-height: 120px; font-size: 0.75rem; line-height: 1.5; margin-bottom: 10px;"></textarea>
-    
+
+    <div id="wechatConvPicker" style="display:none; margin-bottom:10px; border:1px solid var(--card-border); border-radius:var(--radius-xs); padding:8px 10px; background:rgba(74,108,247,0.03);">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+        <span style="font-size:0.7rem; color:var(--text-soft); font-weight:700;">📱 选择微信对话</span>
+        <button id="cancelWechatImportBtn" style="background:none; border:none; color:var(--text-light); cursor:pointer; font-size:0.8rem;">×</button>
+      </div>
+      <div id="wechatConvList" style="max-height:180px; overflow-y:auto; display:flex; flex-direction:column; gap:4px;">
+        <div style="font-size:0.7rem; color:var(--text-light); text-align:center; padding:8px;">加载中...</div>
+      </div>
+    </div>
+
     <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:10px;">
       <label class="learn-check-row" style="margin-bottom:0; font-weight:700; cursor:pointer;">
         <input type="checkbox" id="learnShowCheck" checked style="margin-right:4px;">锁屏显示
@@ -3733,6 +3754,9 @@ export default {
         </button>
         <button class="btn-add" id="addLearnBtn" style="background: var(--btn-bg); color:var(--text-main); border:1px solid var(--card-border); padding:8px 16px; font-size:0.75rem; border-radius:var(--radius-xs); cursor:pointer; font-weight:800;">
           手动保存
+        </button>
+        <button class="btn-add" id="importWechatLearnBtn" style="background: var(--btn-bg); color:var(--text-main); border:1px solid var(--card-border); padding:8px 14px; font-size:0.75rem; border-radius:var(--radius-xs); cursor:pointer; font-weight:800; display:none;" title="从微信桥接导入最近对话">
+          📱 从微信导入
         </button>
       </div>
     </div>
@@ -5903,6 +5927,401 @@ const rid=Math.floor(Math.random()*1000);
         btn.disabled=false;
       }
     });
+
+    // ===== WeChat Bridge Integration =====
+    const BRIDGE_URL = (() => {
+      try {
+        return localStorage.getItem('bridge_url') || 'http://localhost:3080';
+      } catch (e) {
+        return 'http://localhost:3080';
+      }
+    })();
+
+    let bridgeOnline = false;
+    let bridgeConnected = false;
+    let bridgeStatus = null;       // full status object from API
+    let bridgeLoginPollTimer = null;
+    let bridgeStatusTimer = null;
+
+    function updateBridgeDot() {
+      const dot = document.getElementById('bridgeStatusDot');
+      const btn = document.getElementById('bridgeStatusBtn');
+      if (!dot) return;
+      if (bridgeConnected) {
+        dot.style.background = '#07c160';
+        if (btn) btn.title = '微信桥接已连接 — 点击查看详情';
+      } else if (bridgeOnline && bridgeStatus && bridgeStatus.loginState === 'waiting') {
+        dot.style.background = '#fa9d3b';
+        dot.style.animation = 'bridgePulse 1.5s infinite';
+        if (btn) btn.title = '等待扫码中... — 点击查看二维码';
+      } else if (bridgeOnline) {
+        dot.style.background = '#fa9d3b';
+        dot.style.animation = 'none';
+        if (btn) btn.title = '桥接在线未登录 — 点击扫码登录';
+      } else {
+        dot.style.background = '#999';
+        dot.style.animation = 'none';
+        if (btn) btn.title = '微信桥接离线 — 点击检查';
+      }
+    }
+
+    function updateWechatImportBtn() {
+      const btn = document.getElementById('importWechatLearnBtn');
+      if (!btn) return;
+      if (bridgeConnected) {
+        btn.style.display = '';
+        btn.style.opacity = '1';
+        btn.title = '从微信桥接导入最近对话';
+      } else if (bridgeOnline) {
+        btn.style.display = '';
+        btn.style.opacity = '0.5';
+        btn.title = '桥接在线但微信未登录 — 请先扫码';
+      } else {
+        btn.style.display = 'none';
+      }
+    }
+
+    function renderBridgePanel() {
+      const content = document.getElementById('bridgePanelContent');
+      if (!content) return;
+
+      if (bridgeConnected) {
+        content.innerHTML =
+          '<div style="text-align:center;padding:8px 0;">' +
+            '<div style="font-size:2rem;margin-bottom:4px;">✅</div>' +
+            '<div style="font-weight:700;color:#07c160;font-size:0.8rem;">微信已连接</div>' +
+            '<div style="font-size:0.65rem;color:var(--text-soft);margin-top:4px;">' +
+              'Account: ' + (bridgeStatus?.accountId || '-') +
+            '</div>' +
+          '</div>';
+      } else if (bridgeOnline && bridgeStatus?.loginState === 'waiting') {
+        // Show QR code
+        content.innerHTML =
+          '<div style="text-align:center;">' +
+            '<div style="font-weight:700;font-size:0.8rem;margin-bottom:6px;">📱 请用微信扫描</div>' +
+            (bridgeStatus?.qrcodeUrl ?
+              '<img src="' + bridgeStatus.qrcodeUrl + '" style="width:200px;height:200px;border-radius:8px;border:1px solid var(--card-border);" onerror="this.style.display=\'none\'">' :
+              '<div style="width:200px;height:200px;border-radius:8px;border:1px dashed var(--card-border);margin:0 auto;display:flex;align-items:center;justify-content:center;font-size:0.7rem;">二维码加载中...</div>'
+            ) +
+            '<div id="bridgeQrStatus" style="font-size:0.7rem;color:#fa9d3b;margin-top:6px;font-weight:600;">⏳ 等待扫码...</div>' +
+            '<div style="font-size:0.6rem;color:var(--text-light);margin-top:4px;">' + (bridgeStatus?.loginMessage || '') + '</div>' +
+            '<button id="bridgeReLoginBtn" style="margin-top:8px;font-size:0.65rem;background:var(--btn-bg);border:1px solid var(--card-border);padding:4px 12px;border-radius:4px;cursor:pointer;">🔄 刷新二维码</button>' +
+          '</div>';
+        // Re-login button
+        setTimeout(() => {
+          const reb = document.getElementById('bridgeReLoginBtn');
+          if (reb) reb.addEventListener('click', () => startBridgeLogin());
+        }, 100);
+      } else if (bridgeOnline) {
+        content.innerHTML =
+          '<div style="text-align:center;padding:8px 0;">' +
+            '<div style="font-size:0.75rem;color:var(--text-soft);margin-bottom:10px;">微信桥接已启动，尚未登录</div>' +
+            '<button id="bridgeStartLoginBtn" style="background:linear-gradient(135deg,#4a6cf7 0%,#07c160 100%);color:white;border:none;padding:10px 24px;font-size:0.8rem;border-radius:8px;cursor:pointer;font-weight:700;box-shadow:0 2px 8px rgba(74,108,247,0.3);">' +
+              '📱 扫码登录微信' +
+            '</button>' +
+          '</div>';
+        setTimeout(() => {
+          const sb = document.getElementById('bridgeStartLoginBtn');
+          if (sb) sb.addEventListener('click', () => startBridgeLogin());
+        }, 100);
+      } else {
+        content.innerHTML =
+          '<div style="text-align:center;padding:8px 0;color:var(--text-soft);font-size:0.75rem;">' +
+            '<div style="font-size:1.5rem;margin-bottom:4px;">🔌</div>' +
+            '<div>微信桥接离线</div>' +
+            '<div style="font-size:0.6rem;margin-top:4px;">请运行 npm run bridge 启动</div>' +
+            '<button id="bridgeRetryBtn" style="margin-top:8px;font-size:0.65rem;background:var(--btn-bg);border:1px solid var(--card-border);padding:4px 12px;border-radius:4px;cursor:pointer;">🔄 重试连接</button>' +
+          '</div>';
+        setTimeout(() => {
+          const rb = document.getElementById('bridgeRetryBtn');
+          if (rb) rb.addEventListener('click', () => checkBridgeStatus().then(() => renderBridgePanel()));
+        }, 100);
+      }
+    }
+
+    async function startBridgeLogin() {
+      const content = document.getElementById('bridgePanelContent');
+      if (content) {
+        content.innerHTML = '<div style="text-align:center;padding:12px;font-size:0.75rem;color:var(--text-soft);">⏳ 获取登录二维码...</div>';
+      }
+
+      try {
+        const r = await fetch(BRIDGE_URL + '/api/bridge/login/start', { method: 'POST' });
+        if (!r.ok) {
+          const err = await r.json().catch(() => ({}));
+          throw new Error(err.error || 'HTTP ' + r.status);
+        }
+        const data = await r.json();
+
+        if (data.alreadyConnected) {
+          if (content) content.innerHTML = '<div style="text-align:center;padding:12px;color:#07c160;font-weight:700;">✅ 已登录，无需重复扫码</div>';
+          await checkBridgeStatus();
+          renderBridgePanel();
+          return;
+        }
+
+        // Update local status with QR info
+        bridgeStatus = bridgeStatus || {};
+        bridgeStatus.qrcodeUrl = data.qrcodeUrl;
+        bridgeStatus.loginState = 'waiting';
+        bridgeStatus.loginMessage = data.message;
+        renderBridgePanel();
+
+        // Start polling login status
+        startLoginPoll();
+      } catch (err) {
+        console.error('启动扫码登录失败:', err);
+        if (content) {
+          content.innerHTML = '<div style="text-align:center;padding:12px;color:red;font-size:0.75rem;">❌ ' + err.message + '</div>';
+        }
+      }
+    }
+
+    function startLoginPoll() {
+      if (bridgeLoginPollTimer) clearInterval(bridgeLoginPollTimer);
+
+      bridgeLoginPollTimer = setInterval(async () => {
+        try {
+          const r = await fetch(BRIDGE_URL + '/api/bridge/login/status');
+          if (!r.ok) return;
+
+          const data = await r.json();
+          const statusEl = document.getElementById('bridgeQrStatus');
+
+          if (data.status === 'confirmed') {
+            // Login success!
+            if (statusEl) {
+              statusEl.textContent = '✅ 登录成功！';
+              statusEl.style.color = '#07c160';
+            }
+            clearInterval(bridgeLoginPollTimer);
+            bridgeLoginPollTimer = null;
+            await checkBridgeStatus();
+            renderBridgePanel();
+            // Auto-close panel after 2s
+            setTimeout(() => {
+              document.getElementById('bridgeLoginPanel').style.display = 'none';
+            }, 2000);
+          } else if (data.status === 'scanned') {
+            if (statusEl) {
+              statusEl.textContent = '📱 已扫描，请在手机确认...';
+              statusEl.style.color = '#4a6cf7';
+            }
+          } else if (data.status === 'expired' || data.status === 'error') {
+            if (statusEl) {
+              statusEl.textContent = '⚠️ ' + (data.message || '二维码已过期');
+              statusEl.style.color = '#e53e3e';
+            }
+            clearInterval(bridgeLoginPollTimer);
+            bridgeLoginPollTimer = null;
+          }
+        } catch (e) {
+          // Silent poll failure
+        }
+      }, 2000);
+    }
+
+    async function checkBridgeStatus() {
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 3000);
+        const r = await fetch(BRIDGE_URL + '/api/bridge/status', { signal: controller.signal });
+        clearTimeout(timeout);
+        if (r.ok) {
+          const data = await r.json();
+          bridgeOnline = data.running;
+          bridgeConnected = data.connected;
+          bridgeStatus = data;
+        } else {
+          bridgeOnline = false;
+          bridgeConnected = false;
+          bridgeStatus = null;
+        }
+      } catch (e) {
+        bridgeOnline = false;
+        bridgeConnected = false;
+        bridgeStatus = null;
+      }
+      updateBridgeDot();
+      updateWechatImportBtn();
+    }
+
+    async function fetchWechatConversations() {
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 5000);
+        const r = await fetch(BRIDGE_URL + '/api/bridge/conversations', { signal: controller.signal });
+        clearTimeout(timeout);
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        const data = await r.json();
+        return data.conversations || [];
+      } catch (e) {
+        console.error('获取微信对话列表失败:', e.message);
+        return null;
+      }
+    }
+
+    function renderWechatConvPicker(conversations) {
+      const listEl = document.getElementById('wechatConvList');
+      if (!listEl) return;
+
+      if (!conversations || conversations.length === 0) {
+        listEl.innerHTML = '<div style="font-size:0.7rem; color:var(--text-light); text-align:center; padding:8px;">暂无微信聊天记录<br><span style="font-size:0.6rem;">请先通过微信向 Bot 发送消息</span></div>';
+        return;
+      }
+
+      listEl.innerHTML = conversations.map((c, i) => {
+        const preview = c.lastMessage ? c.lastMessage.replace(/</g, '&lt;').replace(/>/g, '&gt;') : '';
+        return '<div class="wechat-conv-item" data-userid="' + c.userId.replace(/"/g, '&quot;') + '" style="display:flex; justify-content:space-between; align-items:center; padding:6px 8px; border-radius:4px; cursor:pointer; border:1px solid var(--card-border); background:var(--card-bg); font-size:0.7rem;">' +
+          '<div style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1;" title="' + preview + '">' +
+            '<span style="font-weight:700;">用户 ' + (i+1) + '</span> ' +
+            '<span style="color:var(--text-soft); margin-left:4px;">' + preview + '</span>' +
+          '</div>' +
+          '<span style="color:var(--text-light); font-size:0.6rem; margin-left:6px; white-space:nowrap;">' + c.messageCount + '条</span>' +
+        '</div>';
+      }).join('');
+
+      // Click handlers
+      listEl.querySelectorAll('.wechat-conv-item').forEach(item => {
+        item.addEventListener('click', async () => {
+          const userId = item.dataset.userid;
+          await importWechatConversation(userId);
+        });
+        item.addEventListener('mouseenter', () => {
+          item.style.background = 'rgba(74,108,247,0.08)';
+        });
+        item.addEventListener('mouseleave', () => {
+          item.style.background = 'var(--card-bg)';
+        });
+      });
+    }
+
+    async function importWechatConversation(userId) {
+      const btn = document.getElementById('importWechatLearnBtn');
+      const originalText = btn.innerHTML;
+      btn.innerHTML = '⚡ 提炼中...';
+      btn.disabled = true;
+
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 60000);
+        const r = await fetch(BRIDGE_URL + '/api/bridge/learning/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: userId, messageCount: 20 }),
+          signal: controller.signal,
+        });
+        clearTimeout(timeout);
+
+        if (!r.ok) {
+          const errData = await r.json().catch(() => ({}));
+          throw new Error(errData.error || 'HTTP ' + r.status);
+        }
+
+        const res = await r.json();
+        if (res.success && res.data) {
+          const l = res.data;
+          const show = document.getElementById('learnShowCheck').checked;
+          const newItem = {
+            title: l.title,
+            summary: l.summary,
+            content: l.content,
+            tags: l.tags || ['微信', '学习'],
+            source_type: l.source_type || '微信聊天',
+            show: show
+          };
+
+          const a = loadLearns();
+          a.unshift(newItem);
+          saveLearns(a);
+          await syncOp('setLearns', { learns: a });
+          renderLearnList();
+          renderLockLearns();
+
+          // Hide picker, reset
+          document.getElementById('wechatConvPicker').style.display = 'none';
+          document.getElementById('newLearnInput').style.display = '';
+          alert('🎉 微信对话已提炼并保存为学习卡片！');
+        }
+      } catch (err) {
+        console.error('微信对话提炼失败:', err);
+        alert('微信对话提炼失败: ' + err.message + '\n\n请确保微信桥接正在运行（node bridge/index.js）');
+      } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+      }
+    }
+
+    // Bridge status button click → toggle login panel
+    const bridgeStatusBtn = document.getElementById('bridgeStatusBtn');
+    const bridgeLoginPanel = document.getElementById('bridgeLoginPanel');
+    if (bridgeStatusBtn && bridgeLoginPanel) {
+      bridgeStatusBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        if (bridgeLoginPanel.style.display === 'none' || !bridgeLoginPanel.style.display) {
+          await checkBridgeStatus();
+          renderBridgePanel();
+          bridgeLoginPanel.style.display = '';
+        } else {
+          bridgeLoginPanel.style.display = 'none';
+        }
+      });
+    }
+
+    // Close panel button
+    const closeBridgePanelBtn = document.getElementById('closeBridgePanelBtn');
+    if (closeBridgePanelBtn) {
+      closeBridgePanelBtn.addEventListener('click', () => {
+        bridgeLoginPanel.style.display = 'none';
+      });
+    }
+
+    // Click outside to close
+    document.addEventListener('click', (e) => {
+      if (bridgeLoginPanel && bridgeLoginPanel.style.display !== 'none') {
+        if (!bridgeLoginPanel.contains(e.target) && e.target !== bridgeStatusBtn && !bridgeStatusBtn?.contains(e.target)) {
+          bridgeLoginPanel.style.display = 'none';
+        }
+      }
+    });
+
+    // "从微信导入" button click — now uses panel login
+    document.getElementById('importWechatLearnBtn').addEventListener('click', async () => {
+      if (!bridgeOnline) {
+        alert('微信桥接未运行。\n\n请先启动桥接: npm run bridge\n然后在顶栏点击微信状态灯扫码登录');
+        return;
+      }
+      if (!bridgeConnected) {
+        // Show login panel instead of alert
+        await checkBridgeStatus();
+        renderBridgePanel();
+        bridgeLoginPanel.style.display = '';
+        return;
+      }
+
+      const picker = document.getElementById('wechatConvPicker');
+      const textarea = document.getElementById('newLearnInput');
+      const listEl = document.getElementById('wechatConvList');
+
+      // Show loading
+      picker.style.display = '';
+      textarea.style.display = 'none';
+      listEl.innerHTML = '<div style="font-size:0.7rem; color:var(--text-light); text-align:center; padding:8px;">⏳ 加载对话列表...</div>';
+
+      const convs = await fetchWechatConversations();
+      renderWechatConvPicker(convs);
+    });
+
+    // Cancel import button
+    document.getElementById('cancelWechatImportBtn').addEventListener('click', () => {
+      document.getElementById('wechatConvPicker').style.display = 'none';
+      document.getElementById('newLearnInput').style.display = '';
+    });
+
+    // Start periodic bridge status check
+    checkBridgeStatus();
+    bridgeStatusTimer = setInterval(checkBridgeStatus, 15000);
+    }
   }
 
   // ==================== 话术 ====================
@@ -7474,6 +7893,189 @@ const rid=Math.floor(Math.random()*1000);
 </script>
 </body>
 </html>`;
+
+    // ========== Bridge Config (KV持久化，云部署用) ==========
+
+    if (path === '/api/bridge/config' && request.method === 'GET') {
+      const raw = await env.DATA_KV.get('bridge:account');
+      const syncBuf = await env.DATA_KV.get('bridge:sync_buf');
+      return new Response(JSON.stringify({
+        account: raw ? JSON.parse(raw) : null,
+        syncBuf: syncBuf || ''
+      }), {
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+      });
+    }
+
+    if (path === '/api/bridge/config' && request.method === 'POST') {
+      const body = await request.json();
+      if (body.account) {
+        await env.DATA_KV.put('bridge:account', JSON.stringify(body.account));
+      }
+      if (body.syncBuf !== undefined) {
+        await env.DATA_KV.put('bridge:sync_buf', body.syncBuf);
+      }
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+      });
+    }
+
+    // ========== Bridge API (微信桥接 → Worker) ==========
+
+    if (path === '/api/bridge/chat' && request.method === 'POST') {
+      try {
+        const body = await request.json();
+        const { userId, message, history } = body;
+        if (!message) {
+          return new Response(JSON.stringify({ error: '缺少 message 参数' }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+
+        // Resolve API key from KV config
+        const apiKey = (await getKVCached(env, 'config:ai_api_key'))
+          || (await getKVCached(env, 'config:deepseek_api_key'))
+          || env.AI_API_KEY
+          || env.DEEPSEEK_API_KEY;
+
+        if (!apiKey) {
+          return new Response(JSON.stringify({ reply: '（未配置 AI API Key，请在 megz 导出设置中配置 DeepSeek 或 Gemini API Key）' }), {
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+
+        // Build messages array with system prompt
+        const messages = [{
+          role: 'system',
+          content:
+            '你是「每日工作」助手的微信机器人，通过微信为用户提供贷款销售相关的AI辅助。\n' +
+            '你的能力包括：回答贷款业务问题、查询客户信息、提炼学习知识、查询白名单企业、搜索话术库和知识库。\n' +
+            '你是专业的贷款销售助手，用中文回复。简洁直接，适合微信阅读。'
+        }];
+
+        // Include conversation history if provided
+        if (history && Array.isArray(history)) {
+          for (const h of history.slice(-20)) {
+            messages.push({ role: h.role, content: h.content });
+          }
+        }
+
+        // Add current message
+        messages.push({ role: 'user', content: message });
+
+        // Use tool-enabled chat for data-aware queries
+        const needsTools = /客户|白名单|企业|公司|查|搜索|知识|话术|学习|统计|数据/.test(message);
+        let reply;
+
+        if (needsTools) {
+          const supabase = createSupabaseClient(env);
+          const toolMessages = [{
+            role: 'system',
+            content:
+              '你是「每日工作」助手的微信机器人。\n' +
+              '可用工具：search_customers（查客户）、check_company_whitelist（查白名单）、' +
+              'search_knowledge_and_speech（查知识库/话术/贷款案例）、get_intent_clients（查今日工作数据）、' +
+              'add_learning_material（提炼学习材料）。\n' +
+              '用中文回复，简洁适合微信。'
+          }];
+          if (history && Array.isArray(history)) {
+            for (const h of history.slice(-20)) toolMessages.push({ role: h.role, content: h.content });
+          }
+          toolMessages.push({ role: 'user', content: message });
+
+          const aiResp = await callAIChatWithTools(env, toolMessages, 0.7, apiKey, supabase);
+          reply = aiResp?.choices?.[0]?.message?.content || '（AI 未返回有效回复）';
+        } else {
+          const aiResp = await callAIChat(env, messages, 0.7, apiKey);
+          reply = aiResp?.choices?.[0]?.message?.content || '（AI 未返回有效回复）';
+        }
+
+        return new Response(JSON.stringify({ reply }), {
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      } catch (err) {
+        console.error('Bridge chat error:', err.message);
+        return new Response(JSON.stringify({ error: err.message }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+    }
+
+    if (path === '/api/bridge/learning/save' && request.method === 'POST') {
+      try {
+        const body = await request.json();
+        const { conversationText, source_type } = body;
+        if (!conversationText) {
+          return new Response(JSON.stringify({ error: '缺少 conversationText 参数' }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+
+        const apiKey = (await getKVCached(env, 'config:ai_api_key'))
+          || (await getKVCached(env, 'config:deepseek_api_key'))
+          || env.AI_API_KEY
+          || env.DEEPSEEK_API_KEY;
+
+        if (!apiKey) {
+          const preview = conversationText.slice(0, 100).replace(/\n/g, ' ');
+          const mockResult = {
+            title: '微信对话提炼',
+            summary: preview.length > 50 ? preview.slice(0, 50) + '...' : preview,
+            content: '（模拟AI提炼）\n' + conversationText.slice(0, 500),
+            tags: ['微信', '学习', '对话提炼'],
+            source_type: source_type || '微信聊天',
+          };
+          return new Response(JSON.stringify({ success: true, data: mockResult, isMock: true }), {
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+
+        const messages = [
+          {
+            role: 'system',
+            content:
+              '你是一个智能贷款销售学习助手。根据用户提供的微信聊天记录，进行深度提炼。\n\n' +
+              '你必须只输出以下 JSON 格式（不要包裹 markdown 代码块）：\n' +
+              '{"title":"提炼的知识标题（15字以内）","summary":"一句话摘要（30字以内）","content":"提炼的核心话术/知识要点（150字以内）","tags":["标签1","标签2"]}'
+          },
+          { role: 'user', content: `来源类型：${source_type || '微信聊天'}\n\n内容：\n${conversationText}` }
+        ];
+
+        const aiResp = await callAIChat(env, messages, 0.3, apiKey);
+        let text = aiResp?.choices?.[0]?.message?.content || '';
+        text = text.trim();
+        if (text.startsWith('```')) {
+          text = text.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?```\s*$/, '');
+        }
+        const parsed = JSON.parse(text);
+
+        const result = {
+          title: parsed.title || '自主学习提炼',
+          summary: parsed.summary || '',
+          content: parsed.content || '',
+          tags: Array.isArray(parsed.tags) ? parsed.tags : ['学习'],
+          source_type: source_type || '微信聊天',
+        };
+
+        try {
+          const supabase = createSupabaseClient(env);
+          await supabase.saveKnowledge(result);
+        } catch (e) { /* non-critical */ }
+
+        return new Response(JSON.stringify({ success: true, data: result }), {
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      } catch (err) {
+        console.error('Bridge learning save error:', err.message);
+        return new Response(JSON.stringify({ error: err.message }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+    }
 
     // ========== AI学习 API ==========
 
