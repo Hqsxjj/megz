@@ -301,16 +301,17 @@ export function createSupabaseClient(env) {
         '*'
       ];
 
-      // Supabase max 1000 rows/request. Loop if more needed.
+      // Supabase max 1000 rows/request. Loop until we hit the end.
       var SUPABASE_MAX = 1000;
       var allData = [];
       var totalCount = 0;
       var from = (p - 1) * ps;
-      var remaining = ps;
       var currentFrom = from;
 
-      while (remaining > 0) {
-        var fetchSize = Math.min(remaining, SUPABASE_MAX);
+      while (true) {
+        var fetchSize = SUPABASE_MAX;
+        // On the last chunk, we may overshoot the total; Supabase just returns
+        // whatever is left, so we can always ask for a full SUPABASE_MAX.
         var currentTo = currentFrom + fetchSize - 1;
 
         var headersWithCount = Object.assign({}, headers(), {
@@ -342,7 +343,6 @@ export function createSupabaseClient(env) {
 
         if (batch.length < fetchSize) break; // no more data
         currentFrom += fetchSize;
-        remaining -= fetchSize;
       }
 
       if (allData.length === 0) {
