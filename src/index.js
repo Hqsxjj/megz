@@ -4024,6 +4024,13 @@ export default {
       <span style="font-size:0.62rem;color:var(--text-light);">(实际−基准)</span>
     </div>
 
+    <div class="loan-input-row">
+      <label>融资成本</label>
+      <input type="number" class="input-simple" id="loanFinanceCost" placeholder="0.00" min="0" step="0.01" style="flex:1;min-width:80px;">
+      <span class="loan-unit">%</span>
+      <span style="font-size:0.62rem;color:var(--text-light);">(借款额的百分比)</span>
+    </div>
+
     <div class="loan-input-row loan-method-field" id="loanDaysField">
       <label>计息天数</label>
       <input type="number" class="input-simple" id="loanDays" placeholder="30" min="1" max="3650" step="1" style="flex:1;min-width:80px;">
@@ -4063,6 +4070,18 @@ export default {
       <div class="loan-result-card">
         <div class="label">多还占比</div>
         <div class="value" id="loanSpreadPct" style="color:#e74c3c;">--</div>
+      </div>
+    </div>
+
+    <!-- Financing Cost Result Cards (hidden when 0) -->
+    <div class="loan-results" id="loanFinanceResults" style="display:none;">
+      <div class="loan-result-card">
+        <div class="label">融资成本金额</div>
+        <div class="value" id="loanFinanceAmount" style="color:#e74c3c;">--</div>
+      </div>
+      <div class="loan-result-card">
+        <div class="label">实际到账</div>
+        <div class="value" id="loanNetReceived" style="color:var(--text-main);">--</div>
       </div>
     </div>
 
@@ -7147,9 +7166,10 @@ const rid=Math.floor(Math.random()*1000);
       var term = parseInt(document.getElementById('loanTerm').value) || 1;
       var days = parseInt(document.getElementById('loanDays').value) || 30;
       var rateSpread = parseFloat(document.getElementById('loanRateSpread').value) || 0;
+      var financeCost = parseFloat(document.getElementById('loanFinanceCost').value) || 0;
       var methodEl = document.querySelector('.loan-tab.active');
       var method = methodEl ? methodEl.dataset.method : 'debx';
-      return { principal: principal, rate: monthlyRate, rateMode: 'monthly', term: term, days: days, method: method, rateSpread: rateSpread };
+      return { principal: principal, rate: monthlyRate, rateMode: 'monthly', term: term, days: days, method: method, rateSpread: rateSpread, financeCost: financeCost };
     }
 
     var methods = [
@@ -7219,6 +7239,7 @@ const rid=Math.floor(Math.random()*1000);
         document.getElementById('loanMonthlyPayment').textContent = '--';
         document.getElementById('loanInterestRatio').textContent = '--';
         document.getElementById('loanSpreadResults').style.display = 'none';
+        document.getElementById('loanFinanceResults').style.display = 'none';
         document.getElementById('loanComparisonContainer').innerHTML = '';
         document.getElementById('loanScheduleContainer').innerHTML = '';
         return;
@@ -7238,6 +7259,17 @@ const rid=Math.floor(Math.random()*1000);
           updateSpreadCards(result, spreadResult, activeMethod, inp.principal);
         } else {
           document.getElementById('loanSpreadResults').style.display = 'none';
+        }
+
+        // 融资成本计算
+        if (inp.financeCost > 0) {
+          var costAmount = inp.principal * inp.financeCost / 100;
+          var netReceived = inp.principal - costAmount;
+          document.getElementById('loanFinanceResults').style.display = '';
+          document.getElementById('loanFinanceAmount').textContent = '￥' + fmt(costAmount);
+          document.getElementById('loanNetReceived').textContent = '￥' + fmt(Math.max(0, netReceived));
+        } else {
+          document.getElementById('loanFinanceResults').style.display = 'none';
         }
       }
       document.getElementById('loanComparisonContainer').innerHTML = buildComparisonTable(inp.principal, inp.rate, inp.term, inp.rateMode, inp.days);
@@ -7262,6 +7294,8 @@ const rid=Math.floor(Math.random()*1000);
       if (daysEl && state.days) daysEl.value = state.days;
       var spreadEl = document.getElementById('loanRateSpread');
       if (spreadEl && state.rateSpread) spreadEl.value = state.rateSpread;
+      var financeEl = document.getElementById('loanFinanceCost');
+      if (financeEl && state.financeCost) financeEl.value = state.financeCost;
       if (state.method) {
         document.querySelectorAll('.loan-tab').forEach(function(t) {
           t.classList.toggle('active', t.dataset.method === state.method);
@@ -7318,7 +7352,7 @@ const rid=Math.floor(Math.random()*1000);
     }
 
     // Auto-recalc on input change
-    ['loanPrincipal', 'loanMonthlyRate', 'loanAnnualRate', 'loanTerm', 'loanDays', 'loanRateSpread'].forEach(function(id) {
+    ['loanPrincipal', 'loanMonthlyRate', 'loanAnnualRate', 'loanTerm', 'loanDays', 'loanRateSpread', 'loanFinanceCost'].forEach(function(id) {
       var el = document.getElementById(id);
       if (el) el.addEventListener('input', renderLoanCalc);
     });
