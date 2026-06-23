@@ -3507,6 +3507,51 @@ export default {
     .whitelist-company-item:last-child {
       margin-bottom: 0;
     }
+
+    /* ==================== 贷款利息计算器 ==================== */
+    #loanModal .modal-card { overflow-y: auto; }
+    .loan-input-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 10px; }
+    .loan-input-row label { font-size: 0.75rem; font-weight: 700; color: var(--text-soft); min-width: 70px; }
+    .loan-unit { font-size: 0.7rem; color: var(--text-light); font-weight: 700; min-width: 20px; }
+    .loan-rate-toggle { display: inline-flex; border: 1px solid var(--card-border); border-radius: var(--radius-xs); overflow: hidden; }
+    .loan-rate-toggle button { padding: 4px 14px; font-size: 0.72rem; font-weight: 700; border: none; background: var(--btn-bg); color: var(--text-soft); cursor: pointer; transition: 0.15s; }
+    .loan-rate-toggle button.active { background: var(--accent-wechat); color: #fff; }
+    .loan-rate-toggle button:not(:last-child) { border-right: 1px solid var(--card-border); }
+    .loan-tabs { display: flex; gap: 0; border-bottom: 2px solid var(--card-border); margin-bottom: 14px; }
+    .loan-tab { padding: 8px 16px; font-size: 0.8rem; font-weight: 700; cursor: pointer; border: none; background: transparent; color: var(--text-soft); border-bottom: 2px solid transparent; margin-bottom: -2px; transition: 0.15s; }
+    .loan-tab:hover { color: var(--text-main); }
+    .loan-tab.active { color: var(--accent-wechat); border-bottom-color: var(--accent-wechat); }
+    .loan-results { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 14px 0; }
+    .loan-result-card { background: var(--btn-bg); border-radius: var(--radius-xs); padding: 12px; text-align: center; border: 1px solid var(--card-border); }
+    .loan-result-card .label { font-size: 0.7rem; color: var(--text-light); font-weight: 700; }
+    .loan-result-card .value { font-size: 1.1rem; font-weight: 900; color: var(--text-main); margin-top: 4px; }
+    .loan-result-card .value.positive { color: var(--accent-wechat); }
+    .loan-result-card .value.warning { color: #e67e22; }
+    .loan-compare-table { width: 100%; border-collapse: collapse; font-size: 0.75rem; margin: 10px 0; }
+    .loan-compare-table th { background: var(--btn-bg); padding: 8px 10px; font-weight: 800; color: var(--text-soft); border-bottom: 2px solid var(--card-border); text-align: center; }
+    .loan-compare-table td { padding: 8px 10px; border-bottom: 1px solid var(--border-light); text-align: center; font-weight: 600; }
+    .loan-compare-table tr:last-child td { border-bottom: none; }
+    .loan-compare-table .highlight { background: rgba(7,193,96,0.05); }
+    body.dark-mode .loan-compare-table .highlight { background: rgba(7,193,96,0.08); }
+    .loan-schedule-wrap { max-height: 280px; overflow-y: auto; border: 1px solid var(--card-border); border-radius: var(--radius-xs); margin-top: 8px; }
+    .loan-schedule-table { width: 100%; border-collapse: collapse; font-size: 0.7rem; }
+    .loan-schedule-table th { position: sticky; top: 0; background: var(--btn-bg); padding: 6px 8px; font-weight: 800; color: var(--text-soft); border-bottom: 2px solid var(--card-border); text-align: center; z-index: 1; }
+    .loan-schedule-table td { padding: 5px 8px; border-bottom: 1px solid var(--border-light); text-align: center; font-weight: 600; }
+    .loan-schedule-table tr:last-child td { border-bottom: none; }
+    .loan-schedule-table tr:hover { background: var(--btn-hover); }
+    .loan-method-field { display: none; }
+    .loan-method-field.visible { display: flex; }
+    .loan-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px; border-top: 1px solid var(--card-border); padding-top: 12px; }
+    @media (max-width: 760px) {
+      .loan-results { grid-template-columns: repeat(2, 1fr); }
+      .loan-input-row { flex-direction: column; align-items: stretch; }
+      .loan-input-row label { min-width: auto; }
+      .loan-tab { padding: 6px 10px; font-size: 0.72rem; }
+      #loanModal .modal-card { padding: 14px; }
+      .loan-compare-table { font-size: 0.68rem; }
+      .loan-compare-table th,
+      .loan-compare-table td { padding: 5px 4px; }
+    }
   </style>
   <script src="/xlsx.full.min.js"></script>
 </head>
@@ -3571,6 +3616,7 @@ export default {
           <button class="menu-item" id="exportBtn">导出数据</button>
           <button class="menu-item" id="goalBtn">目标设定</button>
           <button class="menu-item" id="whitelistMenuBtn">白名单管理</button>
+          <button class="menu-item" id="loanCalcBtn">🧮 贷款计算器</button>
           <button class="menu-item" id="darkToggleBtn">深色模式</button>
         </div>
       </div>
@@ -3928,6 +3974,89 @@ export default {
       <div style="display:flex;gap:8px;align-items:center;"><label style="font-size:0.8rem;font-weight:600;min-width:60px;">回款</label><input type="number" class="input-simple" id="goalMonthlyPayment" min="0" placeholder="0" style="flex:1;"></div>
       <button class="btn-add" id="saveGoalBtn" style="width:100%;margin-top:4px;">保存目标</button>
       <div id="goalStatus" style="font-size:0.75rem;text-align:center;min-height:20px;color:var(--text-soft);"></div>
+    </div>
+  </div>
+</div>
+
+<!-- 贷款利息计算器 -->
+<div id="loanModal" class="modal-overlay">
+  <div class="modal-card" style="max-width:800px;width:95%;">
+    <div class="modal-header">
+      <span>🧮 贷款利息计算器</span>
+      <button id="closeLoanModalBtn">×</button>
+    </div>
+
+    <!-- Method Tabs -->
+    <div class="loan-tabs">
+      <button class="loan-tab active" data-method="debx">等额本息</button>
+      <button class="loan-tab" data-method="xxhb">先息后本</button>
+      <button class="loan-tab" data-method="sjjh">随借随还</button>
+    </div>
+
+    <!-- Input Section -->
+    <div class="loan-input-row">
+      <label>贷款金额</label>
+      <input type="number" class="input-simple" id="loanPrincipal" placeholder="100000" min="0" step="1000" style="flex:1;min-width:80px;">
+      <span class="loan-unit">元</span>
+    </div>
+
+    <div class="loan-input-row">
+      <label>利率模式</label>
+      <div class="loan-rate-toggle" id="loanRateToggle">
+        <button class="active" data-rate="monthly">月息</button>
+        <button data-rate="annual">年化</button>
+      </div>
+    </div>
+
+    <div class="loan-input-row">
+      <label>利率值</label>
+      <input type="number" class="input-simple" id="loanRate" placeholder="0.35" min="0" step="0.01" style="flex:1;min-width:80px;">
+      <span class="loan-unit" id="loanRateUnit">% / 月</span>
+    </div>
+
+    <div class="loan-input-row">
+      <label>贷款期限</label>
+      <input type="number" class="input-simple" id="loanTerm" placeholder="12" min="1" max="480" step="1" style="flex:1;min-width:80px;">
+      <span class="loan-unit">个月</span>
+    </div>
+
+    <div class="loan-input-row loan-method-field" id="loanDaysField">
+      <label>计息天数</label>
+      <input type="number" class="input-simple" id="loanDays" placeholder="30" min="1" max="3650" step="1" style="flex:1;min-width:80px;">
+      <span class="loan-unit">天</span>
+    </div>
+
+    <!-- Result Cards -->
+    <div class="loan-results" id="loanResults">
+      <div class="loan-result-card">
+        <div class="label">总利息</div>
+        <div class="value positive" id="loanTotalInterest">--</div>
+      </div>
+      <div class="loan-result-card">
+        <div class="label">总还款</div>
+        <div class="value" id="loanTotalRepayment">--</div>
+      </div>
+      <div class="loan-result-card">
+        <div class="label" id="loanMonthlyLabel">月供</div>
+        <div class="value" id="loanMonthlyPayment">--</div>
+      </div>
+      <div class="loan-result-card">
+        <div class="label">利息占比</div>
+        <div class="value warning" id="loanInterestRatio">--</div>
+      </div>
+    </div>
+
+    <!-- Comparison Table -->
+    <div class="modal-section-title">三种方式对比</div>
+    <div id="loanComparisonContainer"></div>
+
+    <!-- Schedule Table -->
+    <div class="modal-section-title">还款计划明细</div>
+    <div id="loanScheduleContainer"></div>
+
+    <!-- Actions -->
+    <div class="loan-actions">
+      <button class="btn-add" id="loanExportBtn" style="background:var(--accent-wechat);color:white;border:none;font-weight:700;">📥 导出Excel</button>
     </div>
   </div>
 </div>
@@ -6925,7 +7054,272 @@ const rid=Math.floor(Math.random()*1000);
     }
   }
 
-  initAndroid();initLogs();initDark();initWp();initScriptFeature();initLearnFeature();initExport();initAllClientsBtn();initGoals();initWhitelistFeature();
+  function initLoanCalc() {
+    const LOAN_CALC_K = 'loan_calc_v1';
+    function loadState() {
+      try { return JSON.parse(localStorage.getItem(LOAN_CALC_K)) || {}; } catch(e) { return {}; }
+    }
+    function saveState(state) {
+      localStorage.setItem(LOAN_CALC_K, JSON.stringify(state));
+    }
+
+    // === Core Calculation Functions ===
+    function calcDEBX(P, rate, n, rateMode) {
+      var r = rateMode === 'annual' ? rate / 100 / 12 : rate / 100;
+      var mp, total, interest, schedule = [];
+      if (r === 0) {
+        mp = n > 0 ? P / n : P;
+        total = P;
+        interest = 0;
+        var rem = P;
+        for (var i = 0; i < n; i++) {
+          rem -= mp;
+          schedule.push({ period: i + 1, payment: mp, interest: 0, principal: mp, remaining: Math.max(0, rem) });
+        }
+      } else {
+        var pow = Math.pow(1 + r, n);
+        mp = P * r * pow / (pow - 1);
+        total = mp * n;
+        interest = total - P;
+        var remaining = P;
+        for (var j = 0; j < n; j++) {
+          var intPart = remaining * r;
+          var prinPart = mp - intPart;
+          remaining -= prinPart;
+          schedule.push({ period: j + 1, payment: mp, interest: intPart, principal: prinPart, remaining: Math.max(0, remaining) });
+        }
+      }
+      return { totalInterest: interest, totalRepayment: total, monthlyPayment: mp, interestRatio: total > 0 ? (interest / total) * 100 : 0, schedule: schedule };
+    }
+
+    function calcXXHB(P, rate, n, rateMode) {
+      var r = rateMode === 'annual' ? rate / 100 / 12 : rate / 100;
+      var monthlyInt = P * r;
+      var totalInterest = monthlyInt * n;
+      var totalRepayment = P + totalInterest;
+      var schedule = [];
+      for (var i = 0; i < n; i++) {
+        if (i < n - 1) {
+          schedule.push({ period: i + 1, payment: monthlyInt, interest: monthlyInt, principal: 0, remaining: P });
+        } else {
+          schedule.push({ period: i + 1, payment: monthlyInt + P, interest: monthlyInt, principal: P, remaining: 0 });
+        }
+      }
+      return { totalInterest: totalInterest, totalRepayment: totalRepayment, monthlyPayment: monthlyInt, interestRatio: totalRepayment > 0 ? (totalInterest / totalRepayment) * 100 : 0, schedule: schedule };
+    }
+
+    function calcSJJH(P, rate, termMonths, rateMode, days) {
+      var d = days || 30;
+      var monthlyRate = rateMode === 'annual' ? rate / 100 / 12 : rate / 100;
+      var dailyRate = monthlyRate / 30;
+      var totalInterest = P * dailyRate * d;
+      var totalRepayment = P + totalInterest;
+      var avgDaily = d > 0 ? totalInterest / d : 0;
+      return { totalInterest: totalInterest, totalRepayment: totalRepayment, monthlyPayment: avgDaily, interestRatio: totalRepayment > 0 ? (totalInterest / totalRepayment) * 100 : 0, schedule: [{ period: 1, payment: totalRepayment, interest: totalInterest, principal: P, remaining: 0 }] };
+    }
+
+    function fmt(v) {
+      return v.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+    function pct(v) {
+      return v.toFixed(2) + '%';
+    }
+
+    function getInputs() {
+      var principal = parseFloat(document.getElementById('loanPrincipal').value) || 0;
+      var activeRateEl = document.querySelector('#loanRateToggle .active');
+      var rateMode = activeRateEl && activeRateEl.dataset ? activeRateEl.dataset.rate || 'monthly' : 'monthly';
+      var rate = parseFloat(document.getElementById('loanRate').value) || 0;
+      var term = parseInt(document.getElementById('loanTerm').value) || 1;
+      var days = parseInt(document.getElementById('loanDays').value) || 30;
+      var methodEl = document.querySelector('.loan-tab.active');
+      var method = methodEl ? methodEl.dataset.method : 'debx';
+      return { principal: principal, rateMode: rateMode, rate: rate, term: term, days: days, method: method };
+    }
+
+    var methods = [
+      { id: 'debx', name: '等额本息', fn: calcDEBX },
+      { id: 'xxhb', name: '先息后本', fn: calcXXHB },
+      { id: 'sjjh', name: '随借随还', fn: calcSJJH }
+    ];
+
+    function updateResultCards(result, method) {
+      document.getElementById('loanTotalInterest').textContent = '￥' + fmt(result.totalInterest);
+      document.getElementById('loanTotalRepayment').textContent = '￥' + fmt(result.totalRepayment);
+      var payLabel = document.getElementById('loanMonthlyLabel');
+      var payVal = document.getElementById('loanMonthlyPayment');
+      if (method === 'sjjh') {
+        payLabel.textContent = '日均利息';
+        payVal.textContent = '￥' + fmt(result.monthlyPayment);
+      } else {
+        payLabel.textContent = '月供';
+        payVal.textContent = '￥' + fmt(result.monthlyPayment);
+      }
+      document.getElementById('loanInterestRatio').textContent = pct(result.interestRatio);
+    }
+
+    function buildComparisonTable(P, rate, term, rateMode, days) {
+      var activeMethodEl = document.querySelector('.loan-tab.active');
+      var activeMethod = activeMethodEl ? activeMethodEl.dataset.method : 'debx';
+      var html = '<table class="loan-compare-table"><thead><tr><th>还款方式</th><th>月供/日均</th><th>总利息</th><th>总还款</th><th>利息占比</th></tr></thead><tbody>';
+      methods.forEach(function(m) {
+        var r = m.fn(P, rate, term, rateMode, days);
+        var cls = m.id === activeMethod ? ' highlight' : '';
+        html += '<tr class="' + cls + '"><td>' + esc(m.name) + '</td><td>' + esc(fmt(r.monthlyPayment)) + '</td><td>' + esc(fmt(r.totalInterest)) + '</td><td>' + esc(fmt(r.totalRepayment)) + '</td><td>' + esc(pct(r.interestRatio)) + '</td></tr>';
+      });
+      html += '</tbody></table>';
+      return html;
+    }
+
+    function buildScheduleTable(schedule) {
+      if (!schedule || schedule.length === 0) return '<div style="text-align:center;color:var(--text-light);padding:20px;font-size:0.75rem;">输入参数后生成还款计划</div>';
+      var html = '<div class="loan-schedule-wrap"><table class="loan-schedule-table"><thead><tr><th>期次</th><th>还款金额</th><th>利息</th><th>本金</th><th>剩余本金</th></tr></thead><tbody>';
+      schedule.forEach(function(row) {
+        html += '<tr><td>' + row.period + '</td><td>' + esc(fmt(row.payment)) + '</td><td>' + esc(fmt(row.interest)) + '</td><td>' + esc(fmt(row.principal)) + '</td><td>' + esc(fmt(Math.max(0, row.remaining))) + '</td></tr>';
+      });
+      html += '</tbody></table></div>';
+      return html;
+    }
+
+    function renderLoanCalc() {
+      var inp = getInputs();
+      saveState(inp);
+      if (inp.principal <= 0 || inp.rate <= 0) {
+        document.getElementById('loanTotalInterest').textContent = '--';
+        document.getElementById('loanTotalRepayment').textContent = '--';
+        document.getElementById('loanMonthlyPayment').textContent = '--';
+        document.getElementById('loanInterestRatio').textContent = '--';
+        document.getElementById('loanComparisonContainer').innerHTML = '';
+        document.getElementById('loanScheduleContainer').innerHTML = '';
+        return;
+      }
+      var activeMethod = inp.method;
+      methods.forEach(function(m) {
+        if (m.id === activeMethod) {
+          var result = m.fn(inp.principal, inp.rate, inp.term, inp.rateMode, inp.days);
+          updateResultCards(result, activeMethod);
+          document.getElementById('loanScheduleContainer').innerHTML = buildScheduleTable(result.schedule);
+        }
+      });
+      document.getElementById('loanComparisonContainer').innerHTML = buildComparisonTable(inp.principal, inp.rate, inp.term, inp.rateMode, inp.days);
+    }
+
+    function exportLoanToExcel() {
+      var inp = getInputs();
+      if (inp.principal <= 0 || inp.rate <= 0) {
+        var nb = document.getElementById('notifyBar');
+        document.getElementById('notifyText').innerText = '⚠️ 请先输入有效的贷款金额和利率';
+        nb.classList.add('show');
+        setTimeout(function() { nb.classList.remove('show'); }, 3000);
+        return;
+      }
+      try {
+        var wb = XLSX.utils.book_new();
+        var summaryHeader = ['还款方式', '月供/日均利息', '总利息', '总还款', '利息占比(%)'];
+        var summaryRows = methods.map(function(m) {
+          var r = m.fn(inp.principal, inp.rate, inp.term, inp.rateMode, inp.days);
+          return [m.name, Number(r.monthlyPayment.toFixed(2)), Number(r.totalInterest.toFixed(2)), Number(r.totalRepayment.toFixed(2)), Number(r.interestRatio.toFixed(2))];
+        });
+        var summaryData = [
+          ['贷款利息计算器'],
+          ['贷款金额', inp.principal + '元'],
+          ['利率', inp.rate + (inp.rateMode === 'monthly' ? '%/月' : '%/年')],
+          ['期限', inp.term + '个月' + (inp.method === 'sjjh' ? '，计息' + inp.days + '天' : '')],
+          [''], summaryHeader
+        ].concat(summaryRows);
+        var ws1 = XLSX.utils.aoa_to_sheet(summaryData);
+        XLSX.utils.book_append_sheet(wb, ws1, '综合对比');
+
+        var schedHeader = ['期次', '还款金额', '利息', '本金', '剩余本金'];
+        methods.forEach(function(m) {
+          var r = m.fn(inp.principal, inp.rate, inp.term, inp.rateMode, inp.days);
+          var data = [[m.name + ' - 还款计划'], [''], schedHeader].concat(r.schedule.map(function(row) {
+            return [row.period, Number(row.payment.toFixed(2)), Number(row.interest.toFixed(2)), Number(row.principal.toFixed(2)), Number(Math.max(0, row.remaining).toFixed(2))];
+          }));
+          var ws = XLSX.utils.aoa_to_sheet(data);
+          XLSX.utils.book_append_sheet(wb, ws, m.name);
+        });
+
+        XLSX.writeFile(wb, '贷款利息计算_' + new Date().toISOString().slice(0, 10) + '.xlsx');
+      } catch(e) {
+        var nb2 = document.getElementById('notifyBar');
+        document.getElementById('notifyText').innerText = '⚠️ 导出失败: ' + esc(e.message);
+        nb2.classList.add('show');
+        setTimeout(function() { nb2.classList.remove('show'); }, 3000);
+      }
+    }
+
+    // === Modal & Event Bindings ===
+    var modal = document.getElementById('loanModal');
+    var closeBtn = document.getElementById('closeLoanModalBtn');
+
+    function openLoanCalc() {
+      var state = loadState();
+      var principalEl = document.getElementById('loanPrincipal');
+      if (principalEl && state.principal) principalEl.value = state.principal;
+      if (state.rateMode) {
+        document.querySelectorAll('#loanRateToggle button').forEach(function(b) {
+          b.classList.toggle('active', b.dataset.rate === state.rateMode);
+        });
+        document.getElementById('loanRateUnit').textContent = state.rateMode === 'monthly' ? '% / 月' : '% / 年';
+      }
+      var rateEl = document.getElementById('loanRate');
+      if (rateEl && state.rate) rateEl.value = state.rate;
+      var termEl = document.getElementById('loanTerm');
+      if (termEl && state.term) termEl.value = state.term;
+      var daysEl = document.getElementById('loanDays');
+      if (daysEl && state.days) daysEl.value = state.days;
+      if (state.method) {
+        document.querySelectorAll('.loan-tab').forEach(function(t) {
+          t.classList.toggle('active', t.dataset.method === state.method);
+        });
+        document.getElementById('loanDaysField').classList.toggle('visible', state.method === 'sjjh');
+      }
+      renderLoanCalc();
+      modal.classList.add('active');
+    }
+
+    // Open from menu
+    var menuBtn = document.getElementById('loanCalcBtn');
+    if (menuBtn) {
+      menuBtn.addEventListener('click', function() { openLoanCalc(); });
+    }
+
+    closeBtn.addEventListener('click', function() { modal.classList.remove('active'); });
+    modal.addEventListener('click', function(e) { if (e.target === modal) modal.classList.remove('active'); });
+
+    // Tab switching
+    document.querySelectorAll('.loan-tab').forEach(function(tab) {
+      tab.addEventListener('click', function() {
+        document.querySelectorAll('.loan-tab').forEach(function(t) { t.classList.remove('active'); });
+        tab.classList.add('active');
+        document.getElementById('loanDaysField').classList.toggle('visible', tab.dataset.method === 'sjjh');
+        renderLoanCalc();
+      });
+    });
+
+    // Rate mode toggle
+    document.querySelectorAll('#loanRateToggle button').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        document.querySelectorAll('#loanRateToggle button').forEach(function(b) { b.classList.remove('active'); });
+        btn.classList.add('active');
+        document.getElementById('loanRateUnit').textContent = btn.dataset.rate === 'monthly' ? '% / 月' : '% / 年';
+        renderLoanCalc();
+      });
+    });
+
+    // Auto-recalc on input change
+    ['loanPrincipal', 'loanRate', 'loanTerm', 'loanDays'].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) el.addEventListener('input', renderLoanCalc);
+    });
+
+    // Export button
+    var exportBtn = document.getElementById('loanExportBtn');
+    if (exportBtn) exportBtn.addEventListener('click', exportLoanToExcel);
+  }
+
+  initAndroid();initLogs();initDark();initWp();initScriptFeature();initLearnFeature();initExport();initAllClientsBtn();initGoals();initWhitelistFeature();initLoanCalc();
   document.getElementById('goalEyeBtn').addEventListener('click',toggleGoalNumbers);
   function calGo(delta){
     const [y,m]=calendarMonth.split('-').map(Number);
