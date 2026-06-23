@@ -955,6 +955,13 @@ export const DIALER_HTML = `<!DOCTYPE html>
       align-items: center;
     }
     .crm-search-item { display: flex; align-items: center; gap: 8px; }
+    .crm-search-item-full { grid-column: 1 / -1; }
+    .crm-search-item-full .crm-input {
+      font-size: 0.82rem; height: 36px; border-color: #ff5722; border-width: 1.5px;
+      background: #fffbf5; font-weight: 600;
+    }
+    .crm-search-item-full .crm-input:focus { border-color: #e64a19; box-shadow: 0 0 0 3px rgba(255,87,34,0.1); }
+    body.dark-mode .crm-search-item-full .crm-input { background: #1a1a2e; border-color: #ff5722; }
     .crm-search-label { font-size: 0.78rem; font-weight: 700; color: #475569; white-space: nowrap; width: 64px; }
     body.dark-mode .crm-search-label { color: #94a3b8; }
     .crm-input, .crm-select {
@@ -1634,6 +1641,10 @@ export const DIALER_HTML = `<!DOCTYPE html>
     <!-- CRM Search Area -->
     <div class="crm-search-card">
       <div class="crm-search-grid">
+        <div class="crm-search-item crm-search-item-full">
+          <span class="crm-search-label" style="width:72px;">🔍 模糊关联搜索</span>
+          <input type="text" class="crm-input" id="dbFuzzySearch" placeholder="输入姓、电话号码或单位名称，模糊匹配相似结果...">
+        </div>
         <div class="crm-search-item">
           <span class="crm-search-label">客户标签</span>
           <select class="crm-select" id="dbCatFilter"><option value="">请选择标签</option></select>
@@ -7363,9 +7374,11 @@ export const DIALER_HTML = `<!DOCTYPE html>
       var nameInp = document.getElementById('dbNameSearch');
       var phoneInp = document.getElementById('dbPhoneSearch');
       var noteInp = document.getElementById('dbNoteSearch');
+      var fuzzyInp = document.getElementById('dbFuzzySearch');
       if (nameInp) nameInp.value = '';
       if (phoneInp) phoneInp.value = '';
       if (noteInp) noteInp.value = '';
+      if (fuzzyInp) fuzzyInp.value = '';
       
       DB.pageSize=parseInt((document.getElementById('dbPageSize')||{}).value||'50');
       DB.selectedIds = {}; // Reset selections
@@ -7388,6 +7401,19 @@ export const DIALER_HTML = `<!DOCTYPE html>
       ov.addEventListener('click',function(e){if(e.target===ov)ov.classList.remove('active');});
       
       var si=document.getElementById('dbSearch'); if(si)si.addEventListener('input',function(){clearTimeout(DB.timer);DB.timer=setTimeout(function(){DB.page=1;dbFetch();},400);});
+      // 模糊关联搜索: 同步到 dbSearch 并触发服务端模糊搜索
+      var fuzzySearch = document.getElementById('dbFuzzySearch');
+      if (fuzzySearch) {
+        fuzzySearch.addEventListener('input', function() {
+          var q = fuzzySearch.value.trim();
+          if (si) si.value = q;
+          clearTimeout(DB.fuzzyTimer);
+          DB.fuzzyTimer = setTimeout(function() {
+            DB.page = 1;
+            dbFetch();
+          }, 350);
+        });
+      }
       var cf=document.getElementById('dbCatFilter'); if(cf)cf.addEventListener('change',function(){DB.page=1;dbFetch();});
       var bf=document.getElementById('dbBatchFilter'); if(bf)bf.addEventListener('change',function(){DB.page=1;dbFetch();});
       var ps=document.getElementById('dbPageSize'); if(ps)ps.addEventListener('change',function(){DB.pageSize=parseInt(ps.value);DB.page=1;dbRenderCached();});
@@ -7501,15 +7527,19 @@ export const DIALER_HTML = `<!DOCTYPE html>
           var nameInp = document.getElementById('dbNameSearch');
           var phoneInp = document.getElementById('dbPhoneSearch');
           var noteInp = document.getElementById('dbNoteSearch');
+          var fuzzyInp = document.getElementById('dbFuzzySearch');
           var catSel = document.getElementById('dbCatFilter');
           var batchSel = document.getElementById('dbBatchFilter');
-          
+
           if (nameInp) nameInp.value = '';
           if (phoneInp) phoneInp.value = '';
           if (noteInp) noteInp.value = '';
+          if (fuzzyInp) fuzzyInp.value = '';
           if (catSel) catSel.value = '';
           if (batchSel) batchSel.value = '';
-          
+          var dbSearchEl = document.getElementById('dbSearch');
+          if (dbSearchEl) dbSearchEl.value = '';
+
           DB.page = 1;
           dbFetch();
         };
