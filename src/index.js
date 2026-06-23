@@ -3541,7 +3541,6 @@ export default {
     .loan-schedule-table tr:hover { background: var(--btn-hover); }
     .loan-method-field { display: none; }
     .loan-method-field.visible { display: flex; }
-    .loan-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px; border-top: 1px solid var(--card-border); padding-top: 12px; }
     @media (max-width: 760px) {
       .loan-results { grid-template-columns: repeat(2, 1fr); }
       .loan-input-row { flex-direction: column; align-items: stretch; }
@@ -3982,7 +3981,7 @@ export default {
 <div id="loanModal" class="modal-overlay">
   <div class="modal-card" style="max-width:800px;width:95%;">
     <div class="modal-header">
-      <span>🧮 贷款利息计算器</span>
+      <span>贷款利息计算器</span>
       <button id="closeLoanModalBtn">×</button>
     </div>
 
@@ -4075,10 +4074,6 @@ export default {
     <div class="modal-section-title">还款计划明细</div>
     <div id="loanScheduleContainer"></div>
 
-    <!-- Actions -->
-    <div class="loan-actions">
-      <button class="btn-add" id="loanExportBtn" style="background:var(--accent-wechat);color:white;border:none;font-weight:700;">📥 导出Excel</button>
-    </div>
   </div>
 </div>
 
@@ -7248,68 +7243,6 @@ const rid=Math.floor(Math.random()*1000);
       document.getElementById('loanComparisonContainer').innerHTML = buildComparisonTable(inp.principal, inp.rate, inp.term, inp.rateMode, inp.days);
     }
 
-    function exportLoanToExcel() {
-      var inp = getInputs();
-      if (inp.principal <= 0 || inp.rate <= 0) {
-        var nb = document.getElementById('notifyBar');
-        document.getElementById('notifyText').innerText = '⚠️ 请先输入有效的贷款金额和利率';
-        nb.classList.add('show');
-        setTimeout(function() { nb.classList.remove('show'); }, 3000);
-        return;
-      }
-      try {
-        var wb = XLSX.utils.book_new();
-        var summaryHeader = ['还款方式', '月供/日均利息', '总利息', '总还款', '利息占比(%)'];
-        var summaryRows = methods.map(function(m) {
-          var r = m.fn(inp.principal, inp.rate, inp.term, inp.rateMode, inp.days);
-          return [m.name, Number(r.monthlyPayment.toFixed(2)), Number(r.totalInterest.toFixed(2)), Number(r.totalRepayment.toFixed(2)), Number(r.interestRatio.toFixed(2))];
-        });
-        var summaryData = [
-          ['贷款利息计算器'],
-          ['贷款金额', inp.principal + '元'],
-          ['月息', inp.rate + '%'],
-          ['年化利率', (inp.rate * 12).toFixed(2) + '%'],
-          ['期限', inp.term + '个月' + (inp.method === 'sjjh' ? '，计息' + inp.days + '天' : '')],
-          ['月息差', (inp.rateSpread || 0) + '%'],
-          [''], summaryHeader
-        ].concat(summaryRows);
-
-        // 月息差额外对比行
-        if (inp.rateSpread > 0) {
-          var higherRate = inp.rate + inp.rateSpread;
-          var baseFirst = methods[0].fn(inp.principal, inp.rate, inp.term, inp.rateMode, inp.days);
-          var spreadFirst = methods[0].fn(inp.principal, higherRate, inp.term, inp.rateMode, inp.days);
-          summaryData.push(['']);
-          summaryData.push(['月息差对比（' + inp.rate + '% vs ' + higherRate.toFixed(3) + '%）']);
-          summaryData.push(['方式', '月供差额', '总利息差额', '总还款差额']);
-          methods.forEach(function(m) {
-            var base = m.fn(inp.principal, inp.rate, inp.term, inp.rateMode, inp.days);
-            var sp = m.fn(inp.principal, higherRate, inp.term, inp.rateMode, inp.days);
-            summaryData.push([m.name, Number((sp.monthlyPayment - base.monthlyPayment).toFixed(2)), Number((sp.totalInterest - base.totalInterest).toFixed(2)), Number((sp.totalRepayment - base.totalRepayment).toFixed(2))]);
-          });
-        }
-        var ws1 = XLSX.utils.aoa_to_sheet(summaryData);
-        XLSX.utils.book_append_sheet(wb, ws1, '综合对比');
-
-        var schedHeader = ['期次', '还款金额', '利息', '本金', '剩余本金'];
-        methods.forEach(function(m) {
-          var r = m.fn(inp.principal, inp.rate, inp.term, inp.rateMode, inp.days);
-          var data = [[m.name + ' - 还款计划'], [''], schedHeader].concat(r.schedule.map(function(row) {
-            return [row.period, Number(row.payment.toFixed(2)), Number(row.interest.toFixed(2)), Number(row.principal.toFixed(2)), Number(Math.max(0, row.remaining).toFixed(2))];
-          }));
-          var ws = XLSX.utils.aoa_to_sheet(data);
-          XLSX.utils.book_append_sheet(wb, ws, m.name);
-        });
-
-        XLSX.writeFile(wb, '贷款利息计算_' + new Date().toISOString().slice(0, 10) + '.xlsx');
-      } catch(e) {
-        var nb2 = document.getElementById('notifyBar');
-        document.getElementById('notifyText').innerText = '⚠️ 导出失败: ' + esc(e.message);
-        nb2.classList.add('show');
-        setTimeout(function() { nb2.classList.remove('show'); }, 3000);
-      }
-    }
-
     // === Modal & Event Bindings ===
     var modal = document.getElementById('loanModal');
     var closeBtn = document.getElementById('closeLoanModalBtn');
@@ -7390,9 +7323,6 @@ const rid=Math.floor(Math.random()*1000);
       if (el) el.addEventListener('input', renderLoanCalc);
     });
 
-    // Export button
-    var exportBtn = document.getElementById('loanExportBtn');
-    if (exportBtn) exportBtn.addEventListener('click', exportLoanToExcel);
   }
 
   initAndroid();initLogs();initDark();initWp();initScriptFeature();initLearnFeature();initExport();initAllClientsBtn();initGoals();initWhitelistFeature();initLoanCalc();
