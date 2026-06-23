@@ -1189,7 +1189,6 @@ export const DIALER_HTML = `<!DOCTYPE html>
             <button class="dropdown-item" id="toggleDualSimBtn">双卡轮换: 开</button>
             <button class="dropdown-item" id="toggleRotationBtn">轮换频率: 10通</button>
             <button class="dropdown-item" id="toggleCopyLimitBtn">复制限制: 开</button>
-            <button class="dropdown-item copy-limit-sub" id="toggleThreshold15">  15次限制: 开</button>
             <button class="dropdown-item copy-limit-sub" id="toggleThreshold20">  20次限制: 开</button>
             <button class="dropdown-item copy-limit-sub" id="toggleThreshold30">  30次限制: 开</button>
             <button class="dropdown-item" id="exportBtn" style="display:none;">导出记录</button>
@@ -1786,14 +1785,13 @@ export const DIALER_HTML = `<!DOCTYPE html>
     // Copy Rate Limiting - configurable
     var COPY_LIMIT_K = 'standalone_dialer_copy_limit';
     var copyLimitEnabled = localStorage.getItem('dialer_copy_limit_enabled') !== '0'; // default on
-    var copyLimitThresholds = {}; // { '15': true, '20': true, '30': true }
+    var copyLimitThresholds = {}; // { '20': true, '30': true }
     try {
       var savedThresholds = JSON.parse(localStorage.getItem('dialer_copy_limit_thresholds') || '{}');
-      copyLimitThresholds['15'] = savedThresholds['15'] !== false;
       copyLimitThresholds['20'] = savedThresholds['20'] !== false;
       copyLimitThresholds['30'] = savedThresholds['30'] !== false;
     } catch(e) {
-      copyLimitThresholds = { '15': true, '20': true, '30': true };
+      copyLimitThresholds = { '20': true, '30': true };
     }
     var copyLimitState = null;
 
@@ -1920,7 +1918,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
       copyLimitState.count++;
 
       // Check enabled thresholds in ascending order — each triggers only once
-      var thresholdKeys = ['15', '20', '30'];
+      var thresholdKeys = ['20', '30'];
       var hitThreshold = null;
       for (var i = 0; i < thresholdKeys.length; i++) {
         var t = parseInt(thresholdKeys[i], 10);
@@ -6212,7 +6210,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
  sub.style.display = copyLimitEnabled ? '' : 'none';
  });
  // Update checkmarks
- ['15','20','30'].forEach(function(k) {
+ ['20','30'].forEach(function(k) {
  var b = document.getElementById('toggleThreshold' + k);
  if (b) {
  b.textContent = ' ' + k + '次限制: ' + (copyLimitThresholds[k] ? '' : '');
@@ -6230,7 +6228,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
  updateCopyLimitUI();
  }
  // Threshold sub-buttons
- ['15','20','30'].forEach(function(k) {
+ ['20','30'].forEach(function(k) {
  var b = document.getElementById('toggleThreshold' + k);
  if (b) {
  b.addEventListener('click', function() {
