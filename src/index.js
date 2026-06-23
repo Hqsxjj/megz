@@ -3604,6 +3604,7 @@ export default {
     <div class="header-bar">
       <div class="title-section"><div class="app-logo"><div class="app-icon"><svg viewBox="0 0 48 48" fill="none"><rect x="6" y="8" width="36" height="34" rx="5" fill="none" stroke="white" stroke-width="2.5"/><line x1="6" y1="18" x2="42" y2="18" stroke="white" stroke-width="2.5"/><rect x="12" y="4" width="4" height="8" rx="2" fill="white"/><rect x="32" y="4" width="4" height="8" rx="2" fill="white"/><circle cx="16" cy="27" r="2.5" fill="white"/><circle cx="24" cy="27" r="2.5" fill="white"/><circle cx="32" cy="27" r="2.5" fill="white"/><circle cx="16" cy="35" r="2.5" fill="white"/><circle cx="24" cy="35" r="2.5" fill="white"/></svg></div><h3>每日工作</h3></div><div class="date-chip" id="liveDate"></div><button class="goal-eye eye-off" id="goalEyeBtn" title="显示目标数字">👁</button><div class="goal-chips" id="goalChips"></div></div>
       <div class="action-group">
+        <button class="icon-simple" id="loanCalcBtn" title="贷款利息计算器">计算器</button>
         <button class="sync-indicator" id="syncBtn" title="点击手动同步"><span class="sync-icon" id="syncIcon">⇅</span><span id="syncLabel">同步中</span><div class="sync-tooltip" id="syncTooltip">正在连接...</div></button>
         <button class="icon-simple" id="allClientsBtn" title="意向客户全量表">全量</button>
         <button class="icon-simple" id="dialerBtn" title="快捷拨号助手" onclick="window.open('/dialer', '_blank')">拨号</button>
@@ -3616,7 +3617,6 @@ export default {
           <button class="menu-item" id="exportBtn">导出数据</button>
           <button class="menu-item" id="goalBtn">目标设定</button>
           <button class="menu-item" id="whitelistMenuBtn">白名单管理</button>
-          <button class="menu-item" id="loanCalcBtn">🧮 贷款计算器</button>
           <button class="menu-item" id="darkToggleBtn">深色模式</button>
         </div>
       </div>
