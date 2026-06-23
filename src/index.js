@@ -4061,6 +4061,10 @@ export default {
         <div class="label">多还总额</div>
         <div class="value" id="loanSpreadTotal" style="color:#e74c3c;">--</div>
       </div>
+      <div class="loan-result-card">
+        <div class="label">多还占比</div>
+        <div class="value" id="loanSpreadPct" style="color:#e74c3c;">--</div>
+      </div>
     </div>
 
     <!-- Comparison Table -->
@@ -7174,17 +7178,18 @@ const rid=Math.floor(Math.random()*1000);
       document.getElementById('loanInterestRatio').textContent = pct(result.interestRatio);
     }
 
-    function updateSpreadCards(baseResult, spreadResult, method) {
+    function updateSpreadCards(baseResult, spreadResult, method, principal) {
       var spreadEl = document.getElementById('loanSpreadResults');
       if (!spreadResult) {
         if (spreadEl) spreadEl.style.display = 'none';
         return;
       }
       if (spreadEl) spreadEl.style.display = '';
-      var diffMonthly = method === 'sjjh' ? spreadResult.monthlyPayment - baseResult.monthlyPayment : spreadResult.monthlyPayment - baseResult.monthlyPayment;
       var diffTotal = spreadResult.totalRepayment - baseResult.totalRepayment;
-      document.getElementById('loanSpreadMonthly').textContent = '￥' + fmt(Math.max(0, diffMonthly));
+      document.getElementById('loanSpreadMonthly').textContent = '￥' + fmt(Math.max(0, spreadResult.monthlyPayment - baseResult.monthlyPayment));
       document.getElementById('loanSpreadTotal').textContent = '￥' + fmt(Math.max(0, diffTotal));
+      var pctVal = principal > 0 ? (diffTotal / principal * 100) : 0;
+      document.getElementById('loanSpreadPct').textContent = pct(pctVal);
     }
 
     function buildComparisonTable(P, rate, term, rateMode, days) {
@@ -7235,7 +7240,7 @@ const rid=Math.floor(Math.random()*1000);
         if (inp.rateSpread > 0) {
           var higherRate = inp.rate + inp.rateSpread;
           var spreadResult = activeFn(inp.principal, higherRate, inp.term, inp.rateMode, inp.days);
-          updateSpreadCards(result, spreadResult, activeMethod);
+          updateSpreadCards(result, spreadResult, activeMethod, inp.principal);
         } else {
           document.getElementById('loanSpreadResults').style.display = 'none';
         }
