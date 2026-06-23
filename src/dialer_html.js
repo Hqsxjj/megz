@@ -5362,62 +5362,12 @@ export const DIALER_HTML = `<!DOCTYPE html>
         }
       }
 
-      // Calculate Pagination
+      // 无分页 — 直接展示全部客户
       var total = sorted.length;
-      var totalPages = Math.ceil(total / pageSize);
-      if (currentPage > totalPages) currentPage = Math.max(1, totalPages);
-      
-      var start = (currentPage - 1) * pageSize;
-      var end = Math.min(start + pageSize, total);
-      var sliced = sorted.slice(start, end);
-
-      // Calculate Pagination HTML first so it can be shared by both mobile and desktop views
-      var pagHtml = '';
-      if (totalPages > 1) {
-        pagHtml += '<div class="pagination-bar" style="display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 8px; margin-top: 18px; padding: 12px 0; border-top: 1px dashed var(--border-light); width: 100%;">';
-        pagHtml += '<span style="font-size: 0.7rem; color: var(--text-light); margin-right: 4px; font-weight: 800;">第 ' + currentPage + '/' + totalPages + ' 页 (共 ' + total + ' 条)</span>';
-        
-        // Page Size Option Selector
-        pagHtml += '<select id="pageSizeSel" style="height: 24px; font-size: 0.65rem; border: 1px solid var(--card-border); border-radius: var(--radius-xs); background: var(--btn-bg); color: var(--text-soft); font-weight: 800; outline: none; padding: 0 4px; cursor: pointer; margin-right: 6px;">';
-        var sizes = [100, 200, 300, 500];
-        sizes.forEach(function(sz) {
-          var sel = (sz === pageSize) ? ' selected' : '';
-          pagHtml += '<option value="' + sz + '"' + sel + '>' + sz + ' 条/页</option>';
-        });
-        pagHtml += '</select>';
-        
-        var prevDisabled = (currentPage === 1) ? ' disabled style="opacity: 0.4; cursor: not-allowed;"' : '';
-        pagHtml += '<button class="btn-secondary" id="pagPrevBtn"' + prevDisabled + ' style="padding: 4px 8px; font-size: 0.68rem; border-radius: var(--radius-xs); height: 24px; cursor: pointer; display: inline-flex; align-items: center; font-weight: 800;"></button>';
-        
-        var startPage = Math.max(1, currentPage - 2);
-        var endPage = Math.min(totalPages, currentPage + 2);
-        
-        if (startPage > 1) {
-          pagHtml += '<button class="btn-secondary pag-num-btn" data-page="1" style="padding: 4px 8px; font-size: 0.68rem; border-radius: var(--radius-xs); height: 24px; cursor: pointer; display: inline-flex; align-items: center; font-weight: 800;">1</button>';
-          if (startPage > 2) pagHtml += '<span style="font-size: 0.7rem; color: var(--text-light);">...</span>';
-        }
-        
-        for (var p = startPage; p <= endPage; p++) {
-          if (p === currentPage) {
-            pagHtml += '<button class="btn-secondary pag-num-btn" data-page="' + p + '" style="background: var(--accent-wechat) !important; color: white !important; padding: 4px 8px; font-size: 0.68rem; border-radius: var(--radius-xs); height: 24px; cursor: pointer; display: inline-flex; align-items: center; font-weight: 900;">' + p + '</button>';
-          } else {
-            pagHtml += '<button class="btn-secondary pag-num-btn" data-page="' + p + '" style="padding: 4px 8px; font-size: 0.68rem; border-radius: var(--radius-xs); height: 24px; cursor: pointer; display: inline-flex; align-items: center; font-weight: 800;">' + p + '</button>';
-          }
-        }
-        
-        if (endPage < totalPages) {
-          if (endPage < totalPages - 1) pagHtml += '<span style="font-size: 0.7rem; color: var(--text-light);">...</span>';
-          pagHtml += '<button class="btn-secondary pag-num-btn" data-page="' + totalPages + '" style="padding: 4px 8px; font-size: 0.68rem; border-radius: var(--radius-xs); height: 24px; cursor: pointer; display: inline-flex; align-items: center; font-weight: 800;">' + totalPages + '</button>';
-        }
-        
-        var nextDisabled = (currentPage === totalPages) ? ' disabled style="opacity: 0.4; cursor: not-allowed;"' : '';
-        pagHtml += '<button class="btn-secondary" id="pagNextBtn"' + nextDisabled + ' style="padding: 4px 8px; font-size: 0.68rem; border-radius: var(--radius-xs); height: 24px; cursor: pointer; display: inline-flex; align-items: center; font-weight: 800;"></button>';
-        pagHtml += '</div>';
-      }
 
       if (isMobileDevice) {
         // Mobile View: Render Cards (resembling older versions)
-        var cardsHtml = sliced.map(function(c) {
+        var cardsHtml = sorted.map(function(c) {
           var i = importedClients.indexOf(c);
 
           var badgeHtml = '<span class="xls-dial-badge xls-dial-badge-todo">待拨打</span>';
@@ -5518,7 +5468,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
           '</div>';
         }).join('');
 
-        container.innerHTML = cardsHtml + pagHtml;
+        container.innerHTML = cardsHtml;
 
         // Wire up card phone click copy + WeChat jump
         container.querySelectorAll('.client-phone-btn').forEach(function(b) {
@@ -5563,6 +5513,12 @@ export const DIALER_HTML = `<!DOCTYPE html>
             e.stopPropagation();
             var name = b.dataset.name;
             var idx = parseInt(b.dataset.idx);
+
+            var nameLimit = checkCopyLimit();
+            if (!nameLimit.allowed) {
+              showCopyLimitToast(nameLimit.message, false);
+              return;
+            }
             copyTextToClipboard(' ' + name + ' ');
 
             var client = importedClients[idx];
@@ -5598,6 +5554,12 @@ export const DIALER_HTML = `<!DOCTYPE html>
           b.addEventListener('click', function(e) {
             e.stopPropagation();
             var company = b.dataset.company;
+
+            var compLimit = checkCopyLimit();
+            if (!compLimit.allowed) {
+              showCopyLimitToast(compLimit.message, false);
+              return;
+            }
             copyTextToClipboard(company);
 
             var cardEl = b.closest('.xls-dial-card');
@@ -5660,7 +5622,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
           '<th class="col-action">操作</th>' +
         '</tr></thead><tbody>';
 
-        tableHtml += sliced.map(function(c, idx) {
+        tableHtml += sorted.map(function(c, idx) {
           var rowNo = (currentPage - 1) * pageSize + idx + 1;
 
           var badgeHtml = '<span style="font-size:11px;padding:1px 6px;border-radius:3px;background:#f0f0f0;color:#888;">待拨</span>';
@@ -5696,7 +5658,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
         }).join('');
 
         tableHtml += '</tbody></table>';
-        container.innerHTML = tableHtml + pagHtml;
+        container.innerHTML = tableHtml;
 
         // Wire up CRM table copy buttons
         container.querySelectorAll('.crm-copy-btn').forEach(function(btn) {
@@ -5735,7 +5697,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
         container.querySelectorAll('.col-action a').forEach(function(btn, idx) {
           btn.addEventListener('click', function(e) {
             // Let the tel: link work natively
-            var client = sliced[idx];
+            var client = sorted[idx];
             if (client) {
               recordTimeline(client.phone || client.mobile, 'dial');
               setTimeout(function() {
@@ -6031,6 +5993,12 @@ export const DIALER_HTML = `<!DOCTYPE html>
  nameDisp.addEventListener('click', function(e) {
  e.stopPropagation();
  var name = nameDisp.dataset.name;
+
+ var nameLimit2 = checkCopyLimit();
+ if (!nameLimit2.allowed) {
+ showCopyLimitToast(nameLimit2.message, false);
+ return;
+ }
  copyTextToClipboard(name);
 
  var client = importedClients[currentCallIdx];
