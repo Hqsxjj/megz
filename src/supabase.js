@@ -350,9 +350,8 @@ export function createSupabaseClient(env) {
         return { data: [], total: 0, page: p, pageSize: ps };
       }
 
-      // Use allData.length as total since that's all rows fetched.
-      // Content-Range total may exceed pageSize cap (5000), which breaks client pagination.
-      return { data: allData, total: allData.length, page: p, pageSize: ps };
+      // Return actual total from Content-Range for correct server-side pagination
+      return { data: allData, total: totalCount || allData.length, page: p, pageSize: ps };
     } catch (e) {
       console.error('[supabase] getAllCustomers error:', e.message);
       return { data: [], total: 0, page: page || 1, pageSize: pageSize || 50 };

@@ -6849,7 +6849,8 @@ export const DIALER_HTML = `<!DOCTYPE html>
         category = catFilter;
       }
 
-      var url = '/api/dialer/customers?page=1&pageSize=5000';
+      // 服务端分页：每次请求只获取当前页
+      var url = '/api/dialer/customers?page=' + DB.page + '&pageSize=' + DB.pageSize;
       if (q) url += '&search=' + encodeURIComponent(q);
       if (category) url += '&category=' + encodeURIComponent(category);
       if (batchFilter) url += '&batch_label=' + encodeURIComponent(batchFilter);
@@ -6858,7 +6859,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
       var colCount = 8 + (DB.customColumns || []).length;
       var tbody = document.getElementById('dbTbody');
       if (tbody) tbody.innerHTML = '<tr><td colspan="' + colCount + '" class="db-loading">数据加载中...</td></tr>';
-      
+
       fetch(url)
         .then(function(r) { return r.json(); })
         .then(function(res) {
@@ -6867,16 +6868,17 @@ export const DIALER_HTML = `<!DOCTYPE html>
             return;
           }
           var rawData = res.data || [];
-          DB.allData = rawData; // 存入前端缓存
-          
+          DB.allData = rawData;
+
+          // 客户端二次过滤（快捷筛选等）
           var filtered = crmFilterData(rawData);
-          DB.total = filtered.length;
-          
+          DB.total = res.total || filtered.length;
+
           dbTable(filtered);
-          dbPager(filtered);
+          dbPager();
           crmUpdateBadgeCounts(rawData);
           dbFilters(rawData);
-          
+
           var totalEl = document.getElementById('dbTotal');
           if (totalEl) totalEl.textContent = '共 ' + DB.total + ' 条';
         })
@@ -6885,14 +6887,9 @@ export const DIALER_HTML = `<!DOCTYPE html>
         });
     }
 
-    // 从缓存数据重新渲染（翻页时用，不重新请求API）
+    // 翻页时重新请求服务端（不再依赖客户端缓存）
     function dbRenderCached() {
-      var filtered = crmFilterData(DB.allData);
-      DB.total = filtered.length;
-      dbTable(filtered);
-      dbPager(filtered);
-      var totalEl = document.getElementById('dbTotal');
-      if (totalEl) totalEl.textContent = '共 ' + DB.total + ' 条';
+      dbFetch();
     }
 
     // 统计状态栏更新
@@ -6930,13 +6927,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
       var em = document.getElementById('dbEmpty');
       if (!tb) return;
 
-      // 客户端分页：仅渲染当前页数据
-      if (data && data.length > 0) {
-        var sliceStart = (DB.page - 1) * DB.pageSize;
-        var sliceEnd = Math.min(sliceStart + DB.pageSize, data.length);
-        data = data.slice(sliceStart, sliceEnd);
-      }
-
+      // 服务端已分页，直接渲染（不再客户端切片）
       if (!data || data.length === 0) {
         tb.innerHTML = '';
         if (em) em.style.display = 'block';
@@ -7127,7 +7118,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
       }
     }
 
-    function dbPager(filteredData) {
+    function dbPager() {
       var tp = Math.max(1, Math.ceil(DB.total / DB.pageSize));
       var pageInput = document.getElementById('dbPageInput');
       var pageTotal = document.getElementById('dbPageTotal');
