@@ -6870,7 +6870,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
           DB.allData = rawData; // 存入前端缓存
           
           var filtered = crmFilterData(rawData);
-          DB.total = res.total || filtered.length;
+          DB.total = filtered.length;
           
           dbTable(filtered);
           dbPager(filtered);
