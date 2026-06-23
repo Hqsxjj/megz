@@ -260,7 +260,7 @@ export function createSupabaseClient(env) {
 
     try {
       var p = page || 1;
-      var ps = Math.min(pageSize || 50, 5000); // cap at 5000
+      var ps = pageSize || 50; // no cap — fetch whatever client asks
 
       var baseSearch = '';
       if (search) {
@@ -350,8 +350,8 @@ export function createSupabaseClient(env) {
         return { data: [], total: 0, page: p, pageSize: ps };
       }
 
-      // Return fetched count as total (client paginates from cached data)
-      return { data: allData, total: allData.length, page: p, pageSize: ps };
+      // Use Content-Range total if available, otherwise fetched count
+      return { data: allData, total: totalCount || allData.length, page: p, pageSize: ps };
     } catch (e) {
       console.error('[supabase] getAllCustomers error:', e.message);
       return { data: [], total: 0, page: page || 1, pageSize: pageSize || 50 };

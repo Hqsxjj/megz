@@ -1,0 +1,25 @@
+app = "megz-wechat-bridge"
+
+[build]
+  builder = "node"
+
+[env]
+  PORT = "3080"
+
+[[services]]
+  internal_port = 3080
+  protocol = "tcp"
+
+  [[services.ports]]
+    port = 443
+    handlers = ["tls", "http"]
+    force_https = true
+
+  [[services.ports]]
+    port = 80
+    handlers = ["http"]
+    force_https = true
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "256mb"
