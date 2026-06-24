@@ -8092,6 +8092,18 @@ export const DIALER_HTML = `<!DOCTYPE html>
       }
     }
 
+    function safeInit(name, fn) {
+      try { fn(); } catch (e) { console.error('Init error: ' + name, e); }
+    }
+    safeInit('initDark', initDark);
+    safeInit('initFileInputs', initFileInputs);
+    safeInit('initCallControls', initCallControls);
+    safeInit('initFilters', initFilters);
+    safeInit('initDataActions', initDataActions);
+
+    safeInit('initHeaderMenu', initHeaderMenu);
+    safeInit('initNoteModal', initNoteModal);
+    safeInit('initCustomColumnsHandlers', initCustomColumnsHandlers);
     safeInit('initAIImporter', initAIImporter);
     safeInit('loadPersistedState', loadPersistedState);
     safeInit('initCustViewer', initCustViewer);
