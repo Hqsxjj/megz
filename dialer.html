@@ -5505,14 +5505,18 @@
           b.addEventListener('click', function(e) {
             e.stopPropagation();
             var company = b.dataset.company;
-            copyTextToClipboard(company);
-            
+            var idx = parseInt(b.dataset.idx);
+            var client = importedClients[idx];
+            var name = (client && client.name && client.name !== '-') ? client.name : '';
+            var copyText = name ? name + ' ' + company : company;
+            copyTextToClipboard(copyText);
+
             var oldText = b.textContent;
             if (oldText === '已复制') return;
             b.textContent = '已复制';
             var oldColor = b.style.color;
             b.style.color = 'var(--accent-wechat)';
-            
+
             setTimeout(function() {
               b.textContent = company;
               b.style.color = oldColor;
@@ -5586,7 +5590,7 @@
             '<td class="col-status">' + badgeHtml + '</td>' +
             '<td class="col-name"><span class="crm-copy-btn" data-copy="' + esc(c.name||'') + '" title="点击复制">' + esc(c.name||'-') + '</span></td>' +
             '<td class="col-phone"><span class="crm-copy-btn" data-copy="' + esc(phoneVal) + '" title="点击复制">' + esc(phoneVal || '-') + '</span></td>' +
-            '<td class="col-company"><span class="crm-copy-btn" data-copy="' + esc(c.company||'') + '">' + esc(c.company||'-') + '</span>' + wlBadge + '</td>' +
+            '<td class="col-company"><span class="crm-copy-btn" data-copy="' + esc((c.name && c.name !== '-' ? c.name + ' ' : '') + (c.company||'')) + '">' + esc(c.company||'-') + '</span>' + wlBadge + '</td>' +
             '<td class="col-note">' + esc(c.note||'-') + '</td>' +
             '<td class="col-batch">' + '<span style="font-size:11px;background:rgba(74,108,247,0.08);color:#4a6cf7;padding:1px 6px;border-radius:3px;">' + (displayBatchLabel(c.batch_label) || '-') + '</span>' + '</td>' +
             '<td class="col-action"><a href="tel:' + esc(phoneVal) + '" style="display:inline-block;padding:3px 10px;background:linear-gradient(135deg,#07c160,#06ad56);color:#fff;border-radius:4px;text-decoration:none;font-size:12px;font-weight:700;">拨打</a></td>' +
@@ -5937,12 +5941,15 @@
  e.stopPropagation();
  var company = companyDisp.dataset.company || companyDisp.textContent;
  if (!company || company === '-') return;
- copyTextToClipboard(company);
- 
+ var nameEl = document.getElementById('callAssistNameDisplay');
+ var name = (nameEl && nameEl.dataset.name && nameEl.dataset.name !== '-') ? nameEl.dataset.name : '';
+ var copyText = name ? name + ' ' + company : company;
+ copyTextToClipboard(copyText);
+
  var oldText = companyDisp.textContent;
  if (oldText === '已复制') return;
  companyDisp.textContent = '已复制';
- 
+
  setTimeout(function() {
  companyDisp.textContent = company;
  }, 1000);

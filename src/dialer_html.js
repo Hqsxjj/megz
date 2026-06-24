@@ -5560,7 +5560,11 @@ export const DIALER_HTML = `<!DOCTYPE html>
               showCopyLimitToast(compLimit.message, false);
               return;
             }
-            copyTextToClipboard(company);
+            var idx = parseInt(b.dataset.idx);
+            var client = importedClients[idx];
+            var name = (client && client.name && client.name !== '-') ? client.name : '';
+            var copyText = name ? name + ' ' + company : company;
+            copyTextToClipboard(copyText);
 
             var cardEl = b.closest('.xls-dial-card');
             var cardIdx = cardEl ? parseInt(cardEl.id.replace('xdc_', '')) : -1;
@@ -5649,7 +5653,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
             '<td class="col-status">' + badgeHtml + '</td>' +
             '<td class="col-name"><span class="crm-copy-btn" data-copy="' + esc(c.name||'') + '" title="点击复制">' + esc(c.name||'-') + '</span></td>' +
             '<td class="col-phone"><span class="crm-copy-btn" data-copy="' + esc(phoneVal) + '" title="点击复制">' + esc(phoneVal || '-') + '</span></td>' +
-            '<td class="col-company"><span class="crm-copy-btn" data-copy="' + esc(c.company||'') + '">' + esc(c.company||'-') + '</span>' + wlBadge + '</td>' +
+            '<td class="col-company"><span class="crm-copy-btn" data-copy="' + esc((c.name && c.name !== '-' ? c.name + ' ' : '') + (c.company||'')) + '">' + esc(c.company||'-') + '</span>' + wlBadge + '</td>' +
             '<td class="col-note">' + esc(c.note||'-') + '</td>' +
             '<td class="col-batch">' + '<span style="font-size:11px;background:rgba(74,108,247,0.08);color:#4a6cf7;padding:1px 6px;border-radius:3px;">' + (displayBatchLabel(c.batch_label) || '-') + '</span>' + '</td>' +
             '<td class="col-lastop" style="font-size:0.52rem;">' + (c.last_operation ? TimelineDisplay.render(c.last_operation) : '-') + '</td>' +
@@ -6037,7 +6041,10 @@ export const DIALER_HTML = `<!DOCTYPE html>
  e.stopPropagation();
  var company = companyDisp.dataset.company || companyDisp.textContent;
  if (!company || company === '-') return;
- copyTextToClipboard(company);
+ var nameEl = document.getElementById('callAssistNameDisplay');
+ var name = (nameEl && nameEl.dataset.name && nameEl.dataset.name !== '-') ? nameEl.dataset.name : '';
+ var copyText = name ? name + ' ' + company : company;
+ copyTextToClipboard(copyText);
 
  var client = importedClients[currentCallIdx];
  if (client) recordTimeline(client.phone || client.mobile, 'copy_company');
