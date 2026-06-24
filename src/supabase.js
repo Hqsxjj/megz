@@ -255,7 +255,7 @@ export function createSupabaseClient(env) {
   /**
    * Get all customers with pagination and optional search.
    */
-  async function getAllCustomers(page, pageSize, search, sortBy, sortDir, category, batchLabel) {
+  async function getAllCustomers(page, pageSize, search, sortBy, sortDir, category, batchLabel, excludeMobiles) {
     if (!baseUrl || !key) return { data: [], total: 0, page: page || 1, pageSize: pageSize || 50 };
 
     try {
@@ -265,6 +265,13 @@ export function createSupabaseClient(env) {
       var baseSearch = '';
       if (search) {
         baseSearch = '&or=(name.ilike.%25' + encodeURIComponent(search) + '%25,mobile.ilike.%25' + encodeURIComponent(search) + '%25,company_name.ilike.%25' + encodeURIComponent(search) + '%25)';
+      }
+
+      // Exclude cooldown mobiles (cap at 100 to keep URL within limits)
+      var excludeFilter = '';
+      if (excludeMobiles && Array.isArray(excludeMobiles) && excludeMobiles.length > 0) {
+        var capped = excludeMobiles.slice(0, 100);
+        excludeFilter = '&mobile=not.in.(' + capped.map(function(m) { return encodeURIComponent(m); }).join(',') + ')';
       }
 
       var filterParams = '';
@@ -323,7 +330,7 @@ export function createSupabaseClient(env) {
         var batch = null;
 
         for (var ci = 0; ci < colSets.length; ci++) {
-          var url2 = baseUrl + '/rest/v1/customers?select=' + colSets[ci] + orderClause + baseSearch + filterParams;
+          var url2 = baseUrl + '/rest/v1/customers?select=' + colSets[ci] + orderClause + baseSearch + excludeFilter + filterParams;
           resp = await fetch(url2, { headers: headersWithCount });
           if (resp.ok) {
             batch = await resp.json();

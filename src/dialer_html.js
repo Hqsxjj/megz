@@ -6729,11 +6729,14 @@ export const DIALER_HTML = `<!DOCTYPE html>
       }
 
       // 拉取大量数据到本地缓存，再客户端分页（保证冷却期排序跨全部数据生效）
+      // 排除冷却期客户以减少 Supabase 数据传输量
+      var cooldownMobiles = Object.keys(getAddHistory());
       var url = '/api/dialer/customers?page=1&pageSize=5000';
       if (q) url += '&search=' + encodeURIComponent(q);
       if (category) url += '&category=' + encodeURIComponent(category);
       if (batchFilter) url += '&batch_label=' + encodeURIComponent(batchFilter);
       if (DB.sortBy) url += '&sortBy=' + encodeURIComponent(DB.sortBy) + '&sortDir=' + DB.sortDir;
+      if (cooldownMobiles.length > 0) url += '&exclude=' + encodeURIComponent(cooldownMobiles.join(','));
 
       var colCount = 8 + (DB.customColumns || []).length;
       var tbody = document.getElementById('dbTbody');

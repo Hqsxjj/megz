@@ -1325,8 +1325,10 @@ export default {
         const sortDir = url.searchParams.get('sortDir') || 'asc';
         const category = url.searchParams.get('category') || '';
         const batchLabel = url.searchParams.get('batch_label') || '';
+        const exclude = url.searchParams.get('exclude') || '';
+        const excludeMobiles = exclude ? exclude.split(',').filter(Boolean) : [];
         const sb = createSupabaseClient(env);
-        const result = await sb.getAllCustomers(page, pageSize, search, sortBy, sortDir, category, batchLabel);
+        const result = await sb.getAllCustomers(page, pageSize, search, sortBy, sortDir, category, batchLabel, excludeMobiles);
         return new Response(JSON.stringify(result), {
           headers: {
             'Content-Type': 'application/json; charset=UTF-8',
