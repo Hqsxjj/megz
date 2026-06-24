@@ -4326,38 +4326,6 @@ export default {
     });
   }
 
-  function deleteWhitelistCompany(companyName) {
-    return fetch('/api/whitelist/companies', {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ company_name: companyName })
-    })
-    .then(async r => {
-      if (!r.ok) {
-        let msg = '删除失败';
-        try {
-          const data = await r.json();
-          if (data && data.error) msg += ': ' + data.error;
-        } catch(e) {}
-        throw new Error(msg);
-      }
-      return r.json();
-    })
-    .then(() => {
-      whitelistCompanies = whitelistCompanies.filter(c => c.company_name !== companyName);
-      updateWhitelistSet();
-      updateWhitelistStatus();
-      renderWhitelistCompanyList();
-      renderClientList();
-      const modal = document.getElementById('allClientsModal');
-      if (modal && modal.classList.contains('active')) {
-        loadAllClients();
-      }
-    })
-    .catch(err => {
-      alert('删除失败: ' + err.message);
-    });
-  }
 
   function updateWhitelistStatus() {
     const el = document.getElementById('whitelistStatus');
@@ -4425,19 +4393,9 @@ export default {
     filtered.forEach(c => {
       html += '<div class="whitelist-company-item">' +
         '<span style="font-size:0.72rem; font-weight:700; color:var(--text-main);">' + esc(c.company_name) + '</span>' +
-        '<button class="whitelist-del-btn" data-company="' + esc(c.company_name) + '" style="font-size:0.6rem; padding:2px 8px; border:1px solid #e74c3c; background:transparent; color:#e74c3c; border-radius:3px; cursor:pointer; font-weight:700;">删除</button>' +
         '</div>';
     });
     container.innerHTML = html;
-
-    container.querySelectorAll('.whitelist-del-btn').forEach(btn => {
-      btn.addEventListener('click', function() {
-        const company = this.dataset.company;
-        if (confirm('确认从白名单中删除「' + company + '」吗？')) {
-          deleteWhitelistCompany(company);
-        }
-      });
-    });
   }
 
   function initWhitelistFeature() {
@@ -9758,29 +9716,6 @@ const rid=Math.floor(Math.random()*1000);
         }
         const results = await supabase.checkCompanies(companies);
         return new Response(JSON.stringify({ results: results }), {
-          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-        });
-      } catch (e) {
-        return new Response(JSON.stringify({ error: e.message }), {
-          status: 502,
-          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-        });
-      }
-    }
-
-    // 删除白名单企业
-    if (path === '/api/whitelist/companies' && request.method === 'DELETE') {
-      try {
-        const body = await request.json();
-        const companyName = body.company_name;
-        if (!companyName || !companyName.trim()) {
-          return new Response(JSON.stringify({ error: '请提供 company_name' }), {
-            status: 400,
-            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-          });
-        }
-        const result = await supabase.deleteCompany(companyName);
-        return new Response(JSON.stringify(result), {
           headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
         });
       } catch (e) {
