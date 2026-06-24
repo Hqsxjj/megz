@@ -6320,7 +6320,6 @@ const rid=Math.floor(Math.random()*1000);
     // Start periodic bridge status check
     checkBridgeStatus();
     bridgeStatusTimer = setInterval(checkBridgeStatus, 15000);
-    }
   }
 
   // ==================== 话术 ====================
