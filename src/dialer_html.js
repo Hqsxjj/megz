@@ -685,25 +685,8 @@ export const DIALER_HTML = `<!DOCTYPE html>
       line-height: 1.5;
       font-family: monospace;
     }
-    .sync-badge {
-      transition: all 0.2s ease;
-      cursor: pointer;
-    }
-    .sync-badge.online-synced {
-      background: var(--accent-wechat-bg) !important;
-      color: var(--accent-wechat) !important;
-      border: 0.5px solid rgba(7,193,96,0.2) !important;
-    }
-    .sync-badge.online-unsynced {
-      background: rgba(245,124,0,0.1) !important;
-      color: #f57c00 !important;
-      border: 0.5px solid rgba(245,124,0,0.2) !important;
-    }
-    .sync-badge.offline-mode {
-      background: var(--btn-bg) !important;
-      color: var(--text-light) !important;
-      border: 0.5px solid var(--card-border) !important;
-    }
+
+
     
     /* Android APK full-screen spacing */
     body.android .app-shell { padding-top: 39px; }
@@ -787,8 +770,6 @@ export const DIALER_HTML = `<!DOCTYPE html>
         padding: 0 10px;
         font-size: 0.72rem;
       }
-      #custViewerBtn2,
-      #custViewerBtn,
       #toggleCopyLimitBtn,
       .copy-limit-sub {
         display: none !important;
@@ -1177,14 +1158,11 @@ export const DIALER_HTML = `<!DOCTYPE html>
         
         <!-- Auto Dial Toggle -->
         <button id="autoDialBtn" title="自动拨打" style="font-size: 0.78rem; padding: 4px 10px; border: 1px solid var(--accent-wechat); background: var(--accent-wechat-bg); color: var(--accent-wechat); cursor: pointer; outline: none; font-weight: 700; border-radius: var(--radius-xs); white-space: nowrap;">自动拨打</button>
-        <!-- Database Viewer -->
-        <button id="custViewerBtn2" title="查看 Supabase 客户数据库" onclick="if(window.openDBDashboard)window.openDBDashboard();else{document.getElementById('dbOverlay').classList.add('active');alert('看板已打开，数据加载中...');}" style="font-size: 0.78rem; padding: 4px 10px; border: 1px solid #4a6cf7; background: rgba(74,108,247,0.08); color: #4a6cf7; cursor: pointer; outline: none; font-weight: 700; border-radius: var(--radius-xs); margin-right: 8px; white-space: nowrap;">数据库</button>
         <button id="refreshBatchBtn" title="从数据库随机换一批客户" onclick="if(window.refreshBatch)window.refreshBatch()" style="font-size: 0.78rem; padding: 4px 10px; border: 1px solid #e67e22; background: rgba(230,126,34,0.08); color: #e67e22; cursor: pointer; outline: none; font-weight: 700; border-radius: var(--radius-xs); margin-right: 8px; white-space: nowrap;">换一批</button>
         <!-- Dropdown Menu Trigger on the Right -->
         <div style="position: relative; display: inline-block;">
           <button id="headerMenuBtn" title="更多设置" style="font-size: 0.8rem; padding: 6px 10px; border: none; background: transparent; cursor: pointer; outline: none; font-weight: 800; color: var(--text-soft); min-width: 44px; min-height: 34px; -webkit-tap-highlight-color: transparent; touch-action: manipulation;">更多</button>
           <div class="header-dropdown" id="headerDropdown" style="display: none;">
-            <button class="dropdown-item sync-badge" id="syncStatusBadge">离线模式</button>
             <button class="dropdown-item" id="toggleImportBtn">导入文件</button>
             <button class="dropdown-item" id="whitelistMenuBtn">白名单管理</button>
             <button class="dropdown-item" id="toggleDualSimBtn">双卡轮换: 开</button>
@@ -1194,7 +1172,6 @@ export const DIALER_HTML = `<!DOCTYPE html>
             <button class="dropdown-item copy-limit-sub" id="toggleThreshold30">  30次限制: 开</button>
             <button class="dropdown-item" id="exportBtn" style="display:none;">导出记录</button>
             <button class="dropdown-item" id="clearBtn" style="display:none; color: #e74c3c;">清空数据</button>
-            <button class="dropdown-item" id="custViewerBtn">客户数据</button>
             <button class="dropdown-item" id="darkToggleBtn">切换主题</button>
           </div>
         </div>
@@ -1420,7 +1397,6 @@ export const DIALER_HTML = `<!DOCTYPE html>
           <option value="no">非白名单</option>
         </select>
         <button id="whitelistCheckBtn" title="对照白名单检查客户单位" style="height:28px; padding:0 8px; font-size:0.65rem; border:1px solid var(--accent-wechat); background:var(--accent-wechat-bg); color:var(--accent-wechat); border-radius:var(--radius-xs); cursor:pointer; font-weight:800; outline:none; white-space:nowrap; flex-shrink:0;">白名单</button>
-        <button id="dbSyncBtn" title="将本地修改与呼叫进度同步上传到 Supabase 数据库" style="height:28px; padding:0 8px; font-size:0.65rem; border:1px solid #4a6cf7; background:rgba(74,108,247,0.08); color:#4a6cf7; border-radius:var(--radius-xs); cursor:pointer; font-weight:800; outline:none; white-space:nowrap; flex-shrink:0;">同步到数据库</button>
         <div class="filter-group" style="flex-shrink: 0;">
           <button class="filter-tab active" data-filter="all">全部</button>
           <button class="filter-tab" data-filter="todo">待拨打</button>
@@ -2174,25 +2150,9 @@ export const DIALER_HTML = `<!DOCTYPE html>
       }
     }
 
-    // Status display (used by Supabase upload operations)
-    function setSyncStatus(status, title) {
-      var badge = document.getElementById("syncStatusBadge");
-      if (!badge) return;
-      badge.className = "icon-btn sync-badge " + status;
-      badge.title = title || "";
-      if (status === "online-synced") {
-        badge.innerHTML = "已同步";
-      } else if (status === "online-unsynced") {
-        badge.innerHTML = "未同步";
-      } else {
-        badge.innerHTML = "本地模式";
-      }
-    }
-
     function uploadCustomersToSupabase(customers, batchLabel) {
       if (!customers || customers.length === 0) return;
       var label = batchLabel || ("导入-" + new Date().toISOString().slice(0, 19).replace("T", " "));
-      setSyncStatus("online-unsynced", "正在上传到云端数据库...");
       var payload = serializeCustomersForSupabase(customers);
       fetch("/api/dialer/upload-customers", {
         method: "POST",
@@ -2201,70 +2161,13 @@ export const DIALER_HTML = `<!DOCTYPE html>
       })
       .then(function(res) { return res.json(); })
       .then(function(data) {
-        if (data.success) {
-          setSyncStatus("online-synced", "已上传 " + data.count + " 条客户数据至 Supabase [批次: " + label + "]");
-        } else {
-          setSyncStatus("online-unsynced", "Supabase 上传失败: " + (data.error || "未知错误"));
+        if (!data.success) {
+          console.error("Supabase upload failed:", data.error || "未知错误");
         }
       })
       .catch(function(err) {
         console.error("Supabase upload error:", err);
-        setSyncStatus("online-unsynced", "Supabase 连接失败，数据已保存在本地");
       });
-    }
-
-    function initSyncHandlers() {
-      var syncBtn = document.getElementById("dbSyncBtn");
-      if (syncBtn) {
-        syncBtn.onclick = function() {
-          if (!importedClients || importedClients.length === 0) {
-            alert("当前拨号盘中没有客户数据需要同步！");
-            return;
-          }
-          if (!confirm("确认将当前拨号盘中的 " + importedClients.length + " 条客户数据与跟进进度同步上传到 Supabase 数据库吗？(已存在的记录将被覆盖更新)")) return;
-
-          syncBtn.disabled = true;
-          var originalText = syncBtn.textContent;
-          syncBtn.textContent = "同步中...";
-
-          var defaultBatch = "拨号同步";
-          var batchMap = {};
-          importedClients.forEach(function(c) {
-            if (c.batch_label) batchMap[c.batch_label] = (batchMap[c.batch_label] || 0) + 1;
-          });
-          var batches = Object.keys(batchMap);
-          var chosenBatch = batches.length === 1 ? batches[0] : (batches.length > 1 ? batches.join(",") : defaultBatch);
-
-          setSyncStatus("online-unsynced", "正在上传到云端数据库...");
-          var payload = serializeCustomersForSupabase(importedClients);
-          fetch("/api/dialer/upload-customers", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ customers: payload, batch_label: chosenBatch })
-          })
-          .then(function(res) { return res.json(); })
-          .then(function(data) {
-            syncBtn.disabled = false;
-            syncBtn.textContent = originalText;
-            if (data.success) {
-              setSyncStatus("online-synced", "已同步 " + data.count + " 条数据");
-              alert("同步成功！共保存 " + data.count + " 条客户进度至 Supabase 数据库。");
-              if (document.getElementById("dbOverlay") && document.getElementById("dbOverlay").classList.contains("active")) {
-                dbFetch();
-              }
-            } else {
-              setSyncStatus("online-unsynced", "同步失败");
-              alert("同步失败: " + (data.error || "未知错误"));
-            }
-          })
-          .catch(function(err) {
-            syncBtn.disabled = false;
-            syncBtn.textContent = originalText;
-            setSyncStatus("online-unsynced", "连接失败");
-            alert("网络连接失败，请检查 Worker 配置或 API 连接！");
-          });
-        };
-      }
     }
 
         function updateDashboardVisibility(hasData) {
@@ -7426,9 +7329,6 @@ export const DIALER_HTML = `<!DOCTYPE html>
 
     function initCustViewer(){
       var ov=document.getElementById('dbOverlay'); if(!ov)return;
-      var bt1=document.getElementById('custViewerBtn'), bt2=document.getElementById('custViewerBtn2');
-      if(bt1)bt1.addEventListener('click',openDBDashboard);
-      if(bt2)bt2.addEventListener('click',openDBDashboard);
       var cls=document.getElementById('dbClose'); if(cls)cls.addEventListener('click',function(){ov.classList.remove('active');});
       ov.addEventListener('click',function(e){if(e.target===ov)ov.classList.remove('active');});
       
@@ -8087,6 +7987,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
 
       // Hash trigger: /dialer#db auto-opens
       if(window.location.hash==='#db'){setTimeout(openDBDashboard,300);}
+      window.addEventListener('hashchange',function(){if(window.location.hash==='#db'){openDBDashboard();}});
 
       // Batch category wiring
       var bcpBtn = document.getElementById('dbBatchCatBtn');
@@ -8627,7 +8528,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
     safeInit('initCallControls', initCallControls);
     safeInit('initFilters', initFilters);
     safeInit('initDataActions', initDataActions);
-    safeInit('initSyncHandlers', initSyncHandlers);
+
     safeInit('initHeaderMenu', initHeaderMenu);
     safeInit('initNoteModal', initNoteModal);
     safeInit('initCustomColumnsHandlers', initCustomColumnsHandlers);
