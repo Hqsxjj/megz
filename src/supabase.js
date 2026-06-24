@@ -530,78 +530,6 @@ export function createSupabaseClient(env) {
     return { count: updated };
   }
 
-  /**
-   * Get a random batch of customers. Counts total rows first, then picks
-   * a random offset and fetches `limit` records.
-   */
-  async function getRandomCustomers(limit) {
-    if (!baseUrl || !key) return { data: [], total: 0 };
-
-    try {
-      var lim = Math.min(limit || 50, 200);
-
-      // 1. Count total rows
-      var countResp = await fetch(
-        baseUrl + '/rest/v1/customers?select=id&limit=0',
-        {
-          headers: Object.assign({}, headers(), {
-            'Prefer': 'count=exact'
-          })
-        }
-      );
-
-      var totalCount = 0;
-      if (countResp.ok) {
-        var contentRange = countResp.headers.get('Content-Range');
-        if (contentRange) {
-          var parts = contentRange.split('/');
-          if (parts.length === 2) totalCount = parseInt(parts[1], 10) || 0;
-        }
-      }
-
-      if (totalCount === 0) return { data: [], total: 0 };
-
-      // 2. Pick a random offset that still leaves room for `lim` rows
-      var maxOffset = Math.max(0, totalCount - lim);
-      var randomOffset = Math.floor(Math.random() * (maxOffset + 1));
-
-      // 3. Fetch `lim` rows from that offset, ordered by created_at for consistency
-      var headersWithRange = Object.assign({}, headers(), {
-        'Range': randomOffset + '-' + (randomOffset + lim - 1)
-      });
-
-      var colSets = [
-        'name,mobile,company_name,category,note,fund,batch_label,created_at,last_operation',
-        'name,mobile,company_name,category,note,fund,created_at,last_operation',
-        'name,mobile,company_name,category,note,batch_label,created_at',
-        'name,mobile,company_name,category,note,created_at',
-        'name,mobile,company_name,created_at',
-        '*'
-      ];
-
-      var resp = null;
-      var data = null;
-      for (var ci = 0; ci < colSets.length; ci++) {
-        var url2 = baseUrl + '/rest/v1/customers?select=' + colSets[ci] + '&order=created_at.desc';
-        resp = await fetch(url2, { headers: headersWithRange });
-        if (resp.ok) {
-          data = await resp.json();
-          break;
-        }
-      }
-
-      return {
-        data: Array.isArray(data) ? data : [],
-        total: totalCount,
-        offset: randomOffset,
-        limit: lim
-      };
-    } catch (e) {
-      console.error('[supabase] getRandomCustomers error:', e.message);
-      return { data: [], total: 0, error: e.message };
-    }
-  }
-
   return {
     upsertCompanies: upsertCompanies,
     getAllCompanies: getAllCompanies,
@@ -615,7 +543,6 @@ export function createSupabaseClient(env) {
     upsertCustomers: upsertCustomers,
     getAllCustomers: getAllCustomers,
     updateCustomer: updateCustomer,
-    getRandomCustomers: getRandomCustomers,
     batchUpdateCategory: batchUpdateCategory,
     deleteCustomer: deleteCustomer,
     deleteCustomers: deleteCustomers,
