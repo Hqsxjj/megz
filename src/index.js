@@ -1344,6 +1344,30 @@ export default {
       }
     }
 
+    // 2d-random. 随机获取一批客户（换一批）
+    if (path === '/api/dialer/customers/random' && request.method === 'GET') {
+      try {
+        const url = new URL(request.url);
+        const limit = Math.min(parseInt(url.searchParams.get('limit') || '50'), 200);
+        const sb = createSupabaseClient(env);
+        const result = await sb.getRandomCustomers(limit);
+        return new Response(JSON.stringify(result), {
+          headers: {
+            'Content-Type': 'application/json; charset=UTF-8',
+            'Access-Control-Allow-Origin': '*'
+          }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ data: [], error: e.message }), {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json; charset=UTF-8',
+            'Access-Control-Allow-Origin': '*'
+          }
+        });
+      }
+    }
+
     // 2d. 批量更新某个批次的客户分类
     if (path === '/api/dialer/customers/batch-category' && request.method === 'POST') {
       try {

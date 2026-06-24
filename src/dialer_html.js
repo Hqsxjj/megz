@@ -1179,6 +1179,8 @@ export const DIALER_HTML = `<!DOCTYPE html>
         <button id="autoDialBtn" title="自动拨打" style="font-size: 0.78rem; padding: 4px 10px; border: 1px solid var(--accent-wechat); background: var(--accent-wechat-bg); color: var(--accent-wechat); cursor: pointer; outline: none; font-weight: 700; border-radius: var(--radius-xs); white-space: nowrap;">自动拨打</button>
         <!-- Database Viewer -->
         <button id="custViewerBtn2" title="查看 Supabase 客户数据库" onclick="if(window.openDBDashboard)window.openDBDashboard();else{document.getElementById('dbOverlay').classList.add('active');alert('看板已打开，数据加载中...');}" style="font-size: 0.78rem; padding: 4px 10px; border: 1px solid #4a6cf7; background: rgba(74,108,247,0.08); color: #4a6cf7; cursor: pointer; outline: none; font-weight: 700; border-radius: var(--radius-xs); margin-right: 8px; white-space: nowrap;">数据库</button>
+        <!-- Refresh Batch Button -->
+        <button id="refreshBatchBtn" title="从数据库随机换一批客户" style="font-size: 0.78rem; padding: 4px 10px; border: 1px solid #e67e22; background: rgba(230,126,34,0.08); color: #e67e22; cursor: pointer; outline: none; font-weight: 700; border-radius: var(--radius-xs); margin-right: 8px; white-space: nowrap;">换一批</button>
         <!-- Dropdown Menu Trigger on the Right -->
         <div style="position: relative; display: inline-block;">
           <button id="headerMenuBtn" title="更多设置" style="font-size: 0.8rem; padding: 6px 10px; border: none; background: transparent; cursor: pointer; outline: none; font-weight: 800; color: var(--text-soft); min-width: 44px; min-height: 34px; -webkit-tap-highlight-color: transparent; touch-action: manipulation;">更多</button>
@@ -8203,6 +8205,72 @@ export const DIALER_HTML = `<!DOCTYPE html>
       }
     }
 
+    function initRefreshBatchBtn() {
+      var btn = document.getElementById('refreshBatchBtn');
+      if (!btn) return;
+
+      btn.addEventListener('click', function() {
+        if (btn.disabled) return;
+
+        if (!confirm('确认从数据库随机加载 50 个客户，替换当前待拨打列表吗？\n\n当前列表中的跟进记录不会被上传，请确认已保存重要信息。')) return;
+
+        btn.disabled = true;
+        btn.textContent = '加载中...';
+
+        fetch('/api/dialer/customers/random?limit=50')
+          .then(function(r) { return r.json(); })
+          .then(function(res) {
+            btn.disabled = false;
+            btn.textContent = '换一批';
+
+            if (res.error) {
+              alert('加载失败: ' + res.error);
+              return;
+            }
+
+            var customers = res.data || [];
+            if (customers.length === 0) {
+              alert('数据库中没有客户记录！');
+              return;
+            }
+
+            // Replace the importedClients array
+            importedClients = customers.map(function(c) {
+              var noteObj = {};
+              var noteRaw = (c.note || '').trim();
+              if (noteRaw.indexOf('{') === 0) {
+                try { noteObj = JSON.parse(noteRaw); } catch(e) { noteObj = { note: noteRaw }; }
+              } else {
+                noteObj = { note: noteRaw };
+              }
+              return {
+                name: c.name || '未知',
+                phone: c.mobile || '',
+                mobile: c.mobile || '',
+                company: c.company_name || '',
+                note: noteObj.note || '',
+                custom: noteObj.custom || '',
+                fund: c.fund || noteObj.fund || '',
+                category: c.category || '',
+                batch_label: c.batch_label || '',
+                dialedStatus: 'todo',
+                dialedAt: null
+              };
+            });
+
+            localStorage.setItem(CLIENTS_K, JSON.stringify(importedClients));
+            renderDialCards();
+            updateStats();
+            alert('已加载 ' + customers.length + ' 个客户到待拨打列表');
+          })
+          .catch(function(err) {
+            btn.disabled = false;
+            btn.textContent = '换一批';
+            alert('网络错误: ' + err.message);
+          });
+      });
+    }
+
     function initNoteModal() {
       var modal = document.getElementById('noteModal');
       var closeBtn = document.getElementById('closeNoteModalBtn');
@@ -8572,6 +8640,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
     safeInit('initDataActions', initDataActions);
     safeInit('initSyncHandlers', initSyncHandlers);
     safeInit('initHeaderMenu', initHeaderMenu);
+    safeInit('initRefreshBatchBtn', initRefreshBatchBtn);
     safeInit('initNoteModal', initNoteModal);
     safeInit('initCustomColumnsHandlers', initCustomColumnsHandlers);
     safeInit('initWhitelist', initWhitelist);
