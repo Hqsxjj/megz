@@ -2817,7 +2817,6 @@ export default {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes, viewport-fit=cover, shrink-to-fit=no">
   <title>每日工作</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.1.1/tesseract.min.js"></script>
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -6000,7 +5999,7 @@ const rid=Math.floor(Math.random()*1000);
           '<div style="text-align:center;">' +
             '<div style="font-weight:700;font-size:0.8rem;margin-bottom:6px;">📱 请用微信扫描</div>' +
             (bridgeStatus?.qrcodeUrl ?
-              '<img src="' + bridgeStatus.qrcodeUrl + '" style="width:200px;height:200px;border-radius:8px;border:1px solid var(--card-border);" onerror="this.style.display=\'none\'">' :
+              '<img src="' + bridgeStatus.qrcodeUrl + '" style="width:200px;height:200px;border-radius:8px;border:1px solid var(--card-border);" onerror="this.style.display=\\'none\\'">' :
               '<div style="width:200px;height:200px;border-radius:8px;border:1px dashed var(--card-border);margin:0 auto;display:flex;align-items:center;justify-content:center;font-size:0.7rem;">二维码加载中...</div>'
             ) +
             '<div id="bridgeQrStatus" style="font-size:0.7rem;color:#fa9d3b;margin-top:6px;font-weight:600;">⏳ 等待扫码...</div>' +
@@ -6245,7 +6244,7 @@ const rid=Math.floor(Math.random()*1000);
         }
       } catch (err) {
         console.error('微信对话提炼失败:', err);
-        alert('微信对话提炼失败: ' + err.message + '\n\n请确保微信桥接正在运行（node bridge/index.js）');
+        alert('微信对话提炼失败: ' + err.message + '\\n\\n请确保微信桥接正在运行（node bridge/index.js）');
       } finally {
         btn.innerHTML = originalText;
         btn.disabled = false;
@@ -6288,7 +6287,7 @@ const rid=Math.floor(Math.random()*1000);
     // "从微信导入" button click — now uses panel login
     document.getElementById('importWechatLearnBtn').addEventListener('click', async () => {
       if (!bridgeOnline) {
-        alert('微信桥接未运行。\n\n请先启动桥接: npm run bridge\n然后在顶栏点击微信状态灯扫码登录');
+        alert('微信桥接未运行。\\n\\n请先启动桥接: npm run bridge\\n然后在顶栏点击微信状态灯扫码登录');
         return;
       }
       if (!bridgeConnected) {
