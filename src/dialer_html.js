@@ -7373,7 +7373,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
       var btn = document.getElementById('refreshBatchBtn');
       if (!btn || btn.disabled) return;
 
-      if (!confirm('确认从数据库随机加载 50 个客户，替换当前待拨打列表吗？\n\n当前列表中的跟进记录不会被上传，请确认已保存重要信息。')) return;
+      if (!confirm('确认从数据库随机加载 50 个客户，替换当前待拨打列表吗？\\n\\n当前列表中的跟进记录不会被上传，请确认已保存重要信息。')) return;
 
       btn.disabled = true;
       btn.textContent = '加载中...';
