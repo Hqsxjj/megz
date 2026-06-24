@@ -1136,7 +1136,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
         
         <!-- Auto Dial Toggle -->
         <button id="autoDialBtn" title="自动拨打" style="font-size: 0.78rem; padding: 4px 10px; border: 1px solid var(--accent-wechat); background: var(--accent-wechat-bg); color: var(--accent-wechat); cursor: pointer; outline: none; font-weight: 700; border-radius: var(--radius-xs); white-space: nowrap;">自动拨打</button>
-        <button id="refreshBatchBtn" title="从数据库随机换一批客户" onclick="if(window.refreshBatch)window.refreshBatch()" style="font-size: 0.78rem; padding: 4px 10px; border: 1px solid #e67e22; background: rgba(230,126,34,0.08); color: #e67e22; cursor: pointer; outline: none; font-weight: 700; border-radius: var(--radius-xs); margin-right: 8px; white-space: nowrap;">换一批</button>
+        <button id="refreshBatchBtn" title="从数据库按最新导入顺序拉取，与看板同序，拉过的自动沉底" onclick="if(window.refreshBatch)window.refreshBatch()" style="font-size: 0.78rem; padding: 4px 10px; border: 1px solid #e67e22; background: rgba(230,126,34,0.08); color: #e67e22; cursor: pointer; outline: none; font-weight: 700; border-radius: var(--radius-xs); margin-right: 8px; white-space: nowrap;">换一批</button>
         <!-- Dropdown Menu Trigger on the Right -->
         <div style="position: relative; display: inline-block;">
           <button id="headerMenuBtn" title="更多设置" style="font-size: 0.8rem; padding: 6px 10px; border: none; background: transparent; cursor: pointer; outline: none; font-weight: 800; color: var(--text-soft); min-width: 44px; min-height: 34px; -webkit-tap-highlight-color: transparent; touch-action: manipulation;">更多</button>
@@ -7187,12 +7187,12 @@ export const DIALER_HTML = `<!DOCTYPE html>
     window.renderAIUnstructuredReport = renderAIUnstructuredReport;
     window.correctOcrTextWithAI = correctOcrTextWithAI;
 
-    // 换一批：从 Supabase 随机拉取 50 条客户替换当前待拨打列表
+    // 换一批：按 created_at.desc 依次拉取（与数据库看板首页同序），KV游标自动推进实现沉底
     window.refreshBatch = function() {
       var btn = document.getElementById('refreshBatchBtn');
       if (!btn || btn.disabled) return;
 
-      if (!confirm('确认从数据库随机加载 50 个客户，替换当前待拨打列表吗？\\n\\n当前列表中的跟进记录不会被上传，请确认已保存重要信息。')) return;
+      if (!confirm('确认从数据库加载 50 个客户到待拨打列表吗？\\n\\n按最新导入顺序拉取，与数据库看板同序。\\n每次换一批自动推进，拉过的沉底不重复。\\n当前列表中的跟进记录不会被上传，请确认已保存重要信息。')) return;
 
       btn.disabled = true;
       btn.textContent = '加载中...';
@@ -7206,7 +7206,14 @@ export const DIALER_HTML = `<!DOCTYPE html>
           if (res.error) { alert('加载失败: ' + res.error); return; }
 
           var customers = res.data || [];
-          if (customers.length === 0) { alert('数据库中没有客户记录！'); return; }
+          if (customers.length === 0) {
+            if (res.cycled) {
+              alert('已轮完全部客户，游标已重置，下次将从最新开始。');
+            } else {
+              alert('数据库中没有客户记录！');
+            }
+            return;
+          }
 
           importedClients = customers.map(function(c) {
             var noteObj = {};
@@ -7234,7 +7241,9 @@ export const DIALER_HTML = `<!DOCTYPE html>
           localStorage.setItem(CLIENTS_K, JSON.stringify(importedClients));
           renderDialCards();
           updateStats();
-          alert('已加载 ' + customers.length + ' 个客户到待拨打列表');
+          var msg = '已加载 ' + customers.length + ' 个客户到待拨打列表';
+          if (res.cycled) msg += '\\n(已轮完全部，重新从最新开始)';
+          alert(msg);
         })
         .catch(function(err) {
           btn.disabled = false;

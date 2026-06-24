@@ -538,44 +538,16 @@ export function createSupabaseClient(env) {
   }
 
   /**
-   * Get a random batch of customers. Counts total rows first, then picks
-   * a random offset and fetches `limit` records.
+   * Get customers at a specific offset for dialer batch pull.
+   * Always pulls by created_at.desc — same order as the database dashboard first page.
+   * The caller manages the offset cursor (stored in KV) to implement "沉底" (auto-advance).
    */
-  async function getRandomCustomers(limit) {
+  async function getCustomersAtOffset(offset, limit) {
     if (!baseUrl || !key) return { data: [], total: 0 };
 
     try {
       var lim = Math.min(limit || 50, 200);
-
-      // 1. Count total rows
-      var countResp = await fetch(
-        baseUrl + '/rest/v1/customers?select=id&limit=0',
-        {
-          headers: Object.assign({}, headers(), {
-            'Prefer': 'count=exact'
-          })
-        }
-      );
-
-      var totalCount = 0;
-      if (countResp.ok) {
-        var contentRange = countResp.headers.get('Content-Range');
-        if (contentRange) {
-          var parts = contentRange.split('/');
-          if (parts.length === 2) totalCount = parseInt(parts[1], 10) || 0;
-        }
-      }
-
-      if (totalCount === 0) return { data: [], total: 0 };
-
-      // 2. Pick a random offset that still leaves room for `lim` rows
-      var maxOffset = Math.max(0, totalCount - lim);
-      var randomOffset = Math.floor(Math.random() * (maxOffset + 1));
-
-      // 3. Fetch `lim` rows from that offset
-      var hdrs = Object.assign({}, headers(), {
-        'Range': randomOffset + '-' + (randomOffset + lim - 1)
-      });
+      var off = Math.max(0, offset || 0);
 
       var colSets = [
         'name,mobile,company_name,category,note,fund,batch_label,created_at,last_operation',
@@ -586,8 +558,13 @@ export function createSupabaseClient(env) {
         '*'
       ];
 
-      var resp = null;
+      var hdrs = Object.assign({}, headers(), {
+        'Range': off + '-' + (off + lim - 1),
+        'Prefer': 'count=exact'
+      });
+
       var data = null;
+      var resp = null;
       for (var ci = 0; ci < colSets.length; ci++) {
         var qUrl = baseUrl + '/rest/v1/customers?select=' + colSets[ci] + '&order=created_at.desc';
         resp = await fetch(qUrl, { headers: hdrs });
@@ -597,14 +574,23 @@ export function createSupabaseClient(env) {
         }
       }
 
+      var totalCount = 0;
+      if (resp) {
+        var contentRange = resp.headers.get('Content-Range');
+        if (contentRange) {
+          var parts = contentRange.split('/');
+          if (parts.length === 2) totalCount = parseInt(parts[1], 10) || 0;
+        }
+      }
+
       return {
         data: Array.isArray(data) ? data : [],
         total: totalCount,
-        offset: randomOffset,
+        offset: off,
         limit: lim
       };
     } catch (e) {
-      console.error('[supabase] getRandomCustomers error:', e.message);
+      console.error('[supabase] getCustomersAtOffset error:', e.message);
       return { data: [], total: 0, error: e.message };
     }
   }
@@ -622,7 +608,7 @@ export function createSupabaseClient(env) {
     upsertCustomers: upsertCustomers,
     getAllCustomers: getAllCustomers,
     updateCustomer: updateCustomer,
-    getRandomCustomers: getRandomCustomers,
+    getCustomersAtOffset: getCustomersAtOffset,
     batchUpdateCategory: batchUpdateCategory,
     deleteCustomer: deleteCustomer,
     deleteCustomers: deleteCustomers,

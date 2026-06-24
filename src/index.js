@@ -1346,14 +1346,48 @@ export default {
       }
     }
 
-    // 2d-random. 随机获取一批客户（换一批）
+    // 2d-offset. "换一批"：按 created_at.desc 拉取（与数据库看板同序），KV游标实现沉底
     if (path === '/api/dialer/customers/random' && request.method === 'GET') {
       try {
         const url = new URL(request.url);
         const limit = Math.min(parseInt(url.searchParams.get('limit') || '50'), 200);
         const sb = createSupabaseClient(env);
-        const result = await sb.getRandomCustomers(limit);
-        return new Response(JSON.stringify(result), {
+
+        // Read current offset from KV (cursor for "沉底")
+        let offset = 0;
+        let cycled = false;
+        if (env.DATA_KV) {
+          try {
+            const raw = await env.DATA_KV.get('dialer_pull_offset');
+            if (raw) offset = parseInt(raw, 10) || 0;
+          } catch (kvErr) { /* ignore, use 0 */ }
+        }
+
+        const result = await sb.getCustomersAtOffset(offset, limit);
+        const data = result.data || [];
+        const total = result.total || 0;
+
+        // Advance cursor for next pull (沉底)
+        let newOffset = offset + data.length;
+        if (newOffset >= total || data.length === 0) {
+          newOffset = 0;
+          cycled = data.length > 0; // only mark cycled if we actually got data and wrapped
+        }
+
+        // Persist new offset
+        if (env.DATA_KV) {
+          try {
+            await env.DATA_KV.put('dialer_pull_offset', String(newOffset));
+          } catch (kvErr) { /* non-fatal */ }
+        }
+
+        return new Response(JSON.stringify({
+          data: data,
+          total: total,
+          offset: offset,
+          limit: limit,
+          cycled: cycled
+        }), {
           headers: {
             'Content-Type': 'application/json; charset=UTF-8',
             'Access-Control-Allow-Origin': '*'
@@ -6726,7 +6760,8 @@ const rid=Math.floor(Math.random()*1000);
     const ua=navigator.userAgent||"";
     const isAndroid=/Android/.test(ua)&&!/iPhone|iPad|iPod/.test(ua);
     if(isAndroid)document.body.classList.add("android");
-  }  function initDark(){
+  }
+  function initDark(){
     const btn=document.getElementById('darkToggleBtn');
     const themeMeta=document.querySelector('meta[name="theme-color"]');
     const updateDarkTitle=()=>{
@@ -7757,7 +7792,18 @@ const rid=Math.floor(Math.random()*1000);
 
   }
 
-  initAndroid();initLogs();initDark();initWp();initScriptFeature();initLearnFeature();initExport();initAllClientsBtn();initGoals();initWhitelistFeature();initLoanCalc();
+  function safeInit(name, fn) { try { fn(); } catch (e) { console.error('Init error: ' + name, e); } }
+  safeInit('initAndroid', initAndroid);
+  safeInit('initLogs', initLogs);
+  safeInit('initDark', initDark);
+  safeInit('initWp', initWp);
+  safeInit('initScriptFeature', initScriptFeature);
+  safeInit('initLearnFeature', initLearnFeature);
+  safeInit('initExport', initExport);
+  safeInit('initAllClientsBtn', initAllClientsBtn);
+  safeInit('initGoals', initGoals);
+  safeInit('initWhitelistFeature', initWhitelistFeature);
+  safeInit('initLoanCalc', initLoanCalc);
   document.getElementById('goalEyeBtn').addEventListener('click',toggleGoalNumbers);
   function calGo(delta){
     const [y,m]=calendarMonth.split('-').map(Number);
