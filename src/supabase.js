@@ -538,18 +538,17 @@ export function createSupabaseClient(env) {
   }
 
   /**
-   * Get customers at a specific offset for dialer batch pull.
-   * Always pulls by created_at.desc — same order as the database dashboard first page.
-   * The caller manages the offset cursor (stored in KV) to implement "沉底" (auto-advance).
+   * Get customers for dialer batch pull using pulled_at ordering.
+   * Never-pulled customers come first (newest first), then oldest-pulled come back.
+   * This naturally implements "沉底" (sink to bottom) without KV cursors.
    */
-  async function getCustomersAtOffset(offset, limit, excludeMobiles) {
+  async function getCustomersForDialer(limit, excludeMobiles) {
     if (!baseUrl || !key) return { data: [], total: 0 };
 
     try {
       var lim = Math.min(limit || 50, 200);
-      var off = Math.max(0, offset || 0);
 
-      // Build mobile.not.in filter to exclude already-loaded phone numbers
+      // Build mobile not.in filter for client-side current list
       var notInFilter = '';
       if (excludeMobiles && excludeMobiles.length > 0) {
         var uniqueMobiles = [];
@@ -558,28 +557,32 @@ export function createSupabaseClient(env) {
           if (m && uniqueMobiles.indexOf(m) === -1) uniqueMobiles.push(m);
         }
         if (uniqueMobiles.length > 0) {
-          notInFilter = '&mobile.not.in=(' + uniqueMobiles.map(function(m) { return encodeURIComponent(m); }).join(',') + ')';
+          notInFilter = '&mobile=not.in.(' + uniqueMobiles.map(function(m) { return encodeURIComponent(m); }).join(',') + ')';
         }
       }
 
+      // Order: never-pulled first (newest import first), then oldest-pulled ascend
+      // NULLs first = never pulled (top), then oldest pulled ascend (cycle back)
+      var orderFilter = '&order=pulled_at.asc.nullsfirst,created_at.desc';
+
       var colSets = [
-        'name,mobile,company_name,category,note,fund,batch_label,created_at,last_operation',
-        'name,mobile,company_name,category,note,fund,created_at,last_operation',
-        'name,mobile,company_name,category,note,batch_label,created_at',
-        'name,mobile,company_name,category,note,created_at',
-        'name,mobile,company_name,created_at',
+        'name,mobile,company_name,category,note,fund,batch_label,created_at,last_operation,pulled_at',
+        'name,mobile,company_name,category,note,fund,created_at,last_operation,pulled_at',
+        'name,mobile,company_name,category,note,batch_label,created_at,pulled_at',
+        'name,mobile,company_name,category,note,created_at,pulled_at',
+        'name,mobile,company_name,created_at,pulled_at',
         '*'
       ];
 
       var hdrs = Object.assign({}, headers(), {
-        'Range': off + '-' + (off + lim - 1),
+        'Range': '0-' + (lim - 1),
         'Prefer': 'count=exact'
       });
 
       var data = null;
       var resp = null;
       for (var ci = 0; ci < colSets.length; ci++) {
-        var qUrl = baseUrl + '/rest/v1/customers?select=' + colSets[ci] + '&order=created_at.desc' + notInFilter;
+        var qUrl = baseUrl + '/rest/v1/customers?select=' + colSets[ci] + orderFilter + notInFilter;
         resp = await fetch(qUrl, { headers: hdrs });
         if (resp.ok) {
           data = await resp.json();
@@ -599,12 +602,44 @@ export function createSupabaseClient(env) {
       return {
         data: Array.isArray(data) ? data : [],
         total: totalCount,
-        offset: off,
         limit: lim
       };
     } catch (e) {
-      console.error('[supabase] getCustomersAtOffset error:', e.message);
+      console.error('[supabase] getCustomersForDialer error:', e.message);
       return { data: [], total: 0, error: e.message };
+    }
+  }
+
+  /**
+   * Batch-update pulled_at = NOW() for customers that were just loaded into the dialer.
+   * Uses Supabase PATCH with mobile.in filter.
+   */
+  async function batchSetPulledAt(mobiles) {
+    if (!baseUrl || !key) return;
+    if (!mobiles || mobiles.length === 0) return;
+
+    try {
+      var uniqueMobiles = [];
+      for (var i = 0; i < mobiles.length; i++) {
+        var m = (mobiles[i] || '').trim();
+        if (m && uniqueMobiles.indexOf(m) === -1) uniqueMobiles.push(m);
+      }
+      if (uniqueMobiles.length === 0) return;
+
+      var inFilter = 'mobile=in.(' + uniqueMobiles.map(function(m) { return encodeURIComponent(m); }).join(',') + ')';
+      var qUrl = baseUrl + '/rest/v1/customers?' + inFilter;
+      var body = JSON.stringify({ pulled_at: new Date().toISOString() });
+
+      await fetch(qUrl, {
+        method: 'PATCH',
+        headers: Object.assign({}, headers(), {
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal'
+        }),
+        body: body
+      });
+    } catch (e) {
+      console.error('[supabase] batchSetPulledAt error:', e.message);
     }
   }
 
@@ -621,7 +656,8 @@ export function createSupabaseClient(env) {
     upsertCustomers: upsertCustomers,
     getAllCustomers: getAllCustomers,
     updateCustomer: updateCustomer,
-    getCustomersAtOffset: getCustomersAtOffset,
+    getCustomersForDialer: getCustomersForDialer,
+    batchSetPulledAt: batchSetPulledAt,
     batchUpdateCategory: batchUpdateCategory,
     deleteCustomer: deleteCustomer,
     deleteCustomers: deleteCustomers,

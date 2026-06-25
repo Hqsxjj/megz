@@ -1754,17 +1754,6 @@ export const DIALER_HTML = `<!DOCTYPE html>
       if (days > 0) return days + '天' + hours + '小时';
       return hours + '小时' + Math.floor((remaining % 3600000) / 60000) + '分钟';
     }
-
-    // Sync cooldown to server (KV-based, cross-device 10-day cooldown)
-    function syncCooldownToServer(mobiles) {
-      if (!mobiles || mobiles.length === 0) return;
-      fetch('/api/dialer/cooldown', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mobiles: mobiles })
-      }).catch(function() { /* fire-and-forget */ });
-    }
-
     function loadCopyLimitState() {
       if (copyLimitState) return;
       try {
@@ -7230,10 +7219,10 @@ export const DIALER_HTML = `<!DOCTYPE html>
 
           var customers = res.data || [];
           if (customers.length === 0) {
-            if (res.cycled) {
-              alert('已轮完全部客户，游标已重置，下次将从最新开始。');
+            if (res.total > 0) {
+              alert('当前范围内客户都已在待拨列表中。\\n请清空当前列表或等待其他设备释放后重试。');
             } else {
-              alert('数据库中没有客户记录！');
+              alert('数据库中没有客户记录！\\n请先在 CRM 中导入客户数据。');
             }
             return;
           }
@@ -7264,11 +7253,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
           localStorage.setItem(CLIENTS_K, JSON.stringify(importedClients));
           renderDialCards();
           updateStats();
-          // Sync cooldown to server (10-day cross-device)
-          syncCooldownToServer(customers.map(function(c) { return c.mobile || ''; }).filter(Boolean));
-          var msg = '已加载 ' + customers.length + ' 个客户到待拨打列表';
-          if (res.cycled) msg += '\\n(已轮完全部，重新从最新开始)';
-          alert(msg);
+          alert('已加载 ' + customers.length + ' 个客户到待拨打列表');
         })
         .catch(function(err) {
           btn.disabled = false;
@@ -7563,7 +7548,6 @@ export const DIALER_HTML = `<!DOCTYPE html>
 
           if (addedCount > 0) {
             localStorage.setItem(CLIENTS_K, JSON.stringify(importedClients));
-            syncCooldownToServer(addedMobiles);
             renderDialCards();
             var msg = '成功添加 ' + addedCount + ' 个客户到待拨打列表';
             if (skippedCooldown > 0) msg += '，' + skippedCooldown + ' 个因10天内已添加被跳过';
@@ -7660,7 +7644,6 @@ export const DIALER_HTML = `<!DOCTYPE html>
 
               if (addedCount > 0) {
                 localStorage.setItem(CLIENTS_K, JSON.stringify(importedClients));
-                syncCooldownToServer(addedMobiles);
                 renderDialCards();
                 updateDashboardVisibility(true);
                 var msg = '成功从数据库拉取了 ' + addedCount + ' 个客户到拨号盘列表！';
