@@ -561,6 +561,11 @@ export function createSupabaseClient(env) {
         }
       }
 
+      // 10-day cooldown: only return customers that are either never-pulled
+      // or pulled more than 10 days ago. Prevents multi-device duplicates.
+      var cooldownDate = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString();
+      var cooldownFilter = '&or=(pulled_at.is.null,pulled_at.lt.' + encodeURIComponent(cooldownDate) + ')';
+
       // Order: never-pulled first (newest import first), then oldest-pulled ascend
       // NULLs first = never pulled (top), then oldest pulled ascend (cycle back)
       var orderFilter = '&order=pulled_at.asc.nullsfirst,created_at.desc';
@@ -582,7 +587,7 @@ export function createSupabaseClient(env) {
       var data = null;
       var resp = null;
       for (var ci = 0; ci < colSets.length; ci++) {
-        var qUrl = baseUrl + '/rest/v1/customers?select=' + colSets[ci] + orderFilter + notInFilter;
+        var qUrl = baseUrl + '/rest/v1/customers?select=' + colSets[ci] + orderFilter + cooldownFilter + notInFilter;
         resp = await fetch(qUrl, { headers: hdrs });
         if (resp.ok) {
           data = await resp.json();
