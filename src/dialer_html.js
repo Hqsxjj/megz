@@ -7197,7 +7197,20 @@ export const DIALER_HTML = `<!DOCTYPE html>
       btn.disabled = true;
       btn.textContent = '加载中...';
 
-      fetch('/api/dialer/customers/random?limit=50')
+	      // Collect current phone numbers to exclude from server pull (prevents duplicate across devices)
+	      var excludeMobiles = [];
+	      if (importedClients && importedClients.length > 0) {
+	        for (var ei = 0; ei < importedClients.length; ei++) {
+	          var m = (importedClients[ei].mobile || '').trim();
+	          if (m) excludeMobiles.push(m);
+	        }
+	      }
+
+	      fetch('/api/dialer/customers/random', {
+	        method: 'POST',
+	        headers: { 'Content-Type': 'application/json' },
+	        body: JSON.stringify({ limit: 50, exclude: excludeMobiles })
+      })
         .then(function(r) { return r.json(); })
         .then(function(res) {
           btn.disabled = false;

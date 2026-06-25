@@ -1347,10 +1347,25 @@ export default {
     }
 
     // 2d-offset. "换一批"：按 created_at.desc 拉取（与数据库看板同序），KV游标实现沉底
-    if (path === '/api/dialer/customers/random' && request.method === 'GET') {
+    // Accepts GET (no exclude) or POST with {limit, exclude: string[]}
+    if (path === '/api/dialer/customers/random' && (request.method === 'GET' || request.method === 'POST')) {
       try {
-        const url = new URL(request.url);
-        const limit = Math.min(parseInt(url.searchParams.get('limit') || '50'), 200);
+        let limit = 50;
+        let excludeMobiles = null;
+
+        if (request.method === 'POST') {
+          try {
+            const body = await request.json();
+            limit = Math.min(parseInt(body.limit) || 50, 200);
+            if (Array.isArray(body.exclude) && body.exclude.length > 0) {
+              excludeMobiles = body.exclude;
+            }
+          } catch (parseErr) { /* use defaults */ }
+        } else {
+          const url = new URL(request.url);
+          limit = Math.min(parseInt(url.searchParams.get('limit') || '50'), 200);
+        }
+
         const sb = createSupabaseClient(env);
 
         // Read current offset from KV (cursor for "沉底")
@@ -1363,7 +1378,7 @@ export default {
           } catch (kvErr) { /* ignore, use 0 */ }
         }
 
-        const result = await sb.getCustomersAtOffset(offset, limit);
+        const result = await sb.getCustomersAtOffset(offset, limit, excludeMobiles);
         const data = result.data || [];
         const total = result.total || 0;
 

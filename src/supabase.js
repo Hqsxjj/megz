@@ -542,12 +542,25 @@ export function createSupabaseClient(env) {
    * Always pulls by created_at.desc — same order as the database dashboard first page.
    * The caller manages the offset cursor (stored in KV) to implement "沉底" (auto-advance).
    */
-  async function getCustomersAtOffset(offset, limit) {
+  async function getCustomersAtOffset(offset, limit, excludeMobiles) {
     if (!baseUrl || !key) return { data: [], total: 0 };
 
     try {
       var lim = Math.min(limit || 50, 200);
       var off = Math.max(0, offset || 0);
+
+      // Build mobile.not.in filter to exclude already-loaded phone numbers
+      var notInFilter = '';
+      if (excludeMobiles && excludeMobiles.length > 0) {
+        var uniqueMobiles = [];
+        for (var ei = 0; ei < excludeMobiles.length; ei++) {
+          var m = (excludeMobiles[ei] || '').trim();
+          if (m && uniqueMobiles.indexOf(m) === -1) uniqueMobiles.push(m);
+        }
+        if (uniqueMobiles.length > 0) {
+          notInFilter = '&mobile.not.in=(' + uniqueMobiles.map(function(m) { return encodeURIComponent(m); }).join(',') + ')';
+        }
+      }
 
       var colSets = [
         'name,mobile,company_name,category,note,fund,batch_label,created_at,last_operation',
@@ -566,7 +579,7 @@ export function createSupabaseClient(env) {
       var data = null;
       var resp = null;
       for (var ci = 0; ci < colSets.length; ci++) {
-        var qUrl = baseUrl + '/rest/v1/customers?select=' + colSets[ci] + '&order=created_at.desc';
+        var qUrl = baseUrl + '/rest/v1/customers?select=' + colSets[ci] + '&order=created_at.desc' + notInFilter;
         resp = await fetch(qUrl, { headers: hdrs });
         if (resp.ok) {
           data = await resp.json();
