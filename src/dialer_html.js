@@ -1699,9 +1699,9 @@ export const DIALER_HTML = `<!DOCTYPE html>
     }
     var copyLimitState = null;
 
-    // 待拨打添加历史记录 - 防止4天内重复添加到待拨打
+    // 待拨打添加历史记录 - 防止10天内重复添加到待拨打
     var ADD_HISTORY_K = 'standalone_dialer_add_history';
-    var ADD_COOLDOWN_MS = 4 * 24 * 60 * 60 * 1000; // 4天冷却期
+    var ADD_COOLDOWN_MS = 10 * 24 * 60 * 60 * 1000; // 10天冷却期（与服务端一致）
 
     function getAddHistory() {
       try {
@@ -1711,7 +1711,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
     }
 
     function saveAddHistory(history) {
-      // 清理超过4天的旧记录，避免存储膨胀
+      // 清理超过10天的旧记录，避免存储膨胀
       var now = Date.now();
       var cleaned = {};
       var keys = Object.keys(history);
@@ -1753,6 +1753,16 @@ export const DIALER_HTML = `<!DOCTYPE html>
       var hours = Math.floor((remaining % 86400000) / 3600000);
       if (days > 0) return days + '天' + hours + '小时';
       return hours + '小时' + Math.floor((remaining % 3600000) / 60000) + '分钟';
+    }
+
+    // Sync cooldown to server (KV-based, cross-device 10-day cooldown)
+    function syncCooldownToServer(mobiles) {
+      if (!mobiles || mobiles.length === 0) return;
+      fetch('/api/dialer/cooldown', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mobiles: mobiles })
+      }).catch(function() { /* fire-and-forget */ });
     }
 
     function loadCopyLimitState() {
@@ -7254,6 +7264,8 @@ export const DIALER_HTML = `<!DOCTYPE html>
           localStorage.setItem(CLIENTS_K, JSON.stringify(importedClients));
           renderDialCards();
           updateStats();
+          // Sync cooldown to server (10-day cross-device)
+          syncCooldownToServer(customers.map(function(c) { return c.mobile || ''; }).filter(Boolean));
           var msg = '已加载 ' + customers.length + ' 个客户到待拨打列表';
           if (res.cycled) msg += '\\n(已轮完全部，重新从最新开始)';
           alert(msg);
@@ -7518,6 +7530,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
           var addedCount = 0;
           var skippedCooldown = 0;
           var skippedExists = 0;
+          var addedMobiles = [];
           selectedMobiles.forEach(function(m) {
             var clientData = DB.allData.find(function(c) { return c.mobile === m; });
             if (clientData) {
@@ -7543,15 +7556,17 @@ export const DIALER_HTML = `<!DOCTYPE html>
                 batch_label: clientData.batch_label || ''
               });
               recordAddToDialList(m);
+              addedMobiles.push(m);
               addedCount++;
             }
           });
 
           if (addedCount > 0) {
             localStorage.setItem(CLIENTS_K, JSON.stringify(importedClients));
+            syncCooldownToServer(addedMobiles);
             renderDialCards();
             var msg = '成功添加 ' + addedCount + ' 个客户到待拨打列表';
-            if (skippedCooldown > 0) msg += '，' + skippedCooldown + ' 个因4天内已添加被跳过';
+            if (skippedCooldown > 0) msg += '，' + skippedCooldown + ' 个因10天内已添加被跳过';
             if (skippedExists > 0) msg += '，' + skippedExists + ' 个已在列表中';
             alert(msg);
             DB.selectedIds = {};
@@ -7560,7 +7575,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
             dbTable(crmFilterData(DB.allData));
           } else {
             var msg2 = '没有客户被添加';
-            if (skippedCooldown > 0) msg2 += '（' + skippedCooldown + ' 个在4天冷却期内）';
+            if (skippedCooldown > 0) msg2 += '（' + skippedCooldown + ' 个在10天冷却期内）';
             if (skippedExists > 0) msg2 += '（' + skippedExists + ' 个已在列表中）';
             if (skippedCooldown === 0 && skippedExists === 0) msg2 = '选中的客户已在待拨打列表中';
             alert(msg2);
@@ -7587,7 +7602,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
           if (category) confirmMsg += '「' + category + '」分类';
           if (batchFilter) confirmMsg += '「' + batchFilter + '」批次';
           if (!category && !batchFilter) confirmMsg += '所有';
-          confirmMsg += '的客户到拨号盘吗？(已存在或4天内已添加的将自动跳过，最大拉取5000条)';
+          confirmMsg += '的客户到拨号盘吗？(已存在或10天内已添加的将自动跳过，最大拉取5000条)';
           
           if (!confirm(confirmMsg)) return;
           
@@ -7615,6 +7630,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
               
               var addedCount = 0;
               var skippedCooldown = 0;
+              var addedMobiles = [];
               dbClients.forEach(function(c) {
                 var m = c.mobile;
                 if (!m) return;
@@ -7638,20 +7654,22 @@ export const DIALER_HTML = `<!DOCTYPE html>
                   last_operation: c.last_operation || null
                 });
                 recordAddToDialList(m);
+                addedMobiles.push(m);
                 addedCount++;
               });
-              
+
               if (addedCount > 0) {
                 localStorage.setItem(CLIENTS_K, JSON.stringify(importedClients));
+                syncCooldownToServer(addedMobiles);
                 renderDialCards();
                 updateDashboardVisibility(true);
                 var msg = '成功从数据库拉取了 ' + addedCount + ' 个客户到拨号盘列表！';
-                if (skippedCooldown > 0) msg += '（' + skippedCooldown + ' 个在4天冷却期内已跳过）';
+                if (skippedCooldown > 0) msg += '（' + skippedCooldown + ' 个在10天冷却期内已跳过）';
                 alert(msg);
                 document.getElementById('dbOverlay').classList.remove('active');
               } else {
                 var msg2 = '拉取了 ' + dbClients.length + ' 个客户';
-                if (skippedCooldown > 0) msg2 += '，其中 ' + skippedCooldown + ' 个在4天冷却期内';
+                if (skippedCooldown > 0) msg2 += '，其中 ' + skippedCooldown + ' 个在10天冷却期内';
                 msg2 += '已全部存在在拨号盘列表中！';
                 alert(msg2);
               }

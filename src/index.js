@@ -919,6 +919,67 @@ async function callAIChatWithTools(env, messages, temperature = 0.5, fromUser = 
   return { choices: [{ message: chatMessages[chatMessages.length - 1] }] };
 }
 
+// --- 线索池冷却期（Supabase 端 10 天冷却，跨设备共享） ---
+
+const COOLDOWN_KV_KEY = 'dialer_cooldown';
+const COOLDOWN_DAYS = 10;
+const COOLDOWN_MS = COOLDOWN_DAYS * 24 * 60 * 60 * 1000;
+
+/**
+ * Read cooldown map from KV, clean up expired entries, return Map<mobile, cooldownUntilISO>
+ */
+async function getCooldownMap(kv) {
+  const map = new Map();
+  if (!kv) return map;
+  try {
+    const raw = await kv.get(COOLDOWN_KV_KEY);
+    if (!raw) return map;
+    const data = JSON.parse(raw);
+    const now = Date.now();
+    let changed = false;
+    for (const mobile of Object.keys(data)) {
+      const until = new Date(data[mobile]).getTime();
+      if (until > now) {
+        map.set(mobile, data[mobile]);
+      } else {
+        changed = true; // expired, will be cleaned
+      }
+    }
+    // Clean expired entries
+    if (changed) {
+      if (map.size === 0) {
+        await kv.delete(COOLDOWN_KV_KEY).catch(() => {});
+      } else {
+        const cleaned = {};
+        map.forEach((v, k) => { cleaned[k] = v; });
+        await kv.put(COOLDOWN_KV_KEY, JSON.stringify(cleaned)).catch(() => {});
+      }
+    }
+  } catch (e) { /* ignore, return empty map */ }
+  return map;
+}
+
+/**
+ * Add entries to cooldown pool, set cooldown_until = now + 10 days.
+ * Cleans expired entries before writing back.
+ */
+async function addCooldownEntries(kv, mobiles) {
+  if (!kv || !mobiles || mobiles.length === 0) return;
+  try {
+    const now = Date.now();
+    const cooldownUntil = new Date(now + COOLDOWN_MS).toISOString();
+
+    const map = await getCooldownMap(kv); // already cleans expired
+    for (const m of mobiles) {
+      const mobile = (m || '').trim();
+      if (mobile) map.set(mobile, cooldownUntil);
+    }
+    const obj = {};
+    map.forEach((v, k) => { obj[k] = v; });
+    await kv.put(COOLDOWN_KV_KEY, JSON.stringify(obj)).catch(() => {});
+  } catch (e) { /* non-fatal */ }
+}
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
@@ -1346,6 +1407,23 @@ export default {
       }
     }
 
+    // 线索池冷却期：添加客户进入拨号列表后记录10天冷却，跨设备共享
+    if (path === '/api/dialer/cooldown' && request.method === 'POST') {
+      try {
+        const body = await request.json();
+        const mobiles = Array.isArray(body.mobiles) ? body.mobiles : [];
+        await addCooldownEntries(env.DATA_KV, mobiles);
+        return new Response(JSON.stringify({ ok: true }), {
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ ok: false, error: e.message }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+    }
+
     // 2d-offset. "换一批"：按 created_at.desc 拉取（与数据库看板同序），KV游标实现沉底
     // Accepts GET (no exclude) or POST with {limit, exclude: string[]}
     if (path === '/api/dialer/customers/random' && (request.method === 'GET' || request.method === 'POST')) {
@@ -1368,6 +1446,23 @@ export default {
 
         const sb = createSupabaseClient(env);
 
+        // Read cooldown pool from KV (10-day server-side cooldown, cross-device)
+        let cooldownMap = null;
+        if (env.DATA_KV) {
+          try {
+            cooldownMap = await getCooldownMap(env.DATA_KV);
+          } catch (kvErr) { /* ignore */ }
+        }
+
+        // Merge client-side exclude with server-side cooldown mobiles
+        let mergedExclude = excludeMobiles ? excludeMobiles.slice() : [];
+        if (cooldownMap && cooldownMap.size > 0) {
+          cooldownMap.forEach(function(until, mobile) {
+            if (mergedExclude.indexOf(mobile) === -1) mergedExclude.push(mobile);
+          });
+        }
+        if (mergedExclude.length === 0) mergedExclude = null;
+
         // Read current offset from KV (cursor for "沉底")
         let offset = 0;
         let cycled = false;
@@ -1378,7 +1473,7 @@ export default {
           } catch (kvErr) { /* ignore, use 0 */ }
         }
 
-        const result = await sb.getCustomersAtOffset(offset, limit, excludeMobiles);
+        const result = await sb.getCustomersAtOffset(offset, limit, mergedExclude);
         const data = result.data || [];
         const total = result.total || 0;
 
