@@ -635,7 +635,7 @@ export function createSupabaseClient(env) {
       var qUrl = baseUrl + '/rest/v1/customers?' + inFilter;
       var body = JSON.stringify({ pulled_at: new Date().toISOString() });
 
-      await fetch(qUrl, {
+      var resp = await fetch(qUrl, {
         method: 'PATCH',
         headers: Object.assign({}, headers(), {
           'Content-Type': 'application/json',
@@ -643,6 +643,11 @@ export function createSupabaseClient(env) {
         }),
         body: body
       });
+      if (!resp.ok) {
+        var errText = '';
+        try { errText = await resp.text(); } catch(_) {}
+        console.error('[supabase] batchSetPulledAt PATCH failed: HTTP ' + resp.status + ' — ' + errText.slice(0, 300));
+      }
     } catch (e) {
       console.error('[supabase] batchSetPulledAt error:', e.message);
     }

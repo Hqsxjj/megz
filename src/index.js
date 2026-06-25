@@ -1365,19 +1365,45 @@ export default {
           limit = Math.min(parseInt(url.searchParams.get('limit') || '50'), 200);
         }
 
+        // Merge KV-tracked cooldown mobiles into exclude set
+        // KV is the RELIABLE fallback — works even when Supabase PATCH fails (RLS, etc.)
+        // Each entry auto-expires after 10 days via expirationTtl
+        var mergedExclude = (excludeMobiles || []).slice();
+        try {
+          var cooldownList = await env.DATA_KV.list({ prefix: 'dialer:cooldown:' });
+          if (cooldownList && cooldownList.keys) {
+            for (var ci = 0; ci < cooldownList.keys.length; ci++) {
+              var cm = cooldownList.keys[ci].name.replace('dialer:cooldown:', '');
+              if (cm && mergedExclude.indexOf(cm) === -1) {
+                mergedExclude.push(cm);
+              }
+            }
+          }
+        } catch (kvErr) { /* KV list may fail, continue without */ }
+
         const sb = createSupabaseClient(env);
 
         // Query Supabase with pulled_at ordering:
         // 1. Never pulled first (newest import first)
         // 2. Then oldest-pulled first (natural cycle)
-        const result = await sb.getCustomersForDialer(limit, excludeMobiles);
+        const result = await sb.getCustomersForDialer(limit, mergedExclude.length > 0 ? mergedExclude : null);
         const data = result.data || [];
         const total = result.total || 0;
 
         // Mark just-loaded customers as pulled (sink to bottom for next pull)
         if (data.length > 0) {
           const mobiles = data.map(function(c) { return c.mobile || ''; }).filter(Boolean);
+
+          // 1. Supabase PATCH (best-effort — may fail due to RLS, checked in supabase.js)
           sb.batchSetPulledAt(mobiles).catch(function() { /* fire-and-forget */ });
+
+          // 2. KV cooldown (RELIABLE guard — always works, auto-expires in 10 days)
+          //    This prevents the same batch from cycling back even if PATCH fails.
+          for (var mi = 0; mi < mobiles.length; mi++) {
+            var ck = 'dialer:cooldown:' + mobiles[mi];
+            env.DATA_KV.put(ck, new Date().toISOString(), { expirationTtl: 10 * 24 * 3600 })
+              .catch(function() { /* best-effort */ });
+          }
         }
 
         return new Response(JSON.stringify({
