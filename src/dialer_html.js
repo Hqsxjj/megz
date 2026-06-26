@@ -1178,6 +1178,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
             <span style="font-size: 0.88rem; color: var(--text-main); font-weight: 900; letter-spacing: 0.5px;">BH-AI 智能双引擎导入助手</span>
             <span style="font-size: 0.7rem; color: var(--text-light); max-width: 320px; line-height: 1.4; margin-top: -4px;">搭载启发式文字密度与特征识别算法，自动检测表头、过滤噪音，100% 本地隐私安全。</span>
             <button id="ocrTrainingDataBtn" style="background:transparent; border:1px solid var(--card-border); font-size:0.62rem; color:var(--text-soft); cursor:pointer; display:inline-flex; align-items:center; gap:3px; padding:2px 8px; border-radius:10px; margin-top:-2px;">训练数据 (<span id="trainingCountBadge" style="color:var(--accent-wechat);font-weight:800;">0</span>)</button>
+            <a id="dialerTemplateBtn" style="font-size:0.62rem; color:var(--accent-wechat); cursor:pointer; font-weight:700; text-decoration:underline; margin-top:-2px; white-space:nowrap;" title="下载客户导入Excel模板文件">📥 下载导入模板</a>
 
             
             
@@ -8130,6 +8131,25 @@ export const DIALER_HTML = `<!DOCTYPE html>
     safeInit('initAIImporter', initAIImporter);
     safeInit('loadPersistedState', loadPersistedState);
     safeInit('initCustViewer', initCustViewer);
+
+    safeInit('initDialerTemplateBtn', function() {
+      var btn = document.getElementById('dialerTemplateBtn');
+      if (btn) {
+        btn.addEventListener('click', function(e) {
+          e.preventDefault();
+          var wb = XLSX.utils.book_new();
+          var data = [
+            ['姓名', '电话', '单位', '公积金', '备注', '跟进情况'],
+            ['示例：张三', '13800138000', '示例科技有限公司', '月缴2000', '意向客户，需跟进', '已电话沟通'],
+            ['示例：李四', '13900139000', '测试企业集团', '月缴3000', '对公积金贷款感兴趣', '待回访'],
+          ];
+          var ws = XLSX.utils.aoa_to_sheet(data);
+          ws['!cols'] = [{ wch: 12 }, { wch: 15 }, { wch: 25 }, { wch: 12 }, { wch: 25 }, { wch: 20 }];
+          XLSX.utils.book_append_sheet(wb, ws, '客户导入模板');
+          XLSX.writeFile(wb, '客户导入模板.xlsx');
+        });
+      }
+    });
 
   })();
   </script>

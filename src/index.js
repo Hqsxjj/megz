@@ -3736,7 +3736,7 @@ export default {
       </div>
       <div class="right-area">
         <div class="card">
-          <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;">意向登记<div style="display:flex;gap:6px;align-items:center;"><button class="btn-add" id="clipboardPasteBtn" style="font-size:0.65rem;padding:3px 10px;height:24px;background:linear-gradient(135deg,#667eea,#764ba2);color:white;border:none;border-radius:12px;font-weight:700;cursor:pointer;" title="从剪贴板粘贴截图自动识别">📋 粘贴截图识别</button><a id="importTemplateBtn" class="btn-add" style="font-size:0.65rem;padding:3px 10px;height:24px;background:linear-gradient(135deg,#36d1dc,#5b86e5);color:white;border:none;border-radius:12px;font-weight:700;cursor:pointer;text-decoration:none;line-height:18px;" title="下载客户导入Excel模板">📥 下载模板</a></div></div>
+          <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;">意向登记<button class="btn-add" id="clipboardPasteBtn" style="font-size:0.65rem;padding:3px 10px;height:24px;background:linear-gradient(135deg,#667eea,#764ba2);color:white;border:none;border-radius:12px;font-weight:700;cursor:pointer;" title="从剪贴板粘贴截图自动识别">📋 粘贴截图识别</button></div>
           <div class="register-block">
             <div class="form-line"><input type="text" class="input-simple" id="custName" placeholder="姓名" autocomplete="off"><input type="text" class="input-simple" id="custPhone" placeholder="电话" autocomplete="off"></div>
             <div class="form-line"><input type="text" class="input-simple" id="custCompany" placeholder="单位" autocomplete="off"><input type="text" class="input-simple" id="custFund" placeholder="公积金" autocomplete="off"></div>
@@ -6575,24 +6575,6 @@ const rid=Math.floor(Math.random()*1000);
     });
   }
   document.getElementById('addClientBtn').addEventListener('click',addClient);
-
-  // ========== 下载客户导入模板 ==========
-  const importTemplateBtn = document.getElementById('importTemplateBtn');
-  if (importTemplateBtn) {
-    importTemplateBtn.addEventListener('click', (e) => {
-      e.preventDefault();
-      const wb = XLSX.utils.book_new();
-      const data = [
-        ['姓名', '电话', '单位', '公积金', '备注', '跟进情况'],
-        ['示例：张三', '13800138000', '示例科技有限公司', '月缴2000', '意向客户，需跟进', '已电话沟通'],
-        ['示例：李四', '13900139000', '测试企业集团', '月缴3000', '对公积金贷款感兴趣', '待回访'],
-      ];
-      const ws = XLSX.utils.aoa_to_sheet(data);
-      ws['!cols'] = [{ wch: 12 }, { wch: 15 }, { wch: 25 }, { wch: 12 }, { wch: 25 }, { wch: 20 }];
-      XLSX.utils.book_append_sheet(wb, ws, '客户导入模板');
-      XLSX.writeFile(wb, '客户导入模板.xlsx');
-    });
-  }
 
   // ========== 剪贴板截图 OCR 识别 ==========
   document.getElementById('clipboardPasteBtn').addEventListener('click', async () => {
