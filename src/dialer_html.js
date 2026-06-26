@@ -1195,7 +1195,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
                 <button class="btn-secondary" style="padding:6px 12px; font-size:0.72rem; background:var(--btn-bg); color:var(--text-soft); border:1px solid var(--card-border); border-radius:var(--radius-xs);" onclick="document.getElementById('textImportPanel').style.display='none';">取消</button>
               </div>
             </div>
-            <input type="file" id="xlsFileInput" accept=".xls,.xlsx,.csv,.docx,.pdf,.txt" style="display:none;">
+            <input type="file" id="xlsFileInput" accept=".xls,.xlsx,.xlsm,.csv,.docx,.pdf,.txt" style="display:none;">
             <input type="file" id="imgFileInput" accept="image/*" multiple style="display:none;">
             <input type="file" id="vcfFileInput" accept=".vcf,.vcard" style="display:none;">
             <div style="display: flex; gap: 6px; align-items: center; margin-top: 6px; width: 100%;">
@@ -3153,7 +3153,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
         return;
       }
       
-      if (ext === 'xlsx' || ext === 'xls' || ext === 'csv') {
+      if (ext === 'xlsx' || ext === 'xls' || ext === 'xlsm' || ext === 'csv') {
         if (sizeMB > 3) {
           handleExcelLargeFileWorker(file);
         } else {
