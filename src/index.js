@@ -959,21 +959,6 @@ export default {
     // Supabase client (no-op if SUPABASE_URL/KEY not set)
     const supabase = createSupabaseClient(env);
 
-    // 0. 安卓 App 自动更新接口
-    if (path === '/api/app-version' && request.method === 'GET') {
-      return new Response(JSON.stringify({
-        versionCode: 2,
-        versionName: "1.1.0",
-        apkUrl: "https://github.com/Hqsxjj/megz/releases/download/latest/app-debug.apk",
-        changeLog: "1. 新增本地通话录音深度检索与直接在卡片上播放支持\n2. 适配高版本 Android MediaStore 通话录音音频检索\n3. 深度整合双卡轮拨与通话记录时长自动提取"
-      }), {
-        headers: {
-          'Content-Type': 'application/json; charset=UTF-8',
-          'Access-Control-Allow-Origin': '*'
-        }
-      });
-    }
-
     // Debug helper to check env keys (returns only keys, no values for safety)
     if (path === '/api/debug-env' && request.method === 'GET') {
       return new Response(JSON.stringify({ keys: Object.keys(env || {}) }), {
