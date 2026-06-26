@@ -3990,6 +3990,7 @@ export default {
       <div style="display:flex; gap:8px; align-items:center;">
         <label style="font-size:0.65rem; color:var(--text-light); font-weight:800; flex:1;">粘贴公司名称 (每行一家企业)</label>
         <label for="whitelistFileInput" class="btn-secondary" style="padding:4px 8px; font-size:0.65rem; cursor:pointer; display:inline-block; border-radius:var(--radius-xs); border:1px solid var(--card-border); background:var(--btn-bg); font-weight:700; margin-bottom:2px;">导入表格 (Excel/CSV)</label>
+        <a id="whitelistTemplateBtn" class="btn-secondary" style="padding:4px 8px; font-size:0.65rem; cursor:pointer; display:inline-block; border-radius:var(--radius-xs); border:1px solid var(--card-border); background:var(--btn-bg); font-weight:700; margin-bottom:2px; text-decoration:none; color:var(--text-main);">下载模板</a>
         <input type="file" id="whitelistFileInput" accept=".xlsx,.xls,.csv" style="display:none;">
       </div>
       <textarea id="whitelistTextarea" class="whitelist-textarea" placeholder="例：&#10;中国石油化工集团公司&#10;国家电网有限公司&#10;中国工商银行股份有限公司"></textarea>
@@ -4443,6 +4444,7 @@ export default {
     const failedRetryBtn = document.getElementById('whitelistFailedRetryBtn');
     const modalSearch = document.getElementById('whitelistModalSearchInput');
     const fileInput = document.getElementById('whitelistFileInput');
+    const templateBtn = document.getElementById('whitelistTemplateBtn');
 
     if (whitelistBtn && whitelistModal) {
       whitelistBtn.addEventListener('click', () => {
@@ -4550,6 +4552,27 @@ export default {
             failedRetryBtn.textContent = '尝试重新上传';
             failedRetryBtn.disabled = false;
           });
+      });
+    }
+
+    if (templateBtn) {
+      templateBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        // 创建工作簿
+        const wb = XLSX.utils.book_new();
+        // 表头和示例数据
+        const data = [
+          ['单位全称', '操作'],
+          ['示例：中国石油化工集团公司', ''],
+          ['示例：国家电网有限公司', ''],
+          ['示例：中国工商银行股份有限公司', '新增'],
+        ];
+        const ws = XLSX.utils.aoa_to_sheet(data);
+        // 设置列宽
+        ws['!cols'] = [{ wch: 40 }, { wch: 15 }];
+        XLSX.utils.book_append_sheet(wb, ws, '客户导入模板');
+        // 触发下载
+        XLSX.writeFile(wb, '客户导入模板.xlsx');
       });
     }
 
