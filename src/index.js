@@ -5965,6 +5965,7 @@ const rid=Math.floor(Math.random()*1000);
       }
     });
 
+  }
 
   // ==================== 话术 ====================
   const loadScripts=()=>{try{return JSON.parse(localStorage.getItem(SCRIPTS_K))||[];}catch(e){return[];}};
