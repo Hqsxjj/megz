@@ -304,7 +304,7 @@ async function callAIChat(env, messages, temperature = 0.5, apiKeyOverride = '')
   // Defaults based on provider if not explicitly configured
   if (provider === 'gemini') {
     if (!apiBase) apiBase = 'https://generativelanguage.googleapis.com/v1beta/openai/';
-    if (!model) model = 'gemini-3.5-flash';
+    if (!model) model = 'gemini-2.5-flash';
   } else if (provider === 'deepseek') {
     if (!apiBase) apiBase = 'https://api.deepseek.com/v1/';
     if (!model) model = 'deepseek-chat';
@@ -362,7 +362,7 @@ async function callAIChatWithTools(env, messages, temperature = 0.5, fromUser = 
 
   if (provider === 'gemini') {
     if (!apiBase) apiBase = 'https://generativelanguage.googleapis.com/v1beta/openai/';
-    if (!model) model = 'gemini-3.5-flash';
+    if (!model) model = 'gemini-2.5-flash';
   } else if (provider === 'deepseek') {
     if (!apiBase) apiBase = 'https://api.deepseek.com/v1/';
     if (!model) model = 'deepseek-chat';
@@ -5813,7 +5813,7 @@ const rid=Math.floor(Math.random()*1000);
         modelInp.placeholder = 'deepseek-chat (V4 Pro 默认)';
       } else if (p === 'gemini') {
         apiBaseInp.placeholder = 'https://generativelanguage.googleapis.com/v1beta/openai (默认)';
-        modelInp.placeholder = 'gemini-3.5-flash (默认)';
+        modelInp.placeholder = 'gemini-2.5-flash (默认)';
       } else {
         apiBaseInp.placeholder = 'https://api.openai.com/v1 (默认)';
         modelInp.placeholder = 'gpt-4o (默认)';
@@ -8398,7 +8398,7 @@ const rid=Math.floor(Math.random()*1000);
                 'Authorization': 'Bearer ' + visionKey
               },
               body: JSON.stringify({
-                model: 'gemini-3.5-flash',
+                model: 'gemini-2.5-flash',
                 messages: [
                   {
                     role: 'user',
@@ -8506,7 +8506,7 @@ const rid=Math.floor(Math.random()*1000);
                 'Authorization': 'Bearer ' + visionKey
               },
               body: JSON.stringify({
-                model: 'gemini-3.5-flash',
+                model: 'gemini-2.5-flash',
                 messages: [
                   {
                     role: 'user',
@@ -8731,7 +8731,7 @@ const rid=Math.floor(Math.random()*1000);
             'Authorization': 'Bearer ' + apiKey
           },
           body: JSON.stringify({
-            model: 'gemini-3.5-flash',
+            model: 'gemini-2.5-flash',
             messages: [{ role: 'user', content: 'Say OK' }],
             max_tokens: 5
           })
@@ -8779,7 +8779,7 @@ const rid=Math.floor(Math.random()*1000);
 
         if (provider === 'gemini') {
           if (!apiBase) apiBase = 'https://generativelanguage.googleapis.com/v1beta/openai/';
-          if (!model) model = 'gemini-3.5-flash';
+          if (!model) model = 'gemini-2.5-flash';
         } else {
           if (!apiBase) apiBase = 'https://api.deepseek.com/v1/';
           if (!model) model = 'deepseek-chat';
@@ -9074,7 +9074,7 @@ const rid=Math.floor(Math.random()*1000);
 
         if (provider === 'gemini') {
           if (!apiBase) apiBase = 'https://generativelanguage.googleapis.com/v1beta/openai/';
-          if (!model) model = 'gemini-3.5-flash';
+          if (!model) model = 'gemini-2.5-flash';
         } else {
           if (!apiBase) apiBase = 'https://api.deepseek.com/v1/';
           if (!model) model = 'deepseek-chat';
