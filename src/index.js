@@ -288,7 +288,7 @@ async function doWebSearch(env, query) {
 }
 
 async function callAIChat(env, messages, temperature = 0.5, apiKeyOverride = '') {
-  let provider = await getKVCached(env, 'config:ai_provider') || 'deepseek';
+  let provider = await getKVCached(env, 'config:ai_provider') || 'gemini';
   const visionKey = await getKVCached(env, 'config:vision_api_key') || '';
   const aiKey = await getKVCached(env, 'config:ai_api_key') || await getKVCached(env, 'config:deepseek_api_key') || env.AI_API_KEY || env.DEEPSEEK_API_KEY;
 
@@ -347,7 +347,7 @@ async function callAIChat(env, messages, temperature = 0.5, apiKeyOverride = '')
 }
 
 async function callAIChatWithTools(env, messages, temperature = 0.5, fromUser = '') {
-  let provider = await env.DATA_KV.get('config:ai_provider') || 'deepseek';
+  let provider = await env.DATA_KV.get('config:ai_provider') || 'gemini';
   const visionKey = await env.DATA_KV.get('config:vision_api_key') || '';
   const aiKey = await env.DATA_KV.get('config:ai_api_key') || await env.DATA_KV.get('config:deepseek_api_key') || env.AI_API_KEY || env.DEEPSEEK_API_KEY;
   
@@ -3808,8 +3808,8 @@ export default {
         <div style="display:flex; align-items:center; gap:6px;">
           <span style="font-size:0.65rem; color:var(--text-soft); width:50px; font-weight:700;">服务商:</span>
           <select id="aiProviderSelect" class="input-simple" style="flex:1; font-size:0.7rem; height:28px; padding:0 4px; font-weight:700; background:var(--btn-bg); border-color:var(--card-border); color:var(--text-main);">
-            <option value="deepseek">DeepSeek V4 Pro</option>
             <option value="gemini">Google Gemini</option>
+            <option value="deepseek">DeepSeek V4 Pro</option>
             <option value="custom">OpenAI / 其它兼容接口</option>
           </select>
         </div>
@@ -5827,7 +5827,7 @@ const rid=Math.floor(Math.random()*1000);
       document.getElementById('newLearnInput').value='';
       document.getElementById('learnShowCheck').checked=true;
       
-      providerSel.value = localStorage.getItem('ai_provider') || 'deepseek';
+      providerSel.value = localStorage.getItem('ai_provider') || 'gemini';
       apiKeyInp.value = localStorage.getItem('ai_api_key') || localStorage.getItem('deepseek_api_key') || '';
       apiBaseInp.value = localStorage.getItem('ai_api_base') || '';
       modelInp.value = localStorage.getItem('ai_model') || '';
@@ -8764,7 +8764,7 @@ const rid=Math.floor(Math.random()*1000);
         const fileName = body.fileName || '';
 
         // Get the regular AI config
-        let provider = await env.DATA_KV.get('config:ai_provider') || 'deepseek';
+        let provider = await env.DATA_KV.get('config:ai_provider') || 'gemini';
         const visionKey = await env.DATA_KV.get('config:vision_api_key') || '';
         const aiKey = await env.DATA_KV.get('config:ai_api_key') || await env.DATA_KV.get('config:deepseek_api_key') || env.AI_API_KEY || env.DEEPSEEK_API_KEY || '';
         
@@ -9059,7 +9059,7 @@ const rid=Math.floor(Math.random()*1000);
           });
         }
 
-        let provider = await env.DATA_KV.get('config:ai_provider') || 'deepseek';
+        let provider = await env.DATA_KV.get('config:ai_provider') || 'gemini';
         const visionKey = await env.DATA_KV.get('config:vision_api_key') || '';
         const aiKey = await env.DATA_KV.get('config:ai_api_key') || await env.DATA_KV.get('config:deepseek_api_key') || env.AI_API_KEY || env.DEEPSEEK_API_KEY || '';
         
