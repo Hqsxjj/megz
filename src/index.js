@@ -5461,7 +5461,9 @@ export default {
           const idx=parseInt(this.dataset.idx);
           const ti=timeline.find(t=>t.type==='client'&&t.idx===idx);
           if(!ti)return;
-          if(!confirm('确定要删除客户「' + ti.name + '」的登记记录吗？此操作不可恢复。')) return;
+          const pin=prompt('删除客户「' + ti.name + '」需输入解锁密码：');
+          if(!pin){return;}
+          if(hashPinSimple(pin)!=='7c7cacd4'){alert('密码错误，删除取消');return;}
           const allList=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
           const matchIdx=allList.findIndex(c=>c.date===ds&&c.name===ti.name&&c.phone===ti.phone&&(ti.time?c.time===ti.time:true));
           if(matchIdx>=0) allList.splice(matchIdx,1);
