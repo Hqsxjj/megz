@@ -5307,7 +5307,8 @@ export default {
             '</div>'+
             '<div class="client-card-actions">'+
               '<button class="export-timeline-single-btn" data-idx="'+e.idx+'" title="导出">出</button>'+
-              '<button class="edit-note-btn" title="'+(e.note?'修改记录':'添加记录')+'" data-idx="'+e.idx+'">编</button>'+
+              '<button class="edit-note-btn" title="编辑客户信息" data-idx="'+e.idx+'">编</button>'+
+              '<button class="delete-timeline-client-btn" title="删除客户" data-idx="'+e.idx+'">删</button>'+
             '</div>'+
           '</div>';
         });
@@ -5328,6 +5329,7 @@ export default {
       document.getElementById('modalClientList').innerHTML = html;
 
       bindEditBtns();
+      bindDeleteBtns();
       // Bind Timeline Single Client Export
       document.querySelectorAll('.export-timeline-single-btn').forEach(btn=>{
         btn.onclick=async function(){
@@ -5393,25 +5395,79 @@ export default {
           const idx=parseInt(this.dataset.idx);
           const ti=timeline.find(t=>t.type==='client'&&t.idx===idx);
           if(!ti)return;
-          const old=ti.note||'';
-          const noteDiv=document.getElementById('cn_'+idx);
-          if(!noteDiv)return;
-          noteDiv.innerHTML='<div class="tbl-note-edit-wrap"><textarea id="ein_'+idx+'">'+esc(old)+'</textarea><div class="tbl-note-edit-btns"><button id="sn_'+idx+'" class="tbl-save-btn">保存</button><button id="cn_btn_'+idx+'" class="tbl-cancel-btn">取消</button></div></div>';
-          document.getElementById('sn_'+idx).onclick=async ()=>{
-            const nn=document.getElementById('ein_'+idx).value.trim();
-            ti.note=nn;
-            const co=clients.find(c=>c.name===ti.name&&c.phone===ti.phone);
-            if(co)co.note=nn;
-            const all=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
-            let target=all.find(c=>c.date===ds&&c.name===ti.name&&c.phone===ti.phone);
-            if(!target){target=all.find(c=>c.name===ti.name&&c.phone===ti.phone);}
-            if(target){target.note=nn;}
-            else{all.push({name:ti.name,phone:ti.phone,company:ti.company,fund:ti.fund,note:nn,date:ds,time:ti.time||''});}
-            localStorage.setItem(CLIENTS_K,JSON.stringify(all));
-            await syncOp('updateClientNote',{name:ti.name,phone:ti.phone,note:nn});
+          // 从完整clients数组获取所有字段（包含followUp等timeline未携带的字段）
+          const fullClient = clients.find(c=>c.name===ti.name&&c.phone===ti.phone)||ti;
+          const card = btn.closest('.client-card-item');
+          if(!card) return;
+          card.classList.add('all-client-card-editing');
+          card.innerHTML =
+            '<div class="client-card-top">' +
+              '<span style="font-size:0.75rem;font-weight:700;color:var(--accent-wechat);">编辑客户信息</span>' +
+            '</div>' +
+            '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+              '<input type="text" class="input-simple edit-name-input" placeholder="姓名" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.8rem;font-weight:700;" value="' + esc(fullClient.name||ti.name) + '">' +
+              '<input type="text" class="input-simple edit-phone-input" placeholder="电话" readonly style="flex:1;min-width:100px;padding:6px 8px;font-size:0.8rem;background:var(--input-disabled-bg, #e9ecef);color:var(--text-soft);cursor:not-allowed;" value="' + esc(fullClient.phone||ti.phone) + '">' +
+            '</div>' +
+            '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+              '<input type="text" class="input-simple edit-company-input" placeholder="单位" style="flex:2;min-width:120px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.company||'') + '">' +
+              '<input type="text" class="input-simple edit-fund-input" placeholder="公积金" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.fund||'') + '">' +
+            '</div>' +
+            '<textarea class="input-simple edit-note-input" placeholder="沟通记录（必填）" style="width:100%;min-height:70px;padding:8px;font-size:0.78rem;resize:vertical;box-sizing:border-box;">' + esc(fullClient.note||ti.note||'') + '</textarea>' +
+            '<textarea class="input-simple edit-follow-input" placeholder="跟进情况" style="width:100%;min-height:60px;padding:8px;font-size:0.78rem;resize:vertical;box-sizing:border-box;">' + esc(fullClient.followUp||'') + '</textarea>' +
+            '<div style="display:flex;justify-content:flex-end;gap:8px;border-top:1px dashed var(--card-border);padding-top:8px;">' +
+              '<button class="save-timeline-client-btn btn-add" style="font-size:0.75rem;padding:6px 16px;background:var(--accent-wechat);color:white;border:none;border-radius:6px;font-weight:700;">💾 保存</button>' +
+              '<button class="cancel-timeline-client-btn btn-add" style="font-size:0.75rem;padding:6px 16px;background:var(--btn-bg);color:var(--text-soft);border:1px solid var(--card-border);border-radius:6px;font-weight:700;">取消</button>' +
+            '</div>';
+
+          // Bind Save
+          card.querySelector('.save-timeline-client-btn').onclick = async () => {
+            const n = card.querySelector('.edit-name-input').value.trim();
+            const p = card.querySelector('.edit-phone-input').value.trim();
+            const comp = card.querySelector('.edit-company-input').value.trim();
+            const fund = card.querySelector('.edit-fund-input').value.trim();
+            const nt = card.querySelector('.edit-note-input').value.trim();
+            const fu = card.querySelector('.edit-follow-input').value.trim();
+
+            if (!n) { alert('姓名不能为空，请填写完整！'); return; }
+            if (!p) { alert('电话号码不能为空，请填写完整！'); return; }
+            if (!nt) { alert('沟通记录为必填项，请填写完整！'); return; }
+
+            const allList = JSON.parse(localStorage.getItem(CLIENTS_K) || '[]');
+            const matchIdx = allList.findIndex(item => item.date === ds && item.name === ti.name && item.phone === ti.phone &&
+              (ti.time ? item.time === ti.time : true));
+            const updatedClient = {
+              date: ds, time: fullClient.time || ti.time || getCurrentTime(),
+              name: n, phone: p, company: comp, fund: fund, note: nt, followUp: fu,
+              followUpTime: fu !== (fullClient.followUp || '') ? getCurrentTime() : (fullClient.followUpTime || ''),
+              followUpDate: fu !== (fullClient.followUp || '') ? getTodayStr() : (fullClient.followUpDate || ds)
+            };
+            if (matchIdx !== -1) { allList[matchIdx] = updatedClient; }
+            else { allList.push(updatedClient); }
+            localStorage.setItem(CLIENTS_K, JSON.stringify(allList));
+
+            await syncOp('updateClient', { matchName: ti.name, matchPhone: ti.phone, matchTime: ti.time || '', client: updatedClient }, ds);
+
             renderTl();
           };
-          document.getElementById('cn_btn_'+idx).onclick=()=>renderTl();
+
+          // Bind Cancel
+          card.querySelector('.cancel-timeline-client-btn').onclick = () => { renderTl(); };
+        };
+      });
+    }
+    function bindDeleteBtns(){
+      document.querySelectorAll('.delete-timeline-client-btn').forEach(btn=>{
+        btn.onclick=async function(){
+          const idx=parseInt(this.dataset.idx);
+          const ti=timeline.find(t=>t.type==='client'&&t.idx===idx);
+          if(!ti)return;
+          if(!confirm('确定要删除客户「' + ti.name + '」的登记记录吗？此操作不可恢复。')) return;
+          const allList=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
+          const matchIdx=allList.findIndex(c=>c.date===ds&&c.name===ti.name&&c.phone===ti.phone&&(ti.time?c.time===ti.time:true));
+          if(matchIdx>=0) allList.splice(matchIdx,1);
+          localStorage.setItem(CLIENTS_K,JSON.stringify(allList));
+          await syncOp('removeClientByMatch',{name:ti.name,phone:ti.phone,time:ti.time||''});
+          renderTl();
         };
       });
     }
