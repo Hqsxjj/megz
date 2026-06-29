@@ -2396,9 +2396,10 @@ export default {
           break;
         }
         case 'removeClientByMatch': {
-          if (body.name && body.phone && body.time) {
+          if (body.name && body.phone) {
             data.clients = (data.clients || []).filter(
-              c => !(c.name === body.name && c.phone === body.phone && c.time === body.time)
+              c => !(c.name === body.name && c.phone === body.phone &&
+                (body.time ? c.time === body.time : true))
             );
             data.intentCount = data.clients.length;
           }
@@ -5468,7 +5469,7 @@ export default {
           const matchIdx=allList.findIndex(c=>c.date===ds&&c.name===ti.name&&c.phone===ti.phone&&(ti.time?c.time===ti.time:true));
           if(matchIdx>=0) allList.splice(matchIdx,1);
           localStorage.setItem(CLIENTS_K,JSON.stringify(allList));
-          await syncOp('removeClientByMatch',{name:ti.name,phone:ti.phone,time:ti.time||''});
+          await syncOp('removeClientByMatch',{name:ti.name,phone:ti.phone,time:ti.time||''},ds);
           renderTl();
         };
       });
