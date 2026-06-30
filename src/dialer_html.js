@@ -7099,9 +7099,9 @@ export const DIALER_HTML = `<!DOCTYPE html>
       }
     }
 
-    // 批量删除密码 — 复用 DB 访问密码
+    // 批量删除 — 无需密码验证
     function verifyDeletePassword(callback) {
-      showDbPasswordGate(callback);
+      callback();
     }
 
     function openDBDashboard(){
