@@ -1508,7 +1508,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
 <!-- Customer Database Dashboard (v2) -->
 <!-- Customer Database Dashboard (v2) -->
 <!-- DB Password Gate -->
-<div class="modal-overlay" id="dbPwdOverlay" style="display:none; z-index:10000; align-items:center; justify-content:center;">
+<div class="modal-overlay" id="dbPwdOverlay" style="display:none; z-index:100005; align-items:center; justify-content:center;">
   <div class="modal-card" style="text-align:center; gap:16px; max-width:340px;">
     <input type="password" id="dbPwdInput" maxlength="6" autocomplete="off" style="width:100%; max-width:220px; height:42px; font-size:1.4rem; text-align:center; letter-spacing:8px; border:2px solid var(--card-border); border-radius:var(--radius-xs); background:var(--card-bg); color:var(--text-main); outline:none; font-family:monospace;">
     <span id="dbPwdError" style="font-size:0.62rem; color:#e74c3c; display:none; min-height:16px;"></span>
