@@ -636,6 +636,23 @@ async function callAIChatWithTools(env, messages, temperature = 0.5, fromUser = 
                   text += '> 单位: ' + (client.company || '—') + ' | 公积金: ' + (client.fund || '—') + '\n';
                   if (client.note) text += '> 沟通: ' + client.note.replace(/\n/g, ' ') + '\n';
                   if (client.followUp) text += '> 跟进: ' + client.followUp.replace(/\n/g, ' ') + '\n';
+                  const detailParts = [];
+                  if (client.age) detailParts.push('年龄:' + client.age);
+                  if (client.maritalStatus) detailParts.push(client.maritalStatus);
+                  if (client.isShenzhenHukou) detailParts.push('深户:' + client.isShenzhenHukou);
+                  if (client.education) detailParts.push(client.education);
+                  if (client.property) detailParts.push(client.property);
+                  if (client.socialSecurity) detailParts.push('社保基数:' + client.socialSecurity);
+                  if (client.avgSalary) detailParts.push('月均工资:' + client.avgSalary);
+                  if (client.tax2yr) detailParts.push('近2年个税:' + client.tax2yr);
+                  if (client.salaryBank) detailParts.push('代发银行:' + client.salaryBank);
+                  if (client.bankDebt) detailParts.push('信贷负债:' + client.bankDebt);
+                  if (client.creditCardDebt) detailParts.push('信用卡负债:' + client.creditCardDebt);
+                  if (client.query3m) detailParts.push('近3月查询:' + client.query3m + '次');
+                  if (client.onlineLoanCount) detailParts.push('网贷笔数:' + client.onlineLoanCount);
+                  if (detailParts.length > 0) text += '> ' + detailParts.join(' | ') + '\n';
+                  if (client.demand) text += '> 需求: ' + client.demand.replace(/\n/g, ' ') + '\n';
+                  if (client.fundUsage) text += '> 资金用途: ' + client.fundUsage.replace(/\n/g, ' ') + '\n';
 
                   try {
                     await sendMarkdownMessage(env, target, text);
@@ -676,6 +693,23 @@ async function callAIChatWithTools(env, messages, temperature = 0.5, fromUser = 
                   itemText += '> 单位: ' + (c.company || '—') + ' | 公积金: ' + (c.fund || '—') + '\n';
                   if (c.note) itemText += '> 沟通: ' + c.note.replace(/\n/g, ' ') + '\n';
                   if (c.followUp) itemText += '> 跟进: ' + c.followUp.replace(/\n/g, ' ') + '\n';
+                  var dp = [];
+                  if (c.age) dp.push('年龄:' + c.age);
+                  if (c.maritalStatus) dp.push(c.maritalStatus);
+                  if (c.isShenzhenHukou) dp.push('深户:' + c.isShenzhenHukou);
+                  if (c.education) dp.push(c.education);
+                  if (c.property) dp.push(c.property);
+                  if (c.socialSecurity) dp.push('社保基数:' + c.socialSecurity);
+                  if (c.avgSalary) dp.push('月均工资:' + c.avgSalary);
+                  if (c.tax2yr) dp.push('近2年个税:' + c.tax2yr);
+                  if (c.salaryBank) dp.push('代发银行:' + c.salaryBank);
+                  if (c.bankDebt) dp.push('信贷负债:' + c.bankDebt);
+                  if (c.creditCardDebt) dp.push('信用卡负债:' + c.creditCardDebt);
+                  if (c.query3m) dp.push('近3月查询:' + c.query3m + '次');
+                  if (c.onlineLoanCount) dp.push('网贷笔数:' + c.onlineLoanCount);
+                  if (dp.length > 0) itemText += '> ' + dp.join(' | ') + '\n';
+                  if (c.demand) itemText += '> 需求: ' + c.demand.replace(/\n/g, ' ') + '\n';
+                  if (c.fundUsage) itemText += '> 资金用途: ' + c.fundUsage.replace(/\n/g, ' ') + '\n';
                   itemText += '\n';
                   return itemText;
                 };
@@ -697,6 +731,23 @@ async function callAIChatWithTools(env, messages, temperature = 0.5, fromUser = 
                   text += '> 单位: ' + (c.company || '—') + ' | 公积金: ' + (c.fund || '—') + '\n';
                   if (c.note) text += '> 沟通: ' + c.note.replace(/\n/g, ' ') + '\n';
                   if (c.followUp) text += '> 跟进: ' + c.followUp.replace(/\n/g, ' ') + '\n';
+                  var dp2 = [];
+                  if (c.age) dp2.push('年龄:' + c.age);
+                  if (c.maritalStatus) dp2.push(c.maritalStatus);
+                  if (c.isShenzhenHukou) dp2.push('深户:' + c.isShenzhenHukou);
+                  if (c.education) dp2.push(c.education);
+                  if (c.property) dp2.push(c.property);
+                  if (c.socialSecurity) dp2.push('社保基数:' + c.socialSecurity);
+                  if (c.avgSalary) dp2.push('月均工资:' + c.avgSalary);
+                  if (c.tax2yr) dp2.push('近2年个税:' + c.tax2yr);
+                  if (c.salaryBank) dp2.push('代发银行:' + c.salaryBank);
+                  if (c.bankDebt) dp2.push('信贷负债:' + c.bankDebt);
+                  if (c.creditCardDebt) dp2.push('信用卡负债:' + c.creditCardDebt);
+                  if (c.query3m) dp2.push('近3月查询:' + c.query3m + '次');
+                  if (c.onlineLoanCount) dp2.push('网贷笔数:' + c.onlineLoanCount);
+                  if (dp2.length > 0) text += '> ' + dp2.join(' | ') + '\n';
+                  if (c.demand) text += '> 需求: ' + c.demand.replace(/\n/g, ' ') + '\n';
+                  if (c.fundUsage) text += '> 资金用途: ' + c.fundUsage.replace(/\n/g, ' ') + '\n';
                   return text;
                 };
 
@@ -2674,7 +2725,24 @@ export default {
         text += '> 单位: ' + (client.company || '—') + ' | 公积金: ' + (client.fund || '—') + '\n';
         if (client.note) text += '> 沟通: ' + client.note.replace(/\n/g, ' ') + '\n';
         if (client.followUp) text += '> 跟进: ' + client.followUp.replace(/\n/g, ' ') + '\n';
-        
+        var dp3 = [];
+        if (client.age) dp3.push('年龄:' + client.age);
+        if (client.maritalStatus) dp3.push(client.maritalStatus);
+        if (client.isShenzhenHukou) dp3.push('深户:' + client.isShenzhenHukou);
+        if (client.education) dp3.push(client.education);
+        if (client.property) dp3.push(client.property);
+        if (client.socialSecurity) dp3.push('社保基数:' + client.socialSecurity);
+        if (client.avgSalary) dp3.push('月均工资:' + client.avgSalary);
+        if (client.tax2yr) dp3.push('近2年个税:' + client.tax2yr);
+        if (client.salaryBank) dp3.push('代发银行:' + client.salaryBank);
+        if (client.bankDebt) dp3.push('信贷负债:' + client.bankDebt);
+        if (client.creditCardDebt) dp3.push('信用卡负债:' + client.creditCardDebt);
+        if (client.query3m) dp3.push('近3月查询:' + client.query3m + '次');
+        if (client.onlineLoanCount) dp3.push('网贷笔数:' + client.onlineLoanCount);
+        if (dp3.length > 0) text += '> ' + dp3.join(' | ') + '\n';
+        if (client.demand) text += '> 需求: ' + client.demand.replace(/\n/g, ' ') + '\n';
+        if (client.fundUsage) text += '> 资金用途: ' + client.fundUsage.replace(/\n/g, ' ') + '\n';
+
         try {
           await sendMarkdownMessage(env, target, text);
           return new Response(JSON.stringify({ success: true }), {
@@ -2720,6 +2788,23 @@ export default {
           itemText += '> 单位: ' + (c.company || '—') + ' | 公积金: ' + (c.fund || '—') + '\n';
           if (c.note) itemText += '> 沟通: ' + c.note.replace(/\n/g, ' ') + '\n';
           if (c.followUp) itemText += '> 跟进: ' + c.followUp.replace(/\n/g, ' ') + '\n';
+          var dp4 = [];
+          if (c.age) dp4.push('年龄:' + c.age);
+          if (c.maritalStatus) dp4.push(c.maritalStatus);
+          if (c.isShenzhenHukou) dp4.push('深户:' + c.isShenzhenHukou);
+          if (c.education) dp4.push(c.education);
+          if (c.property) dp4.push(c.property);
+          if (c.socialSecurity) dp4.push('社保基数:' + c.socialSecurity);
+          if (c.avgSalary) dp4.push('月均工资:' + c.avgSalary);
+          if (c.tax2yr) dp4.push('近2年个税:' + c.tax2yr);
+          if (c.salaryBank) dp4.push('代发银行:' + c.salaryBank);
+          if (c.bankDebt) dp4.push('信贷负债:' + c.bankDebt);
+          if (c.creditCardDebt) dp4.push('信用卡负债:' + c.creditCardDebt);
+          if (c.query3m) dp4.push('近3月查询:' + c.query3m + '次');
+          if (c.onlineLoanCount) dp4.push('网贷笔数:' + c.onlineLoanCount);
+          if (dp4.length > 0) itemText += '> ' + dp4.join(' | ') + '\n';
+          if (c.demand) itemText += '> 需求: ' + c.demand.replace(/\n/g, ' ') + '\n';
+          if (c.fundUsage) itemText += '> 资金用途: ' + c.fundUsage.replace(/\n/g, ' ') + '\n';
           itemText += '\n';
           return itemText;
         };
@@ -2766,6 +2851,23 @@ export default {
           text += '> 单位: ' + (c.company || '—') + ' | 公积金: ' + (c.fund || '—') + '\n';
           if (c.note) text += '> 沟通: ' + c.note.replace(/\n/g, ' ') + '\n';
           if (c.followUp) text += '> 跟进: ' + c.followUp.replace(/\n/g, ' ') + '\n';
+          var dp5 = [];
+          if (c.age) dp5.push('年龄:' + c.age);
+          if (c.maritalStatus) dp5.push(c.maritalStatus);
+          if (c.isShenzhenHukou) dp5.push('深户:' + c.isShenzhenHukou);
+          if (c.education) dp5.push(c.education);
+          if (c.property) dp5.push(c.property);
+          if (c.socialSecurity) dp5.push('社保基数:' + c.socialSecurity);
+          if (c.avgSalary) dp5.push('月均工资:' + c.avgSalary);
+          if (c.tax2yr) dp5.push('近2年个税:' + c.tax2yr);
+          if (c.salaryBank) dp5.push('代发银行:' + c.salaryBank);
+          if (c.bankDebt) dp5.push('信贷负债:' + c.bankDebt);
+          if (c.creditCardDebt) dp5.push('信用卡负债:' + c.creditCardDebt);
+          if (c.query3m) dp5.push('近3月查询:' + c.query3m + '次');
+          if (c.onlineLoanCount) dp5.push('网贷笔数:' + c.onlineLoanCount);
+          if (dp5.length > 0) text += '> ' + dp5.join(' | ') + '\n';
+          if (c.demand) text += '> 需求: ' + c.demand.replace(/\n/g, ' ') + '\n';
+          if (c.fundUsage) text += '> 资金用途: ' + c.fundUsage.replace(/\n/g, ' ') + '\n';
           return text;
         };
 
@@ -3437,6 +3539,65 @@ export default {
       background: rgba(230, 126, 34, 0.15);
       color: #f39c12;
     }
+    /* Detail info tags */
+    .client-card-tag-detail {
+      background: rgba(52, 152, 219, 0.08);
+      color: #2980b9;
+      border: 0.5px solid rgba(52, 152, 219, 0.15);
+      font-size: 0.68rem;
+    }
+    body.dark-mode .client-card-tag-detail {
+      background: rgba(52, 152, 219, 0.12);
+      color: #5dade2;
+    }
+    /* Collapsible detail panel */
+    .detail-toggle-wrap {
+      display: flex;
+      justify-content: center;
+      padding: 4px 0;
+    }
+    .detail-toggle-btn {
+      background: none;
+      border: none;
+      border-top: 1px dashed var(--border-light);
+      padding: 6px 20px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: var(--accent-wechat);
+      cursor: pointer;
+      width: 100%;
+      letter-spacing: 1px;
+      transition: opacity 0.2s;
+    }
+    .detail-toggle-btn:hover { opacity: 0.7; }
+    .detail-toggle-icon {
+      display: inline-block;
+      transition: transform 0.25s ease;
+      margin-right: 4px;
+      font-size: 0.6rem;
+    }
+    .detail-toggle-icon.open { transform: rotate(90deg); }
+    .detail-panel {
+      border: 0.5px solid var(--border-light);
+      border-radius: 6px;
+      padding: 8px;
+      margin: 4px 0;
+      background: rgba(0,0,0,0.008);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    body.dark-mode .detail-panel {
+      background: rgba(255,255,255,0.02);
+    }
+    .input-select {
+      appearance: auto;
+      -webkit-appearance: auto;
+      background: var(--card-bg);
+      color: var(--text-main);
+      cursor: pointer;
+      height: 38px;
+    }
     .client-card-body {
       display: flex;
       flex-direction: column;
@@ -3725,7 +3886,24 @@ export default {
           <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;">意向登记<button class="btn-add" id="clipboardPasteBtn" style="font-size:0.65rem;padding:3px 10px;height:24px;background:linear-gradient(135deg,#667eea,#764ba2);color:white;border:none;border-radius:12px;font-weight:700;cursor:pointer;" title="从剪贴板粘贴截图自动识别">📋 粘贴截图识别</button></div>
           <div class="register-block">
             <div class="form-line"><input type="text" class="input-simple" id="custName" placeholder="姓名" autocomplete="off"><input type="text" class="input-simple" id="custPhone" placeholder="电话" autocomplete="off"></div>
-            <div class="form-line"><input type="text" class="input-simple" id="custCompany" placeholder="单位" autocomplete="off"><input type="text" class="input-simple" id="custFund" placeholder="公积金" autocomplete="off"></div>
+            <div class="form-line"><input type="text" class="input-simple" id="custCompany" placeholder="单位" autocomplete="off"><input type="text" class="input-simple" id="custFund" placeholder="公积金基数" autocomplete="off"></div>
+            <!-- Collapsible detail panel toggle -->
+            <div class="detail-toggle-wrap">
+              <button type="button" class="detail-toggle-btn" id="detailToggleBtn">
+                <span class="detail-toggle-icon">▶</span> 详细资料
+              </button>
+            </div>
+            <div class="detail-panel" id="detailPanel" style="display:none;">
+              <div class="form-line"><input type="text" class="input-simple" id="custAge" placeholder="客户年龄" autocomplete="off" inputmode="numeric"><select class="input-simple input-select" id="custMaritalStatus"><option value="">婚姻状况</option><option value="未婚">未婚</option><option value="已婚">已婚</option><option value="离异">离异</option><option value="丧偶">丧偶</option></select></div>
+              <div class="form-line"><select class="input-simple input-select" id="custIsShenzhenHukou"><option value="">是否深户</option><option value="是">是</option><option value="否">否</option></select><select class="input-simple input-select" id="custEducation"><option value="">学历</option><option value="初中及以下">初中及以下</option><option value="高中">高中</option><option value="大专">大专</option><option value="本科">本科</option><option value="硕士">硕士</option><option value="博士">博士</option></select></div>
+              <div class="form-line"><input type="text" class="input-simple" id="custSocialSecurity" placeholder="社保养老基数" autocomplete="off" inputmode="numeric"><input type="text" class="input-simple" id="custAvgSalary" placeholder="月均工资" autocomplete="off" inputmode="numeric"></div>
+              <div class="form-line"><input type="text" class="input-simple" id="custTax2yr" placeholder="近2年个税" autocomplete="off" inputmode="numeric"><input type="text" class="input-simple" id="custSalaryBank" placeholder="代发工资银行" autocomplete="off"></div>
+              <div class="form-line"><select class="input-simple input-select" id="custProperty"><option value="">房产</option><option value="无房">无房</option><option value="有一套">有一套</option><option value="有多套">有多套</option></select><input type="text" class="input-simple" id="custBankDebt" placeholder="银行信贷负债" autocomplete="off" inputmode="numeric"></div>
+              <div class="form-line"><input type="text" class="input-simple" id="custCreditCardDebt" placeholder="信用卡负债" autocomplete="off" inputmode="numeric"><input type="text" class="input-simple" id="custQuery3m" placeholder="近3个月查询次数" autocomplete="off" inputmode="numeric"></div>
+              <div class="form-line"><input type="text" class="input-simple" id="custOnlineLoanCount" placeholder="小额网贷笔数" autocomplete="off" inputmode="numeric"><span style="flex:1;"></span></div>
+              <textarea class="input-simple note-textarea" id="custDemand" placeholder="客户大致需求" rows="2"></textarea>
+              <textarea class="input-simple note-textarea" id="custFundUsage" placeholder="资金用途和时间" rows="2"></textarea>
+            </div>
             <textarea class="input-simple note-textarea" id="custNote" placeholder="沟通记录 (必填)" rows="3"></textarea>
             <textarea class="input-simple note-textarea" id="custFollowUp" placeholder="跟进情况" rows="2"></textarea>
             <button class="btn-add" id="addClientBtn">+ 添加</button>
@@ -4188,6 +4366,25 @@ export default {
   const pushTodoLog=async (todo,ds)=>{syncOp('pushTodoLog',{todo});};
   const esc=s=>String(s).replace(/[&<>]/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;' })[m]||m);
   const maskPhone=p=>{if(!p||p.length<7)return '****';return '****'.repeat(Math.ceil(p.length/4));};
+  function getClientDetailTags(c) {
+    let html = '';
+    if (c.age) html += '<span class="client-card-tag client-card-tag-detail">年龄:' + esc(c.age) + '</span>';
+    if (c.maritalStatus) html += '<span class="client-card-tag client-card-tag-detail">' + esc(c.maritalStatus) + '</span>';
+    if (c.isShenzhenHukou) html += '<span class="client-card-tag client-card-tag-detail">深户:' + esc(c.isShenzhenHukou) + '</span>';
+    if (c.education) html += '<span class="client-card-tag client-card-tag-detail">' + esc(c.education) + '</span>';
+    if (c.property) html += '<span class="client-card-tag client-card-tag-detail">' + esc(c.property) + '</span>';
+    if (c.socialSecurity) html += '<span class="client-card-tag client-card-tag-detail">社保:' + esc(c.socialSecurity) + '</span>';
+    if (c.avgSalary) html += '<span class="client-card-tag client-card-tag-detail">月均:' + esc(c.avgSalary) + '</span>';
+    if (c.tax2yr) html += '<span class="client-card-tag client-card-tag-detail">个税:' + esc(c.tax2yr) + '</span>';
+    if (c.salaryBank) html += '<span class="client-card-tag client-card-tag-detail">银行:' + esc(c.salaryBank) + '</span>';
+    if (c.bankDebt) html += '<span class="client-card-tag client-card-tag-detail">信贷:' + esc(c.bankDebt) + '</span>';
+    if (c.creditCardDebt) html += '<span class="client-card-tag client-card-tag-detail">信用卡:' + esc(c.creditCardDebt) + '</span>';
+    if (c.query3m) html += '<span class="client-card-tag client-card-tag-detail">查询:' + esc(c.query3m) + '次</span>';
+    if (c.onlineLoanCount) html += '<span class="client-card-tag client-card-tag-detail">网贷:' + esc(c.onlineLoanCount) + '笔</span>';
+    if (c.demand) html += '<span class="client-card-tag client-card-tag-detail">需求:' + esc(c.demand.length > 15 ? c.demand.slice(0,15) + '…' : c.demand) + '</span>';
+    if (c.fundUsage) html += '<span class="client-card-tag client-card-tag-detail">资金:' + esc(c.fundUsage.length > 15 ? c.fundUsage.slice(0,15) + '…' : c.fundUsage) + '</span>';
+    return html;
+  }
 
   function getWeekTotal(map,month){const ref=month?new Date(month+'-01'):new Date();const dow=ref.getDay();const diff=dow===0?6:dow-1;const mon=new Date(ref);mon.setDate(ref.getDate()-diff);const ms=mon.getFullYear()+'-'+String(mon.getMonth()+1).padStart(2,'0')+'-'+String(mon.getDate()).padStart(2,'0');const end=month?new Date(ref.getFullYear(),ref.getMonth()+1,0):new Date();const es=end.getFullYear()+'-'+String(end.getMonth()+1).padStart(2,'0')+'-'+String(end.getDate()).padStart(2,'0');const tsNow=getTodayStr();const ts=month&&month!==getCurrentMonth()?es:tsNow;let s=0;for(let[d,v]of Object.entries(map))if(d>=ms&&d<=ts)s+=v;return s;}
   function getMonthTotal(map,month){const p=month||getTodayStr().slice(0,7);let s=0;for(let[d,v]of Object.entries(map))if(d.startsWith(p))s+=v;return s;}
@@ -5091,16 +5288,27 @@ export default {
         '<div class="client-card-tags">'+
           (c.company ? getWhitelistTagHtml(c.company, false) : '')+
           (c.fund ? '<span class="client-card-tag client-card-tag-fund">公积金: '+esc(c.fund)+'</span>' : '')+
+          getClientDetailTags(c) +
         '</div>'+
         '<div class="client-card-body">'+
           '<div class="client-card-content-block">'+
             '<span class="client-card-label">沟通记录</span>'+
             '<span class="client-card-text">'+esc(c.note||'')+'</span>'+
           '</div>'+
-          (c.followUp ? 
+          (c.followUp ?
             '<div class="client-card-content-block follow-up">'+
               '<span class="client-card-label">跟进情况</span>'+
               '<span class="client-card-text">'+esc(c.followUp)+'</span>'+
+            '</div>' : '')+
+          (c.demand ?
+            '<div class="client-card-content-block">'+
+              '<span class="client-card-label">客户需求</span>'+
+              '<span class="client-card-text">'+esc(c.demand)+'</span>'+
+            '</div>' : '')+
+          (c.fundUsage ?
+            '<div class="client-card-content-block">'+
+              '<span class="client-card-label">资金用途</span>'+
+              '<span class="client-card-text">'+esc(c.fundUsage)+'</span>'+
             '</div>' : '')+
         '</div>'+
         '<div class="client-card-actions">'+
@@ -5136,6 +5344,32 @@ export default {
       document.getElementById('custFund').value=c.fund||'';
       document.getElementById('custNote').value=c.note||'';
       document.getElementById('custFollowUp').value=c.followUp||'';
+      // Pre-fill new detail fields
+      var dAge=document.getElementById('custAge'); if(dAge)dAge.value=c.age||'';
+      var dMs=document.getElementById('custMaritalStatus'); if(dMs)dMs.value=c.maritalStatus||'';
+      var dSh=document.getElementById('custIsShenzhenHukou'); if(dSh)dSh.value=c.isShenzhenHukou||'';
+      var dSs=document.getElementById('custSocialSecurity'); if(dSs)dSs.value=c.socialSecurity||'';
+      var dAs=document.getElementById('custAvgSalary'); if(dAs)dAs.value=c.avgSalary||'';
+      var dTx=document.getElementById('custTax2yr'); if(dTx)dTx.value=c.tax2yr||'';
+      var dSb=document.getElementById('custSalaryBank'); if(dSb)dSb.value=c.salaryBank||'';
+      var dEd=document.getElementById('custEducation'); if(dEd)dEd.value=c.education||'';
+      var dPr=document.getElementById('custProperty'); if(dPr)dPr.value=c.property||'';
+      var dBd=document.getElementById('custBankDebt'); if(dBd)dBd.value=c.bankDebt||'';
+      var dCd=document.getElementById('custCreditCardDebt'); if(dCd)dCd.value=c.creditCardDebt||'';
+      var dQ3=document.getElementById('custQuery3m'); if(dQ3)dQ3.value=c.query3m||'';
+      var dOl=document.getElementById('custOnlineLoanCount'); if(dOl)dOl.value=c.onlineLoanCount||'';
+      var dDm=document.getElementById('custDemand'); if(dDm)dDm.value=c.demand||'';
+      var dFu=document.getElementById('custFundUsage'); if(dFu)dFu.value=c.fundUsage||'';
+      // Auto-expand detail panel if any new field has a value
+      var hasDetail = c.age||c.maritalStatus||c.isShenzhenHukou||c.socialSecurity||c.avgSalary||c.tax2yr||c.salaryBank||c.education||c.property||c.bankDebt||c.creditCardDebt||c.query3m||c.onlineLoanCount||c.demand||c.fundUsage;
+      var panel = document.getElementById('detailPanel');
+      var toggleBtn = document.getElementById('detailToggleBtn');
+      if (hasDetail && panel && panel.style.display === 'none') {
+        panel.style.display = 'flex';
+        var icon = toggleBtn.querySelector('.detail-toggle-icon');
+        if (icon) icon.classList.add('open');
+        toggleBtn.innerHTML = '<span class="detail-toggle-icon open">▶</span> 收起详细资料';
+      }
       a.splice(idx,1);localStorage.setItem(CLIENTS_K,JSON.stringify(a));
       renderClientList();refreshAll();
       await syncOp('removeClientByMatch',{name:name,phone:phone,time:time});
@@ -5262,7 +5496,12 @@ export default {
     let todoLog=[];
     if(cloudData&&cloudData.todoLog)todoLog=cloudData.todoLog;
     let timeline=[];
-    clients.forEach((c,i)=>{timeline.push({type:'client',time:c.time||'',name:c.name,phone:c.phone,company:c.company||'',fund:c.fund||'',note:c.note,idx:i});});
+    clients.forEach((c,i)=>{timeline.push({type:'client',time:c.time||'',name:c.name,phone:c.phone,company:c.company||'',fund:c.fund||'',note:c.note,idx:i,
+      age:c.age,maritalStatus:c.maritalStatus,isShenzhenHukou:c.isShenzhenHukou,
+      socialSecurity:c.socialSecurity,avgSalary:c.avgSalary,tax2yr:c.tax2yr,
+      salaryBank:c.salaryBank,education:c.education,property:c.property,
+      bankDebt:c.bankDebt,creditCardDebt:c.creditCardDebt,query3m:c.query3m,
+      onlineLoanCount:c.onlineLoanCount,demand:c.demand,fundUsage:c.fundUsage});});
     todos.forEach(t=>{const txt=typeof t==='string'?t:t.text;const tm=t&&t.time?t.time:'';if(txt)timeline.push({type:'todo',time:tm,text:txt});});
     todoLog.forEach(t=>{const txt=typeof t==='string'?t:t.text;const tm=t&&t.time?t.time:'';const tp=t.type==='tomorrow'?' (明日)':'';if(txt)timeline.push({type:'todo',time:tm,text:txt+tp});});
     timeline.sort((a,b)=>(a.time||'').localeCompare(b.time||''));
@@ -5297,6 +5536,7 @@ export default {
             '<div class="client-card-tags">'+
               (e.company ? getWhitelistTagHtml(e.company, false) : '')+
               (e.fund ? '<span class="client-card-tag client-card-tag-fund">公积金: '+esc(e.fund)+'</span>' : '')+
+              getClientDetailTags(e) +
             '</div>'+
             '<div class="client-card-body">'+
               '<div class="client-card-content-block">'+
@@ -5305,6 +5545,16 @@ export default {
                   '<div class="tbl-note-text" style="cursor:pointer;">'+(e.note?esc(e.note):'<span class="tbl-note-empty">点击添加沟通记录…</span>')+'</div>'+
                 '</div>'+
               '</div>'+
+              (e.demand ?
+                '<div class="client-card-content-block">'+
+                  '<span class="client-card-label">客户需求</span>'+
+                  '<span class="client-card-text">'+esc(e.demand)+'</span>'+
+                '</div>' : '')+
+              (e.fundUsage ?
+                '<div class="client-card-content-block">'+
+                  '<span class="client-card-label">资金用途</span>'+
+                  '<span class="client-card-text">'+esc(e.fundUsage)+'</span>'+
+                '</div>' : '')+
             '</div>'+
             '<div class="client-card-actions">'+
               '<button class="export-timeline-single-btn" data-idx="'+e.idx+'" title="导出">出</button>'+
@@ -5358,7 +5608,22 @@ export default {
                   company:ti.company,
                   fund:ti.fund,
                   note:ti.note,
-                  time:ti.time
+                  time:ti.time,
+                  age:ti.age,
+                  maritalStatus:ti.maritalStatus,
+                  isShenzhenHukou:ti.isShenzhenHukou,
+                  socialSecurity:ti.socialSecurity,
+                  avgSalary:ti.avgSalary,
+                  tax2yr:ti.tax2yr,
+                  salaryBank:ti.salaryBank,
+                  education:ti.education,
+                  property:ti.property,
+                  bankDebt:ti.bankDebt,
+                  creditCardDebt:ti.creditCardDebt,
+                  query3m:ti.query3m,
+                  onlineLoanCount:ti.onlineLoanCount,
+                  demand:ti.demand,
+                  fundUsage:ti.fundUsage
                 }
               })
             });
@@ -5411,8 +5676,35 @@ export default {
             '</div>' +
             '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
               '<input type="text" class="input-simple edit-company-input" placeholder="单位" style="flex:2;min-width:120px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.company||'') + '">' +
-              '<input type="text" class="input-simple edit-fund-input" placeholder="公积金" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.fund||'') + '">' +
+              '<input type="text" class="input-simple edit-fund-input" placeholder="公积金基数" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.fund||'') + '">' +
             '</div>' +
+            '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+              '<input type="text" class="input-simple edit-age-input" placeholder="年龄" style="flex:1;min-width:60px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.age||'') + '">' +
+              '<select class="input-simple input-select edit-marital-input" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;height:auto;"><option value="">婚姻状况</option><option value="未婚"' + (fullClient.maritalStatus==='未婚'?' selected':'') + '>未婚</option><option value="已婚"' + (fullClient.maritalStatus==='已婚'?' selected':'') + '>已婚</option><option value="离异"' + (fullClient.maritalStatus==='离异'?' selected':'') + '>离异</option><option value="丧偶"' + (fullClient.maritalStatus==='丧偶'?' selected':'') + '>丧偶</option></select>' +
+              '<select class="input-simple input-select edit-hukou-input" style="flex:1;min-width:70px;padding:6px 8px;font-size:0.78rem;height:auto;"><option value="">是否深户</option><option value="是"' + (fullClient.isShenzhenHukou==='是'?' selected':'') + '>是</option><option value="否"' + (fullClient.isShenzhenHukou==='否'?' selected':'') + '>否</option></select>' +
+            '</div>' +
+            '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+              '<input type="text" class="input-simple edit-ss-input" placeholder="社保养老基数" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.socialSecurity||'') + '">' +
+              '<input type="text" class="input-simple edit-salary-input" placeholder="月均工资" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.avgSalary||'') + '">' +
+            '</div>' +
+            '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+              '<input type="text" class="input-simple edit-tax-input" placeholder="近2年个税" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.tax2yr||'') + '">' +
+              '<input type="text" class="input-simple edit-sbank-input" placeholder="代发工资银行" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.salaryBank||'') + '">' +
+            '</div>' +
+            '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+              '<select class="input-simple input-select edit-edu-input" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;height:auto;"><option value="">学历</option><option value="初中及以下"' + (fullClient.education==='初中及以下'?' selected':'') + '>初中及以下</option><option value="高中"' + (fullClient.education==='高中'?' selected':'') + '>高中</option><option value="大专"' + (fullClient.education==='大专'?' selected':'') + '>大专</option><option value="本科"' + (fullClient.education==='本科'?' selected':'') + '>本科</option><option value="硕士"' + (fullClient.education==='硕士'?' selected':'') + '>硕士</option><option value="博士"' + (fullClient.education==='博士'?' selected':'') + '>博士</option></select>' +
+              '<select class="input-simple input-select edit-prop-input" style="flex:1;min-width:70px;padding:6px 8px;font-size:0.78rem;height:auto;"><option value="">房产</option><option value="无房"' + (fullClient.property==='无房'?' selected':'') + '>无房</option><option value="有一套"' + (fullClient.property==='有一套'?' selected':'') + '>有一套</option><option value="有多套"' + (fullClient.property==='有多套'?' selected':'') + '>有多套</option></select>' +
+            '</div>' +
+            '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+              '<input type="text" class="input-simple edit-bankdebt-input" placeholder="银行信贷负债" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.bankDebt||'') + '">' +
+              '<input type="text" class="input-simple edit-ccdebt-input" placeholder="信用卡负债" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.creditCardDebt||'') + '">' +
+            '</div>' +
+            '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+              '<input type="text" class="input-simple edit-query-input" placeholder="近3个月查询次数" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.query3m||'') + '">' +
+              '<input type="text" class="input-simple edit-onlineloan-input" placeholder="小额网贷笔数" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.onlineLoanCount||'') + '">' +
+            '</div>' +
+            '<textarea class="input-simple edit-demand-input" placeholder="客户大致需求" style="width:100%;min-height:50px;padding:8px;font-size:0.78rem;resize:vertical;box-sizing:border-box;">' + esc(fullClient.demand||'') + '</textarea>' +
+            '<textarea class="input-simple edit-fusage-input" placeholder="资金用途和时间" style="width:100%;min-height:50px;padding:8px;font-size:0.78rem;resize:vertical;box-sizing:border-box;">' + esc(fullClient.fundUsage||'') + '</textarea>' +
             '<textarea class="input-simple edit-note-input" placeholder="沟通记录（必填）" style="width:100%;min-height:70px;padding:8px;font-size:0.78rem;resize:vertical;box-sizing:border-box;">' + esc(fullClient.note||ti.note||'') + '</textarea>' +
             '<textarea class="input-simple edit-follow-input" placeholder="跟进情况" style="width:100%;min-height:60px;padding:8px;font-size:0.78rem;resize:vertical;box-sizing:border-box;">' + esc(fullClient.followUp||'') + '</textarea>' +
             '<div style="display:flex;justify-content:flex-end;gap:8px;border-top:1px dashed var(--card-border);padding-top:8px;">' +
@@ -5428,6 +5720,22 @@ export default {
             const fund = card.querySelector('.edit-fund-input').value.trim();
             const nt = card.querySelector('.edit-note-input').value.trim();
             const fu = card.querySelector('.edit-follow-input').value.trim();
+            // Read new detail fields
+            const age = (card.querySelector('.edit-age-input')||{}).value||''; const ageV = age.trim();
+            const ms = (card.querySelector('.edit-marital-input')||{}).value||'';
+            const sh = (card.querySelector('.edit-hukou-input')||{}).value||'';
+            const ss = (card.querySelector('.edit-ss-input')||{}).value||''; const ssV = ss.trim();
+            const as = (card.querySelector('.edit-salary-input')||{}).value||''; const asV = as.trim();
+            const tx = (card.querySelector('.edit-tax-input')||{}).value||''; const txV = tx.trim();
+            const sb = (card.querySelector('.edit-sbank-input')||{}).value||''; const sbV = sb.trim();
+            const ed = (card.querySelector('.edit-edu-input')||{}).value||'';
+            const pr = (card.querySelector('.edit-prop-input')||{}).value||'';
+            const bd = (card.querySelector('.edit-bankdebt-input')||{}).value||''; const bdV = bd.trim();
+            const cd = (card.querySelector('.edit-ccdebt-input')||{}).value||''; const cdV = cd.trim();
+            const q3 = (card.querySelector('.edit-query-input')||{}).value||''; const q3V = q3.trim();
+            const ol = (card.querySelector('.edit-onlineloan-input')||{}).value||''; const olV = ol.trim();
+            const dm = (card.querySelector('.edit-demand-input')||{}).value||''; const dmV = dm.trim();
+            const fg = (card.querySelector('.edit-fusage-input')||{}).value||''; const fgV = fg.trim();
 
             if (!n) { alert('姓名不能为空，请填写完整！'); return; }
             if (!p) { alert('电话号码不能为空，请填写完整！'); return; }
@@ -5440,7 +5748,11 @@ export default {
               date: ds, time: fullClient.time || ti.time || getCurrentTime(),
               name: n, phone: p, company: comp, fund: fund, note: nt, followUp: fu,
               followUpTime: fu !== (fullClient.followUp || '') ? getCurrentTime() : (fullClient.followUpTime || ''),
-              followUpDate: fu !== (fullClient.followUp || '') ? getTodayStr() : (fullClient.followUpDate || ds)
+              followUpDate: fu !== (fullClient.followUp || '') ? getTodayStr() : (fullClient.followUpDate || ds),
+              age: ageV, maritalStatus: ms, isShenzhenHukou: sh, socialSecurity: ssV,
+              avgSalary: asV, tax2yr: txV, salaryBank: sbV, education: ed, property: pr,
+              bankDebt: bdV, creditCardDebt: cdV, query3m: q3V, onlineLoanCount: olV,
+              demand: dmV, fundUsage: fgV
             };
             if (matchIdx !== -1) { allList[matchIdx] = updatedClient; }
             else { allList.push(updatedClient); }
@@ -5568,6 +5880,8 @@ export default {
   }
   async function resetToday(key,op){const d=loadMap(key);const t=getTodayStr();const old=d[t]||0;delete d[t];saveMap(key,d);refreshAll();if(old>0)await syncOp(op||'incWechat',{delta:-old});}
 
+  function getElVal(id) { const el = document.getElementById(id); return el ? el.value.trim() : ''; }
+  function clearEl(id) { const el = document.getElementById(id); if (el) el.value = ''; }
   async function addClient(){
     const n=document.getElementById('custName').value.trim();
     const p=document.getElementById('custPhone').value.trim();
@@ -5575,20 +5889,39 @@ export default {
     const f=document.getElementById('custFund').value.trim();
     const nt=document.getElementById('custNote').value.trim();
     const fu=document.getElementById('custFollowUp').value.trim();
+    // New detail fields
+    const age = getElVal('custAge');
+    const maritalStatus = getElVal('custMaritalStatus');
+    const isShenzhenHukou = getElVal('custIsShenzhenHukou');
+    const socialSecurity = getElVal('custSocialSecurity');
+    const avgSalary = getElVal('custAvgSalary');
+    const tax2yr = getElVal('custTax2yr');
+    const salaryBank = getElVal('custSalaryBank');
+    const education = getElVal('custEducation');
+    const propertyVal = getElVal('custProperty');
+    const bankDebt = getElVal('custBankDebt');
+    const creditCardDebt = getElVal('custCreditCardDebt');
+    const query3m = getElVal('custQuery3m');
+    const onlineLoanCount = getElVal('custOnlineLoanCount');
+    const demand = getElVal('custDemand');
+    const fundUsage = getElVal('custFundUsage');
     if(!n){alert('姓名不能为空，请填写完整！');return;}
     if(!p){alert('电话号码不能为空，请填写完整！');return;}
     if(!nt){alert('沟通记录为必填项，请填写完整！');return;}
     const list=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
     const today=getTodayStr(),time=getCurrentTime();
-    const newClient={name:n,phone:p,company:c,fund:f,note:nt,followUp:fu,date:today,time:time};
+    const newClient={name:n,phone:p,company:c,fund:f,note:nt,followUp:fu,date:today,time:time,
+      age,maritalStatus,isShenzhenHukou,socialSecurity,avgSalary,tax2yr,salaryBank,
+      education,property:propertyVal,bankDebt,creditCardDebt,query3m,onlineLoanCount,demand,fundUsage};
     list.push(newClient);
     localStorage.setItem(CLIENTS_K,JSON.stringify(list));
-    document.getElementById('custName').value='';
-    document.getElementById('custPhone').value='';
-    document.getElementById('custCompany').value='';
-    document.getElementById('custFund').value='';
-    document.getElementById('custNote').value='';
-    document.getElementById('custFollowUp').value='';
+    clearEl('custName'); clearEl('custPhone'); clearEl('custCompany'); clearEl('custFund');
+    clearEl('custNote'); clearEl('custFollowUp');
+    clearEl('custAge'); clearEl('custMaritalStatus'); clearEl('custIsShenzhenHukou');
+    clearEl('custSocialSecurity'); clearEl('custAvgSalary'); clearEl('custTax2yr');
+    clearEl('custSalaryBank'); clearEl('custEducation'); clearEl('custProperty');
+    clearEl('custBankDebt'); clearEl('custCreditCardDebt'); clearEl('custQuery3m');
+    clearEl('custOnlineLoanCount'); clearEl('custDemand'); clearEl('custFundUsage');
     renderClientList();refreshAll();
     // 只用原子 syncOp，不再并发 saveFullState（避免竞态导致云端客户重复/覆盖）
     await syncOp('addClient',{client:newClient});
@@ -6619,6 +6952,20 @@ const rid=Math.floor(Math.random()*1000);
     });
   }
   document.getElementById('addClientBtn').addEventListener('click',addClient);
+  // Detail panel toggle
+  document.getElementById('detailToggleBtn').addEventListener('click', function() {
+    const panel = document.getElementById('detailPanel');
+    const icon = this.querySelector('.detail-toggle-icon');
+    if (panel.style.display === 'none') {
+      panel.style.display = 'flex';
+      icon.classList.add('open');
+      this.innerHTML = '<span class="detail-toggle-icon open">▶</span> 收起详细资料';
+    } else {
+      panel.style.display = 'none';
+      icon.classList.remove('open');
+      this.innerHTML = '<span class="detail-toggle-icon">▶</span> 详细资料';
+    }
+  });
 
   // ========== 剪贴板截图 OCR 识别 ==========
   document.getElementById('clipboardPasteBtn').addEventListener('click', async () => {
@@ -6832,7 +7179,7 @@ const rid=Math.floor(Math.random()*1000);
   document.getElementById('addTodoBtn').addEventListener('click',addTodo);
   document.getElementById('todayTodoInput').addEventListener('keypress',e=>{if(e.key==='Enter')addTodayTodo();});
   document.getElementById('todoInput').addEventListener('keypress',e=>{if(e.key==='Enter')addTodo();});
-  ['custName','custPhone','custCompany','custFund'].forEach(id=>document.getElementById(id).addEventListener('keypress',e=>{if(e.key==='Enter')addClient();}));
+  ['custName','custPhone','custCompany','custFund','custAge','custSocialSecurity','custAvgSalary','custTax2yr','custSalaryBank','custBankDebt','custCreditCardDebt','custQuery3m','custOnlineLoanCount'].forEach(id=>{const el=document.getElementById(id);if(el)el.addEventListener('keypress',e=>{if(e.key==='Enter')addClient();});});
   document.getElementById('addTempCustBtn').addEventListener('click',addTempClient);
   ['tempCustName','tempCustPhone'].forEach(id=>document.getElementById(id).addEventListener('keypress',e=>{if(e.key==='Enter')addTempClient();}));
   document.getElementById('closeModalBtn').addEventListener('click',()=>document.getElementById('dateModal').classList.remove('active'));
@@ -6945,6 +7292,7 @@ const rid=Math.floor(Math.random()*1000);
         '<div class="client-card-tags">' +
           (c.company ? getWhitelistTagHtml(c.company, false) : '') +
           (c.fund ? '<span class="client-card-tag client-card-tag-fund">公积金: ' + esc(c.fund) + '</span>' : '') +
+          getClientDetailTags(c) +
         '</div>' +
         '<div class="client-card-body">' +
           '<div class="client-card-content-block">' +
@@ -6955,6 +7303,16 @@ const rid=Math.floor(Math.random()*1000);
             '<div class="client-card-content-block follow-up">' +
               '<span class="client-card-label">跟进情况 <span class="client-card-time-inline">' + esc(c.followUpDate || c.date) + ' ' + esc(c.followUpTime || getCurrentTime()) + '</span></span>' +
               '<span class="client-card-text">' + esc(c.followUp) + '</span>' +
+            '</div>' : '') +
+          (c.demand ?
+            '<div class="client-card-content-block">' +
+              '<span class="client-card-label">客户需求</span>' +
+              '<span class="client-card-text">' + esc(c.demand) + '</span>' +
+            '</div>' : '') +
+          (c.fundUsage ?
+            '<div class="client-card-content-block">' +
+              '<span class="client-card-label">资金用途</span>' +
+              '<span class="client-card-text">' + esc(c.fundUsage) + '</span>' +
             '</div>' : '') +
         '</div>' +
         '<div class="client-card-actions-top">' +
@@ -7027,8 +7385,35 @@ const rid=Math.floor(Math.random()*1000);
         '</div>' +
         '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
           '<input type="text" class="input-simple edit-company-input" placeholder="单位" style="flex:2;min-width:120px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.company || '') + '">' +
-          '<input type="text" class="input-simple edit-fund-input" placeholder="公积金" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.fund || '') + '">' +
+          '<input type="text" class="input-simple edit-fund-input" placeholder="公积金基数" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.fund || '') + '">' +
         '</div>' +
+        '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+          '<input type="text" class="input-simple edit-age-input" placeholder="年龄" style="flex:1;min-width:60px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.age||'') + '">' +
+          '<select class="input-simple input-select edit-marital-input" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;height:auto;"><option value="">婚姻状况</option><option value="未婚"' + (c.maritalStatus==='未婚'?' selected':'') + '>未婚</option><option value="已婚"' + (c.maritalStatus==='已婚'?' selected':'') + '>已婚</option><option value="离异"' + (c.maritalStatus==='离异'?' selected':'') + '>离异</option><option value="丧偶"' + (c.maritalStatus==='丧偶'?' selected':'') + '>丧偶</option></select>' +
+          '<select class="input-simple input-select edit-hukou-input" style="flex:1;min-width:70px;padding:6px 8px;font-size:0.78rem;height:auto;"><option value="">是否深户</option><option value="是"' + (c.isShenzhenHukou==='是'?' selected':'') + '>是</option><option value="否"' + (c.isShenzhenHukou==='否'?' selected':'') + '>否</option></select>' +
+        '</div>' +
+        '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+          '<input type="text" class="input-simple edit-ss-input" placeholder="社保养老基数" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.socialSecurity||'') + '">' +
+          '<input type="text" class="input-simple edit-salary-input" placeholder="月均工资" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.avgSalary||'') + '">' +
+        '</div>' +
+        '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+          '<input type="text" class="input-simple edit-tax-input" placeholder="近2年个税" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.tax2yr||'') + '">' +
+          '<input type="text" class="input-simple edit-sbank-input" placeholder="代发工资银行" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.salaryBank||'') + '">' +
+        '</div>' +
+        '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+          '<select class="input-simple input-select edit-edu-input" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;height:auto;"><option value="">学历</option><option value="初中及以下"' + (c.education==='初中及以下'?' selected':'') + '>初中及以下</option><option value="高中"' + (c.education==='高中'?' selected':'') + '>高中</option><option value="大专"' + (c.education==='大专'?' selected':'') + '>大专</option><option value="本科"' + (c.education==='本科'?' selected':'') + '>本科</option><option value="硕士"' + (c.education==='硕士'?' selected':'') + '>硕士</option><option value="博士"' + (c.education==='博士'?' selected':'') + '>博士</option></select>' +
+          '<select class="input-simple input-select edit-prop-input" style="flex:1;min-width:70px;padding:6px 8px;font-size:0.78rem;height:auto;"><option value="">房产</option><option value="无房"' + (c.property==='无房'?' selected':'') + '>无房</option><option value="有一套"' + (c.property==='有一套'?' selected':'') + '>有一套</option><option value="有多套"' + (c.property==='有多套'?' selected':'') + '>有多套</option></select>' +
+        '</div>' +
+        '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+          '<input type="text" class="input-simple edit-bankdebt-input" placeholder="银行信贷负债" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.bankDebt||'') + '">' +
+          '<input type="text" class="input-simple edit-ccdebt-input" placeholder="信用卡负债" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.creditCardDebt||'') + '">' +
+        '</div>' +
+        '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+          '<input type="text" class="input-simple edit-query-input" placeholder="近3个月查询次数" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.query3m||'') + '">' +
+          '<input type="text" class="input-simple edit-onlineloan-input" placeholder="小额网贷笔数" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.onlineLoanCount||'') + '">' +
+        '</div>' +
+        '<textarea class="input-simple edit-demand-input" placeholder="客户大致需求" style="width:100%;min-height:50px;padding:8px;font-size:0.78rem;resize:vertical;box-sizing:border-box;">' + esc(c.demand||'') + '</textarea>' +
+        '<textarea class="input-simple edit-fusage-input" placeholder="资金用途和时间" style="width:100%;min-height:50px;padding:8px;font-size:0.78rem;resize:vertical;box-sizing:border-box;">' + esc(c.fundUsage||'') + '</textarea>' +
         '<textarea class="input-simple edit-note-input" placeholder="沟通记录" style="width:100%;min-height:70px;padding:8px;font-size:0.78rem;resize:vertical;box-sizing:border-box;">' + esc(c.note || '') + '</textarea>' +
         '<textarea class="input-simple edit-follow-input" placeholder="跟进情况" style="width:100%;min-height:60px;padding:8px;font-size:0.78rem;resize:vertical;box-sizing:border-box;">' + esc(c.followUp || '') + '</textarea>' +
         '<div style="display:flex;justify-content:flex-end;gap:8px;border-top:1px dashed var(--card-border);padding-top:8px;">' +
@@ -7044,6 +7429,22 @@ const rid=Math.floor(Math.random()*1000);
         const fund = card.querySelector('.edit-fund-input').value.trim();
         const nt = card.querySelector('.edit-note-input').value.trim();
         const fu = card.querySelector('.edit-follow-input').value.trim();
+        // Read new detail fields
+        const age = (card.querySelector('.edit-age-input')||{}).value||''; const ageV = age.trim();
+        const ms = (card.querySelector('.edit-marital-input')||{}).value||'';
+        const sh = (card.querySelector('.edit-hukou-input')||{}).value||'';
+        const ss = (card.querySelector('.edit-ss-input')||{}).value||''; const ssV = ss.trim();
+        const as = (card.querySelector('.edit-salary-input')||{}).value||''; const asV = as.trim();
+        const tx = (card.querySelector('.edit-tax-input')||{}).value||''; const txV = tx.trim();
+        const sb = (card.querySelector('.edit-sbank-input')||{}).value||''; const sbV = sb.trim();
+        const ed = (card.querySelector('.edit-edu-input')||{}).value||'';
+        const pr = (card.querySelector('.edit-prop-input')||{}).value||'';
+        const bd = (card.querySelector('.edit-bankdebt-input')||{}).value||''; const bdV = bd.trim();
+        const cd = (card.querySelector('.edit-ccdebt-input')||{}).value||''; const cdV = cd.trim();
+        const q3 = (card.querySelector('.edit-query-input')||{}).value||''; const q3V = q3.trim();
+        const ol = (card.querySelector('.edit-onlineloan-input')||{}).value||''; const olV = ol.trim();
+        const dm = (card.querySelector('.edit-demand-input')||{}).value||''; const dmV = dm.trim();
+        const fg = (card.querySelector('.edit-fusage-input')||{}).value||''; const fgV = fg.trim();
 
         if (!n) { alert('姓名不能为空，请填写完整！'); return; }
         if (!p) { alert('电话号码不能为空，请填写完整！'); return; }
@@ -7056,7 +7457,11 @@ const rid=Math.floor(Math.random()*1000);
           date: date, time: c.time || getCurrentTime(),
           name: n, phone: p, company: comp, fund: fund, note: nt, followUp: fu,
           followUpTime: fu !== (c.followUp || '') ? getCurrentTime() : (c.followUpTime || ''),
-          followUpDate: fu !== (c.followUp || '') ? getTodayStr() : (c.followUpDate || c.date)
+          followUpDate: fu !== (c.followUp || '') ? getTodayStr() : (c.followUpDate || c.date),
+          age: ageV, maritalStatus: ms, isShenzhenHukou: sh, socialSecurity: ssV,
+          avgSalary: asV, tax2yr: txV, salaryBank: sbV, education: ed, property: pr,
+          bankDebt: bdV, creditCardDebt: cdV, query3m: q3V, onlineLoanCount: olV,
+          demand: dmV, fundUsage: fgV
         };
         if (idx !== -1) { allList[idx] = updatedClient; }
         else { allList.push(updatedClient); }
@@ -7126,8 +7531,35 @@ const rid=Math.floor(Math.random()*1000);
           '</div>' +
           '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
             '<input type="text" class="input-simple new-company-input" placeholder="单位" style="flex:2;min-width:120px;padding:6px 8px;font-size:0.78rem;">' +
-            '<input type="text" class="input-simple new-fund-input" placeholder="公积金" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;">' +
+            '<input type="text" class="input-simple new-fund-input" placeholder="公积金基数" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;">' +
           '</div>' +
+          '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+            '<input type="text" class="input-simple new-age-input" placeholder="年龄" style="flex:1;min-width:60px;padding:6px 8px;font-size:0.78rem;">' +
+            '<select class="input-simple input-select new-marital-input" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;height:auto;"><option value="">婚姻状况</option><option value="未婚">未婚</option><option value="已婚">已婚</option><option value="离异">离异</option><option value="丧偶">丧偶</option></select>' +
+            '<select class="input-simple input-select new-hukou-input" style="flex:1;min-width:70px;padding:6px 8px;font-size:0.78rem;height:auto;"><option value="">是否深户</option><option value="是">是</option><option value="否">否</option></select>' +
+          '</div>' +
+          '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+            '<input type="text" class="input-simple new-ss-input" placeholder="社保养老基数" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;">' +
+            '<input type="text" class="input-simple new-salary-input" placeholder="月均工资" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;">' +
+          '</div>' +
+          '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+            '<input type="text" class="input-simple new-tax-input" placeholder="近2年个税" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;">' +
+            '<input type="text" class="input-simple new-sbank-input" placeholder="代发工资银行" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;">' +
+          '</div>' +
+          '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+            '<select class="input-simple input-select new-edu-input" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;height:auto;"><option value="">学历</option><option value="初中及以下">初中及以下</option><option value="高中">高中</option><option value="大专">大专</option><option value="本科">本科</option><option value="硕士">硕士</option><option value="博士">博士</option></select>' +
+            '<select class="input-simple input-select new-prop-input" style="flex:1;min-width:70px;padding:6px 8px;font-size:0.78rem;height:auto;"><option value="">房产</option><option value="无房">无房</option><option value="有一套">有一套</option><option value="有多套">有多套</option></select>' +
+          '</div>' +
+          '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+            '<input type="text" class="input-simple new-bankdebt-input" placeholder="银行信贷负债" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;">' +
+            '<input type="text" class="input-simple new-ccdebt-input" placeholder="信用卡负债" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;">' +
+          '</div>' +
+          '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+            '<input type="text" class="input-simple new-query-input" placeholder="近3个月查询次数" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;">' +
+            '<input type="text" class="input-simple new-onlineloan-input" placeholder="小额网贷笔数" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;">' +
+          '</div>' +
+          '<textarea class="input-simple new-demand-input" placeholder="客户大致需求" style="width:100%;min-height:50px;padding:8px;font-size:0.78rem;resize:vertical;box-sizing:border-box;"></textarea>' +
+          '<textarea class="input-simple new-fusage-input" placeholder="资金用途和时间" style="width:100%;min-height:50px;padding:8px;font-size:0.78rem;resize:vertical;box-sizing:border-box;"></textarea>' +
           '<textarea class="input-simple new-note-input" placeholder="沟通记录（必填）" style="width:100%;min-height:70px;padding:8px;font-size:0.78rem;resize:vertical;box-sizing:border-box;"></textarea>' +
           '<textarea class="input-simple new-follow-input" placeholder="跟进情况" style="width:100%;min-height:60px;padding:8px;font-size:0.78rem;resize:vertical;box-sizing:border-box;"></textarea>' +
           '<div style="display:flex;justify-content:flex-end;gap:8px;border-top:1px dashed var(--card-border);padding-top:8px;">' +
@@ -7146,13 +7578,33 @@ const rid=Math.floor(Math.random()*1000);
           const fund = card.querySelector('.new-fund-input').value.trim();
           const nt = card.querySelector('.new-note-input').value.trim();
           const fu = card.querySelector('.new-follow-input').value.trim();
+          // Read new detail fields
+          const age = (card.querySelector('.new-age-input')||{}).value||''; const ageV = age.trim();
+          const ms = (card.querySelector('.new-marital-input')||{}).value||'';
+          const sh = (card.querySelector('.new-hukou-input')||{}).value||'';
+          const ss = (card.querySelector('.new-ss-input')||{}).value||''; const ssV = ss.trim();
+          const as = (card.querySelector('.new-salary-input')||{}).value||''; const asV = as.trim();
+          const tx = (card.querySelector('.new-tax-input')||{}).value||''; const txV = tx.trim();
+          const sb = (card.querySelector('.new-sbank-input')||{}).value||''; const sbV = sb.trim();
+          const ed = (card.querySelector('.new-edu-input')||{}).value||'';
+          const pr = (card.querySelector('.new-prop-input')||{}).value||'';
+          const bd = (card.querySelector('.new-bankdebt-input')||{}).value||''; const bdV = bd.trim();
+          const cd = (card.querySelector('.new-ccdebt-input')||{}).value||''; const cdV = cd.trim();
+          const q3 = (card.querySelector('.new-query-input')||{}).value||''; const q3V = q3.trim();
+          const ol = (card.querySelector('.new-onlineloan-input')||{}).value||''; const olV = ol.trim();
+          const dm = (card.querySelector('.new-demand-input')||{}).value||''; const dmV = dm.trim();
+          const fg = (card.querySelector('.new-fusage-input')||{}).value||''; const fgV = fg.trim();
 
           if (!d) { alert('请选择日期！'); return; }
           if (!n) { alert('姓名不能为空，请填写完整！'); return; }
           if (!p) { alert('电话号码不能为空，请填写完整！'); return; }
           if (!nt) { alert('沟通记录为必填项，请填写完整！'); return; }
 
-          const newClient = { name: n, phone: p, company: comp, fund: fund, note: nt, followUp: fu, date: d, time: getCurrentTime(), followUpTime: fu ? getCurrentTime() : '', followUpDate: fu ? getTodayStr() : '' };
+          const newClient = { name: n, phone: p, company: comp, fund: fund, note: nt, followUp: fu, date: d, time: getCurrentTime(), followUpTime: fu ? getCurrentTime() : '', followUpDate: fu ? getTodayStr() : '',
+            age: ageV, maritalStatus: ms, isShenzhenHukou: sh, socialSecurity: ssV,
+            avgSalary: asV, tax2yr: txV, salaryBank: sbV, education: ed, property: pr,
+            bankDebt: bdV, creditCardDebt: cdV, query3m: q3V, onlineLoanCount: olV,
+            demand: dmV, fundUsage: fgV };
 
           const allList = JSON.parse(localStorage.getItem(CLIENTS_K) || '[]');
           allList.push(newClient);
