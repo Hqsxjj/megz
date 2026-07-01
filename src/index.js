@@ -3952,7 +3952,7 @@ export default {
             <span style="font-size:0.55rem; color:var(--text-soft); font-weight:normal;" id="mainWlStatus">建行建易贷</span>
           </div>
           <div class="register-block" style="position: relative;">
-            <input type="text" class="input-simple" id="mainWlSearchInput" placeholder="🔍 输入企业名称进行模糊搜索..." autocomplete="off" style="width:100%; box-sizing:border-box; padding:10px 12px; height:38px; font-size:0.72rem;">
+            <input type="text" class="input-simple" id="mainWlSearchInput" placeholder="输入企业名称进行模糊搜索..." autocomplete="off" style="width:100%; box-sizing:border-box; padding:10px 12px; height:38px; font-size:0.72rem;">
             <div id="mainWlSearchResults" style="display:none; position:absolute; top:calc(100% + 4px); left:0; right:0; background:var(--card-bg); border:1px solid var(--card-border); border-radius:var(--radius-xs); box-shadow:var(--shadow-md); z-index:100; max-height:180px; overflow-y:auto; padding:4px; flex-direction:column; gap:4px; text-align:left; box-sizing:border-box;"></div>
           </div>
         </div>
@@ -3981,7 +3981,7 @@ export default {
       </div>
       <div class="right-area">
         <div class="card">
-          <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;">意向登记<button class="btn-add" id="clipboardPasteBtn" style="font-size:0.65rem;padding:3px 10px;height:24px;background:linear-gradient(135deg,#667eea,#764ba2);color:white;border:none;border-radius:12px;font-weight:700;cursor:pointer;" title="从剪贴板粘贴截图自动识别">📋 粘贴截图识别</button></div>
+          <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;">意向登记<button class="btn-add" id="clipboardPasteBtn" style="font-size:0.65rem;padding:3px 10px;height:24px;background:linear-gradient(135deg,#667eea,#764ba2);color:white;border:none;border-radius:12px;font-weight:700;cursor:pointer;" title="从剪贴板粘贴截图自动识别">粘贴截图识别</button></div>
           <div class="register-block">
             <div class="form-line"><input type="text" class="input-simple" id="custName" placeholder="姓名" autocomplete="off"><input type="text" class="input-simple" id="custPhone" placeholder="电话" autocomplete="off"></div>
             <div class="form-line"><input type="text" class="input-simple" id="custCompany" placeholder="单位" autocomplete="off"><input type="text" class="input-simple" id="custFund" placeholder="公积金基数" autocomplete="off"></div>
@@ -4071,7 +4071,7 @@ export default {
       </label>
       <div style="display:flex; gap:8px; flex:1; justify-content:flex-end;">
         <button class="btn-add" id="aiLearnBtn" style="background: linear-gradient(135deg, #4a6cf7 0%, #07c160 100%); color:white; border:none; padding:8px 16px; font-size:0.75rem; border-radius:var(--radius-xs); cursor:pointer; font-weight:800; display:flex; align-items:center; gap:4px; box-shadow: 0 2px 6px rgba(74,108,247,0.25);">
-          ✨ AI 智能总结
+          AI 智能总结
         </button>
         <button class="btn-add" id="addLearnBtn" style="background: var(--btn-bg); color:var(--text-main); border:1px solid var(--card-border); padding:8px 16px; font-size:0.75rem; border-radius:var(--radius-xs); cursor:pointer; font-weight:800;">
           手动保存
@@ -4080,7 +4080,7 @@ export default {
     </div>
 
     <details id="aiConfigDetails" style="margin-bottom:12px; border:1px dashed var(--card-border); border-radius:var(--radius-xs); padding:6px 10px; background:rgba(120,120,120,0.02);">
-      <summary style="font-size:0.7rem; color:var(--text-soft); cursor:pointer; font-weight:700; outline:none; user-select:none;">🤖 AI 大模型配置 (选填)</summary>
+      <summary style="font-size:0.7rem; color:var(--text-soft); cursor:pointer; font-weight:700; outline:none; user-select:none;">AI 大模型配置 (选填)</summary>
       <div style="display:flex; flex-direction:column; gap:6px; margin-top:6px;">
         <div style="display:flex; align-items:center; gap:6px;">
           <span style="font-size:0.65rem; color:var(--text-soft); width:50px; font-weight:700;">服务商:</span>
@@ -4127,7 +4127,7 @@ export default {
       </div>
 
             <details style="margin-top:10px; border:1px dashed var(--card-border); border-radius:var(--radius-xs); padding:8px; background:rgba(120,120,120,0.02);">
-        <summary style="font-size:0.75rem; color:var(--text-soft); cursor:pointer; font-weight:700; outline:none; user-select:none;">🤖 企业微信应用与机器人回调配置</summary>
+        <summary style="font-size:0.75rem; color:var(--text-soft); cursor:pointer; font-weight:700; outline:none; user-select:none;">企业微信应用与机器人回调配置</summary>
         <div style="display:flex; flex-direction:column; gap:8px; margin-top:8px;">
           <input type="text" class="input-simple" id="wecomCorpIdInput" placeholder="企业 Corp ID（如 ww1234567890abcdef）" style="font-size:0.7rem; height:28px; padding:0 8px;">
           <input type="text" class="input-simple" id="wecomTokenInput" placeholder="应用 Token (用于回调)" style="font-size:0.7rem; height:28px; padding:0 8px;">
@@ -4137,8 +4137,8 @@ export default {
           <input type="text" class="input-simple" id="wecomTouserInput" placeholder="接收成员 UserID (如 WangWu，留空则为全员 @all)" style="font-size:0.7rem; height:28px; padding:0 8px;">
           <input type="text" class="input-simple" id="wecomApiProxyInput" placeholder="API 代理地址 (中转代理，留空使用官方默认)" style="font-size:0.7rem; height:28px; padding:0 8px;">
           <div style="display:flex; gap:6px;">
-            <button id="saveWecomBotBtn" class="btn-add" style="font-size:0.7rem; height:28px; margin:0; background:var(--accent-wechat); color:white; border:none; flex:1;">💾 保存配置</button>
-            <button id="testWecomBtn" class="btn-add" style="font-size:0.7rem; height:28px; margin:0; background:linear-gradient(135deg,#36d1dc,#5b86e5); color:white; border:none; flex:1;">🔍 测试连接</button>
+            <button id="saveWecomBotBtn" class="btn-add" style="font-size:0.7rem; height:28px; margin:0; background:var(--accent-wechat); color:white; border:none; flex:1;">保存配置</button>
+            <button id="testWecomBtn" class="btn-add" style="font-size:0.7rem; height:28px; margin:0; background:linear-gradient(135deg,#36d1dc,#5b86e5); color:white; border:none; flex:1;">测试连接</button>
           </div>
           <div id="wecomConfigStatus" style="font-size:0.62rem; padding:6px; border-radius:4px; background:var(--btn-bg); display:none; line-height:1.5;"></div>
           
@@ -4153,21 +4153,21 @@ export default {
       </details>
 
       <details style="margin-top:10px; border:1px dashed var(--card-border); border-radius:var(--radius-xs); padding:8px; background:rgba(120,120,120,0.02);">
-        <summary style="font-size:0.75rem; color:var(--text-soft); cursor:pointer; font-weight:700; outline:none; user-select:none;">🎙️ Siri 语音快捷指令配置</summary>
+        <summary style="font-size:0.75rem; color:var(--text-soft); cursor:pointer; font-weight:700; outline:none; user-select:none;">Siri 语音快捷指令配置</summary>
         <div style="display:flex; flex-direction:column; gap:8px; margin-top:8px;">
           <input type="text" class="input-simple" id="siriKeyInput" placeholder="Siri 认证密钥 (默认: siri_default_123)" style="font-size:0.7rem; height:28px; padding:0 8px;">
-          <button id="saveSiriKeyBtn" class="btn-add" style="font-size:0.7rem; height:28px; margin:0; background:linear-gradient(135deg,#ff9966,#ff5e62); color:white; border:none; width:100%;">💾 保存密钥</button>
+          <button id="saveSiriKeyBtn" class="btn-add" style="font-size:0.7rem; height:28px; margin:0; background:linear-gradient(135deg,#ff9966,#ff5e62); color:white; border:none; width:100%;">保存密钥</button>
           
-          <button id="downloadSiriShortcutBtn" class="btn-secondary" style="font-size:0.7rem; height:28px; margin:0; background:var(--btn-bg); color:var(--text-main); border:1px solid var(--card-border); border-radius:var(--radius-xs); cursor:pointer; width:100%; font-weight:700;">📥 一键下载快捷指令文件 (.shortcut)</button>
+          <button id="downloadSiriShortcutBtn" class="btn-secondary" style="font-size:0.7rem; height:28px; margin:0; background:var(--btn-bg); color:var(--text-main); border:1px solid var(--card-border); border-radius:var(--radius-xs); cursor:pointer; width:100%; font-weight:700;">一键下载快捷指令文件 (.shortcut)</button>
 
           <div id="siriConfigStatus" style="font-size:0.62rem; padding:6px; border-radius:4px; background:var(--btn-bg); display:none; line-height:1.5;"></div>
 
           <div style="font-size:0.6rem; color:var(--text-light); line-height:1.4; margin-top:4px;">
-            <strong style="color:var(--accent-orange);">💡 快捷指令导入提示：</strong><br>
+            <strong style="color:var(--accent-orange);">快捷指令导入提示：</strong><br>
             由于苹果 iOS 15 及以上系统的安全机制，直接下载的 <code>.shortcut</code> 文件在手机上打开时可能会提示“未签名”而无法直接导入。如果您遇到此问题：<br>
             - <strong>推荐做法：</strong>直接使用下方极其简单的 <strong>30秒极速手动配置步骤</strong> 即可配置完成。<br>
             - <strong>极客做法：</strong>可在 Mac 上使用终端命令 <code>shortcuts sign</code> 签名后再导入，或在已越狱设备上使用插件导入。<br><br>
-            <strong>🎙️ 苹果 iOS 快捷指令配置步骤：</strong><br>
+            <strong>苹果 iOS 快捷指令配置步骤：</strong><br>
             ① 点击“保存密钥”将配置写入云端。<br>
             ② 打开 iPhone 的 **快捷指令** (Shortcuts) App。<br>
             ③ 新建快捷指令：<br>
@@ -4182,23 +4182,23 @@ export default {
       </details>
 
       <details style="margin-top:10px; border:1px dashed var(--card-border); border-radius:var(--radius-xs); padding:8px; background:rgba(120,120,120,0.02);">
-        <summary style="font-size:0.75rem; color:var(--text-soft); cursor:pointer; font-weight:700; outline:none; user-select:none;">🔮 Google Gemini AI 配置</summary>
+        <summary style="font-size:0.75rem; color:var(--text-soft); cursor:pointer; font-weight:700; outline:none; user-select:none;">Google Gemini AI 配置</summary>
         <div style="display:flex; flex-direction:column; gap:6px; margin-top:8px;">
           <div style="font-size:0.7rem; color:var(--text-soft); line-height:1.4;">
-            🚀 配置 Gemini API Key 后，本地 Tesseract OCR 提取的联系人数据将自动通过 Gemini 整理分类（智能排齐姓名、公司、备注等）并修正识别错别字。<br>免费获取 Key: <a href="https://aistudio.google.com/apikey" target="_blank" style="color:#4285f4;font-weight:700;">aistudio.google.com/apikey</a>
+            配置 Gemini API Key 后，本地 Tesseract OCR 提取的联系人数据将自动通过 Gemini 整理分类（智能排齐姓名、公司、备注等）并修正识别错别字。<br>免费获取 Key: <a href="https://aistudio.google.com/apikey" target="_blank" style="color:#4285f4;font-weight:700;">aistudio.google.com/apikey</a>
           </div>
           <input type="password" class="input-simple" id="visionApiKeyInput" placeholder="Gemini API Key (支持逗号分隔多个key)" style="font-size:0.7rem; height:28px; padding:0 8px;">
           <input type="text" class="input-simple" id="visionApiBaseInput" placeholder="API Base (可选，默认 Gemini 官方)" style="font-size:0.7rem; height:28px; padding:0 8px;">
           <div style="display:flex; gap:6px;">
-            <button id="saveVisionConfigBtn" class="btn-add" style="font-size:0.7rem; height:28px; flex:1; margin:0; background:linear-gradient(135deg,#4285f4,#0d47a1); color:white; border:none; font-weight:700;">💾 保存</button>
-            <button id="testVisionBtn" class="btn-add" style="font-size:0.7rem; height:28px; flex:1; margin:0; background:linear-gradient(135deg,#36d1dc,#5b86e5); color:white; border:none; font-weight:700;">🔍 测试连接</button>
+            <button id="saveVisionConfigBtn" class="btn-add" style="font-size:0.7rem; height:28px; flex:1; margin:0; background:linear-gradient(135deg,#4285f4,#0d47a1); color:white; border:none; font-weight:700;">保存</button>
+            <button id="testVisionBtn" class="btn-add" style="font-size:0.7rem; height:28px; flex:1; margin:0; background:linear-gradient(135deg,#36d1dc,#5b86e5); color:white; border:none; font-weight:700;">测试连接</button>
           </div>
           <div id="visionConfigStatus" style="font-size:0.62rem; padding:4px 6px; border-radius:4px; background:var(--btn-bg); display:none; line-height:1.5; margin-top:4px;"></div>
         </div>
       </details>
 
       <details style="margin-top:10px; border:1px dashed var(--card-border); border-radius:var(--radius-xs); padding:8px; background:rgba(120,120,120,0.02);">
-        <summary style="font-size:0.75rem; color:var(--text-soft); cursor:pointer; font-weight:700; outline:none; user-select:none;">🔍 AI 联网搜索配置</summary>
+        <summary style="font-size:0.75rem; color:var(--text-soft); cursor:pointer; font-weight:700; outline:none; user-select:none;">AI 联网搜索配置</summary>
         <div style="display:flex; flex-direction:column; gap:6px; margin-top:8px;">
           <div style="display:flex; align-items:center; gap:6px;">
             <span style="font-size:0.65rem; color:var(--text-soft); width:50px; font-weight:700;">搜索引擎:</span>
@@ -4209,7 +4209,7 @@ export default {
             </select>
           </div>
           <input type="password" class="input-simple" id="searchApiKeyInput" placeholder="搜索 API Key (DuckDuckGo 无需填写)" style="font-size:0.7rem; height:28px; padding:0 8px;">
-          <button id="saveSearchConfigBtn" class="btn-add" style="font-size:0.7rem; height:28px; margin:0; background:linear-gradient(135deg,#667eea,#764ba2); color:white; border:none; width:100%; font-weight:700;">💾 保存搜索配置</button>
+          <button id="saveSearchConfigBtn" class="btn-add" style="font-size:0.7rem; height:28px; margin:0; background:linear-gradient(135deg,#667eea,#764ba2); color:white; border:none; width:100%; font-weight:700;">保存搜索配置</button>
           <div style="font-size:0.6rem; color:var(--text-light); line-height:1.4; margin-top:2px;">
             配置后，AI 助手可联网搜索最新资讯、政策、行业动态等实时信息。默认使用 DuckDuckGo（免费无需 API Key），也可配置 Tavily 或 Brave Search 获得更好的搜索结果。
           </div>
@@ -4217,7 +4217,7 @@ export default {
       </details>
 
       <details style="margin-top:10px; border:1px dashed var(--card-border); border-radius:var(--radius-xs); padding:8px; background:rgba(120,120,120,0.02);">
-        <summary style="font-size:0.75rem; color:var(--text-soft); cursor:pointer; font-weight:700; outline:none; user-select:none;">📱 朋友圈文案定时推送</summary>
+        <summary style="font-size:0.75rem; color:var(--text-soft); cursor:pointer; font-weight:700; outline:none; user-select:none;">朋友圈文案定时推送</summary>
         <div style="display:flex; flex-direction:column; gap:6px; margin-top:8px;">
           <div style="display:flex; align-items:center; gap:6px;">
             <label style="font-size:0.7rem; color:var(--text-main); font-weight:700; display:flex; align-items:center; gap:4px; cursor:pointer;">
@@ -4225,8 +4225,8 @@ export default {
             </label>
           </div>
           <input type="text" class="input-simple" id="momentsWebhookUrlInput" placeholder="朋友圈推送专用 Webhook URL（留空使用上方通用地址）" style="font-size:0.7rem; height:28px; padding:0 8px;">
-          <button id="saveMomentsConfigBtn" class="btn-add" style="font-size:0.7rem; height:28px; margin:0; background:linear-gradient(135deg,#f093fb,#f5576c); color:white; border:none; width:100%; font-weight:700;">💾 保存推送配置</button>
-          <button id="manualPushBtn" class="btn-add" style="font-size:0.7rem; height:28px; margin:0; background:linear-gradient(135deg,#667eea,#764ba2); color:white; border:none; width:100%; font-weight:700;">🚀 手动立即发送</button>
+          <button id="saveMomentsConfigBtn" class="btn-add" style="font-size:0.7rem; height:28px; margin:0; background:linear-gradient(135deg,#f093fb,#f5576c); color:white; border:none; width:100%; font-weight:700;">保存推送配置</button>
+          <button id="manualPushBtn" class="btn-add" style="font-size:0.7rem; height:28px; margin:0; background:linear-gradient(135deg,#667eea,#764ba2); color:white; border:none; width:100%; font-weight:700;">手动立即发送</button>
           <div style="font-size:0.6rem; color:var(--text-light); line-height:1.4; margin-top:2px;">
             ⏰ 每天早上 <strong>8:00 (北京时间)</strong> 自动生成 <strong>30 条</strong>朋友圈文案（励志生活·社会热点·财经电报·股市热点·贷款回访·日常招呼各5条），并通过企业微信 Webhook 推送到指定群聊。<br>
             文案由 AI 结合新浪财经实时快讯和搜索引擎最新资讯自动生成，涵盖40-60字长文案和25字内短招呼语，风格多样（励志、热点、财经、股市、回访、招呼）。<br>
@@ -5870,7 +5870,7 @@ export default {
             '<textarea class="input-simple edit-note-input" placeholder="沟通记录（必填）" style="width:100%;min-height:70px;padding:8px;font-size:0.78rem;resize:vertical;box-sizing:border-box;">' + esc(fullClient.note||ti.note||'') + '</textarea>' +
             '<textarea class="input-simple edit-follow-input" placeholder="跟进情况" style="width:100%;min-height:60px;padding:8px;font-size:0.78rem;resize:vertical;box-sizing:border-box;">' + esc(fullClient.followUp||'') + '</textarea>' +
             '<div style="display:flex;justify-content:flex-end;gap:8px;border-top:1px dashed var(--card-border);padding-top:8px;">' +
-              '<button class="save-timeline-client-btn btn-add" style="font-size:0.75rem;padding:6px 16px;background:var(--accent-wechat);color:white;border:none;border-radius:6px;font-weight:700;">💾 保存</button>' +
+              '<button class="save-timeline-client-btn btn-add" style="font-size:0.75rem;padding:6px 16px;background:var(--accent-wechat);color:white;border:none;border-radius:6px;font-weight:700;">保存</button>' +
               '<button class="cancel-timeline-client-btn btn-add" style="font-size:0.75rem;padding:6px 16px;background:var(--btn-bg);color:var(--text-soft);border:1px solid var(--card-border);border-radius:6px;font-weight:700;">取消</button>' +
             '</div>';
 
@@ -6447,7 +6447,7 @@ const rid=Math.floor(Math.random()*1000);
 
       const btn=document.getElementById('aiLearnBtn');
       const originalText=btn.innerHTML;
-      btn.innerHTML='⚡ AI 提炼中...';
+      btn.innerHTML='AI 提炼中...';
       btn.disabled=true;
 
       try{
@@ -6824,7 +6824,7 @@ const rid=Math.floor(Math.random()*1000);
         var remain = Math.ceil((visionTestCooldown - Date.now()) / 1000);
         if (remain <= 0) {
           testBtn.disabled = false;
-          testBtn.textContent = '🔍 测试连接';
+          testBtn.textContent = '测试连接';
         } else {
           testBtn.textContent = '⏳ ' + remain + 's';
           setTimeout(updateCooldown, 500);
@@ -6883,7 +6883,7 @@ const rid=Math.floor(Math.random()*1000);
         statusEl.innerText = '❌ 请求失败: ' + e.message;
       }
       btn.disabled = false;
-      btn.textContent = '🚀 手动立即发送';
+      btn.textContent = '手动立即发送';
     });
 
     async function doExport(type){
@@ -7480,8 +7480,8 @@ const rid=Math.floor(Math.random()*1000);
         '</div>' +
         '<div class="client-card-actions-top">' +
           getStatusToggleHtml(c) +
-          '<button class="all-edit-btn card-action-btn" data-date="' + esc(c.date) + '" data-name="' + esc(c.name) + '" data-phone="' + esc(c.phone) + '" data-time="' + esc(c.time || '') + '" title="编辑">✏️</button>' +
-          '<button class="all-export-btn card-action-btn" data-date="' + esc(c.date) + '" data-name="' + esc(c.name) + '" data-phone="' + esc(c.phone) + '" data-time="' + esc(c.time || '') + '" title="导出">📤</button>' +
+          '<button class="all-edit-btn card-action-btn" data-date="' + esc(c.date) + '" data-name="' + esc(c.name) + '" data-phone="' + esc(c.phone) + '" data-time="' + esc(c.time || '') + '" title="编辑">编辑</button>' +
+          '<button class="all-export-btn card-action-btn" data-date="' + esc(c.date) + '" data-name="' + esc(c.name) + '" data-phone="' + esc(c.phone) + '" data-time="' + esc(c.time || '') + '" title="导出">导出</button>' +
         '</div>' +
       '</div>';
     });
@@ -7544,7 +7544,7 @@ const rid=Math.floor(Math.random()*1000);
         if (r.ok) { alert('客户已成功导出到企业微信！'); }
         else { const err = await r.json(); alert('导出失败: ' + (err.error || r.statusText)); }
       } catch (errVal) { alert('网络错误: ' + errVal.message); }
-      b.textContent = '📤'; b.disabled = false;
+      b.textContent = '导出'; b.disabled = false;
     }));
 
     // --- Edit client (inline card edit) ---
@@ -7600,7 +7600,7 @@ const rid=Math.floor(Math.random()*1000);
         '<textarea class="input-simple edit-note-input" placeholder="沟通记录" style="width:100%;min-height:70px;padding:8px;font-size:0.78rem;resize:vertical;box-sizing:border-box;">' + esc(c.note || '') + '</textarea>' +
         '<textarea class="input-simple edit-follow-input" placeholder="跟进情况" style="width:100%;min-height:60px;padding:8px;font-size:0.78rem;resize:vertical;box-sizing:border-box;">' + esc(c.followUp || '') + '</textarea>' +
         '<div style="display:flex;justify-content:flex-end;gap:8px;border-top:1px dashed var(--card-border);padding-top:8px;">' +
-          '<button class="save-all-client-btn btn-add" style="font-size:0.75rem;padding:6px 16px;background:var(--accent-wechat);color:white;border:none;border-radius:6px;font-weight:700;">💾 保存</button>' +
+          '<button class="save-all-client-btn btn-add" style="font-size:0.75rem;padding:6px 16px;background:var(--accent-wechat);color:white;border:none;border-radius:6px;font-weight:700;">保存</button>' +
           '<button class="cancel-all-client-btn btn-add" style="font-size:0.75rem;padding:6px 16px;background:var(--btn-bg);color:var(--text-soft);border:1px solid var(--card-border);border-radius:6px;font-weight:700;">取消</button>' +
         '</div>';
 
@@ -7705,7 +7705,7 @@ const rid=Math.floor(Math.random()*1000);
         card.style.border = '2px dashed var(--accent-wechat)';
         card.innerHTML =
           '<div class="client-card-top">' +
-            '<span style="font-size:0.8rem;font-weight:800;color:var(--accent-wechat);">➕ 新增意向客户</span>' +
+            '<span style="font-size:0.8rem;font-weight:800;color:var(--accent-wechat);">新增意向客户</span>' +
           '</div>' +
           '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
             '<input type="date" class="input-simple new-date-input" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + getTodayStr() + '">' +
@@ -7746,7 +7746,7 @@ const rid=Math.floor(Math.random()*1000);
           '<textarea class="input-simple new-note-input" placeholder="沟通记录（必填）" style="width:100%;min-height:70px;padding:8px;font-size:0.78rem;resize:vertical;box-sizing:border-box;"></textarea>' +
           '<textarea class="input-simple new-follow-input" placeholder="跟进情况" style="width:100%;min-height:60px;padding:8px;font-size:0.78rem;resize:vertical;box-sizing:border-box;"></textarea>' +
           '<div style="display:flex;justify-content:flex-end;gap:8px;border-top:1px dashed var(--card-border);padding-top:8px;">' +
-            '<button class="save-new-client-btn btn-add" style="font-size:0.75rem;padding:6px 16px;background:var(--accent-wechat);color:white;border:none;border-radius:6px;font-weight:700;">💾 保存</button>' +
+            '<button class="save-new-client-btn btn-add" style="font-size:0.75rem;padding:6px 16px;background:var(--accent-wechat);color:white;border:none;border-radius:6px;font-weight:700;">保存</button>' +
             '<button class="cancel-new-client-btn btn-add" style="font-size:0.75rem;padding:6px 16px;background:var(--btn-bg);color:var(--text-soft);border:1px solid var(--card-border);border-radius:6px;font-weight:700;">取消</button>' +
           '</div>';
 
