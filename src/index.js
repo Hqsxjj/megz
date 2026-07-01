@@ -2741,7 +2741,7 @@ export default {
         text += '> 资金用途和时间：' + (client.fundUsage || '').replace(/\n/g, ' ') + '\n';
         text += '> 沟通记录：' + (client.note || '').replace(/\n/g, ' ') + '\n';
         text += '> 跟进情况：' + (client.followUp || '').replace(/\n/g, ' ') + '\n';
-        if (client.status) text += '> 状态：' + client.status + '\n';
+        if (client.status) text += '> 状态：' + (client.status==='success'?'已办理成功':'未办理成功') + '\n';
 
         try {
           await sendMarkdownMessage(env, target, text);
@@ -2804,7 +2804,7 @@ export default {
           itemText += '> 资金用途和时间：' + (c.fundUsage || '').replace(/\n/g, ' ') + '\n';
           itemText += '> 沟通记录：' + (c.note || '').replace(/\n/g, ' ') + '\n';
           itemText += '> 跟进情况：' + (c.followUp || '').replace(/\n/g, ' ') + '\n';
-          if (c.status) itemText += '> 状态：' + c.status + '\n';
+          if (c.status) itemText += '> 状态：' + (c.status==='success'?'已办理成功':'未办理成功') + '\n';
           itemText += '\n';
           return itemText;
         };
@@ -2867,7 +2867,7 @@ export default {
           text += '> 资金用途和时间：' + (c.fundUsage || '').replace(/\n/g, ' ') + '\n';
           text += '> 沟通记录：' + (c.note || '').replace(/\n/g, ' ') + '\n';
           text += '> 跟进情况：' + (c.followUp || '').replace(/\n/g, ' ') + '\n';
-          if (c.status) text += '> 状态：' + c.status + '\n';
+          if (c.status) text += '> 状态：' + (c.status==='success'?'已办理成功':'未办理成功') + '\n';
           return text;
         };
 
@@ -4482,7 +4482,7 @@ export default {
     return html;
   }
   // Status helpers
-  const STATUS_LABELS = { 'success': '标', 'failed': '标' };
+  const STATUS_LABELS = { 'success': '成', 'failed': '败' };
   const STATUS_CLASSES = { 'success': 'status-success', 'failed': 'status-failed' };
   const STATUS_BADGE_LABELS = { 'success': '已办理成功', 'failed': '未办理成功' };
   const STATUS_BADGE_CLASSES = { 'success': 'status-badge-success', 'failed': 'status-badge-failed' };
