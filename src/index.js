@@ -3633,6 +3633,48 @@ export default {
       line-height: 1.45;
       word-break: break-all;
     }
+    /* Status marker */
+    .client-card-item.status-success {
+      border-left: 4px solid #27ae60;
+      background: linear-gradient(135deg, rgba(39,174,96,0.06) 0%, var(--card-bg) 30%);
+    }
+    .client-card-item.status-failed {
+      border-left: 4px solid #e67e22;
+      background: linear-gradient(135deg, rgba(230,126,34,0.06) 0%, var(--card-bg) 30%);
+    }
+    body.dark-mode .client-card-item.status-success {
+      background: linear-gradient(135deg, rgba(39,174,96,0.1) 0%, var(--card-bg) 30%);
+    }
+    body.dark-mode .client-card-item.status-failed {
+      background: linear-gradient(135deg, rgba(230,126,34,0.1) 0%, var(--card-bg) 30%);
+    }
+    .status-toggle-btn {
+      font-size: 0.62rem;
+      font-weight: 800;
+      padding: 3px 8px;
+      border-radius: 12px;
+      border: 1px solid var(--card-border);
+      background: var(--btn-bg);
+      color: var(--text-light);
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.2s;
+      letter-spacing: 0.3px;
+    }
+    .status-toggle-btn:hover { opacity: 0.8; transform: scale(1.03); }
+    .status-toggle-btn.status-success {
+      background: rgba(39,174,96,0.12);
+      color: #27ae60;
+      border-color: rgba(39,174,96,0.3);
+    }
+    .status-toggle-btn.status-failed {
+      background: rgba(230,126,34,0.12);
+      color: #e67e22;
+      border-color: rgba(230,126,34,0.3);
+    }
+    body.dark-mode .status-toggle-btn.status-success { color: #2ecc71; }
+    body.dark-mode .status-toggle-btn.status-failed { color: #f0a04b; }
+
     .client-card-actions {
       display: flex;
       justify-content: flex-end;
@@ -4384,6 +4426,19 @@ export default {
     if (c.demand) html += '<span class="client-card-tag client-card-tag-detail">需求:' + esc(c.demand.length > 15 ? c.demand.slice(0,15) + '…' : c.demand) + '</span>';
     if (c.fundUsage) html += '<span class="client-card-tag client-card-tag-detail">资金:' + esc(c.fundUsage.length > 15 ? c.fundUsage.slice(0,15) + '…' : c.fundUsage) + '</span>';
     return html;
+  }
+  // Status helpers
+  const STATUS_LABELS = { 'success': '✅ 已上门办理成功', 'failed': '❌ 已上门未办理成功' };
+  const STATUS_CLASSES = { 'success': 'status-success', 'failed': 'status-failed' };
+  function getStatusToggleHtml(c) {
+    var label = c.status ? STATUS_LABELS[c.status] : '🏷 标记上门';
+    var cls = c.status ? 'status-toggle-btn ' + STATUS_CLASSES[c.status] : 'status-toggle-btn';
+    return '<button class="' + cls + '" data-status="' + (c.status||'') + '">' + label + '</button>';
+  }
+  function cycleStatus(current) {
+    if (!current) return 'success';
+    if (current === 'success') return 'failed';
+    return '';
   }
 
   function getWeekTotal(map,month){const ref=month?new Date(month+'-01'):new Date();const dow=ref.getDay();const diff=dow===0?6:dow-1;const mon=new Date(ref);mon.setDate(ref.getDate()-diff);const ms=mon.getFullYear()+'-'+String(mon.getMonth()+1).padStart(2,'0')+'-'+String(mon.getDate()).padStart(2,'0');const end=month?new Date(ref.getFullYear(),ref.getMonth()+1,0):new Date();const es=end.getFullYear()+'-'+String(end.getMonth()+1).padStart(2,'0')+'-'+String(end.getDate()).padStart(2,'0');const tsNow=getTodayStr();const ts=month&&month!==getCurrentMonth()?es:tsNow;let s=0;for(let[d,v]of Object.entries(map))if(d>=ms&&d<=ts)s+=v;return s;}
@@ -5274,7 +5329,8 @@ export default {
       return;
     }
     container.innerHTML=clients.map((c,i)=>{
-      return '<div class="client-card-item">'+
+      var statusCls = c.status ? ' ' + STATUS_CLASSES[c.status] : '';
+      return '<div class="client-card-item' + statusCls + '">'+
         '<div class="client-card-top">'+
           '<div class="client-card-primary">'+
             '<span class="client-card-name">'+esc(c.name)+'</span>'+
@@ -5312,12 +5368,34 @@ export default {
             '</div>' : '')+
         '</div>'+
         '<div class="client-card-actions">'+
+          getStatusToggleHtml(c) +
           '<button class="export-single-btn" data-name="'+esc(c.name)+'" data-phone="'+esc(c.phone)+'" data-time="'+esc(c.time||'')+'" title="导出">出</button>'+
           '<button class="edit-icon" data-name="'+esc(c.name)+'" data-phone="'+esc(c.phone)+'" data-time="'+esc(c.time||'')+'" title="编辑">编</button>'+
           '<button class="del-icon" data-name="'+esc(c.name)+'" data-phone="'+esc(c.phone)+'" data-time="'+esc(c.time||'')+'" title="删除">×</button>'+
         '</div>'+
       '</div>';
     }).join('');
+
+    // Status toggle buttons
+    container.querySelectorAll('.status-toggle-btn').forEach(b=>b.addEventListener('click',async e=>{
+      e.stopPropagation();
+      var current = b.dataset.status;
+      var next = cycleStatus(current);
+      var card = b.closest('.client-card-item');
+      // Find matching client by name+phone from card content
+      var nameEl = card.querySelector('.client-card-name');
+      var phoneEl = card.querySelector('.client-phone');
+      if (!nameEl || !phoneEl) return;
+      var cName = nameEl.textContent;
+      var cPhone = phoneEl.dataset.full;
+      var a = JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
+      var idx = a.findIndex(c=>c.name===cName&&c.phone===cPhone);
+      if (idx < 0) return;
+      a[idx].status = next;
+      localStorage.setItem(CLIENTS_K, JSON.stringify(a));
+      await syncOp('updateClient', { matchName: cName, matchPhone: cPhone, matchTime: a[idx].time||'', client: a[idx] });
+      renderClientList();
+    }));
 
     container.querySelectorAll('.del-icon').forEach(b=>b.addEventListener('click',async e=>{
       const name=b.dataset.name;
@@ -5501,7 +5579,7 @@ export default {
       socialSecurity:c.socialSecurity,avgSalary:c.avgSalary,tax2yr:c.tax2yr,
       salaryBank:c.salaryBank,education:c.education,property:c.property,
       bankDebt:c.bankDebt,creditCardDebt:c.creditCardDebt,query3m:c.query3m,
-      onlineLoanCount:c.onlineLoanCount,demand:c.demand,fundUsage:c.fundUsage});});
+      onlineLoanCount:c.onlineLoanCount,demand:c.demand,fundUsage:c.fundUsage,status:c.status});});
     todos.forEach(t=>{const txt=typeof t==='string'?t:t.text;const tm=t&&t.time?t.time:'';if(txt)timeline.push({type:'todo',time:tm,text:txt});});
     todoLog.forEach(t=>{const txt=typeof t==='string'?t:t.text;const tm=t&&t.time?t.time:'';const tp=t.type==='tomorrow'?' (明日)':'';if(txt)timeline.push({type:'todo',time:tm,text:txt+tp});});
     timeline.sort((a,b)=>(a.time||'').localeCompare(b.time||''));
@@ -5522,7 +5600,7 @@ export default {
         html += '<div class="modal-section-title">意向客户<span style="font-size:0.7rem;color:var(--accent-intent);margin-left:4px;font-weight:800;">'+clients_in_tl.length+'人</span></div>';
         html += '<div style="display:flex;flex-direction:column;gap:10px;">';
         clients_in_tl.forEach((e,i)=>{
-          html += '<div class="client-card-item">'+
+          html += '<div class="client-card-item' + (e.status ? ' ' + STATUS_CLASSES[e.status] : '') + '">'+
             '<div class="client-card-top">'+
               '<div class="client-card-primary">'+
                 '<span class="client-card-name">'+esc(e.name)+'</span>'+
@@ -5557,6 +5635,7 @@ export default {
                 '</div>' : '')+
             '</div>'+
             '<div class="client-card-actions">'+
+              getStatusToggleHtml(e) +
               '<button class="export-timeline-single-btn" data-idx="'+e.idx+'" title="导出">出</button>'+
               '<button class="edit-note-btn" title="编辑客户信息" data-idx="'+e.idx+'">编</button>'+
               '<button class="delete-timeline-client-btn" title="删除客户" data-idx="'+e.idx+'">删</button>'+
@@ -5581,6 +5660,25 @@ export default {
 
       bindEditBtns();
       bindDeleteBtns();
+      // Bind Status toggle for timeline cards
+      document.querySelectorAll('#modalClientList .status-toggle-btn').forEach(b=>b.addEventListener('click',async e=>{
+        e.stopPropagation();
+        var current = b.dataset.status;
+        var next = cycleStatus(current);
+        var card = b.closest('.client-card-item');
+        var nameEl = card.querySelector('.client-card-name');
+        var phoneEl = card.querySelector('.modal-client-phone');
+        if (!nameEl || !phoneEl) return;
+        var cName = nameEl.textContent;
+        var cPhone = phoneEl.dataset.full;
+        var a = JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
+        var idx = a.findIndex(c=>c.name===cName&&c.phone===cPhone);
+        if (idx < 0) return;
+        a[idx].status = next;
+        localStorage.setItem(CLIENTS_K, JSON.stringify(a));
+        await syncOp('updateClient', { matchName: cName, matchPhone: cPhone, matchTime: a[idx].time||'', client: a[idx] }, ds);
+        showTimelineForDate(ds);
+      }));
       // Bind Timeline Single Client Export
       document.querySelectorAll('.export-timeline-single-btn').forEach(btn=>{
         btn.onclick=async function(){
@@ -7279,7 +7377,7 @@ const rid=Math.floor(Math.random()*1000);
 
     let html = '';
     clients.forEach((c, idx) => {
-      html += '<div class="client-card-item all-client-card" data-date="' + esc(c.date) + '" data-name="' + esc(c.name) + '" data-phone="' + esc(c.phone) + '" data-time="' + esc(c.time || '') + '">' +
+      html += '<div class="client-card-item all-client-card' + (c.status ? ' ' + STATUS_CLASSES[c.status] : '') + '" data-date="' + esc(c.date) + '" data-name="' + esc(c.name) + '" data-phone="' + esc(c.phone) + '" data-time="' + esc(c.time || '') + '">' +
         '<div class="client-card-top">' +
           '<div class="client-card-primary">' +
             '<span class="client-card-name">' + esc(c.name) + '</span>' +
@@ -7316,6 +7414,7 @@ const rid=Math.floor(Math.random()*1000);
             '</div>' : '') +
         '</div>' +
         '<div class="client-card-actions-top">' +
+          getStatusToggleHtml(c) +
           '<button class="all-edit-btn card-action-btn" data-date="' + esc(c.date) + '" data-name="' + esc(c.name) + '" data-phone="' + esc(c.phone) + '" data-time="' + esc(c.time || '') + '" title="编辑">✏️</button>' +
           '<button class="all-export-btn card-action-btn" data-date="' + esc(c.date) + '" data-name="' + esc(c.name) + '" data-phone="' + esc(c.phone) + '" data-time="' + esc(c.time || '') + '" title="导出">📤</button>' +
         '</div>' +
@@ -7323,6 +7422,25 @@ const rid=Math.floor(Math.random()*1000);
     });
 
     container.innerHTML = html;
+
+    // --- Status toggle for all-clients cards ---
+    container.querySelectorAll('.status-toggle-btn').forEach(b => b.addEventListener('click', async e => {
+      e.stopPropagation();
+      var current = b.dataset.status;
+      var next = cycleStatus(current);
+      var card = b.closest('.all-client-card');
+      var date = card.dataset.date;
+      var cName = card.dataset.name;
+      var cPhone = card.dataset.phone;
+      var cTime = card.dataset.time;
+      var a = JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
+      var idx = a.findIndex(c=>c.date===date&&c.name===cName&&c.phone===cPhone&&(cTime?c.time===cTime:true));
+      if (idx < 0) return;
+      a[idx].status = next;
+      localStorage.setItem(CLIENTS_K, JSON.stringify(a));
+      await syncOp('updateClient', { matchName: cName, matchPhone: cPhone, matchTime: cTime, client: a[idx] }, date);
+      loadAllClients();
+    }));
 
     // --- Phone toggle ---
     container.querySelectorAll('.all-phone-toggle').forEach(b => b.addEventListener('click', e => {
