@@ -3633,32 +3633,74 @@ export default {
       line-height: 1.45;
       word-break: break-all;
     }
-    /* Status marker */
+    /* Status marker — card level */
     .client-card-item.status-success {
+      border: 1px solid rgba(39,174,96,0.35);
       border-left: 5px solid #27ae60;
-      background: linear-gradient(135deg, rgba(39,174,96,0.12) 0%, rgba(39,174,96,0.03) 40%, var(--card-bg) 100%);
-      box-shadow: 0 1px 6px rgba(39,174,96,0.15);
+      border-top: 3px solid #27ae60;
+      background: linear-gradient(135deg, rgba(39,174,96,0.14) 0%, rgba(39,174,96,0.05) 50%, var(--card-bg) 100%);
+      box-shadow: 0 2px 10px rgba(39,174,96,0.18);
     }
     .client-card-item.status-failed {
+      border: 1px solid rgba(230,126,34,0.35);
       border-left: 5px solid #e67e22;
-      background: linear-gradient(135deg, rgba(230,126,34,0.12) 0%, rgba(230,126,34,0.03) 40%, var(--card-bg) 100%);
-      box-shadow: 0 1px 6px rgba(230,126,34,0.15);
+      border-top: 3px solid #e67e22;
+      background: linear-gradient(135deg, rgba(230,126,34,0.14) 0%, rgba(230,126,34,0.05) 50%, var(--card-bg) 100%);
+      box-shadow: 0 2px 10px rgba(230,126,34,0.18);
     }
-    .client-card-item.status-success:hover { box-shadow: 0 2px 10px rgba(39,174,96,0.22); }
-    .client-card-item.status-failed:hover { box-shadow: 0 2px 10px rgba(230,126,34,0.22); }
+    .client-card-item.status-success:hover {
+      border-color: rgba(39,174,96,0.55);
+      box-shadow: 0 4px 16px rgba(39,174,96,0.25);
+    }
+    .client-card-item.status-failed:hover {
+      border-color: rgba(230,126,34,0.55);
+      box-shadow: 0 4px 16px rgba(230,126,34,0.25);
+    }
     body.dark-mode .client-card-item.status-success {
-      background: linear-gradient(135deg, rgba(39,174,96,0.16) 0%, rgba(39,174,96,0.04) 40%, var(--card-bg) 100%);
-      box-shadow: 0 1px 8px rgba(39,174,96,0.2);
+      border-color: rgba(39,174,96,0.4);
+      background: linear-gradient(135deg, rgba(39,174,96,0.18) 0%, rgba(39,174,96,0.06) 50%, var(--card-bg) 100%);
+      box-shadow: 0 2px 12px rgba(39,174,96,0.22);
     }
     body.dark-mode .client-card-item.status-failed {
-      background: linear-gradient(135deg, rgba(230,126,34,0.16) 0%, rgba(230,126,34,0.04) 40%, var(--card-bg) 100%);
-      box-shadow: 0 1px 8px rgba(230,126,34,0.2);
+      border-color: rgba(230,126,34,0.4);
+      background: linear-gradient(135deg, rgba(230,126,34,0.18) 0%, rgba(230,126,34,0.06) 50%, var(--card-bg) 100%);
+      box-shadow: 0 2px 12px rgba(230,126,34,0.22);
     }
+    /* Status badge inside card */
+    .client-card-status-badge {
+      display: inline-block;
+      font-size: 0.7rem;
+      font-weight: 900;
+      padding: 3px 10px;
+      border-radius: 10px;
+      letter-spacing: 0.4px;
+      white-space: nowrap;
+      align-self: flex-start;
+    }
+    .client-card-status-badge.status-badge-success {
+      background: linear-gradient(135deg, #27ae60, #2ecc71);
+      color: #fff;
+      box-shadow: 0 2px 6px rgba(39,174,96,0.35);
+    }
+    .client-card-status-badge.status-badge-failed {
+      background: linear-gradient(135deg, #e67e22, #f39c12);
+      color: #fff;
+      box-shadow: 0 2px 6px rgba(230,126,34,0.35);
+    }
+    body.dark-mode .client-card-status-badge.status-badge-success {
+      background: linear-gradient(135deg, #1e8449, #27ae60);
+      box-shadow: 0 2px 8px rgba(39,174,96,0.4);
+    }
+    body.dark-mode .client-card-status-badge.status-badge-failed {
+      background: linear-gradient(135deg, #c0651f, #e67e22);
+      box-shadow: 0 2px 8px rgba(230,126,34,0.4);
+    }
+    /* Status toggle button */
     .status-toggle-btn {
-      font-size: 0.65rem;
+      font-size: 0.62rem;
       font-weight: 800;
-      padding: 4px 10px;
-      border-radius: 14px;
+      padding: 3px 8px;
+      border-radius: 12px;
       border: 1px solid var(--card-border);
       background: var(--btn-bg);
       color: var(--text-light);
@@ -3669,26 +3711,24 @@ export default {
     }
     .status-toggle-btn:hover { opacity: 0.85; transform: scale(1.05); }
     .status-toggle-btn.status-success {
-      background: rgba(39,174,96,0.18);
+      background: rgba(39,174,96,0.15);
       color: #1e8449;
-      border-color: rgba(39,174,96,0.45);
-      font-weight: 900;
+      border-color: rgba(39,174,96,0.4);
     }
     .status-toggle-btn.status-failed {
-      background: rgba(230,126,34,0.18);
+      background: rgba(230,126,34,0.15);
       color: #c0651f;
-      border-color: rgba(230,126,34,0.45);
-      font-weight: 900;
+      border-color: rgba(230,126,34,0.4);
     }
     body.dark-mode .status-toggle-btn.status-success {
-      background: rgba(39,174,96,0.2);
+      background: rgba(39,174,96,0.18);
       color: #2ecc71;
-      border-color: rgba(46,204,113,0.4);
+      border-color: rgba(46,204,113,0.35);
     }
     body.dark-mode .status-toggle-btn.status-failed {
-      background: rgba(230,126,34,0.2);
+      background: rgba(230,126,34,0.18);
       color: #f0a04b;
-      border-color: rgba(240,160,75,0.4);
+      border-color: rgba(240,160,75,0.35);
     }
 
     .client-card-actions {
@@ -4446,6 +4486,12 @@ export default {
   // Status helpers
   const STATUS_LABELS = { 'success': '✅ 已上门办理成功', 'failed': '❌ 已上门未办理成功' };
   const STATUS_CLASSES = { 'success': 'status-success', 'failed': 'status-failed' };
+  const STATUS_BADGE_LABELS = { 'success': '已办理成功', 'failed': '未办理成功' };
+  const STATUS_BADGE_CLASSES = { 'success': 'status-badge-success', 'failed': 'status-badge-failed' };
+  function getStatusBadgeHtml(c) {
+    if (!c.status) return '';
+    return '<span class="client-card-status-badge ' + STATUS_BADGE_CLASSES[c.status] + '">' + STATUS_BADGE_LABELS[c.status] + '</span>';
+  }
   function getStatusToggleHtml(c) {
     var label = c.status ? STATUS_LABELS[c.status] : '🏷 标记上门';
     var cls = c.status ? 'status-toggle-btn ' + STATUS_CLASSES[c.status] : 'status-toggle-btn';
@@ -5357,6 +5403,7 @@ export default {
           '</div>'+
           (c.time ? '<span class="client-card-time">'+esc(c.time)+'</span>' : '')+
         '</div>'+
+        getStatusBadgeHtml(c) +
         '<div class="client-card-tags">'+
           (c.company ? getWhitelistTagHtml(c.company, false) : '')+
           (c.fund ? '<span class="client-card-tag client-card-tag-fund">公积金: '+esc(c.fund)+'</span>' : '')+
@@ -5627,6 +5674,7 @@ export default {
               '</div>'+
               (e.time ? '<span class="client-card-time">'+esc(e.time)+'</span>' : '')+
             '</div>'+
+            getStatusBadgeHtml(e) +
             '<div class="client-card-tags">'+
               (e.company ? getWhitelistTagHtml(e.company, false) : '')+
               (e.fund ? '<span class="client-card-tag client-card-tag-fund">公积金: '+esc(e.fund)+'</span>' : '')+
@@ -7403,6 +7451,7 @@ const rid=Math.floor(Math.random()*1000);
             '</span>' +
           '</div>' +
         '</div>' +
+        getStatusBadgeHtml(c) +
         '<div class="client-card-tags">' +
           (c.company ? getWhitelistTagHtml(c.company, false) : '') +
           (c.fund ? '<span class="client-card-tag client-card-tag-fund">公积金: ' + esc(c.fund) + '</span>' : '') +
