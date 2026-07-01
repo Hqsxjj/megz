@@ -3700,7 +3700,7 @@ export default {
       font-size: 0.62rem;
       font-weight: 800;
       padding: 3px 8px;
-      border-radius: 12px;
+      border-radius: var(--radius-xs);
       border: 1px solid var(--card-border);
       background: var(--btn-bg);
       color: var(--text-light);
