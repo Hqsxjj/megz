@@ -3635,24 +3635,30 @@ export default {
     }
     /* Status marker */
     .client-card-item.status-success {
-      border-left: 4px solid #27ae60;
-      background: linear-gradient(135deg, rgba(39,174,96,0.06) 0%, var(--card-bg) 30%);
+      border-left: 5px solid #27ae60;
+      background: linear-gradient(135deg, rgba(39,174,96,0.12) 0%, rgba(39,174,96,0.03) 40%, var(--card-bg) 100%);
+      box-shadow: 0 1px 6px rgba(39,174,96,0.15);
     }
     .client-card-item.status-failed {
-      border-left: 4px solid #e67e22;
-      background: linear-gradient(135deg, rgba(230,126,34,0.06) 0%, var(--card-bg) 30%);
+      border-left: 5px solid #e67e22;
+      background: linear-gradient(135deg, rgba(230,126,34,0.12) 0%, rgba(230,126,34,0.03) 40%, var(--card-bg) 100%);
+      box-shadow: 0 1px 6px rgba(230,126,34,0.15);
     }
+    .client-card-item.status-success:hover { box-shadow: 0 2px 10px rgba(39,174,96,0.22); }
+    .client-card-item.status-failed:hover { box-shadow: 0 2px 10px rgba(230,126,34,0.22); }
     body.dark-mode .client-card-item.status-success {
-      background: linear-gradient(135deg, rgba(39,174,96,0.1) 0%, var(--card-bg) 30%);
+      background: linear-gradient(135deg, rgba(39,174,96,0.16) 0%, rgba(39,174,96,0.04) 40%, var(--card-bg) 100%);
+      box-shadow: 0 1px 8px rgba(39,174,96,0.2);
     }
     body.dark-mode .client-card-item.status-failed {
-      background: linear-gradient(135deg, rgba(230,126,34,0.1) 0%, var(--card-bg) 30%);
+      background: linear-gradient(135deg, rgba(230,126,34,0.16) 0%, rgba(230,126,34,0.04) 40%, var(--card-bg) 100%);
+      box-shadow: 0 1px 8px rgba(230,126,34,0.2);
     }
     .status-toggle-btn {
-      font-size: 0.62rem;
+      font-size: 0.65rem;
       font-weight: 800;
-      padding: 3px 8px;
-      border-radius: 12px;
+      padding: 4px 10px;
+      border-radius: 14px;
       border: 1px solid var(--card-border);
       background: var(--btn-bg);
       color: var(--text-light);
@@ -3661,19 +3667,29 @@ export default {
       transition: all 0.2s;
       letter-spacing: 0.3px;
     }
-    .status-toggle-btn:hover { opacity: 0.8; transform: scale(1.03); }
+    .status-toggle-btn:hover { opacity: 0.85; transform: scale(1.05); }
     .status-toggle-btn.status-success {
-      background: rgba(39,174,96,0.12);
-      color: #27ae60;
-      border-color: rgba(39,174,96,0.3);
+      background: rgba(39,174,96,0.18);
+      color: #1e8449;
+      border-color: rgba(39,174,96,0.45);
+      font-weight: 900;
     }
     .status-toggle-btn.status-failed {
-      background: rgba(230,126,34,0.12);
-      color: #e67e22;
-      border-color: rgba(230,126,34,0.3);
+      background: rgba(230,126,34,0.18);
+      color: #c0651f;
+      border-color: rgba(230,126,34,0.45);
+      font-weight: 900;
     }
-    body.dark-mode .status-toggle-btn.status-success { color: #2ecc71; }
-    body.dark-mode .status-toggle-btn.status-failed { color: #f0a04b; }
+    body.dark-mode .status-toggle-btn.status-success {
+      background: rgba(39,174,96,0.2);
+      color: #2ecc71;
+      border-color: rgba(46,204,113,0.4);
+    }
+    body.dark-mode .status-toggle-btn.status-failed {
+      background: rgba(230,126,34,0.2);
+      color: #f0a04b;
+      border-color: rgba(240,160,75,0.4);
+    }
 
     .client-card-actions {
       display: flex;
