@@ -4484,7 +4484,7 @@ export default {
     return html;
   }
   // Status helpers
-  const STATUS_LABELS = { 'success': '✅ 已上门办理成功', 'failed': '❌ 已上门未办理成功' };
+  const STATUS_LABELS = { 'success': '已上门办理成功', 'failed': '已上门未办理成功' };
   const STATUS_CLASSES = { 'success': 'status-success', 'failed': 'status-failed' };
   const STATUS_BADGE_LABELS = { 'success': '已办理成功', 'failed': '未办理成功' };
   const STATUS_BADGE_CLASSES = { 'success': 'status-badge-success', 'failed': 'status-badge-failed' };
@@ -4493,7 +4493,7 @@ export default {
     return '<span class="client-card-status-badge ' + STATUS_BADGE_CLASSES[c.status] + '">' + STATUS_BADGE_LABELS[c.status] + '</span>';
   }
   function getStatusToggleHtml(c) {
-    var label = c.status ? STATUS_LABELS[c.status] : '🏷 标记上门';
+    var label = c.status ? STATUS_LABELS[c.status] : '标记上门';
     var cls = c.status ? 'status-toggle-btn ' + STATUS_CLASSES[c.status] : 'status-toggle-btn';
     return '<button class="' + cls + '" data-status="' + (c.status||'') + '">' + label + '</button>';
   }
