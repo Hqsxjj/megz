@@ -6,6 +6,23 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 "每日工作" (Daily Work) — a Cloudflare Worker that serves a single-page app for tracking daily work metrics: WeChat counts, intent counts, client registrations, and todo lists. The entire application (HTML, CSS, JS, and API routes) lives in one file: `src/index.js`.
 
+## ⛔ 全局规则：禁止添加图标 / emoji
+
+**无论任何时候、任何修改，严禁在 UI 中新增装饰性 emoji 或图标。** 包括但不限于：
+
+- 按钮标签（💾📋🔍🤖🎙️📥🚀⚡➕✏️📤🎉🏷️🔮📱📊📈🤝👋🌱🔥等）
+- 搜索框 placeholder
+- Section / 配置面板标题
+- 提示文字、说明文字
+- 卡片标签、徽章
+
+**例外（功能性的，允许保留）：**
+- `✕` — 关闭/删除按钮的标准符号
+- `⚠️` — 警告标识
+- `✅❌` — 状态检测/诊断结果
+- `⏳` — 加载进度指示
+- `🔌` — 连接状态指示
+
 ## Commands
 
 - **Deploy**: `npx wrangler deploy`
