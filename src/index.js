@@ -3697,38 +3697,36 @@ export default {
     }
     /* Status toggle button */
     .status-toggle-btn {
-      font-size: 0.62rem;
-      font-weight: 800;
-      padding: 3px 8px;
+      width: 28px;
+      height: 28px;
+      font-size: 0.9rem;
+      font-weight: 700;
       border-radius: var(--radius-xs);
-      border: 1px solid var(--card-border);
-      background: var(--btn-bg);
-      color: var(--text-light);
+      border: none;
+      background: none;
+      color: var(--text-soft);
       cursor: pointer;
-      white-space: nowrap;
-      transition: all 0.2s;
-      letter-spacing: 0.3px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s;
     }
-    .status-toggle-btn:hover { opacity: 0.85; transform: scale(1.05); }
+    .status-toggle-btn:hover { opacity: 0.75; }
     .status-toggle-btn.status-success {
-      background: rgba(39,174,96,0.15);
-      color: #1e8449;
-      border-color: rgba(39,174,96,0.4);
+      background: rgba(39,174,96,0.12);
+      color: #27ae60;
     }
     .status-toggle-btn.status-failed {
-      background: rgba(230,126,34,0.15);
-      color: #c0651f;
-      border-color: rgba(230,126,34,0.4);
+      background: rgba(230,126,34,0.12);
+      color: #e67e22;
     }
     body.dark-mode .status-toggle-btn.status-success {
-      background: rgba(39,174,96,0.18);
+      background: rgba(39,174,96,0.16);
       color: #2ecc71;
-      border-color: rgba(46,204,113,0.35);
     }
     body.dark-mode .status-toggle-btn.status-failed {
-      background: rgba(230,126,34,0.18);
+      background: rgba(230,126,34,0.16);
       color: #f0a04b;
-      border-color: rgba(240,160,75,0.35);
     }
 
     .client-card-actions {
@@ -4484,7 +4482,7 @@ export default {
     return html;
   }
   // Status helpers
-  const STATUS_LABELS = { 'success': '已上门办理成功', 'failed': '已上门未办理成功' };
+  const STATUS_LABELS = { 'success': '标', 'failed': '标' };
   const STATUS_CLASSES = { 'success': 'status-success', 'failed': 'status-failed' };
   const STATUS_BADGE_LABELS = { 'success': '已办理成功', 'failed': '未办理成功' };
   const STATUS_BADGE_CLASSES = { 'success': 'status-badge-success', 'failed': 'status-badge-failed' };
@@ -4493,7 +4491,7 @@ export default {
     return '<span class="client-card-status-badge ' + STATUS_BADGE_CLASSES[c.status] + '">' + STATUS_BADGE_LABELS[c.status] + '</span>';
   }
   function getStatusToggleHtml(c) {
-    var label = c.status ? STATUS_LABELS[c.status] : '标记上门';
+    var label = c.status ? STATUS_LABELS[c.status] : '标';
     var cls = c.status ? 'status-toggle-btn ' + STATUS_CLASSES[c.status] : 'status-toggle-btn';
     return '<button class="' + cls + '" data-status="' + (c.status||'') + '">' + label + '</button>';
   }
