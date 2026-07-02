@@ -4,6 +4,7 @@
 import { DIALER_HTML } from './dialer_html.js';
 import { createSupabaseClient } from './supabase.js';
 import { WeComCrypt } from './wecom_crypt.js';
+import { getClientIP, isBadBot, checkSecFetch, checkRateLimit, getRateLimitTier, maybeCleanup, isBlocked, blockIP, unblockIP, listBlockedIPs } from './anti-bot.js';
 
 // KV 读取缓存 - 减少子请求数量（同一 invocation 内有效）
 const kvCache = new Map();
@@ -995,7 +996,7 @@ export default {
       });
     }
 
-    // CORS preflight handler
+    // CORS preflight handler (skip all anti-bot checks for preflight)
     if (request.method === 'OPTIONS') {
       return new Response(null, {
         headers: {
@@ -1006,6 +1007,78 @@ export default {
         }
       });
     }
+
+    // ==================== 反爬防护中间件 ====================
+    const clientIP = getClientIP(request);
+
+    // 1. IP 黑名单检查
+    if (!path.startsWith('/api/admin/blocked-ips')) { // 管理端点自身不检查黑名单
+      const blockCheck = await isBlocked(env, clientIP);
+      if (blockCheck.blocked) {
+        return new Response(JSON.stringify({
+          error: 'Access denied',
+          reason: blockCheck.reason,
+          blockedAt: blockCheck.blockedAt,
+        }), {
+          status: 403,
+          headers: {
+            'Content-Type': 'application/json; charset=UTF-8',
+            'Access-Control-Allow-Origin': '*',
+          }
+        });
+      }
+    }
+
+    // 2. 恶意 UA 检测
+    const uaCheck = isBadBot(request.headers.get('User-Agent'));
+    if (uaCheck.blocked) {
+      return new Response(JSON.stringify({
+        error: 'Access denied',
+        reason: uaCheck.reason,
+      }), {
+        status: 403,
+        headers: {
+          'Content-Type': 'application/json; charset=UTF-8',
+          'Access-Control-Allow-Origin': '*',
+        }
+      });
+    }
+
+    // 3. Sec-Fetch 头验证（仅标记可疑，不硬拦截 — 但配合其他信号升级）
+    const secFetchCheck = checkSecFetch(request);
+
+    // 4. 速率限制
+    const rateLimitTier = getRateLimitTier(path);
+    const rateCheck = checkRateLimit(clientIP, rateLimitTier);
+    // 如果 Sec-Fetch 异常 + 超限，说明很可能是自动化脚本
+    if (rateCheck.limited) {
+      return new Response(JSON.stringify({
+        error: 'Too Many Requests',
+        retryAfter: rateCheck.retryAfter,
+      }), {
+        status: 429,
+        headers: {
+          'Content-Type': 'application/json; charset=UTF-8',
+          'Access-Control-Allow-Origin': '*',
+          'Retry-After': String(rateCheck.retryAfter),
+        }
+      });
+    }
+
+    // 5. 蜜罐陷阱 — 自动封禁
+    if (path === '/api/trap') {
+      await blockIP(env, clientIP, 'honeypot_trap');
+      return new Response(JSON.stringify({ error: 'Access denied' }), {
+        status: 403,
+        headers: {
+          'Content-Type': 'application/json; charset=UTF-8',
+          'Access-Control-Allow-Origin': '*',
+        }
+      });
+    }
+
+    // 定期清理速率限制过期条目
+    maybeCleanup();
 
     // Supabase client (no-op if SUPABASE_URL/KEY not set)
     const supabase = createSupabaseClient(env);
@@ -1694,6 +1767,59 @@ export default {
       } catch (e) {
         return new Response(JSON.stringify({ error: e.message }), {
           status: 200,
+          headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+    }
+
+    // 2f-0. 管理员：IP 黑名单管理
+    if (path === '/api/admin/blocked-ips') {
+      // 验证管理密码
+      const adminPwd = await env.DATA_KV.get('config:db_password');
+      if (!adminPwd) {
+        return new Response(JSON.stringify({ error: 'Admin password not configured in KV' }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+      const reqKey = request.headers.get('x-admin-key');
+      const urlKey = url.searchParams.get('key');
+      const authKey = reqKey || urlKey || '';
+      if (authKey !== adminPwd) {
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+          status: 401,
+          headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+
+      try {
+        if (request.method === 'GET') {
+          const list = await listBlockedIPs(env);
+          return new Response(JSON.stringify({ blocked: list, count: list.length }), {
+            headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+        if (request.method === 'DELETE') {
+          const body = await request.json().catch(() => ({}));
+          const targetIP = body.ip || url.searchParams.get('ip');
+          if (!targetIP) {
+            return new Response(JSON.stringify({ error: 'Missing ip parameter' }), {
+              status: 400,
+              headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
+            });
+          }
+          await unblockIP(env, targetIP);
+          return new Response(JSON.stringify({ success: true, unblocked: targetIP }), {
+            headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+        return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+          status: 405,
+          headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ error: e.message }), {
+          status: 500,
           headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
         });
       }
@@ -8406,6 +8532,8 @@ const rid=Math.floor(Math.random()*1000);
   });
 })();
 </script>
+<!-- 蜜罐陷阱 — 爬虫会跟随，正常用户不可见 -->
+<a href="/api/trap" style="display:none" aria-hidden="true" rel="nofollow"></a>
 </body>
 </html>`;
 
