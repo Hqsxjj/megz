@@ -3590,6 +3590,9 @@ export default {
     body.dark-mode .detail-panel {
       background: rgba(255,255,255,0.02);
     }
+    .status-conditional-area { display: none; flex-direction: column; gap: 8px; padding: 4px 0; }
+    .status-conditional-area.visible { display: flex; }
+    .status-field-separator { font-size: 0.65rem; font-weight: 800; color: var(--text-light); padding: 4px 0 2px 0; border-top: 1px dashed var(--border-light); margin-top: 2px; }
     .input-select {
       appearance: auto;
       -webkit-appearance: auto;
@@ -3997,6 +4000,9 @@ export default {
               <div class="form-line"><select class="input-simple input-select" id="custProperty"><option value="">房产</option><option value="无房">无房</option><option value="有一套">有一套</option><option value="有多套">有多套</option></select><input type="text" class="input-simple" id="custBankDebt" placeholder="银行信贷负债" autocomplete="off" inputmode="numeric"></div>
               <div class="form-line"><input type="text" class="input-simple" id="custCreditCardDebt" placeholder="信用卡负债" autocomplete="off" inputmode="numeric"><input type="text" class="input-simple" id="custQuery3m" placeholder="近3个月查询次数" autocomplete="off" inputmode="numeric"></div>
               <div class="form-line"><input type="text" class="input-simple" id="custOnlineLoanCount" placeholder="小额网贷笔数" autocomplete="off" inputmode="numeric"><span style="flex:1;"></span></div>
+              <div class="form-line"><input type="text" class="input-simple" id="custVisitTime" placeholder="上门办理时间" autocomplete="off"><select class="input-simple input-select" id="custStatus"><option value="">状态（未标记）</option><option value="success">已办理成功</option><option value="failed">未办理成功</option></select></div>
+              <div class="status-conditional-area" id="successStatusFields"><div class="status-field-separator">办理成功信息</div><div class="form-line"><input type="text" class="input-simple" id="custApprovedBank" placeholder="批款银行" autocomplete="off"><input type="text" class="input-simple" id="custApprovedAmount" placeholder="批款金额" autocomplete="off"></div><div class="form-line"><input type="text" class="input-simple" id="custRateTerm" placeholder="利率年限" autocomplete="off"><span style="flex:1;"></span></div></div>
+              <div class="status-conditional-area" id="failedStatusFields"><div class="status-field-separator">办理未成功信息</div><div class="form-line"><input type="text" class="input-simple" id="custRejectedBank" placeholder="拒绝银行" autocomplete="off"><input type="text" class="input-simple" id="custRejectReason" placeholder="拒绝原因" autocomplete="off"></div></div>
               <textarea class="input-simple note-textarea" id="custDemand" placeholder="客户大致需求" rows="2"></textarea>
               <textarea class="input-simple note-textarea" id="custFundUsage" placeholder="资金用途和时间" rows="2"></textarea>
             </div>
@@ -4499,6 +4505,13 @@ export default {
     if (!current) return 'success';
     if (current === 'success') return 'failed';
     return '';
+  }
+  function showStatusConditionalFields(status) {
+    var sf = document.getElementById('successStatusFields');
+    var ff = document.getElementById('failedStatusFields');
+    if (!sf || !ff) return;
+    sf.classList.toggle('visible', status === 'success');
+    ff.classList.toggle('visible', status === 'failed');
   }
 
   function getWeekTotal(map,month){const ref=month?new Date(month+'-01'):new Date();const dow=ref.getDay();const diff=dow===0?6:dow-1;const mon=new Date(ref);mon.setDate(ref.getDate()-diff);const ms=mon.getFullYear()+'-'+String(mon.getMonth()+1).padStart(2,'0')+'-'+String(mon.getDate()).padStart(2,'0');const end=month?new Date(ref.getFullYear(),ref.getMonth()+1,0):new Date();const es=end.getFullYear()+'-'+String(end.getMonth()+1).padStart(2,'0')+'-'+String(end.getDate()).padStart(2,'0');const tsNow=getTodayStr();const ts=month&&month!==getCurrentMonth()?es:tsNow;let s=0;for(let[d,v]of Object.entries(map))if(d>=ms&&d<=ts)s+=v;return s;}
@@ -5499,8 +5512,16 @@ export default {
       var dOl=document.getElementById('custOnlineLoanCount'); if(dOl)dOl.value=c.onlineLoanCount||'';
       var dDm=document.getElementById('custDemand'); if(dDm)dDm.value=c.demand||'';
       var dFu=document.getElementById('custFundUsage'); if(dFu)dFu.value=c.fundUsage||'';
+      var dVt=document.getElementById('custVisitTime'); if(dVt)dVt.value=c.visitTime||'';
+      var dSt=document.getElementById('custStatus'); if(dSt)dSt.value=c.status||'';
+      var dAb=document.getElementById('custApprovedBank'); if(dAb)dAb.value=c.approvedBank||'';
+      var dAa=document.getElementById('custApprovedAmount'); if(dAa)dAa.value=c.approvedAmount||'';
+      var dRt=document.getElementById('custRateTerm'); if(dRt)dRt.value=c.rateTerm||'';
+      var dRb=document.getElementById('custRejectedBank'); if(dRb)dRb.value=c.rejectedBank||'';
+      var dRr=document.getElementById('custRejectReason'); if(dRr)dRr.value=c.rejectReason||'';
+      showStatusConditionalFields(c.status||'');
       // Auto-expand detail panel if any new field has a value
-      var hasDetail = c.age||c.maritalStatus||c.isShenzhenHukou||c.socialSecurity||c.avgSalary||c.tax2yr||c.salaryBank||c.education||c.property||c.bankDebt||c.creditCardDebt||c.query3m||c.onlineLoanCount||c.demand||c.fundUsage;
+      var hasDetail = c.age||c.maritalStatus||c.isShenzhenHukou||c.socialSecurity||c.avgSalary||c.tax2yr||c.salaryBank||c.education||c.property||c.bankDebt||c.creditCardDebt||c.query3m||c.onlineLoanCount||c.demand||c.fundUsage||c.visitTime;
       var panel = document.getElementById('detailPanel');
       var toggleBtn = document.getElementById('detailToggleBtn');
       if (hasDetail && panel && panel.style.display === 'none') {
@@ -5640,7 +5661,10 @@ export default {
       socialSecurity:c.socialSecurity,avgSalary:c.avgSalary,tax2yr:c.tax2yr,
       salaryBank:c.salaryBank,education:c.education,property:c.property,
       bankDebt:c.bankDebt,creditCardDebt:c.creditCardDebt,query3m:c.query3m,
-      onlineLoanCount:c.onlineLoanCount,demand:c.demand,fundUsage:c.fundUsage,status:c.status});});
+      onlineLoanCount:c.onlineLoanCount,demand:c.demand,fundUsage:c.fundUsage,status:c.status,
+      followUp:c.followUp||'',followUpTime:c.followUpTime||'',followUpDate:c.followUpDate||'',
+      visitTime:c.visitTime||'',approvedBank:c.approvedBank||'',approvedAmount:c.approvedAmount||'',
+      rateTerm:c.rateTerm||'',rejectedBank:c.rejectedBank||'',rejectReason:c.rejectReason||''});});
     todos.forEach(t=>{const txt=typeof t==='string'?t:t.text;const tm=t&&t.time?t.time:'';if(txt)timeline.push({type:'todo',time:tm,text:txt});});
     todoLog.forEach(t=>{const txt=typeof t==='string'?t:t.text;const tm=t&&t.time?t.time:'';const tp=t.type==='tomorrow'?' (明日)':'';if(txt)timeline.push({type:'todo',time:tm,text:txt+tp});});
     timeline.sort((a,b)=>(a.time||'').localeCompare(b.time||''));
@@ -5677,6 +5701,7 @@ export default {
               (e.company ? getWhitelistTagHtml(e.company, false) : '')+
               (e.fund ? '<span class="client-card-tag client-card-tag-fund">公积金: '+esc(e.fund)+'</span>' : '')+
               getClientDetailTags(e) +
+              (e.visitTime ? '<span class="client-card-tag client-card-tag-detail">上门:'+esc(e.visitTime)+'</span>' : '')+
             '</div>'+
             '<div class="client-card-body">'+
               '<div class="client-card-content-block">'+
@@ -5685,6 +5710,11 @@ export default {
                   '<div class="tbl-note-text" style="cursor:pointer;">'+(e.note?esc(e.note):'<span class="tbl-note-empty">点击添加沟通记录…</span>')+'</div>'+
                 '</div>'+
               '</div>'+
+              (e.followUp ?
+                '<div class="client-card-content-block follow-up">'+
+                  '<span class="client-card-label">跟进情况</span>'+
+                  '<span class="client-card-text">'+esc(e.followUp)+'</span>'+
+                '</div>' : '')+
               (e.demand ?
                 '<div class="client-card-content-block">'+
                   '<span class="client-card-label">客户需求</span>'+
@@ -5694,6 +5724,16 @@ export default {
                 '<div class="client-card-content-block">'+
                   '<span class="client-card-label">资金用途</span>'+
                   '<span class="client-card-text">'+esc(e.fundUsage)+'</span>'+
+                '</div>' : '')+
+              (e.status==='success' ?
+                '<div class="client-card-content-block" style="border-left-color:#27ae60;">'+
+                  '<span class="client-card-label">办理成功</span>'+
+                  '<span class="client-card-text">批款银行: '+esc(e.approvedBank||'')+' | 金额: '+esc(e.approvedAmount||'')+' | 利率年限: '+esc(e.rateTerm||'')+'</span>'+
+                '</div>' : '')+
+              (e.status==='failed' ?
+                '<div class="client-card-content-block" style="border-left-color:#e67e22;">'+
+                  '<span class="client-card-label">办理未成功</span>'+
+                  '<span class="client-card-text">拒绝银行: '+esc(e.rejectedBank||'')+' | 原因: '+esc(e.rejectReason||'')+'</span>'+
                 '</div>' : '')+
             '</div>'+
             '<div class="client-card-actions">'+
@@ -5821,8 +5861,14 @@ export default {
           const idx=parseInt(this.dataset.idx);
           const ti=timeline.find(t=>t.type==='client'&&t.idx===idx);
           if(!ti)return;
-          // 从完整clients数组获取所有字段（包含followUp等timeline未携带的字段）
-          const fullClient = clients.find(c=>c.name===ti.name&&c.phone===ti.phone)||ti;
+          // 从完整clients数组获取所有字段（反向遍历优先取本地版本，避免云端旧数据缺少status等新字段）
+          let fullClient = ti;
+          for (let i = clients.length - 1; i >= 0; i--) {
+            if (clients[i].name === ti.name && clients[i].phone === ti.phone) {
+              fullClient = clients[i];
+              break;
+            }
+          }
           const card = btn.closest('.client-card-item');
           if(!card) return;
           card.classList.add('all-client-card-editing');
@@ -5863,6 +5909,26 @@ export default {
               '<input type="text" class="input-simple edit-query-input" placeholder="近3个月查询次数" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.query3m||'') + '">' +
               '<input type="text" class="input-simple edit-onlineloan-input" placeholder="小额网贷笔数" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.onlineLoanCount||'') + '">' +
             '</div>' +
+            '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+              '<input type="text" class="input-simple edit-visittime-input" placeholder="上门办理时间" style="flex:1;min-width:120px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.visitTime||'') + '">' +
+              '<select class="input-simple input-select edit-status-input" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;height:auto;"><option value="">状态</option><option value="success"' + (fullClient.status==='success'?' selected':'') + '>已办理成功</option><option value="failed"' + (fullClient.status==='failed'?' selected':'') + '>未办理成功</option></select>' +
+            '</div>' +
+            '<div class="edit-success-fields" style="display:' + (fullClient.status==='success'?'flex':'none') + ';flex-direction:column;gap:8px;">' +
+              '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+                '<input type="text" class="input-simple edit-approvedbank-input" placeholder="批款银行" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.approvedBank||'') + '">' +
+                '<input type="text" class="input-simple edit-approvedamount-input" placeholder="批款金额" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.approvedAmount||'') + '">' +
+              '</div>' +
+              '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+                '<input type="text" class="input-simple edit-rateterm-input" placeholder="利率年限" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.rateTerm||'') + '">' +
+                '<span style="flex:1;"></span>' +
+              '</div>' +
+            '</div>' +
+            '<div class="edit-failed-fields" style="display:' + (fullClient.status==='failed'?'flex':'none') + ';flex-direction:column;gap:8px;">' +
+              '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+                '<input type="text" class="input-simple edit-rejectedbank-input" placeholder="拒绝银行" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.rejectedBank||'') + '">' +
+                '<input type="text" class="input-simple edit-rejectreason-input" placeholder="拒绝原因" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.rejectReason||'') + '">' +
+              '</div>' +
+            '</div>' +
             '<textarea class="input-simple edit-demand-input" placeholder="客户大致需求" style="width:100%;min-height:50px;padding:8px;font-size:0.78rem;resize:vertical;box-sizing:border-box;">' + esc(fullClient.demand||'') + '</textarea>' +
             '<textarea class="input-simple edit-fusage-input" placeholder="资金用途和时间" style="width:100%;min-height:50px;padding:8px;font-size:0.78rem;resize:vertical;box-sizing:border-box;">' + esc(fullClient.fundUsage||'') + '</textarea>' +
             '<textarea class="input-simple edit-note-input" placeholder="沟通记录（必填）" style="width:100%;min-height:70px;padding:8px;font-size:0.78rem;resize:vertical;box-sizing:border-box;">' + esc(fullClient.note||ti.note||'') + '</textarea>' +
@@ -5871,6 +5937,14 @@ export default {
               '<button class="save-timeline-client-btn btn-add" style="font-size:0.75rem;padding:6px 16px;background:var(--accent-wechat);color:white;border:none;border-radius:6px;font-weight:700;">保存</button>' +
               '<button class="cancel-timeline-client-btn btn-add" style="font-size:0.75rem;padding:6px 16px;background:var(--btn-bg);color:var(--text-soft);border:1px solid var(--card-border);border-radius:6px;font-weight:700;">取消</button>' +
             '</div>';
+
+          // Bind status change for conditional fields
+          card.querySelector('.edit-status-input').addEventListener('change', function() {
+            var sf = card.querySelector('.edit-success-fields');
+            var ff = card.querySelector('.edit-failed-fields');
+            if (sf) sf.style.display = this.value === 'success' ? 'flex' : 'none';
+            if (ff) ff.style.display = this.value === 'failed' ? 'flex' : 'none';
+          });
 
           // Bind Save
           card.querySelector('.save-timeline-client-btn').onclick = async () => {
@@ -5896,6 +5970,13 @@ export default {
             const ol = (card.querySelector('.edit-onlineloan-input')||{}).value||''; const olV = ol.trim();
             const dm = (card.querySelector('.edit-demand-input')||{}).value||''; const dmV = dm.trim();
             const fg = (card.querySelector('.edit-fusage-input')||{}).value||''; const fgV = fg.trim();
+            const vt = (card.querySelector('.edit-visittime-input')||{}).value||''; const vtV = vt.trim();
+            const stV = (card.querySelector('.edit-status-input')||{}).value||'';
+            const ab = (card.querySelector('.edit-approvedbank-input')||{}).value||''; const abV = ab.trim();
+            const aa = (card.querySelector('.edit-approvedamount-input')||{}).value||''; const aaV = aa.trim();
+            const rt = (card.querySelector('.edit-rateterm-input')||{}).value||''; const rtV = rt.trim();
+            const rb = (card.querySelector('.edit-rejectedbank-input')||{}).value||''; const rbV = rb.trim();
+            const rr = (card.querySelector('.edit-rejectreason-input')||{}).value||''; const rrV = rr.trim();
 
             if (!n) { alert('姓名不能为空，请填写完整！'); return; }
             if (!p) { alert('电话号码不能为空，请填写完整！'); return; }
@@ -5912,7 +5993,9 @@ export default {
               age: ageV, maritalStatus: ms, isShenzhenHukou: sh, socialSecurity: ssV,
               avgSalary: asV, tax2yr: txV, salaryBank: sbV, education: ed, property: pr,
               bankDebt: bdV, creditCardDebt: cdV, query3m: q3V, onlineLoanCount: olV,
-              demand: dmV, fundUsage: fgV
+              demand: dmV, fundUsage: fgV,
+              visitTime: vtV, status: stV, approvedBank: abV, approvedAmount: aaV,
+              rateTerm: rtV, rejectedBank: rbV, rejectReason: rrV
             };
             if (matchIdx !== -1) { allList[matchIdx] = updatedClient; }
             else { allList.push(updatedClient); }
@@ -6065,6 +6148,13 @@ export default {
     const onlineLoanCount = getElVal('custOnlineLoanCount');
     const demand = getElVal('custDemand');
     const fundUsage = getElVal('custFundUsage');
+    const visitTime = getElVal('custVisitTime');
+    const status = getElVal('custStatus');
+    const approvedBank = getElVal('custApprovedBank');
+    const approvedAmount = getElVal('custApprovedAmount');
+    const rateTerm = getElVal('custRateTerm');
+    const rejectedBank = getElVal('custRejectedBank');
+    const rejectReason = getElVal('custRejectReason');
     if(!n){alert('姓名不能为空，请填写完整！');return;}
     if(!p){alert('电话号码不能为空，请填写完整！');return;}
     if(!nt){alert('沟通记录为必填项，请填写完整！');return;}
@@ -6072,7 +6162,8 @@ export default {
     const today=getTodayStr(),time=getCurrentTime();
     const newClient={name:n,phone:p,company:c,fund:f,note:nt,followUp:fu,date:today,time:time,
       age,maritalStatus,isShenzhenHukou,socialSecurity,avgSalary,tax2yr,salaryBank,
-      education,property:propertyVal,bankDebt,creditCardDebt,query3m,onlineLoanCount,demand,fundUsage};
+      education,property:propertyVal,bankDebt,creditCardDebt,query3m,onlineLoanCount,demand,fundUsage,
+      visitTime,status,approvedBank,approvedAmount,rateTerm,rejectedBank,rejectReason};
     list.push(newClient);
     localStorage.setItem(CLIENTS_K,JSON.stringify(list));
     clearEl('custName'); clearEl('custPhone'); clearEl('custCompany'); clearEl('custFund');
@@ -6082,6 +6173,10 @@ export default {
     clearEl('custSalaryBank'); clearEl('custEducation'); clearEl('custProperty');
     clearEl('custBankDebt'); clearEl('custCreditCardDebt'); clearEl('custQuery3m');
     clearEl('custOnlineLoanCount'); clearEl('custDemand'); clearEl('custFundUsage');
+    clearEl('custVisitTime'); clearEl('custApprovedBank'); clearEl('custApprovedAmount');
+    clearEl('custRateTerm'); clearEl('custRejectedBank'); clearEl('custRejectReason');
+    var stEl = document.getElementById('custStatus'); if (stEl) stEl.value = '';
+    showStatusConditionalFields('');
     renderClientList();refreshAll();
     // 只用原子 syncOp，不再并发 saveFullState（避免竞态导致云端客户重复/覆盖）
     await syncOp('addClient',{client:newClient});
@@ -7112,6 +7207,10 @@ const rid=Math.floor(Math.random()*1000);
     });
   }
   document.getElementById('addClientBtn').addEventListener('click',addClient);
+  // Status selector: toggle conditional fields
+  document.getElementById('custStatus').addEventListener('change', function() {
+    showStatusConditionalFields(this.value);
+  });
   // Detail panel toggle
   document.getElementById('detailToggleBtn').addEventListener('click', function() {
     const panel = document.getElementById('detailPanel');
@@ -7454,6 +7553,7 @@ const rid=Math.floor(Math.random()*1000);
           (c.company ? getWhitelistTagHtml(c.company, false) : '') +
           (c.fund ? '<span class="client-card-tag client-card-tag-fund">公积金: ' + esc(c.fund) + '</span>' : '') +
           getClientDetailTags(c) +
+          (c.visitTime ? '<span class="client-card-tag client-card-tag-detail">上门:' + esc(c.visitTime) + '</span>' : '') +
         '</div>' +
         '<div class="client-card-body">' +
           '<div class="client-card-content-block">' +
@@ -7474,6 +7574,16 @@ const rid=Math.floor(Math.random()*1000);
             '<div class="client-card-content-block">' +
               '<span class="client-card-label">资金用途</span>' +
               '<span class="client-card-text">' + esc(c.fundUsage) + '</span>' +
+            '</div>' : '') +
+          (c.status === 'success' ?
+            '<div class="client-card-content-block" style="border-left-color:#27ae60;">' +
+              '<span class="client-card-label">办理成功</span>' +
+              '<span class="client-card-text">批款银行: ' + esc(c.approvedBank||'') + ' | 金额: ' + esc(c.approvedAmount||'') + ' | 利率年限: ' + esc(c.rateTerm||'') + '</span>' +
+            '</div>' : '') +
+          (c.status === 'failed' ?
+            '<div class="client-card-content-block" style="border-left-color:#e67e22;">' +
+              '<span class="client-card-label">办理未成功</span>' +
+              '<span class="client-card-text">拒绝银行: ' + esc(c.rejectedBank||'') + ' | 原因: ' + esc(c.rejectReason||'') + '</span>' +
             '</div>' : '') +
         '</div>' +
         '<div class="client-card-actions-top">' +
@@ -7593,6 +7703,26 @@ const rid=Math.floor(Math.random()*1000);
           '<input type="text" class="input-simple edit-query-input" placeholder="近3个月查询次数" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.query3m||'') + '">' +
           '<input type="text" class="input-simple edit-onlineloan-input" placeholder="小额网贷笔数" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.onlineLoanCount||'') + '">' +
         '</div>' +
+        '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+          '<input type="text" class="input-simple edit-visittime-input" placeholder="上门办理时间" style="flex:1;min-width:120px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.visitTime||'') + '">' +
+          '<select class="input-simple input-select edit-status-input" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;height:auto;"><option value="">状态</option><option value="success"' + (c.status==='success'?' selected':'') + '>已办理成功</option><option value="failed"' + (c.status==='failed'?' selected':'') + '>未办理成功</option></select>' +
+        '</div>' +
+        '<div class="edit-success-fields" style="display:' + (c.status==='success'?'flex':'none') + ';flex-direction:column;gap:8px;">' +
+          '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+            '<input type="text" class="input-simple edit-approvedbank-input" placeholder="批款银行" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.approvedBank||'') + '">' +
+            '<input type="text" class="input-simple edit-approvedamount-input" placeholder="批款金额" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.approvedAmount||'') + '">' +
+          '</div>' +
+          '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+            '<input type="text" class="input-simple edit-rateterm-input" placeholder="利率年限" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.rateTerm||'') + '">' +
+            '<span style="flex:1;"></span>' +
+          '</div>' +
+        '</div>' +
+        '<div class="edit-failed-fields" style="display:' + (c.status==='failed'?'flex':'none') + ';flex-direction:column;gap:8px;">' +
+          '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+            '<input type="text" class="input-simple edit-rejectedbank-input" placeholder="拒绝银行" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.rejectedBank||'') + '">' +
+            '<input type="text" class="input-simple edit-rejectreason-input" placeholder="拒绝原因" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.rejectReason||'') + '">' +
+          '</div>' +
+        '</div>' +
         '<textarea class="input-simple edit-demand-input" placeholder="客户大致需求" style="width:100%;min-height:50px;padding:8px;font-size:0.78rem;resize:vertical;box-sizing:border-box;">' + esc(c.demand||'') + '</textarea>' +
         '<textarea class="input-simple edit-fusage-input" placeholder="资金用途和时间" style="width:100%;min-height:50px;padding:8px;font-size:0.78rem;resize:vertical;box-sizing:border-box;">' + esc(c.fundUsage||'') + '</textarea>' +
         '<textarea class="input-simple edit-note-input" placeholder="沟通记录" style="width:100%;min-height:70px;padding:8px;font-size:0.78rem;resize:vertical;box-sizing:border-box;">' + esc(c.note || '') + '</textarea>' +
@@ -7601,6 +7731,14 @@ const rid=Math.floor(Math.random()*1000);
           '<button class="save-all-client-btn btn-add" style="font-size:0.75rem;padding:6px 16px;background:var(--accent-wechat);color:white;border:none;border-radius:6px;font-weight:700;">保存</button>' +
           '<button class="cancel-all-client-btn btn-add" style="font-size:0.75rem;padding:6px 16px;background:var(--btn-bg);color:var(--text-soft);border:1px solid var(--card-border);border-radius:6px;font-weight:700;">取消</button>' +
         '</div>';
+
+      // Bind status change for conditional fields
+      card.querySelector('.edit-status-input').addEventListener('change', function() {
+        var sf = card.querySelector('.edit-success-fields');
+        var ff = card.querySelector('.edit-failed-fields');
+        if (sf) sf.style.display = this.value === 'success' ? 'flex' : 'none';
+        if (ff) ff.style.display = this.value === 'failed' ? 'flex' : 'none';
+      });
 
       // Bind Save
       card.querySelector('.save-all-client-btn').onclick = async () => {
@@ -7626,6 +7764,13 @@ const rid=Math.floor(Math.random()*1000);
         const ol = (card.querySelector('.edit-onlineloan-input')||{}).value||''; const olV = ol.trim();
         const dm = (card.querySelector('.edit-demand-input')||{}).value||''; const dmV = dm.trim();
         const fg = (card.querySelector('.edit-fusage-input')||{}).value||''; const fgV = fg.trim();
+        const vt = (card.querySelector('.edit-visittime-input')||{}).value||''; const vtV = vt.trim();
+        const stV = (card.querySelector('.edit-status-input')||{}).value||'';
+        const ab = (card.querySelector('.edit-approvedbank-input')||{}).value||''; const abV = ab.trim();
+        const aa = (card.querySelector('.edit-approvedamount-input')||{}).value||''; const aaV = aa.trim();
+        const rt = (card.querySelector('.edit-rateterm-input')||{}).value||''; const rtV = rt.trim();
+        const rb = (card.querySelector('.edit-rejectedbank-input')||{}).value||''; const rbV = rb.trim();
+        const rr = (card.querySelector('.edit-rejectreason-input')||{}).value||''; const rrV = rr.trim();
 
         if (!n) { alert('姓名不能为空，请填写完整！'); return; }
         if (!p) { alert('电话号码不能为空，请填写完整！'); return; }
@@ -7642,7 +7787,9 @@ const rid=Math.floor(Math.random()*1000);
           age: ageV, maritalStatus: ms, isShenzhenHukou: sh, socialSecurity: ssV,
           avgSalary: asV, tax2yr: txV, salaryBank: sbV, education: ed, property: pr,
           bankDebt: bdV, creditCardDebt: cdV, query3m: q3V, onlineLoanCount: olV,
-          demand: dmV, fundUsage: fgV
+          demand: dmV, fundUsage: fgV,
+          visitTime: vtV, status: stV, approvedBank: abV, approvedAmount: aaV,
+          rateTerm: rtV, rejectedBank: rbV, rejectReason: rrV
         };
         if (idx !== -1) { allList[idx] = updatedClient; }
         else { allList.push(updatedClient); }
@@ -7739,6 +7886,26 @@ const rid=Math.floor(Math.random()*1000);
             '<input type="text" class="input-simple new-query-input" placeholder="近3个月查询次数" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;">' +
             '<input type="text" class="input-simple new-onlineloan-input" placeholder="小额网贷笔数" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;">' +
           '</div>' +
+          '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+            '<input type="text" class="input-simple new-visittime-input" placeholder="上门办理时间" style="flex:1;min-width:120px;padding:6px 8px;font-size:0.78rem;">' +
+            '<select class="input-simple input-select new-status-input" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;height:auto;"><option value="">状态</option><option value="success">已办理成功</option><option value="failed">未办理成功</option></select>' +
+          '</div>' +
+          '<div class="new-success-fields" style="display:none;flex-direction:column;gap:8px;">' +
+            '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+              '<input type="text" class="input-simple new-approvedbank-input" placeholder="批款银行" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;">' +
+              '<input type="text" class="input-simple new-approvedamount-input" placeholder="批款金额" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;">' +
+            '</div>' +
+            '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+              '<input type="text" class="input-simple new-rateterm-input" placeholder="利率年限" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;">' +
+              '<span style="flex:1;"></span>' +
+            '</div>' +
+          '</div>' +
+          '<div class="new-failed-fields" style="display:none;flex-direction:column;gap:8px;">' +
+            '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+              '<input type="text" class="input-simple new-rejectedbank-input" placeholder="拒绝银行" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;">' +
+              '<input type="text" class="input-simple new-rejectreason-input" placeholder="拒绝原因" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;">' +
+            '</div>' +
+          '</div>' +
           '<textarea class="input-simple new-demand-input" placeholder="客户大致需求" style="width:100%;min-height:50px;padding:8px;font-size:0.78rem;resize:vertical;box-sizing:border-box;"></textarea>' +
           '<textarea class="input-simple new-fusage-input" placeholder="资金用途和时间" style="width:100%;min-height:50px;padding:8px;font-size:0.78rem;resize:vertical;box-sizing:border-box;"></textarea>' +
           '<textarea class="input-simple new-note-input" placeholder="沟通记录（必填）" style="width:100%;min-height:70px;padding:8px;font-size:0.78rem;resize:vertical;box-sizing:border-box;"></textarea>' +
@@ -7750,6 +7917,13 @@ const rid=Math.floor(Math.random()*1000);
 
         container.insertBefore(card, container.firstChild);
         card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+        card.querySelector('.new-status-input').addEventListener('change', function() {
+          var sf = card.querySelector('.new-success-fields');
+          var ff = card.querySelector('.new-failed-fields');
+          if (sf) sf.style.display = this.value === 'success' ? 'flex' : 'none';
+          if (ff) ff.style.display = this.value === 'failed' ? 'flex' : 'none';
+        });
 
         card.querySelector('.save-new-client-btn').onclick = async () => {
           const d = card.querySelector('.new-date-input').value.trim();
@@ -7775,6 +7949,13 @@ const rid=Math.floor(Math.random()*1000);
           const ol = (card.querySelector('.new-onlineloan-input')||{}).value||''; const olV = ol.trim();
           const dm = (card.querySelector('.new-demand-input')||{}).value||''; const dmV = dm.trim();
           const fg = (card.querySelector('.new-fusage-input')||{}).value||''; const fgV = fg.trim();
+          const vt = (card.querySelector('.new-visittime-input')||{}).value||''; const vtV = vt.trim();
+          const stV = (card.querySelector('.new-status-input')||{}).value||'';
+          const ab = (card.querySelector('.new-approvedbank-input')||{}).value||''; const abV = ab.trim();
+          const aa = (card.querySelector('.new-approvedamount-input')||{}).value||''; const aaV = aa.trim();
+          const rt = (card.querySelector('.new-rateterm-input')||{}).value||''; const rtV = rt.trim();
+          const rb = (card.querySelector('.new-rejectedbank-input')||{}).value||''; const rbV = rb.trim();
+          const rr = (card.querySelector('.new-rejectreason-input')||{}).value||''; const rrV = rr.trim();
 
           if (!d) { alert('请选择日期！'); return; }
           if (!n) { alert('姓名不能为空，请填写完整！'); return; }
@@ -7785,7 +7966,9 @@ const rid=Math.floor(Math.random()*1000);
             age: ageV, maritalStatus: ms, isShenzhenHukou: sh, socialSecurity: ssV,
             avgSalary: asV, tax2yr: txV, salaryBank: sbV, education: ed, property: pr,
             bankDebt: bdV, creditCardDebt: cdV, query3m: q3V, onlineLoanCount: olV,
-            demand: dmV, fundUsage: fgV };
+            demand: dmV, fundUsage: fgV,
+            visitTime: vtV, status: stV, approvedBank: abV, approvedAmount: aaV,
+            rateTerm: rtV, rejectedBank: rbV, rejectReason: rrV };
 
           const allList = JSON.parse(localStorage.getItem(CLIENTS_K) || '[]');
           allList.push(newClient);
