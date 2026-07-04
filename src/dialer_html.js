@@ -1137,6 +1137,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
         <!-- Auto Dial Toggle -->
         <button id="autoDialBtn" title="自动拨打" style="font-size: 0.78rem; padding: 4px 10px; border: 1px solid var(--accent-wechat); background: var(--accent-wechat-bg); color: var(--accent-wechat); cursor: pointer; outline: none; font-weight: 700; border-radius: var(--radius-xs); white-space: nowrap;">自动拨打</button>
         <button id="refreshBatchBtn" title="从数据库按最新导入顺序拉取，与看板同序，拉过的自动沉底" onclick="if(window.refreshBatch)window.refreshBatch()" style="font-size: 0.78rem; padding: 4px 10px; border: 1px solid #e67e22; background: rgba(230,126,34,0.08); color: #e67e22; cursor: pointer; outline: none; font-weight: 700; border-radius: var(--radius-xs); margin-right: 8px; white-space: nowrap;">换一批</button>
+        <span id="accountDisplay" onclick="if(window.showAccountSettings)window.showAccountSettings()" style="font-size:0.68rem; color:var(--text-light); font-weight:700; cursor:pointer; padding:3px 8px; border:1px dashed var(--card-border); border-radius:3px; margin-right:6px; white-space:nowrap; font-family:monospace;" title="点击设置账户"></span>
         <!-- Dropdown Menu Trigger on the Right -->
         <div style="position: relative; display: inline-block;">
           <button id="headerMenuBtn" title="更多设置" style="font-size: 0.8rem; padding: 6px 10px; border: none; background: transparent; cursor: pointer; outline: none; font-weight: 800; color: var(--text-soft); min-width: 44px; min-height: 34px; -webkit-tap-highlight-color: transparent; touch-action: manipulation;">更多</button>
@@ -1150,6 +1151,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
             <button class="dropdown-item" id="exportBtn" style="display:none;">导出记录</button>
             <button class="dropdown-item" id="clearBtn" style="display:none; color: #e74c3c;">清空数据</button>
             <button class="dropdown-item" id="darkToggleBtn">切换主题</button>
+            <button class="dropdown-item" id="accountSettingsBtn">账户设置</button>
           </div>
         </div>
 
@@ -1473,6 +1475,27 @@ export const DIALER_HTML = `<!DOCTYPE html>
     </div>
   </div>
 
+  <!-- Account Settings Modal -->
+  <div id="accountSettingsModal" class="modal-overlay" style="z-index:100006;">
+    <div class="modal-card" style="max-width: 380px; gap: 12px; text-align: left;">
+      <div style="font-size:0.95rem; font-weight:900; color:var(--text-main); display:flex; justify-content:space-between; align-items:center;">
+        <span>账户设置</span>
+        <button id="closeAccountSettingsBtn" style="background:none; border:none; font-size:1.2rem; cursor:pointer; color:var(--text-soft); padding:0;">关闭</button>
+      </div>
+      <div style="font-size:0.7rem; color:var(--text-light); font-weight:700;">
+        当前账户标识（自动生成，用于区分不同设备的客户数据）：
+      </div>
+      <div id="accountIdDisplay" style="font-size:0.8rem; font-weight:700; color:var(--accent-wechat); background:var(--btn-bg); padding:8px 12px; border-radius:4px; word-break:break-all; font-family:monospace;"></div>
+      <div style="font-size:0.7rem; color:var(--text-light); font-weight:700; margin-top:4px;">
+        账户标签（给自己看的名字，可选）：
+      </div>
+      <input type="text" id="accountLabelInput" placeholder="例如：办公室电脑" style="width:100%; height:34px; padding:0 10px; font-size:0.8rem; border:1px solid var(--card-border); border-radius:4px; font-weight:700; outline:none; background:var(--card-bg); color:var(--text-main); box-sizing:border-box;">
+      <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:4px;">
+        <button id="saveAccountSettingsBtn" class="btn-primary" style="padding:8px 20px; font-size:0.8rem;">保存</button>
+      </div>
+    </div>
+  </div>
+
   <!-- SheetJS CDN -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.1.1/tesseract.min.js"></script>
@@ -1673,6 +1696,28 @@ export const DIALER_HTML = `<!DOCTYPE html>
     // LocalStorage Keys
     var CLIENTS_K = 'standalone_dialer_clients';
     var DARK_K = 'standalone_dialer_dark';
+    var ACCOUNT_ID_K = 'standalone_dialer_account_id';
+    var ACCOUNT_LABEL_K = 'standalone_dialer_account_label';
+
+    function getOrCreateAccountId() {
+      var id = localStorage.getItem(ACCOUNT_ID_K);
+      if (!id) {
+        id = 'acct_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 6);
+        localStorage.setItem(ACCOUNT_ID_K, id);
+      }
+      return id;
+    }
+    function getAccountLabel() { return localStorage.getItem(ACCOUNT_LABEL_K) || ''; }
+    function setAccountLabel(l) { localStorage.setItem(ACCOUNT_LABEL_K, l); }
+
+    function updateAccountDisplay() {
+      var d = document.getElementById('accountDisplay');
+      if (!d) return;
+      var id = getOrCreateAccountId();
+      var label = getAccountLabel();
+      d.textContent = label ? '[' + label + ']' : '[' + id.slice(0, 10) + ']';
+      d.title = '账户: ' + id + (label ? ' (' + label + ')' : '');
+    }
 
     // State Variables
     var importedClients = [];
@@ -2081,10 +2126,11 @@ export const DIALER_HTML = `<!DOCTYPE html>
       if (!customers || customers.length === 0) return;
       var label = batchLabel || ("导入-" + new Date().toISOString().slice(0, 19).replace("T", " "));
       var payload = serializeCustomersForSupabase(customers);
+      var accountId = getOrCreateAccountId();
       fetch("/api/dialer/upload-customers", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ customers: payload, batch_label: label })
+        body: JSON.stringify({ customers: payload, batch_label: label, account_id: accountId })
       })
       .then(function(res) { return res.json(); })
       .then(function(data) {
@@ -6644,7 +6690,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
       // 拉取大量数据到本地缓存，再客户端分页（保证冷却期排序跨全部数据生效）
       // 排除冷却期客户以减少 Supabase 数据传输量
       var cooldownMobiles = Object.keys(getAddHistory());
-      var url = '/api/dialer/customers?page=1&pageSize=5000';
+      var url = '/api/dialer/customers?page=1&pageSize=5000&account_id=' + encodeURIComponent(getOrCreateAccountId());
       if (q) url += '&search=' + encodeURIComponent(q);
       if (category) url += '&category=' + encodeURIComponent(category);
       if (batchFilter) url += '&batch_label=' + encodeURIComponent(batchFilter);
@@ -6893,6 +6939,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
+              account_id: getOrCreateAccountId(),
               mobile: mobile,
               fields: { note: notePayload }
             })
@@ -7176,7 +7223,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
 	      fetch('/api/dialer/customers/random', {
 	        method: 'POST',
 	        headers: { 'Content-Type': 'application/json' },
-	        body: JSON.stringify({ limit: 50, exclude: excludeMobiles })
+	        body: JSON.stringify({ limit: 50, exclude: excludeMobiles, account_id: getOrCreateAccountId() })
       })
         .then(function(r) { return r.json(); })
         .then(function(res) {
@@ -7434,7 +7481,8 @@ export const DIALER_HTML = `<!DOCTYPE html>
                 company: company,
                 note: note
               }],
-              batch_label: '手动录入'
+              batch_label: '手动录入',
+              account_id: getOrCreateAccountId()
             })
           })
           .then(function(r) { return r.json(); })
@@ -7445,6 +7493,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
                   method: 'PATCH',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({
+                    account_id: getOrCreateAccountId(),
                     mobile: mobile,
                     fields: { category: cat }
                   })
@@ -7561,7 +7610,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
           pullFilteredBtn.disabled = true;
           pullFilteredBtn.textContent = '拉取中...';
           
-          var pullUrl = '/api/dialer/customers?page=1&pageSize=5000';
+          var pullUrl = '/api/dialer/customers?page=1&pageSize=5000&account_id=' + encodeURIComponent(getOrCreateAccountId());
           if (category) pullUrl += '&category=' + encodeURIComponent(category);
           if (batchFilter) pullUrl += '&batch_label=' + encodeURIComponent(batchFilter);
           
@@ -7650,6 +7699,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
               method: 'PATCH',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
+                account_id: getOrCreateAccountId(),
                 mobile: m,
                 fields: { category: '意向客户' }
               })
@@ -7692,6 +7742,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
               method: 'PATCH',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
+                account_id: getOrCreateAccountId(),
                 mobile: m,
                 fields: { category: '潜在客户' }
               })
@@ -7741,7 +7792,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
           fetch('/api/dialer/customers', {
             method: 'DELETE',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ mobiles: mobiles })
+            body: JSON.stringify({ mobiles: mobiles, account_id: getOrCreateAccountId() })
           })
           .then(function(r) { return r.json(); })
           .then(function(res) {
@@ -7783,6 +7834,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
               method: 'PATCH',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
+                account_id: getOrCreateAccountId(),
                 mobile: m,
                 fields: { category: '公海客户' }
               })
@@ -7829,6 +7881,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
               method: 'PATCH',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
+                account_id: getOrCreateAccountId(),
                 mobile: m,
                 fields: { note: newNote }
               })
@@ -7869,6 +7922,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
               method: 'PATCH',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
+                account_id: getOrCreateAccountId(),
                 mobile: m,
                 fields: { note: newNote }
               })
@@ -7936,7 +7990,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
  fetch('/api/dialer/customers/batch-category', {
  method: 'POST',
  headers: { 'Content-Type': 'application/json' },
- body: JSON.stringify({ batch_label: batch, category: cat })
+ body: JSON.stringify({ batch_label: batch, category: cat, account_id: getOrCreateAccountId() })
  })
  .then(function(r) { return r.json(); })
  .then(function(d) {
@@ -8083,6 +8137,49 @@ export const DIALER_HTML = `<!DOCTYPE html>
       }
     }
 
+    function initAccountSettings() {
+      updateAccountDisplay();
+      // Wire up dropdown menu button
+      var accBtn = document.getElementById('accountSettingsBtn');
+      if (accBtn) {
+        accBtn.addEventListener('click', function() {
+          if (window.showAccountSettings) window.showAccountSettings();
+        });
+      }
+      // Wire up modal close
+      var modal = document.getElementById('accountSettingsModal');
+      if (!modal) return;
+      var closeBtn = document.getElementById('closeAccountSettingsBtn');
+      if (closeBtn) {
+        closeBtn.addEventListener('click', function() {
+          modal.classList.remove('active');
+        });
+      }
+      modal.addEventListener('click', function(e) {
+        if (e.target === modal) {
+          modal.classList.remove('active');
+        }
+      });
+      // Wire up save
+      var saveBtn = document.getElementById('saveAccountSettingsBtn');
+      if (saveBtn) {
+        saveBtn.addEventListener('click', function() {
+          var labelInput = document.getElementById('accountLabelInput');
+          if (labelInput) setAccountLabel(labelInput.value.trim());
+          updateAccountDisplay();
+          modal.classList.remove('active');
+        });
+      }
+    }
+
+    window.showAccountSettings = function() {
+      var modal = document.getElementById('accountSettingsModal');
+      if (!modal) return;
+      document.getElementById('accountIdDisplay').textContent = getOrCreateAccountId();
+      document.getElementById('accountLabelInput').value = getAccountLabel();
+      modal.classList.add('active');
+    };
+
     function safeInit(name, fn) {
       try { fn(); } catch (e) { console.error('Init error: ' + name, e); }
     }
@@ -8098,6 +8195,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
     safeInit('initAIImporter', initAIImporter);
     safeInit('loadPersistedState', loadPersistedState);
     safeInit('initCustViewer', initCustViewer);
+    safeInit('initAccountSettings', initAccountSettings);
 
     safeInit('initDialerTemplateBtn', function() {
       var btn = document.getElementById('dialerTemplateBtn');

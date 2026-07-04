@@ -1400,12 +1400,13 @@ export default {
         const body = await request.json();
         const customers = body.customers || [];
         const batchLabel = body.batch_label || '';
-        // Add batch_label to each customer
+        const accountId = body.account_id || '';
+        // Add batch_label and account_id to each customer
         const tagged = customers.map(function(c) {
-          return Object.assign({}, c, { batch_label: batchLabel });
+          return Object.assign({}, c, { batch_label: batchLabel, account_id: c.account_id || accountId });
         });
         const sb = createSupabaseClient(env);
-        const result = await sb.upsertCustomers(tagged);
+        const result = await sb.upsertCustomers(tagged, accountId);
         return new Response(JSON.stringify({ success: true, count: result.count }), {
           headers: {
             'Content-Type': 'application/json; charset=UTF-8',
@@ -1436,8 +1437,9 @@ export default {
         const batchLabel = url.searchParams.get('batch_label') || '';
         const exclude = url.searchParams.get('exclude') || '';
         const excludeMobiles = exclude ? exclude.split(',').filter(Boolean) : [];
+        const accountId = url.searchParams.get('account_id') || '';
         const sb = createSupabaseClient(env);
-        const result = await sb.getAllCustomers(page, pageSize, search, sortBy, sortDir, category, batchLabel, excludeMobiles);
+        const result = await sb.getAllCustomers(page, pageSize, search, sortBy, sortDir, category, batchLabel, excludeMobiles, accountId);
         return new Response(JSON.stringify(result), {
           headers: {
             'Content-Type': 'application/json; charset=UTF-8',
@@ -1461,6 +1463,8 @@ export default {
         let limit = 50;
         let excludeMobiles = null;
 
+        var accountId = '';
+
         if (request.method === 'POST') {
           try {
             const body = await request.json();
@@ -1468,10 +1472,12 @@ export default {
             if (Array.isArray(body.exclude) && body.exclude.length > 0) {
               excludeMobiles = body.exclude;
             }
+            accountId = body.account_id || '';
           } catch (parseErr) { /* use defaults */ }
         } else {
           const url = new URL(request.url);
           limit = Math.min(parseInt(url.searchParams.get('limit') || '50'), 200);
+          accountId = url.searchParams.get('account_id') || '';
         }
 
         // Merge KV-tracked cooldown mobiles into exclude set
@@ -1495,7 +1501,7 @@ export default {
         // Query Supabase with pulled_at ordering:
         // 1. Never pulled first (newest import first)
         // 2. Then oldest-pulled first (natural cycle)
-        const result = await sb.getCustomersForDialer(limit, mergedExclude.length > 0 ? mergedExclude : null);
+        const result = await sb.getCustomersForDialer(limit, mergedExclude.length > 0 ? mergedExclude : null, accountId);
         const data = result.data || [];
         const total = result.total || 0;
 
@@ -1504,7 +1510,7 @@ export default {
           const mobiles = data.map(function(c) { return c.mobile || ''; }).filter(Boolean);
 
           // 1. Supabase PATCH (best-effort — may fail due to RLS, checked in supabase.js)
-          sb.batchSetPulledAt(mobiles).catch(function() { /* fire-and-forget */ });
+          sb.batchSetPulledAt(mobiles, accountId).catch(function() { /* fire-and-forget */ });
 
           // 2. KV cooldown (RELIABLE guard — always works, auto-expires in 10 days)
           //    This prevents the same batch from cycling back even if PATCH fails.
@@ -1538,6 +1544,7 @@ export default {
       try {
         const body = await request.json();
         const { batch_label, category } = body;
+        const accountId = body.account_id || '';
         if (!batch_label || !category) {
           return new Response(JSON.stringify({ success: false, error: '缺少 batch_label 或 category' }), {
             status: 400,
@@ -1545,44 +1552,9 @@ export default {
           });
         }
 
-        const supabaseUrl = env.SUPABASE_URL;
-        const supabaseKey = env.SUPABASE_KEY;
-        const hdrs = {
-          'Content-Type': 'application/json',
-          'apikey': supabaseKey,
-          'Authorization': 'Bearer ' + supabaseKey
-        };
-
-        // Fetch all mobiles for this batch
-        var allMobiles = [];
-        var offset = 0;
-        var pageSize = 1000;
-        while (true) {
-          var qUrl = supabaseUrl + '/rest/v1/customers?select=mobile&batch_label=eq.' + encodeURIComponent(batch_label) + '&limit=' + pageSize + '&offset=' + offset;
-          var pageResp = await fetch(qUrl, { headers: hdrs });
-          if (!pageResp.ok) break;
-          var page = await pageResp.json();
-          if (!Array.isArray(page) || page.length === 0) break;
-          allMobiles.push.apply(allMobiles, page.map(function(r) { return r.mobile; }));
-          if (page.length < pageSize) break;
-          offset += pageSize;
-        }
-
-        // PATCH each one
-        var updated = 0;
-        for (var i = 0; i < allMobiles.length; i++) {
-          var patchResp = await fetch(
-            supabaseUrl + '/rest/v1/customers?mobile=eq.' + encodeURIComponent(allMobiles[i]),
-            {
-              method: 'PATCH',
-              headers: Object.assign({}, hdrs, { 'Prefer': 'return=minimal' }),
-              body: JSON.stringify({ category: category })
-            }
-          );
-          if (patchResp.ok) updated++;
-        }
-
-        return new Response(JSON.stringify({ success: true, updated: updated }), {
+        const sb = createSupabaseClient(env);
+        const result = await sb.batchUpdateCategory(batch_label, category, accountId);
+        return new Response(JSON.stringify({ success: true, updated: result.count }), {
           headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
         });
       } catch (e) {
@@ -1598,6 +1570,7 @@ export default {
       try {
         const body = await request.json();
         const { mobile, entry } = body;
+        const accountId = body.account_id || '';
         if (!mobile || !entry || !entry.type) {
           return new Response(JSON.stringify({ success: false, error: '缺少 mobile 或 entry.type' }), {
             status: 400,
@@ -1605,7 +1578,7 @@ export default {
           });
         }
         const sb = createSupabaseClient(env);
-        const result = await sb.updateCustomer(mobile, { last_operation: entry });
+        const result = await sb.updateCustomer(mobile, { last_operation: entry }, accountId);
         return new Response(JSON.stringify({ success: true, data: result }), {
           headers: {
             'Content-Type': 'application/json; charset=UTF-8',
@@ -1628,8 +1601,9 @@ export default {
       try {
         const body = await request.json();
         const { mobile, fields } = body;
+        const accountId = body.account_id || '';
         const sb = createSupabaseClient(env);
-        const updated = await sb.updateCustomer(mobile, fields);
+        const updated = await sb.updateCustomer(mobile, fields, accountId);
         return new Response(JSON.stringify({ success: true, data: updated }), {
           headers: {
             'Content-Type': 'application/json; charset=UTF-8',
@@ -1652,9 +1626,10 @@ export default {
       try {
         const body = await request.json();
         const { mobile, mobiles } = body;
+        const accountId = body.account_id || '';
         const sb = createSupabaseClient(env);
         if (mobiles && Array.isArray(mobiles)) {
-          await sb.deleteCustomers(mobiles);
+          await sb.deleteCustomers(mobiles, accountId);
           return new Response(JSON.stringify({ success: true, count: mobiles.length }), {
             headers: {
               'Content-Type': 'application/json; charset=UTF-8',
@@ -1662,7 +1637,7 @@ export default {
             }
           });
         } else if (mobile) {
-          await sb.deleteCustomer(mobile);
+          await sb.deleteCustomer(mobile, accountId);
           return new Response(JSON.stringify({ success: true }), {
             headers: {
               'Content-Type': 'application/json; charset=UTF-8',

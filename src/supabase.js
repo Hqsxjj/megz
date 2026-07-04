@@ -255,7 +255,7 @@ export function createSupabaseClient(env) {
   /**
    * Get all customers with pagination and optional search.
    */
-  async function getAllCustomers(page, pageSize, search, sortBy, sortDir, category, batchLabel, excludeMobiles) {
+  async function getAllCustomers(page, pageSize, search, sortBy, sortDir, category, batchLabel, excludeMobiles, accountId) {
     if (!baseUrl || !key) return { data: [], total: 0, page: page || 1, pageSize: pageSize || 50 };
 
     try {
@@ -272,6 +272,12 @@ export function createSupabaseClient(env) {
       if (excludeMobiles && Array.isArray(excludeMobiles) && excludeMobiles.length > 0) {
         var capped = excludeMobiles.slice(0, 100);
         excludeFilter = '&mobile=not.in.(' + capped.map(function(m) { return encodeURIComponent(m); }).join(',') + ')';
+      }
+
+      // Account filter: if accountId provided, only show that account's data
+      var accountFilter = '';
+      if (accountId) {
+        accountFilter = '&account_id=eq.' + encodeURIComponent(accountId);
       }
 
       var filterParams = '';
@@ -300,11 +306,11 @@ export function createSupabaseClient(env) {
 
       // Try column sets from most to least specific
       var colSets = [
-        'name,mobile,company_name,category,note,fund,batch_label,created_at,last_operation',
-        'name,mobile,company_name,category,note,fund,created_at,last_operation',
-        'name,mobile,company_name,category,note,batch_label,created_at',
-        'name,mobile,company_name,category,note,created_at',
-        'name,mobile,company_name,created_at',
+        'name,mobile,company_name,category,note,fund,batch_label,created_at,last_operation,account_id',
+        'name,mobile,company_name,category,note,fund,created_at,last_operation,account_id',
+        'name,mobile,company_name,category,note,batch_label,created_at,account_id',
+        'name,mobile,company_name,category,note,created_at,account_id',
+        'name,mobile,company_name,created_at,account_id',
         '*'
       ];
 
@@ -330,7 +336,7 @@ export function createSupabaseClient(env) {
         var batch = null;
 
         for (var ci = 0; ci < colSets.length; ci++) {
-          var url2 = baseUrl + '/rest/v1/customers?select=' + colSets[ci] + orderClause + baseSearch + excludeFilter + filterParams;
+          var url2 = baseUrl + '/rest/v1/customers?select=' + colSets[ci] + orderClause + baseSearch + excludeFilter + accountFilter + filterParams;
           resp = await fetch(url2, { headers: headersWithCount });
           if (resp.ok) {
             batch = await resp.json();
@@ -370,10 +376,11 @@ export function createSupabaseClient(env) {
    * Uses mobile as unique key to prevent duplicates.
    * Each customer gets: name, mobile, company_name, note, batch_label
    */
-  async function upsertCustomers(customers) {
+  async function upsertCustomers(customers, accountId) {
     if (!baseUrl || !key) return { count: 0, error: 'Supabase not configured' };
     if (!Array.isArray(customers) || customers.length === 0) return { count: 0 };
 
+    var acctId = accountId || null;
     const rows = customers.map(function(c) {
       var noteVal = (c.note || '').trim();
       var callNoteVal = (c.callNote || '').trim();
@@ -412,7 +419,8 @@ export function createSupabaseClient(env) {
         company_name: (c.company || c.company_name || '').trim(),
         note: noteVal,
         category: (c.category || '').trim() || '公海客户',
-        batch_label: (c.batch_label || '').trim()
+        batch_label: (c.batch_label || '').trim(),
+        account_id: c.account_id || acctId
       };
     }).filter(function(r) {
       return r.mobile.length > 0;
@@ -496,16 +504,22 @@ export function createSupabaseClient(env) {
    * Batch update category for all customers with a given batch_label.
    * Uses a simpler approach: fetch all matching mobiles first, then PATCH each.
    */
-  async function batchUpdateCategory(batchLabel, category) {
+  async function batchUpdateCategory(batchLabel, category, accountId) {
     if (!baseUrl || !key) throw new Error('Supabase not configured');
     if (!batchLabel || !category) throw new Error('batch_label and category required');
+
+    // Account filter to prevent cross-account modification
+    var acctFilter = '';
+    if (accountId) {
+      acctFilter = '&account_id=eq.' + encodeURIComponent(accountId);
+    }
 
     // Fetch all matching mobiles (pagination loop)
     var allMobiles = [];
     var offset = 0;
     var pageSize = 1000;
     while (true) {
-      var url2 = baseUrl + '/rest/v1/customers?select=mobile&batch_label=eq.' + encodeURIComponent(batchLabel) + '&limit=' + pageSize + '&offset=' + offset;
+      var url2 = baseUrl + '/rest/v1/customers?select=mobile&batch_label=eq.' + encodeURIComponent(batchLabel) + acctFilter + '&limit=' + pageSize + '&offset=' + offset;
       var pageResp = await fetch(url2, { headers: headers() });
       if (!pageResp.ok) {
         var text = await pageResp.text();
@@ -520,11 +534,15 @@ export function createSupabaseClient(env) {
 
     if (allMobiles.length === 0) return { count: 0 };
 
-    // PATCH each one
+    // PATCH each one (scoped to account)
     var updated = 0;
     for (var i = 0; i < allMobiles.length; i++) {
+      var patchUrl = baseUrl + '/rest/v1/customers?mobile=eq.' + encodeURIComponent(allMobiles[i]);
+      if (accountId) {
+        patchUrl += '&account_id=eq.' + encodeURIComponent(accountId);
+      }
       var patchResp = await fetch(
-        baseUrl + '/rest/v1/customers?mobile=eq.' + encodeURIComponent(allMobiles[i]),
+        patchUrl,
         {
           method: 'PATCH',
           headers: Object.assign({}, headers(), { 'Prefer': 'return=minimal' }),
@@ -542,7 +560,7 @@ export function createSupabaseClient(env) {
    * Never-pulled customers come first (newest first), then oldest-pulled come back.
    * This naturally implements "沉底" (sink to bottom) without KV cursors.
    */
-  async function getCustomersForDialer(limit, excludeMobiles) {
+  async function getCustomersForDialer(limit, excludeMobiles, accountId) {
     if (!baseUrl || !key) return { data: [], total: 0 };
 
     try {
@@ -561,6 +579,12 @@ export function createSupabaseClient(env) {
         }
       }
 
+      // Account filter: if accountId provided, only pull that account's customers
+      var accountFilter = '';
+      if (accountId) {
+        accountFilter = '&account_id=eq.' + encodeURIComponent(accountId);
+      }
+
       // 10-day cooldown: only return customers that are either never-pulled
       // or pulled more than 10 days ago. Prevents multi-device duplicates.
       var cooldownDate = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString();
@@ -571,11 +595,11 @@ export function createSupabaseClient(env) {
       var orderFilter = '&order=pulled_at.asc.nullsfirst,created_at.desc';
 
       var colSets = [
-        'name,mobile,company_name,category,note,fund,batch_label,created_at,last_operation,pulled_at',
-        'name,mobile,company_name,category,note,fund,created_at,last_operation,pulled_at',
-        'name,mobile,company_name,category,note,batch_label,created_at,pulled_at',
-        'name,mobile,company_name,category,note,created_at,pulled_at',
-        'name,mobile,company_name,created_at,pulled_at',
+        'name,mobile,company_name,category,note,fund,batch_label,created_at,last_operation,pulled_at,account_id',
+        'name,mobile,company_name,category,note,fund,created_at,last_operation,pulled_at,account_id',
+        'name,mobile,company_name,category,note,batch_label,created_at,pulled_at,account_id',
+        'name,mobile,company_name,category,note,created_at,pulled_at,account_id',
+        'name,mobile,company_name,created_at,pulled_at,account_id',
         '*'
       ];
 
@@ -587,7 +611,7 @@ export function createSupabaseClient(env) {
       var data = null;
       var resp = null;
       for (var ci = 0; ci < colSets.length; ci++) {
-        var qUrl = baseUrl + '/rest/v1/customers?select=' + colSets[ci] + orderFilter + cooldownFilter + notInFilter;
+        var qUrl = baseUrl + '/rest/v1/customers?select=' + colSets[ci] + orderFilter + cooldownFilter + accountFilter + notInFilter;
         resp = await fetch(qUrl, { headers: hdrs });
         if (resp.ok) {
           data = await resp.json();
@@ -619,7 +643,7 @@ export function createSupabaseClient(env) {
    * Batch-update pulled_at = NOW() for customers that were just loaded into the dialer.
    * Uses Supabase PATCH with mobile.in filter.
    */
-  async function batchSetPulledAt(mobiles) {
+  async function batchSetPulledAt(mobiles, accountId) {
     if (!baseUrl || !key) return;
     if (!mobiles || mobiles.length === 0) return;
 
@@ -633,6 +657,10 @@ export function createSupabaseClient(env) {
 
       var inFilter = 'mobile=in.(' + uniqueMobiles.map(function(m) { return encodeURIComponent(m); }).join(',') + ')';
       var qUrl = baseUrl + '/rest/v1/customers?' + inFilter;
+      // Belt-and-suspenders: if accountId provided, restrict to this account
+      if (accountId) {
+        qUrl += '&account_id=eq.' + encodeURIComponent(accountId);
+      }
       var body = JSON.stringify({ pulled_at: new Date().toISOString() });
 
       var resp = await fetch(qUrl, {
@@ -681,12 +709,16 @@ export function createSupabaseClient(env) {
    * Update a single customer by mobile (unique key).
    * fields: { category?, note?, company_name?, name? }
    */
-  async function updateCustomer(mobile, fields) {
+  async function updateCustomer(mobile, fields, accountId) {
     if (!baseUrl || !key) throw new Error('Supabase not configured');
     if (!mobile) throw new Error('mobile is required');
 
-    const resp = await fetch(
-      baseUrl + '/rest/v1/customers?mobile=eq.' + encodeURIComponent(mobile),
+    var updateUrl = baseUrl + '/rest/v1/customers?mobile=eq.' + encodeURIComponent(mobile);
+    // Belt-and-suspenders: if accountId provided, restrict to this account
+    if (accountId) {
+      updateUrl += '&account_id=eq.' + encodeURIComponent(accountId);
+    }
+    const resp = await fetch(updateUrl,
       {
         method: 'PATCH',
         headers: Object.assign({}, headers(), { 'Prefer': 'return=representation' }),
@@ -703,12 +735,15 @@ export function createSupabaseClient(env) {
     return data && data[0] ? data[0] : null;
   }
 
-  async function deleteCustomer(mobile) {
+  async function deleteCustomer(mobile, accountId) {
     if (!baseUrl || !key) throw new Error('Supabase not configured');
     if (!mobile) throw new Error('mobile is required');
 
-    const resp = await fetch(
-      baseUrl + '/rest/v1/customers?mobile=eq.' + encodeURIComponent(mobile),
+    var delUrl = baseUrl + '/rest/v1/customers?mobile=eq.' + encodeURIComponent(mobile);
+    if (accountId) {
+      delUrl += '&account_id=eq.' + encodeURIComponent(accountId);
+    }
+    const resp = await fetch(delUrl,
       {
         method: 'DELETE',
         headers: headers()
@@ -722,16 +757,21 @@ export function createSupabaseClient(env) {
     return true;
   }
 
-  async function deleteCustomers(mobiles) {
+  async function deleteCustomers(mobiles, accountId) {
     if (!baseUrl || !key) throw new Error('Supabase not configured');
     if (!mobiles || mobiles.length === 0) throw new Error('mobiles are required');
+
+    var acctFilter = '';
+    if (accountId) {
+      acctFilter = '&account_id=eq.' + encodeURIComponent(accountId);
+    }
 
     const chunkSize = 100;
     for (let i = 0; i < mobiles.length; i += chunkSize) {
       const chunk = mobiles.slice(i, i + chunkSize);
       const inClause = chunk.map(function(m) { return encodeURIComponent(m); }).join(',');
       const resp = await fetch(
-        baseUrl + '/rest/v1/customers?mobile=in.(' + inClause + ')',
+        baseUrl + '/rest/v1/customers?mobile=in.(' + inClause + ')' + acctFilter,
         {
           method: 'DELETE',
           headers: headers()
