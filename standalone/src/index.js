@@ -1,0 +1,10961 @@
+// 每日工作 - Cloudflare Worker 版本
+// 部署后绑定 DATA_KV 即可使用
+
+import { createSupabaseClient } from './supabase.js';
+
+// === Stubs for standalone (not included in package) ===
+const DIALER_HTML = '<html><body><h1>Dialer not available in standalone version</h1></body></html>';
+function getClientIP() { return '127.0.0.1'; }
+async function isBlocked() { return { blocked: false }; }
+function isBadBot() { return { blocked: false }; }
+function checkSecFetch() { return { suspicious: false }; }
+function getRateLimitTier() { return 'normal'; }
+function checkRateLimit() { return { limited: false }; }
+function maybeCleanup() {}
+async function blockIP() {}
+async function unblockIP() {}
+async function listBlockedIPs() { return []; }
+// WeComCrypt stub for Siri verification
+class WeComCrypt {
+  constructor(env, corpId, token, encodingAESKey) { this.token = token; }
+  async decrypt(s) { return s; }
+  async encrypt(s) { return s; }
+}
+
+// KV 读取缓存 - 减少子请求数量（同一 invocation 内有效）
+const kvCache = new Map();
+function getKVCached(env, key, ttlMs = 60000) {
+  const entry = kvCache.get(key);
+  if (entry && (Date.now() - entry.ts) < ttlMs) {
+    return entry.value;
+  }
+  const p = env.DATA_KV.get(key).then(v => {
+    kvCache.set(key, { value: Promise.resolve(v), ts: Date.now() });
+    return v;
+  });
+  kvCache.set(key, { value: p, ts: Date.now() });
+  return p;
+}
+
+async function getAllKVKeys(env, prefix) {
+  let keys = [];
+  let cursor = undefined;
+  while (true) {
+    const list = await env.DATA_KV.list({ prefix, cursor });
+    keys.push(...list.keys);
+    if (list.list_complete || !list.cursor) {
+      break;
+    }
+    cursor = list.cursor;
+  }
+  return keys;
+}
+
+async function getKVValuesConcurrently(env, keys) {
+  const results = [];
+  const concurrency = 30;
+  for (let i = 0; i < keys.length; i += concurrency) {
+    const chunk = keys.slice(i, i + concurrency);
+    const promises = chunk.map(key => env.DATA_KV.get(key.name).then(val => ({ name: key.name, val })));
+    const resolved = await Promise.all(promises);
+    results.push(...resolved);
+  }
+  return results;
+}
+
+async function getWeComAccessToken(env, corpId, secret) {
+  const cacheKey = `wecom:access_token:${corpId}:${secret}`;
+  let token = await env.DATA_KV.get(cacheKey);
+  if (token) return token;
+
+  const proxyBase = await env.DATA_KV.get('config:wecom_api_proxy') || 'https://qyapi.weixin.qq.com';
+  const cleanProxy = proxyBase.endsWith('/') ? proxyBase.slice(0, -1) : proxyBase;
+  const url = `${cleanProxy}/cgi-bin/gettoken?corpid=${corpId}&corpsecret=${secret}`;
+  const resp = await fetch(url);
+  if (!resp.ok) {
+    throw new Error(`获取 access_token 失败，HTTP 状态：${resp.status}`);
+  }
+  const data = await resp.json();
+  if (data.errcode !== 0) {
+    throw new Error(`企业微信接口返回错误: [${data.errcode}] ${data.errmsg}`);
+  }
+
+  // Token is valid for 7200s, cache for 7000s
+  await env.DATA_KV.put(cacheKey, data.access_token, { expirationTtl: 7000 });
+  return data.access_token;
+}
+
+async function sendWeComAppMessage(env, corpId, secret, agentId, touser, content) {
+  const token = await getWeComAccessToken(env, corpId, secret);
+  const proxyBase = await env.DATA_KV.get('config:wecom_api_proxy') || 'https://qyapi.weixin.qq.com';
+  const cleanProxy = proxyBase.endsWith('/') ? proxyBase.slice(0, -1) : proxyBase;
+  const url = `${cleanProxy}/cgi-bin/message/send?access_token=${token}`;
+  const body = {
+    touser: touser || '@all',
+    msgtype: 'markdown',
+    agentid: Number(agentId),
+    markdown: {
+      content: content
+    },
+    enable_duplicate_check: 0
+  };
+  const resp = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  if (!resp.ok) {
+    throw new Error(`发送应用消息失败，HTTP 状态：${resp.status}`);
+  }
+  const data = await resp.json();
+  if (data.errcode !== 0) {
+    throw new Error(`企业微信消息发送接口返回错误: [${data.errcode}] ${data.errmsg}`);
+  }
+  return data;
+}
+
+// 发送纯文本消息给企业微信用户（用于回调异步回复）
+async function sendWeComTextMessage(env, corpId, secret, agentId, touser, content) {
+  const token = await getWeComAccessToken(env, corpId, secret);
+  const proxyBase = await env.DATA_KV.get('config:wecom_api_proxy') || 'https://qyapi.weixin.qq.com';
+  const cleanProxy = proxyBase.endsWith('/') ? proxyBase.slice(0, -1) : proxyBase;
+  const msgUrl = `${cleanProxy}/cgi-bin/message/send?access_token=${token}`;
+  const body = {
+    touser: touser || '@all',
+    msgtype: 'text',
+    agentid: Number(agentId),
+    text: { content: content },
+    enable_duplicate_check: 0
+  };
+  const resp = await fetch(msgUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  if (!resp.ok) {
+    throw new Error(`发送文本消息失败，HTTP 状态：${resp.status}`);
+  }
+  const data = await resp.json();
+  if (data.errcode !== 0) {
+    throw new Error(`企业微信文本消息发送错误: [${data.errcode}] ${data.errmsg}`);
+  }
+  return data;
+}
+
+async function sendMarkdownMessage(env, target, content) {
+  if (typeof target === 'string' && target.startsWith('https://')) {
+    const whResp = await fetch(target, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ msgtype: 'markdown', markdown: { content } })
+    });
+    if (!whResp.ok) {
+      throw new Error('HTTP ' + whResp.status + ': ' + (await whResp.text()));
+    }
+    const body = await whResp.json();
+    if (body.errcode !== 0) {
+      throw new Error('WeChat API 错误 [' + body.errcode + ']: ' + (body.errmsg || '未知'));
+    }
+    return body;
+  } else if (target && typeof target === 'object') {
+    const { corpId, secret, agentId, touser } = target;
+    if (!corpId || !secret || !agentId) {
+      throw new Error('企业微信应用配置不完整 (缺少 CorpID, Secret 或 AgentID)');
+    }
+    return await sendWeComAppMessage(env, corpId, secret, agentId, touser, content);
+  } else {
+    throw new Error('无效的发送目标 (target)');
+  }
+}
+
+async function sendWebhookMarkdown(env, target, baseHeader, items, itemFormatter) {
+  const enc = new TextEncoder();
+  let currentText = baseHeader;
+  let currentBytes = enc.encode(baseHeader).length;
+  let part = 1;
+  const sendChunk = async (content) => {
+    await sendMarkdownMessage(env, target, content);
+  };
+
+  for (const item of items) {
+    const itemText = itemFormatter(item);
+    const itemBytes = enc.encode(itemText).length;
+    if (currentBytes + itemBytes > 4000) {
+      await sendChunk(currentText);
+      part++;
+      currentText = '### ' + (baseHeader.match(/###\s*([^\n]+)/)?.[1] || '导出数据') + ' (续' + part + ')\n\n---\n\n' + itemText;
+      currentBytes = enc.encode(currentText).length;
+    } else {
+      currentText += itemText;
+      currentBytes += itemBytes;
+    }
+  }
+  if (currentText.length > 0) {
+    await sendChunk(currentText);
+  }
+}
+
+async function doWebSearch(env, query) {
+  const provider = await env.DATA_KV.get('config:search_provider') || 'duckduckgo';
+  const apiKey = await env.DATA_KV.get('config:search_api_key') || '';
+
+  // Tavily Search API (requires API key)
+  if (provider === 'tavily' && apiKey) {
+    try {
+      const resp = await fetch('https://api.tavily.com/search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ api_key: apiKey, query: query, search_depth: 'basic', max_results: 5, include_answer: false })
+      });
+      if (!resp.ok) throw new Error('Tavily HTTP ' + resp.status);
+      const data = await resp.json();
+      if (data.results && data.results.length > 0) {
+        return data.results.slice(0, 5).map(r => ({
+          title: r.title || '',
+          url: r.url || '',
+          snippet: r.content || ''
+        }));
+      }
+      return [];
+    } catch (e) {
+      console.error('[WebSearch Tavily Error]:', e.message);
+      return [];
+    }
+  }
+
+  // Brave Search API
+  if (provider === 'brave' && apiKey) {
+    try {
+      const resp = await fetch(`https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=5`, {
+        headers: { 'Accept': 'application/json', 'Accept-Encoding': 'gzip', 'X-Subscription-Token': apiKey }
+      });
+      if (!resp.ok) throw new Error('Brave HTTP ' + resp.status);
+      const data = await resp.json();
+      if (data.web && data.web.results) {
+        return data.web.results.slice(0, 5).map(r => ({
+          title: r.title || '',
+          url: r.url || '',
+          snippet: r.description || ''
+        }));
+      }
+      return [];
+    } catch (e) {
+      console.error('[WebSearch Brave Error]:', e.message);
+      return [];
+    }
+  }
+
+  // Default: DuckDuckGo Lite (free, no API key needed)
+  try {
+    const resp = await fetch(`https://lite.duckduckgo.com/lite/?q=${encodeURIComponent(query)}`, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; MegzBot/1.0)' }
+    });
+    if (!resp.ok) throw new Error('DuckDuckGo HTTP ' + resp.status);
+    const html = await resp.text();
+
+    // Parse DuckDuckGo Lite HTML results
+    const results = [];
+    // Pattern: each result is a <tr> with link, followed by <tr> with snippet
+    const linkRe = /<a\s+(?:[^>]*\s)?href="([^"]*)"[^>]*>([^<]*)<\/a>/gi;
+    const snippetRe = /<td\s+class="result-snippet"[^>]*>([^<]*(?:<(?!\/td>)[^<]*<\/[^>]*>)?[^<]*)<\/td>/gi;
+
+    // More robust: split by <tr> and parse
+    const rows = html.split(/<tr[^>]*>/i);
+    let currentLink = null, currentUrl = null;
+    for (const row of rows) {
+      const linkMatch = row.match(/<a\s+(?:[^>]*\s)?href="(https?:\/\/[^"]*)"[^>]*>([\s\S]*?)<\/a>/i);
+      if (linkMatch) {
+        currentUrl = linkMatch[1];
+        currentLink = linkMatch[2].replace(/<[^>]*>/g, '').trim();
+        if (currentLink && currentUrl && !currentUrl.includes('duckduckgo.com')) {
+          // Push placeholder, snippet fills in next
+        }
+      }
+      const snippetMatch = row.match(/<td\s+class="result-snippet"[^>]*>([\s\S]*?)<\/td>/i);
+      if (snippetMatch && currentLink && currentUrl) {
+        const snippet = snippetMatch[1].replace(/<[^>]*>/g, '').trim();
+        if (snippet && !results.find(r => r.url === currentUrl)) {
+          results.push({ title: currentLink, url: currentUrl, snippet: snippet });
+          currentLink = null; currentUrl = null;
+        }
+      }
+    }
+
+    if (results.length > 0) return results.slice(0, 5);
+
+    // Fallback: DuckDuckGo Instant Answer API
+    const fallbackResp = await fetch(`https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1`);
+    const fbData = await fallbackResp.json();
+    const fbResults = [];
+    if (fbData.AbstractText) {
+      fbResults.push({ title: fbData.Heading || query, url: fbData.AbstractURL || '', snippet: fbData.AbstractText });
+    }
+    if (fbData.RelatedTopics) {
+      for (const t of fbData.RelatedTopics.slice(0, 4)) {
+        if (t.Text) {
+          fbResults.push({ title: t.FirstURL ? t.Text.split(' - ')[0] : query, url: t.FirstURL || '', snippet: t.Text });
+        }
+      }
+    }
+    return fbResults.slice(0, 5);
+  } catch (e) {
+    console.error('[WebSearch DuckDuckGo Error]:', e.message);
+    return [];
+  }
+}
+
+async function callAIChat(env, messages, temperature = 0.5, apiKeyOverride = '') {
+  let provider = await getKVCached(env, 'config:ai_provider') || 'gemini';
+  const visionKey = await getKVCached(env, 'config:vision_api_key') || '';
+  const aiKey = await getKVCached(env, 'config:ai_api_key') || await getKVCached(env, 'config:deepseek_api_key') || env.AI_API_KEY || env.DEEPSEEK_API_KEY;
+
+  let apiKey = apiKeyOverride || aiKey;
+  if (!apiKeyOverride && (provider === 'gemini' || (visionKey && !aiKey))) {
+    provider = 'gemini';
+    apiKey = visionKey || aiKey;
+  }
+
+  let apiBase = await getKVCached(env, 'config:ai_api_base') || env.AI_API_BASE;
+  let model = await getKVCached(env, 'config:ai_model') || env.AI_API_MODEL;
+
+  // Defaults based on provider if not explicitly configured
+  if (provider === 'gemini') {
+    if (!apiBase) apiBase = 'https://generativelanguage.googleapis.com/v1beta/openai/';
+    if (!model) model = 'gemini-2.5-flash';
+  } else if (provider === 'deepseek') {
+    if (!apiBase) apiBase = 'https://api.deepseek.com/v1/';
+    if (!model) model = 'deepseek-chat';
+  } else {
+    // Custom OpenAI or default
+    if (!apiBase) apiBase = 'https://api.deepseek.com/v1/';
+    if (!model) model = 'deepseek-chat';
+  }
+
+  // Ensure trailing slash on apiBase, then append chat/completions
+  let url = apiBase;
+  if (!url.endsWith('/')) {
+    url += '/';
+  }
+  url += 'chat/completions';
+
+  if (!apiKey) {
+    throw new Error('AI API Key is missing or not configured.');
+  }
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + apiKey
+    },
+    body: JSON.stringify({
+      model: model,
+      messages: messages,
+      temperature: temperature
+    })
+  });
+
+  if (!response.ok) {
+    const errText = await response.text();
+    throw new Error(`AI API returned error [${response.status}]: ${errText}`);
+  }
+
+  return await response.json();
+}
+
+async function callAIChatWithTools(env, messages, temperature = 0.5, fromUser = '') {
+  let provider = await env.DATA_KV.get('config:ai_provider') || 'gemini';
+  const visionKey = await env.DATA_KV.get('config:vision_api_key') || '';
+  const aiKey = await env.DATA_KV.get('config:ai_api_key') || await env.DATA_KV.get('config:deepseek_api_key') || env.AI_API_KEY || env.DEEPSEEK_API_KEY;
+  
+  let apiKey = aiKey;
+  if (provider === 'gemini' || (visionKey && !aiKey)) {
+    provider = 'gemini';
+    apiKey = visionKey || aiKey;
+  }
+  
+  let apiBase = await env.DATA_KV.get('config:ai_api_base') || env.AI_API_BASE;
+  let model = await env.DATA_KV.get('config:ai_model') || env.AI_API_MODEL;
+
+  if (provider === 'gemini') {
+    if (!apiBase) apiBase = 'https://generativelanguage.googleapis.com/v1beta/openai/';
+    if (!model) model = 'gemini-2.5-flash';
+  } else if (provider === 'deepseek') {
+    if (!apiBase) apiBase = 'https://api.deepseek.com/v1/';
+    if (!model) model = 'deepseek-chat';
+  } else {
+    if (!apiBase) apiBase = 'https://api.deepseek.com/v1/';
+    if (!model) model = 'deepseek-chat';
+  }
+
+  let url = apiBase;
+  if (!url.endsWith('/')) {
+    url += '/';
+  }
+  url += 'chat/completions';
+
+  if (!apiKey) {
+    throw new Error('AI API Key is missing or not configured.');
+  }
+
+  const tools = [
+    {
+      type: "function",
+      function: {
+        name: "search_customers",
+        description: "从 Supabase 数据库中检索已归档的客户信息档案（支持按姓名、电话、公司等关键词模糊搜索）。",
+        parameters: {
+          type: "object",
+          properties: {
+            query: {
+              type: "string",
+              description: "搜索关键词（如客户姓名、电话或单位名称）"
+            }
+          },
+          required: ["query"]
+        }
+      }
+    },
+    {
+      type: "function",
+      function: {
+        name: "get_intent_clients",
+        description: "从 Cloudflare KV 中读取指定日期的每日工作汇报与今日意向客户登记列表（包含电话、时间、跟进情况/备注等）。",
+        parameters: {
+          type: "object",
+          properties: {
+            date: {
+              type: "string",
+              description: "日期字符串，格式为 YYYY-MM-DD（例如 2026-06-04），不传则默认为今天"
+            }
+          }
+        }
+      }
+    },
+    {
+      type: "function",
+      function: {
+        name: "check_company_whitelist",
+        description: "在数据库白名单中核对某家公司是否属于银行白名单准入公司，以及具体的签约状态和准入银行。",
+        parameters: {
+          type: "object",
+          properties: {
+            companyName: {
+              type: "string",
+              description: "公司名称（如 腾讯科技、阿里巴巴 等）"
+            }
+          },
+          required: ["companyName"]
+        }
+      }
+    },
+    {
+      type: "function",
+      function: {
+        name: "search_knowledge_and_speech",
+        description: "检索业务知识库、销售话术库以及贷款批贷案例记录。",
+        parameters: {
+          type: "object",
+          properties: {
+            query: {
+              type: "string",
+              description: "业务知识或话术关键词（如 贷款准入、开场白 等）"
+            }
+          },
+          required: ["query"]
+        }
+      }
+    },
+    {
+      type: "function",
+      function: {
+        name: "export_data",
+        description: "将统计数据或指定的意向客户导出推送到配置好的企业微信群机器人（Webhook）。可以导出本周数据、本月数据、全量客户，或者导出某位具体客户。",
+        parameters: {
+          type: "object",
+          properties: {
+            export_type: {
+              type: "string",
+              description: "导出数据类型。可选值: week (本周数据), month (本月数据), all_clients (合并发送全量客户表), all_clients_solo (逐条发送全量客户), single_client (导出指定客户的详细资料)",
+              enum: ["week", "month", "all_clients", "all_clients_solo", "single_client"]
+            },
+            client_query: {
+              type: "string",
+              description: "导出单个客户资料时的搜索词 (仅当 export_type 是 single_client 时生效，例如客户的姓名或电话)"
+            }
+          },
+          required: ["export_type"]
+        }
+      }
+    },
+    {
+      type: "function",
+      function: {
+        name: "add_learning_material",
+        description: "将销售原始素材（如微信聊天记录、电话录音转写文本、经典客户案例、企业政策等）进行AI提炼，并将其分类保存到学习管理知识库（Supabase）和今日锁屏背诵列表（KV）中。",
+        parameters: {
+          type: "object",
+          properties: {
+            source_type: {
+              type: "string",
+              description: "资料来源类型",
+              enum: ["微信聊天", "电话录音", "客户案例", "企业资料"]
+            },
+            content: {
+              type: "string",
+              description: "需要被提炼的原始文本材料"
+            },
+            show: {
+              type: "boolean",
+              description: "是否在锁屏上显示，默认为 true"
+            }
+          },
+          required: ["source_type", "content"]
+        }
+      }
+    },
+    {
+      type: "function",
+      function: {
+        name: "web_search",
+        description: "联网搜索最新资讯、新闻、行业动态、政策等实时信息。用于获取知识截止日期之后的新闻事件、最新政策法规、市场行情、行业趋势等需要最新信息才能回答的问题。返回搜索结果标题、URL 和摘要。",
+        parameters: {
+          type: "object",
+          properties: {
+            query: {
+              type: "string",
+              description: "搜索关键词或问题（如 2026年最新房贷利率政策、近期金融行业新闻 等）"
+            }
+          },
+          required: ["query"]
+        }
+      }
+    }
+  ];
+
+  let chatMessages = [...messages];
+  let supabase = null;
+  const getSupabase = () => {
+    if (!supabase) supabase = createSupabaseClient(env);
+    return supabase;
+  };
+
+  for (let loop = 0; loop < 5; loop++) {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + apiKey
+      },
+      body: JSON.stringify({
+        model: model,
+        messages: chatMessages,
+        temperature: temperature,
+        tools: tools
+      })
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(`AI API returned error [${response.status}]: ${errText}`);
+    }
+
+    const resJson = await response.json();
+    const message = resJson.choices[0].message;
+    chatMessages.push(message);
+
+    if (!message.tool_calls || message.tool_calls.length === 0) {
+      return resJson;
+    }
+
+    for (const toolCall of message.tool_calls) {
+      const functionName = toolCall.function.name;
+      const functionArgs = JSON.parse(toolCall.function.arguments);
+      let resultData = null;
+
+      console.log(`[AIChatToolCall] calling ${functionName} with args:`, functionArgs);
+
+      try {
+        if (functionName === 'search_customers') {
+          resultData = await getSupabase().searchCustomers(functionArgs.query);
+        } else if (functionName === 'get_intent_clients') {
+          let targetDate = functionArgs.date;
+          if (!targetDate) {
+            const d = new Date(Date.now() + 8 * 3600000);
+            targetDate = d.toISOString().split('T')[0];
+          }
+          const raw = await env.DATA_KV.get(`work:${targetDate}`);
+          resultData = raw ? JSON.parse(raw) : { message: `该日期 (${targetDate}) 暂无意向客户或工作汇报记录。` };
+        } else if (functionName === 'check_company_whitelist') {
+          resultData = await getSupabase().checkCompanies([functionArgs.companyName]);
+        } else if (functionName === 'search_knowledge_and_speech') {
+          const [knowledges, speechs, cases] = await Promise.all([
+            getSupabase().searchKnowledge(functionArgs.query),
+            getSupabase().searchSpeech(functionArgs.query),
+            getSupabase().searchLoanCases(functionArgs.query)
+          ]);
+          resultData = { knowledges, speechs, cases };
+        } else if (functionName === 'export_data') {
+          const webhookUrl = await env.DATA_KV.get('config:webhook_url');
+          let target;
+          if (webhookUrl && webhookUrl.trim() !== '') {
+            target = webhookUrl.trim();
+          } else {
+            // Fallback to self-built App configuration
+            const corpId = await env.DATA_KV.get('config:wecom_corp_id') || env.WECOM_CORP_ID;
+            const agentId = await env.DATA_KV.get('config:wecom_agent_id');
+            const secret = await env.DATA_KV.get('config:wecom_secret');
+            // Use sender's WeCom UserID if available
+            const touser = fromUser || await env.DATA_KV.get('config:wecom_touser') || '@all';
+            if (corpId && agentId && secret) {
+              target = { corpId, agentId, secret, touser };
+            }
+          }
+
+          if (!target) {
+            resultData = { error: '企业微信群 Webhook URL 未设置且未配置自建应用，请先在网页端配置。' };
+          } else {
+            const type = functionArgs.export_type;
+            if (type === 'single_client') {
+              const query = functionArgs.client_query;
+              if (!query) {
+                resultData = { error: '导出单个客户需要提供 client_query 参数！' };
+              } else {
+                const keys = await getAllKVKeys(env, 'work:');
+                const keyValues = await getKVValuesConcurrently(env, keys);
+                const allClients = [];
+                for (const kv of keyValues) {
+                  if (kv.val) {
+                    try {
+                      const d = JSON.parse(kv.val);
+                      if (d.clients) {
+                        d.clients.forEach(c => {
+                          allClients.push({ ...c, date: c.date || kv.name.replace('work:', '') });
+                        });
+                      }
+                    } catch(e) {}
+                  }
+                }
+                const client = allClients.find(c =>
+                  (c.name && c.name.includes(query)) ||
+                  (c.phone && c.phone.includes(query))
+                );
+                if (!client) {
+                  resultData = { error: `未找到匹配“${query}”的意向客户` };
+                } else {
+                  const weekNames = ['日', '一', '二', '三', '四', '五', '六'];
+                  const datePart = (client.date || '').slice(5);
+                  const wk = client.date ? ' 周' + weekNames[new Date(client.date + 'T00:00:00').getDay()] : '';
+                  
+                  let text = '> 姓名：' + client.name + '\n';
+                  text += '> 日期: ' + datePart + wk + ' | 时间: ' + (client.time || '—') + '\n';
+                  text += '> 电话: ' + (client.phone || '—') + '\n';
+                  text += '> 单位: ' + (client.company || '—') + ' | 公积金: ' + (client.fund || '—') + '\n';
+                  if (client.note) text += '> 沟通: ' + client.note.replace(/\n/g, ' ') + '\n';
+                  if (client.followUp) text += '> 跟进: ' + client.followUp.replace(/\n/g, ' ') + '\n';
+                  const detailParts = [];
+                  if (client.age) detailParts.push('年龄:' + client.age);
+                  if (client.maritalStatus) detailParts.push(client.maritalStatus);
+                  if (client.isShenzhenHukou) detailParts.push('深户:' + client.isShenzhenHukou);
+                  if (client.education) detailParts.push(client.education);
+                  if (client.property) detailParts.push(client.property);
+                  if (client.socialSecurity) detailParts.push('社保基数:' + client.socialSecurity);
+                  if (client.avgSalary) detailParts.push('月均工资:' + client.avgSalary);
+                  if (client.tax2yr) detailParts.push('近2年个税:' + client.tax2yr);
+                  if (client.salaryBank) detailParts.push('代发银行:' + client.salaryBank);
+                  if (client.bankDebt) detailParts.push('信贷负债:' + client.bankDebt);
+                  if (client.creditCardDebt) detailParts.push('信用卡负债:' + client.creditCardDebt);
+                  if (client.query3m) detailParts.push('近3月查询:' + client.query3m + '次');
+                  if (client.onlineLoanCount) detailParts.push('网贷笔数:' + client.onlineLoanCount);
+                  if (detailParts.length > 0) text += '> ' + detailParts.join(' | ') + '\n';
+                  if (client.demand) text += '> 需求: ' + client.demand.replace(/\n/g, ' ') + '\n';
+                  if (client.fundUsage) text += '> 资金用途: ' + client.fundUsage.replace(/\n/g, ' ') + '\n';
+
+                  try {
+                    await sendMarkdownMessage(env, target, text);
+                    resultData = { success: true, message: `已成功导出客户【${client.name}】到企业微信。` };
+                  } catch (e) {
+                    resultData = { error: `导出失败，接口返回错误: ${e.message}` };
+                  }
+                }
+              }
+            } else if (type === 'all_clients' || type === 'all_clients_solo') {
+              const keys = await getAllKVKeys(env, 'work:');
+              const keyValues = await getKVValuesConcurrently(env, keys);
+              const allClients = [];
+              for (const kv of keyValues) {
+                if (kv.val) {
+                  try {
+                    const d = JSON.parse(kv.val);
+                    if (d.clients) {
+                      d.clients.forEach(c => {
+                        allClients.push({ ...c, date: c.date || kv.name.replace('work:', '') });
+                      });
+                    }
+                  } catch(e) {}
+                }
+              }
+              allClients.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+
+              if (type === 'all_clients') {
+                const weekNames = ['日', '一', '二', '三', '四', '五', '六'];
+                const total = allClients.length;
+                const baseHeader = '### 意向客户全量表\n> 共计 **' + total + '** 位意向客户\n\n---\n\n';
+                const itemFormatter = (c) => {
+                  const datePart = (c.date || '').slice(5);
+                  const wk = c.date ? ' 周' + weekNames[new Date(c.date + 'T00:00:00').getDay()] : '';
+                  let itemText = '> 姓名：' + c.name + '\n';
+                  itemText += '> 日期: ' + datePart + wk + ' | 时间: ' + (c.time || '—') + '\n';
+                  itemText += '> 电话: ' + (c.phone || '—') + '\n';
+                  itemText += '> 单位: ' + (c.company || '—') + ' | 公积金: ' + (c.fund || '—') + '\n';
+                  if (c.note) itemText += '> 沟通: ' + c.note.replace(/\n/g, ' ') + '\n';
+                  if (c.followUp) itemText += '> 跟进: ' + c.followUp.replace(/\n/g, ' ') + '\n';
+                  var dp = [];
+                  if (c.age) dp.push('年龄:' + c.age);
+                  if (c.maritalStatus) dp.push(c.maritalStatus);
+                  if (c.isShenzhenHukou) dp.push('深户:' + c.isShenzhenHukou);
+                  if (c.education) dp.push(c.education);
+                  if (c.property) dp.push(c.property);
+                  if (c.socialSecurity) dp.push('社保基数:' + c.socialSecurity);
+                  if (c.avgSalary) dp.push('月均工资:' + c.avgSalary);
+                  if (c.tax2yr) dp.push('近2年个税:' + c.tax2yr);
+                  if (c.salaryBank) dp.push('代发银行:' + c.salaryBank);
+                  if (c.bankDebt) dp.push('信贷负债:' + c.bankDebt);
+                  if (c.creditCardDebt) dp.push('信用卡负债:' + c.creditCardDebt);
+                  if (c.query3m) dp.push('近3月查询:' + c.query3m + '次');
+                  if (c.onlineLoanCount) dp.push('网贷笔数:' + c.onlineLoanCount);
+                  if (dp.length > 0) itemText += '> ' + dp.join(' | ') + '\n';
+                  if (c.demand) itemText += '> 需求: ' + c.demand.replace(/\n/g, ' ') + '\n';
+                  if (c.fundUsage) itemText += '> 资金用途: ' + c.fundUsage.replace(/\n/g, ' ') + '\n';
+                  itemText += '\n';
+                  return itemText;
+                };
+
+                try {
+                  await sendWebhookMarkdown(env, target, baseHeader, allClients, itemFormatter);
+                  resultData = { success: true, message: `已成功合并导出全部共 ${total} 位意向客户到企业微信。` };
+                } catch (e) {
+                  resultData = { error: `导出失败: ${e.message}` };
+                }
+              } else {
+                const weekNames = ['日', '一', '二', '三', '四', '五', '六'];
+                const buildText = (c) => {
+                  const datePart = (c.date || '').slice(5);
+                  const wk = c.date ? ' 周' + weekNames[new Date(c.date + 'T00:00:00').getDay()] : '';
+                  let text = '> 姓名：' + c.name + '\n';
+                  text += '> 日期: ' + datePart + wk + ' | 时间: ' + (c.time || '—') + '\n';
+                  text += '> 电话: ' + (c.phone || '—') + '\n';
+                  text += '> 单位: ' + (c.company || '—') + ' | 公积金: ' + (c.fund || '—') + '\n';
+                  if (c.note) text += '> 沟通: ' + c.note.replace(/\n/g, ' ') + '\n';
+                  if (c.followUp) text += '> 跟进: ' + c.followUp.replace(/\n/g, ' ') + '\n';
+                  var dp2 = [];
+                  if (c.age) dp2.push('年龄:' + c.age);
+                  if (c.maritalStatus) dp2.push(c.maritalStatus);
+                  if (c.isShenzhenHukou) dp2.push('深户:' + c.isShenzhenHukou);
+                  if (c.education) dp2.push(c.education);
+                  if (c.property) dp2.push(c.property);
+                  if (c.socialSecurity) dp2.push('社保基数:' + c.socialSecurity);
+                  if (c.avgSalary) dp2.push('月均工资:' + c.avgSalary);
+                  if (c.tax2yr) dp2.push('近2年个税:' + c.tax2yr);
+                  if (c.salaryBank) dp2.push('代发银行:' + c.salaryBank);
+                  if (c.bankDebt) dp2.push('信贷负债:' + c.bankDebt);
+                  if (c.creditCardDebt) dp2.push('信用卡负债:' + c.creditCardDebt);
+                  if (c.query3m) dp2.push('近3月查询:' + c.query3m + '次');
+                  if (c.onlineLoanCount) dp2.push('网贷笔数:' + c.onlineLoanCount);
+                  if (dp2.length > 0) text += '> ' + dp2.join(' | ') + '\n';
+                  if (c.demand) text += '> 需求: ' + c.demand.replace(/\n/g, ' ') + '\n';
+                  if (c.fundUsage) text += '> 资金用途: ' + c.fundUsage.replace(/\n/g, ' ') + '\n';
+                  return text;
+                };
+
+                let sent = 0, failed = 0;
+                const concurrency = 3;
+                for (let i = 0; i < allClients.length; i += concurrency) {
+                  const batch = allClients.slice(i, i + concurrency);
+                  const results = await Promise.all(batch.map(async (c) => {
+                    try {
+                      await sendMarkdownMessage(env, target, buildText(c));
+                      return true;
+                    } catch(e) { return false; }
+                  }));
+                  for (const r of results) {
+                    if (r) sent++; else failed++;
+                  }
+                }
+                resultData = { success: true, message: `逐条导出完成：共 ${allClients.length} 条，成功 ${sent} 条，失败 ${failed} 条。` };
+              }
+            } else if (type === 'week' || type === 'month') {
+              const today = new Date();
+              const dow = today.getDay();
+              const diff = dow === 0 ? 6 : dow - 1;
+              const mon = new Date(today);
+              mon.setDate(today.getDate() - diff);
+              const monStr = mon.getFullYear() + '-' + String(mon.getMonth()+1).padStart(2,'0') + '-' + String(mon.getDate()).padStart(2,'0');
+              const todayStr = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0') + '-' + String(today.getDate()).padStart(2,'0');
+              const monthPrefix = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0');
+
+              const keys = await getAllKVKeys(env, 'work:' + monthPrefix);
+              const keyValues = await getKVValuesConcurrently(env, keys);
+              let weekW = 0, monthW = 0, weekI = 0, monthI = 0, weekR = 0, monthR = 0;
+              const sorted = [];
+              for (const kv of keyValues) {
+                if (!kv.val) continue;
+                try {
+                  const d = JSON.parse(kv.val);
+                  sorted.push(d);
+                  monthW += d.wechatCount || 0;
+                  monthI += d.intentCount || 0;
+                  monthR += d.revisitCount || 0;
+                  if (d.date >= monStr && d.date <= todayStr) {
+                    weekW += d.wechatCount || 0;
+                    weekI += d.intentCount || 0;
+                    weekR += d.revisitCount || 0;
+                  }
+                } catch(e) {}
+              }
+              sorted.sort((a,b) => (a.date||'').localeCompare(b.date||''));
+
+              const weekNames = ['日', '一', '二', '三', '四', '五', '六'];
+              const title = type === 'week' ? '本周数据统计' : '本月数据统计';
+              const dateRange = type === 'week'
+                ? monStr + ' ～ ' + todayStr
+                : monthPrefix + '-01 ～ ' + todayStr;
+              const wTotal = type === 'week' ? weekW : monthW;
+              const iTotal = type === 'week' ? weekI : monthI;
+              const rTotal = type === 'week' ? weekR : monthR;
+
+              const baseHeader = '### ' + title + '\n' +
+                '> ' + dateRange + '\n\n' +
+                '<font color="info">新增微信：**' + wTotal + '**</font>\n' +
+                '<font color="warning">新增意向：**' + iTotal + '**</font>\n' +
+                '<font color="comment">客户回访：**' + rTotal + '**</font>\n' +
+                (type !== 'week' ? '\n> 本周参考: 微信 **' + weekW + '** | 意向 **' + weekI + '** | 回访 **' + weekR + '**\n' : '') +
+                '\n---\n\n';
+
+              const activeDays = sorted.filter(d => {
+                if (type === 'week' && (d.date < monStr || d.date > todayStr)) return false;
+                return true;
+              });
+
+              const itemFormatter = (d) => {
+                const datePart = d.date.slice(5);
+                const wk = '周' + weekNames[new Date(d.date + 'T00:00:00').getDay()];
+                const w = d.wechatCount || 0;
+                const it = d.intentCount || 0;
+                const r = d.revisitCount || 0;
+                
+                const clients = d.clients || [];
+                let detail = '';
+                if (clients.length > 0) {
+                  detail = clients.map(c => c.name + (c.company ? ' [' + c.company + ']' : '') + (c.fund ? ' {' + c.fund + '}' : '') + (c.note ? ' （' + c.note + '）' : '')).join('\n> ');
+                } else {
+                  detail = '*(无新增意向)*';
+                }
+                
+                let itemText = '**' + datePart + ' ' + wk + '\n';
+                itemText += '> <font color="info">微信: ' + w + '</font> | <font color="warning">意向: ' + it + '</font> | <font color="comment">回访: ' + r + '</font>\n';
+                itemText += '> ' + detail + '\n\n';
+                return itemText;
+              };
+
+              try {
+                await sendWebhookMarkdown(env, target, baseHeader, activeDays, itemFormatter);
+                resultData = { success: true, message: `已成功导出${title}数据到企业微信。` };
+              } catch (e) {
+                resultData = { error: `导出失败: ${e.message}` };
+              }
+            }
+          }
+        } else if (functionName === 'add_learning_material') {
+          const sourceType = functionArgs.source_type;
+          const content = functionArgs.content;
+          const showOnLock = functionArgs.show !== undefined ? functionArgs.show : true;
+
+          const hasKey = await env.DATA_KV.get('config:ai_api_key') || await env.DATA_KV.get('config:deepseek_api_key') || await env.DATA_KV.get('config:vision_api_key') || env.AI_API_KEY || env.DEEPSEEK_API_KEY;
+          let parsedResult = null;
+
+          if (!hasKey) {
+            const mockTitles = {
+              '微信聊天': '微信客情维护与意向跟进',
+              '电话录音': '电话触客异议处理技巧',
+              '客户案例': '经典贷款获获实战案例',
+              '企业资料': '银行准入与利息政策详解'
+            };
+            const mockTags = {
+              '微信聊天': ['微信', '跟进'],
+              '电话录音': ['电话', '话术'],
+              '客户案例': ['批贷案例', '建易贷'],
+              '企业资料': ['企业准入', '白名单']
+            };
+            const title = mockTitles[sourceType] || '自主学习提炼';
+            const tags = mockTags[sourceType] || ['学习', '业务知识'];
+            const summary = content.length > 30 ? content.slice(0, 27) + '...' : content;
+            parsedResult = {
+              title: title,
+              summary: summary,
+              content: '（模拟AI提炼）\n' + content,
+              tags: tags,
+              source_type: sourceType
+            };
+          } else {
+            try {
+              const apiData = await callAIChat(env, [
+                {
+                  role: 'system',
+                  content: '你是一个智能贷款销售学习助手。根据用户提供的销售原始材料（微信聊天记录、电话录音文本、客户案例、或企业资料），进行深度提炼，总结出可以直接用于锁屏学习、话术背诵、业务记忆的核心知识。\n\n请必须只输出以下 JSON 格式的字符串（不要包裹 markdown 代码块，如 ```json，只需输出 JSON 本身）：\n{\n  "title": "提炼的知识标题 (15字以内)",\n  "summary": "一句话摘要 (30字以内)",\n  "content": "提炼的核心话术/知识要点 (150字以内)",\n  "tags": ["标签1", "标签2"]\n}'
+                },
+                {
+                  role: 'user',
+                  content: `来源类型: ${sourceType}\n\n内容:\n${content}`
+                }
+              ], 0.3, hasKey);
+
+              let aiContent = apiData.choices[0].message.content.trim();
+              if (aiContent.startsWith('```')) {
+                aiContent = aiContent.replace(/^```json\s*/i, '').replace(/```$/, '').trim();
+              }
+              parsedResult = JSON.parse(aiContent);
+              parsedResult.source_type = sourceType;
+            } catch (aiErr) {
+              parsedResult = {
+                title: '提炼知识 - ' + sourceType,
+                summary: 'AI提炼失败退回',
+                content: content,
+                tags: ['学习'],
+                source_type: sourceType
+              };
+            }
+          }
+
+          // Save to Supabase
+          try {
+            await getSupabase().saveKnowledge(parsedResult);
+          } catch(se) {
+            console.error('[supabase] saveKnowledge error:', se.message);
+          }
+
+          // Save to KV learns array
+          const d = new Date(Date.now() + 8 * 3600000);
+          const todayDate = d.toISOString().split('T')[0];
+          const raw = await env.DATA_KV.get(`work:${todayDate}`);
+          const data = raw ? JSON.parse(raw) : {
+            date: todayDate, wechatCount: 0, intentCount: 0, revisitCount: 0, visitCount: 0, paymentCount: 0, clients: [],
+            todayTodos: [], tomorrowTodos: [], tempClients: [], scripts: [], learns: [], todoLog: []
+          };
+          if (!data.learns) data.learns = [];
+          
+          const newItem = {
+            title: parsedResult.title,
+            summary: parsedResult.summary,
+            content: parsedResult.content,
+            tags: parsedResult.tags,
+            source_type: parsedResult.source_type,
+            show: showOnLock
+          };
+          data.learns.unshift(newItem);
+          await env.DATA_KV.put(`work:${todayDate}`, JSON.stringify(data));
+
+          resultData = { success: true, data: newItem, message: `已成功保存学习内容”${parsedResult.title}”并同步至锁屏展示！` };
+        } else if (functionName === 'web_search') {
+          const searchResults = await doWebSearch(env, functionArgs.query);
+          if (searchResults.length > 0) {
+            resultData = {
+              query: functionArgs.query,
+              results: searchResults.map(r => `${r.title}\n  URL: ${r.url}\n  摘要: ${r.snippet}`).join('\n\n'),
+              raw: searchResults
+            };
+          } else {
+            resultData = { query: functionArgs.query, results: '未找到相关搜索结果，请尝试更换搜索关键词。' };
+          }
+        } else {
+          resultData = { error: `Unknown tool: ${functionName}` };
+        }
+      } catch (err) {
+        console.error(`[AIChatToolCall] Error running ${functionName}:`, err);
+        resultData = { error: `Failed to execute: ${err.message}` };
+      }
+
+      chatMessages.push({
+        role: 'tool',
+        tool_call_id: toolCall.id,
+        name: functionName,
+        content: JSON.stringify(resultData)
+      });
+    }
+  }
+
+  return { choices: [{ message: chatMessages[chatMessages.length - 1] }] };
+}
+
+export default {
+  async fetch(request, env, ctx) {
+    const url = new URL(request.url);
+    const path = url.pathname;
+
+    const needsKV = (
+      path === '/api/dialer/data' ||
+      path === '/api/data' ||
+      path === '/api/sync' ||
+      path === '/api/calendar' ||
+      path === '/api/stats' ||
+      path === '/api/all-clients' ||
+      path === '/api/export' ||
+      path === '/api/moments-push'
+    );
+    if (needsKV && !env.DATA_KV) {
+      return new Response(JSON.stringify({ error: 'DATA_KV binding is missing or not configured.' }), {
+        status: 503,
+        headers: {
+          'Content-Type': 'application/json; charset=UTF-8',
+          'Access-Control-Allow-Origin': '*'
+        }
+      });
+    }
+
+    // CORS preflight handler (skip all anti-bot checks for preflight)
+    if (request.method === 'OPTIONS') {
+      return new Response(null, {
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET, POST, PATCH, DELETE, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type',
+          'Access-Control-Max-Age': '86400'
+        }
+      });
+    }
+
+    // ==================== 反爬防护中间件 ====================
+    const clientIP = getClientIP(request);
+
+    // 1. IP 黑名单检查
+    if (!path.startsWith('/api/admin/blocked-ips')) { // 管理端点自身不检查黑名单
+      const blockCheck = await isBlocked(env, clientIP);
+      if (blockCheck.blocked) {
+        return new Response(JSON.stringify({
+          error: 'Access denied',
+          reason: blockCheck.reason,
+          blockedAt: blockCheck.blockedAt,
+        }), {
+          status: 403,
+          headers: {
+            'Content-Type': 'application/json; charset=UTF-8',
+            'Access-Control-Allow-Origin': '*',
+          }
+        });
+      }
+    }
+
+    // 2. 恶意 UA 检测
+    const uaCheck = isBadBot(request.headers.get('User-Agent'));
+    if (uaCheck.blocked) {
+      return new Response(JSON.stringify({
+        error: 'Access denied',
+        reason: uaCheck.reason,
+      }), {
+        status: 403,
+        headers: {
+          'Content-Type': 'application/json; charset=UTF-8',
+          'Access-Control-Allow-Origin': '*',
+        }
+      });
+    }
+
+    // 3. Sec-Fetch 头验证（仅标记可疑，不硬拦截 — 但配合其他信号升级）
+    const secFetchCheck = checkSecFetch(request);
+
+    // 4. 速率限制
+    const rateLimitTier = getRateLimitTier(path);
+    const rateCheck = checkRateLimit(clientIP, rateLimitTier);
+    // 如果 Sec-Fetch 异常 + 超限，说明很可能是自动化脚本
+    if (rateCheck.limited) {
+      return new Response(JSON.stringify({
+        error: 'Too Many Requests',
+        retryAfter: rateCheck.retryAfter,
+      }), {
+        status: 429,
+        headers: {
+          'Content-Type': 'application/json; charset=UTF-8',
+          'Access-Control-Allow-Origin': '*',
+          'Retry-After': String(rateCheck.retryAfter),
+        }
+      });
+    }
+
+    // 5. 蜜罐陷阱 — 自动封禁
+    if (path === '/api/trap') {
+      await blockIP(env, clientIP, 'honeypot_trap');
+      return new Response(JSON.stringify({ error: 'Access denied' }), {
+        status: 403,
+        headers: {
+          'Content-Type': 'application/json; charset=UTF-8',
+          'Access-Control-Allow-Origin': '*',
+        }
+      });
+    }
+
+    // 定期清理速率限制过期条目
+    maybeCleanup();
+
+    // Supabase client (no-op if SUPABASE_URL/KEY not set)
+    const supabase = createSupabaseClient(env);
+
+    // Debug helper to check env keys (returns only keys, no values for safety)
+    if (path === '/api/debug-env' && request.method === 'GET') {
+      return new Response(JSON.stringify({ keys: Object.keys(env || {}) }), {
+        headers: {
+          'Content-Type': 'application/json; charset=UTF-8',
+          'Access-Control-Allow-Origin': '*'
+        }
+      });
+    }
+
+    // 0.7 Siri Shortcuts Download API
+    if (path === '/api/siri/download' && request.method === 'GET') {
+      try {
+        const siriKey = await env.DATA_KV.get('config:siri_key') || 'siri_default_123';
+        const origin = url.origin || `${url.protocol}//${url.host}`;
+        const queryUrl = `${origin}/api/siri?key=${encodeURIComponent(siriKey)}&query=`;
+        const queryUrlLen = queryUrl.length;
+        
+        const plistXml = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>WFWorkflowActions</key>
+	<array>
+		<dict>
+			<key>WFWorkflowActionIdentifier</key>
+			<string>is.workflow.actions.ask</string>
+			<key>WFWorkflowActionParameters</key>
+			<dict>
+				<key>UUID</key>
+				<string>A1B2C3D4-E5F6-47A8-B9C0-D1E2F3A4B5C6</string>
+				<key>WFAskActionPrompt</key>
+				<string>你想对 AI 助手说什么？</string>
+				<key>WFInputType</key>
+				<string>Text</string>
+			</dict>
+		</dict>
+		<dict>
+			<key>WFWorkflowActionIdentifier</key>
+			<string>is.workflow.actions.downloadurl</string>
+			<key>WFWorkflowActionParameters</key>
+			<dict>
+				<key>UUID</key>
+				<string>B2C3D4E5-F6A7-48B9-C0D1-E2F3A4B5C6D7</string>
+				<key>WFURL</key>
+				<dict>
+					<key>Value</key>
+					<dict>
+						<key>attachmentsByRange</key>
+						<dict>
+							<key>{${queryUrlLen}, 1}</key>
+							<dict>
+								<key>OutputName</key>
+								<string>要求输入</string>
+								<key>OutputUUID</key>
+								<string>A1B2C3D4-E5F6-47A8-B9C0-D1E2F3A4B5C6</string>
+								<key>Type</key>
+								<string>ActionOutput</string>
+							</dict>
+						</dict>
+						<key>string</key>
+						<string>${queryUrl.replace(/&/g, '&amp;')}\\uFFFC</string>
+					</dict>
+					<key>WFSerializationType</key>
+					<string>WFTextTokenString</string>
+				</dict>
+				<key>WFHTTPMethod</key>
+				<string>GET</string>
+			</dict>
+		</dict>
+		<dict>
+			<key>WFWorkflowActionIdentifier</key>
+			<string>is.workflow.actions.getvalueforkey</string>
+			<key>WFWorkflowActionParameters</key>
+			<dict>
+				<key>UUID</key>
+				<string>C3D4E5F6-A7B8-49C0-D1E2-F3A4B5C6D7E8</string>
+				<key>WFGetDictionaryValueKey</key>
+				<string>reply</string>
+				<key>WFInput</key>
+				<dict>
+					<key>Value</key>
+					<dict>
+						<key>OutputName</key>
+						<string>URL 的内容</string>
+						<key>OutputUUID</key>
+						<string>B2C3D4E5-F6A7-48B9-C0D1-E2F3A4B5C6D7</string>
+						<key>Type</key>
+						<string>ActionOutput</string>
+					</dict>
+					<key>WFSerializationType</key>
+					<string>WFTextTokenAttachment</string>
+				</dict>
+			</dict>
+		</dict>
+		<dict>
+			<key>WFWorkflowActionIdentifier</key>
+			<string>is.workflow.actions.speaktext</string>
+			<key>WFWorkflowActionParameters</key>
+			<dict>
+				<key>WFSpeakTextText</key>
+				<dict>
+					<key>Value</key>
+					<dict>
+						<key>attachmentsByRange</key>
+						<dict>
+							<key>{0, 1}</key>
+							<dict>
+								<key>OutputName</key>
+								<string>词典值</string>
+								<key>OutputUUID</key>
+								<string>C3D4E5F6-A7B8-49C0-D1E2-F3A4B5C6D7E8</string>
+								<key>Type</key>
+								<string>ActionOutput</string>
+							</dict>
+						</dict>
+						<key>string</key>
+						<string>\\uFFFC</string>
+					</dict>
+					<key>WFSerializationType</key>
+					<string>WFTextTokenString</string>
+				</dict>
+			</dict>
+		</dict>
+	</array>
+	<key>WFWorkflowClientVersion</key>
+	<string>1200</string>
+	<key>WFWorkflowClientRelease</key>
+	<string>2.1.2</string>
+	<key>WFWorkflowInputContentItemClasses</key>
+	<array>
+		<string>WFStringContentItem</string>
+	</array>
+</dict>
+</plist>`.replace(/\\uFFFC/g, '\uFFFC');
+
+        return new Response(plistXml, {
+          headers: {
+            'Content-Type': 'application/octet-stream',
+            'Content-Disposition': 'attachment; filename="AskAI.shortcut"',
+            'Access-Control-Allow-Origin': '*'
+          }
+        });
+      } catch (err) {
+        return new Response(JSON.stringify({ error: err.message }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+    }
+
+    // 0.6 Siri Shortcuts API
+    if (path === '/api/siri' && (request.method === 'GET' || request.method === 'POST')) {
+      try {
+        let query = '';
+        if (request.method === 'GET') {
+          query = url.searchParams.get('query') || url.searchParams.get('text') || '';
+        } else {
+          try {
+            const body = await request.json();
+            query = body.query || body.text || '';
+          } catch (e) {
+            query = '';
+          }
+        }
+
+        if (!query || !query.trim()) {
+          return new Response(JSON.stringify({ error: '缺少查询文本 query 参数' }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+
+        const trimmedQuery = query.trim();
+
+        // 验证密钥
+        const siriKey = await env.DATA_KV.get('config:siri_key') || 'siri_default_123';
+        const clientKey = url.searchParams.get('key') || request.headers.get('x-siri-key');
+        if (clientKey !== siriKey) {
+          return new Response(JSON.stringify({ error: '密钥验证失败，请核对快捷指令配置' }), {
+            status: 401,
+            headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+
+        const hasKey = await env.DATA_KV.get('config:ai_api_key') || await env.DATA_KV.get('config:deepseek_api_key') || await env.DATA_KV.get('config:vision_api_key') || env.AI_API_KEY || env.DEEPSEEK_API_KEY;
+        if (!hasKey) {
+          return new Response(JSON.stringify({ reply: '后端未配置大模型 API Key，请先登录网页端配置。' }), {
+            headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+
+        let contextText = '';
+        try {
+          const lowerContent = trimmedQuery.toLowerCase();
+          // 1. 检索今日工作登记与意向客户
+          if (lowerContent.includes('客户') || lowerContent.includes('意向') || lowerContent.includes('登记') || lowerContent.includes('今天') || lowerContent.includes('工作') || lowerContent.includes('汇报')) {
+            const d = new Date(Date.now() + 8 * 3600000);
+            const todayDate = d.toISOString().split('T')[0];
+            const raw = await env.DATA_KV.get(`work:${todayDate}`);
+            if (raw) {
+              const parsed = JSON.parse(raw);
+              contextText += `\n[今日工作登记与意向客户数据] (日期: ${todayDate}):\n` +
+                `- 今日微信数: ${parsed.wechatCount || 0}\n` +
+                `- 今日回访数: ${parsed.revisitCount || 0}\n` +
+                `- 今日上门数: ${parsed.visitCount || 0}\n` +
+                `- 今日回款数: ${parsed.paymentCount || 0}\n` +
+                `- 登记的意向客户列表:\n` +
+                (parsed.clients && parsed.clients.length > 0 ?
+                  parsed.clients.map((c, idx) => `  ${idx + 1}. 姓名: ${c.name} | 电话: ${c.phone} | 登记时间: ${c.time || ''} | 跟进/备注: ${c.note || '无'}`).join('\n') :
+                  '  (暂无意向客户)') + '\n';
+            }
+          }
+          // 2. 检查公司白名单准入
+          if (lowerContent.includes('白名单') || lowerContent.includes('公司') || lowerContent.includes('单位') || lowerContent.includes('白') || (trimmedQuery.length >= 4 && !trimmedQuery.includes('/'))) {
+            const cleanQuery = trimmedQuery.replace(/(查一下|查询|白名单|公司|是不是|在不在|白名单里有|有)/g, '').trim();
+            if (cleanQuery.length >= 2) {
+              const whitelistRes = await supabase.checkCompanies([cleanQuery]);
+              if (whitelistRes && whitelistRes.length > 0) {
+                contextText += `\n[企业白名单准入核对结果]:\n` +
+                  whitelistRes.map(r => `- 公司名: ${r.matchedName} | 状态: ${r.isMatch ? '✅ 已准入白名单' : '❌ 未准入'} | 准入银行: ${r.bank_name || '建行建易贷'} | 名单状态: ${r.status || '正常'}`).join('\n') + '\n';
+              }
+            }
+          }
+          // 3. 搜索客户档案
+          if (lowerContent.includes('查客户') || lowerContent.includes('搜索客户') || lowerContent.includes('客户档案') || (trimmedQuery.length >= 2 && trimmedQuery.length <= 4 && !lowerContent.includes('今天') && !lowerContent.includes('昨天') && !lowerContent.includes('白名单'))) {
+            const cleanQuery = trimmedQuery.replace(/(查客户|搜索客户|查询客户|客户|档案|是)/g, '').trim();
+            if (cleanQuery.length >= 1) {
+              const customerRes = await supabase.searchCustomers(cleanQuery);
+              if (customerRes && customerRes.length > 0) {
+                contextText += `\n[客户档案检索结果]:\n` +
+                  customerRes.map(c => `- 姓名: ${c.name} | 电话: ${c.mobile || '—'} | 公司: ${c.company_name || '—'} | 标签: ${c.tags ? c.tags.join(',') : '无'} | 备注/跟进记录: ${c.note || '无'}`).join('\n') + '\n';
+              }
+            }
+          }
+        } catch (prefErr) {
+          console.error('[Siri Prefetch Error]:', prefErr);
+        }
+
+        const bjTime = new Date(Date.now() + 8 * 3600000).toISOString().replace('T', ' ').substring(0, 19);
+        let systemPrompt = `你是一个专业的苹果 Siri 语音助手。当前北京时间是 ${bjTime}。\n`;
+        if (contextText) {
+          systemPrompt += `\n系统已为您预先检索了与当前问题相关的实时数据库内容：\n${contextText}\n你可以直接使用以上数据回答用户。若以上检索到的信息足够回答，请结合它们给用户做出最详细 and 准确的解答。\n`;
+        }
+        systemPrompt += `如果你需要检索其它日期、更深入搜索客户档案、核对公司白名单、检索话术与知识库，请直接通过 tool_calls 调用相关函数。请回复简洁、流畅的纯文本，适合 Siri 语音播放（尽量减少复杂格式和排版，但保留关键信息，回答长度控制在 150 字以内最佳）。`;
+
+        const apiData = await callAIChatWithTools(env, [
+          {
+            role: 'system',
+            content: systemPrompt
+          },
+          {
+            role: 'user',
+            content: trimmedQuery
+          }
+        ], 0.5, 'SiriUser');
+
+        const reply = apiData.choices[0].message.content.trim();
+        return new Response(JSON.stringify({ reply: reply }), {
+          headers: {
+            'Content-Type': 'application/json; charset=UTF-8',
+            'Access-Control-Allow-Origin': '*'
+          }
+        });
+      } catch (err) {
+        console.error('[Siri Endpoint Error]:', err);
+        return new Response(JSON.stringify({ error: err.message }), {
+          status: 500,
+          headers: {
+            'Content-Type': 'application/json; charset=UTF-8',
+            'Access-Control-Allow-Origin': '*'
+          }
+        });
+      }
+    }
+
+    // ==================== BHP 拨号器接口与页面并入 ====================
+    
+    // 1. 获取拨号器数据
+    if (path === '/api/dialer/data' && request.method === 'GET') {
+      const data = await env.DATA_KV.get('dialer:data');
+      return new Response(data || JSON.stringify({ clients: [] }), {
+        headers: {
+          'Content-Type': 'application/json; charset=UTF-8',
+          'Access-Control-Allow-Origin': '*'
+        }
+      });
+    }
+
+    // 2. 保存拨号器数据
+    if (path === '/api/dialer/data' && request.method === 'POST') {
+      try {
+        const body = await request.json();
+        await env.DATA_KV.put('dialer:data', JSON.stringify(body));
+        return new Response(JSON.stringify({ success: true }), {
+          headers: {
+            'Content-Type': 'application/json; charset=UTF-8',
+            'Access-Control-Allow-Origin': '*'
+          }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ error: e.message }), {
+          status: 400,
+          headers: {
+            'Content-Type': 'application/json; charset=UTF-8',
+            'Access-Control-Allow-Origin': '*'
+          }
+        });
+      }
+    }
+
+    // 2b. 上传拨号器客户数据到 Supabase
+    if (path === '/api/dialer/upload-customers' && request.method === 'POST') {
+      try {
+        const body = await request.json();
+        const customers = body.customers || [];
+        const batchLabel = body.batch_label || '';
+        const accountId = body.account_id || '';
+        // Add batch_label and account_id to each customer
+        const tagged = customers.map(function(c) {
+          return Object.assign({}, c, { batch_label: batchLabel, account_id: c.account_id || accountId });
+        });
+        const sb = createSupabaseClient(env);
+        const result = await sb.upsertCustomers(tagged, accountId);
+        return new Response(JSON.stringify({ success: true, count: result.count }), {
+          headers: {
+            'Content-Type': 'application/json; charset=UTF-8',
+            'Access-Control-Allow-Origin': '*'
+          }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ success: false, error: e.message }), {
+          status: 500,
+          headers: {
+            'Content-Type': 'application/json; charset=UTF-8',
+            'Access-Control-Allow-Origin': '*'
+          }
+        });
+      }
+    }
+
+    // 2c. 查询 Supabase 客户数据（分页+搜索+排序）
+    if (path === '/api/dialer/customers' && request.method === 'GET') {
+      try {
+        const url = new URL(request.url);
+        const page = parseInt(url.searchParams.get('page') || '1');
+        const pageSize = parseInt(url.searchParams.get('pageSize') || '50');
+        const search = url.searchParams.get('search') || '';
+        const sortBy = url.searchParams.get('sortBy') || '';
+        const sortDir = url.searchParams.get('sortDir') || 'asc';
+        const category = url.searchParams.get('category') || '';
+        const batchLabel = url.searchParams.get('batch_label') || '';
+        const exclude = url.searchParams.get('exclude') || '';
+        const excludeMobiles = exclude ? exclude.split(',').filter(Boolean) : [];
+        const accountId = url.searchParams.get('account_id') || '';
+        const sb = createSupabaseClient(env);
+        const result = await sb.getAllCustomers(page, pageSize, search, sortBy, sortDir, category, batchLabel, excludeMobiles, accountId);
+        return new Response(JSON.stringify(result), {
+          headers: {
+            'Content-Type': 'application/json; charset=UTF-8',
+            'Access-Control-Allow-Origin': '*'
+          }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ data: [], total: 0, error: e.message }), {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json; charset=UTF-8',
+            'Access-Control-Allow-Origin': '*'
+          }
+        });
+      }
+    }
+    // "换一批"：按 pulled_at 排序拉取，Supabase 端沉底，多端天然去重
+    // Accepts GET (no exclude) or POST with {limit, exclude: string[]}
+    if (path === '/api/dialer/customers/random' && (request.method === 'GET' || request.method === 'POST')) {
+      try {
+        let limit = 50;
+        let excludeMobiles = null;
+
+        var accountId = '';
+
+        if (request.method === 'POST') {
+          try {
+            const body = await request.json();
+            limit = Math.min(parseInt(body.limit) || 50, 200);
+            if (Array.isArray(body.exclude) && body.exclude.length > 0) {
+              excludeMobiles = body.exclude;
+            }
+            accountId = body.account_id || '';
+          } catch (parseErr) { /* use defaults */ }
+        } else {
+          const url = new URL(request.url);
+          limit = Math.min(parseInt(url.searchParams.get('limit') || '50'), 200);
+          accountId = url.searchParams.get('account_id') || '';
+        }
+
+        // Merge KV-tracked cooldown mobiles into exclude set
+        // KV is the RELIABLE fallback — works even when Supabase PATCH fails (RLS, etc.)
+        // Each entry auto-expires after 10 days via expirationTtl
+        var mergedExclude = (excludeMobiles || []).slice();
+        try {
+          var cooldownList = await env.DATA_KV.list({ prefix: 'dialer:cooldown:' });
+          if (cooldownList && cooldownList.keys) {
+            for (var ci = 0; ci < cooldownList.keys.length; ci++) {
+              var cm = cooldownList.keys[ci].name.replace('dialer:cooldown:', '');
+              if (cm && mergedExclude.indexOf(cm) === -1) {
+                mergedExclude.push(cm);
+              }
+            }
+          }
+        } catch (kvErr) { /* KV list may fail, continue without */ }
+
+        const sb = createSupabaseClient(env);
+
+        // Query Supabase with pulled_at ordering:
+        // 1. Never pulled first (newest import first)
+        // 2. Then oldest-pulled first (natural cycle)
+        const result = await sb.getCustomersForDialer(limit, mergedExclude.length > 0 ? mergedExclude : null, accountId);
+        const data = result.data || [];
+        const total = result.total || 0;
+
+        // Mark just-loaded customers as pulled (sink to bottom for next pull)
+        if (data.length > 0) {
+          const mobiles = data.map(function(c) { return c.mobile || ''; }).filter(Boolean);
+
+          // 1. Supabase PATCH (best-effort — may fail due to RLS, checked in supabase.js)
+          sb.batchSetPulledAt(mobiles, accountId).catch(function() { /* fire-and-forget */ });
+
+          // 2. KV cooldown (RELIABLE guard — always works, auto-expires in 10 days)
+          //    This prevents the same batch from cycling back even if PATCH fails.
+          for (var mi = 0; mi < mobiles.length; mi++) {
+            var ck = 'dialer:cooldown:' + mobiles[mi];
+            env.DATA_KV.put(ck, new Date().toISOString(), { expirationTtl: 10 * 24 * 3600 })
+              .catch(function() { /* best-effort */ });
+          }
+        }
+
+        return new Response(JSON.stringify({
+          data: data,
+          total: total,
+          limit: limit
+        }), {
+          headers: {
+            'Content-Type': 'application/json; charset=UTF-8',
+            'Access-Control-Allow-Origin': '*'
+          }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ data: [], error: e.message }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+    }
+
+    // 2d. 批量更新某个批次的客户分类
+    if (path === '/api/dialer/customers/batch-category' && request.method === 'POST') {
+      try {
+        const body = await request.json();
+        const { batch_label, category } = body;
+        const accountId = body.account_id || '';
+        if (!batch_label || !category) {
+          return new Response(JSON.stringify({ success: false, error: '缺少 batch_label 或 category' }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+
+        const sb = createSupabaseClient(env);
+        const result = await sb.batchUpdateCategory(batch_label, category, accountId);
+        return new Response(JSON.stringify({ success: true, updated: result.count }), {
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ success: false, error: e.message }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+    }
+
+    // 2d2. 记录客户最新操作时间线
+    if (path === '/api/dialer/timeline' && request.method === 'POST') {
+      try {
+        const body = await request.json();
+        const { mobile, entry } = body;
+        const accountId = body.account_id || '';
+        if (!mobile || !entry || !entry.type) {
+          return new Response(JSON.stringify({ success: false, error: '缺少 mobile 或 entry.type' }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+        const sb = createSupabaseClient(env);
+        const result = await sb.updateCustomer(mobile, { last_operation: entry }, accountId);
+        return new Response(JSON.stringify({ success: true, data: result }), {
+          headers: {
+            'Content-Type': 'application/json; charset=UTF-8',
+            'Access-Control-Allow-Origin': '*'
+          }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ success: false, error: e.message }), {
+          status: 500,
+          headers: {
+            'Content-Type': 'application/json; charset=UTF-8',
+            'Access-Control-Allow-Origin': '*'
+          }
+        });
+      }
+    }
+
+    // 2e. 更新单个客户分类标签
+    if (path === '/api/dialer/customers' && request.method === 'PATCH') {
+      try {
+        const body = await request.json();
+        const { mobile, fields } = body;
+        const accountId = body.account_id || '';
+        const sb = createSupabaseClient(env);
+        const updated = await sb.updateCustomer(mobile, fields, accountId);
+        return new Response(JSON.stringify({ success: true, data: updated }), {
+          headers: {
+            'Content-Type': 'application/json; charset=UTF-8',
+            'Access-Control-Allow-Origin': '*'
+          }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ success: false, error: e.message }), {
+          status: 500,
+          headers: {
+            'Content-Type': 'application/json; charset=UTF-8',
+            'Access-Control-Allow-Origin': '*'
+          }
+        });
+      }
+    }
+
+    // 2f. 删除客户/批量删除客户
+    if (path === '/api/dialer/customers' && request.method === 'DELETE') {
+      try {
+        const body = await request.json();
+        const { mobile, mobiles } = body;
+        const accountId = body.account_id || '';
+        const sb = createSupabaseClient(env);
+        if (mobiles && Array.isArray(mobiles)) {
+          await sb.deleteCustomers(mobiles, accountId);
+          return new Response(JSON.stringify({ success: true, count: mobiles.length }), {
+            headers: {
+              'Content-Type': 'application/json; charset=UTF-8',
+              'Access-Control-Allow-Origin': '*'
+            }
+          });
+        } else if (mobile) {
+          await sb.deleteCustomer(mobile, accountId);
+          return new Response(JSON.stringify({ success: true }), {
+            headers: {
+              'Content-Type': 'application/json; charset=UTF-8',
+              'Access-Control-Allow-Origin': '*'
+            }
+          });
+        } else {
+          return new Response(JSON.stringify({ success: false, error: '缺少 mobile 或 mobiles 载荷' }), {
+            status: 400,
+            headers: {
+              'Content-Type': 'application/json; charset=UTF-8',
+              'Access-Control-Allow-Origin': '*'
+            }
+          });
+        }
+      } catch (e) {
+        return new Response(JSON.stringify({ success: false, error: e.message }), {
+          status: 500,
+          headers: {
+            'Content-Type': 'application/json; charset=UTF-8',
+            'Access-Control-Allow-Origin': '*'
+          }
+        });
+      }
+    }
+
+    // 2g. 存量客户一键迁移至公海客户
+    if (path === '/api/dialer/customers/migrate-to-public' && request.method === 'POST') {
+      try {
+        const supabaseUrl = env.SUPABASE_URL;
+        const supabaseKey = env.SUPABASE_KEY;
+        if (!supabaseUrl || !supabaseKey) {
+          throw new Error('Supabase URL or Key is not configured');
+        }
+        const hdrs = {
+          'Content-Type': 'application/json',
+          'apikey': supabaseKey,
+          'Authorization': 'Bearer ' + supabaseKey
+        };
+        // Update all customers where category is null or not equal to '公海客户'
+        const patchResp = await fetch(
+          supabaseUrl + '/rest/v1/customers?or=(category.is.null,category.not.eq.%E5%85%AC%E6%B5%B7%E5%AE%A2%E6%88%B7)',
+          {
+            method: 'PATCH',
+            headers: hdrs,
+            body: JSON.stringify({ category: '公海客户' })
+          }
+        );
+        if (!patchResp.ok) {
+          const errMsg = await patchResp.text();
+          throw new Error('Supabase bulk update failed: ' + errMsg);
+        }
+        return new Response(JSON.stringify({ success: true, message: '存量客户已全部迁移至公海' }), {
+          headers: {
+            'Content-Type': 'application/json; charset=UTF-8',
+            'Access-Control-Allow-Origin': '*'
+          }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ success: false, error: e.message }), {
+          status: 500,
+          headers: {
+            'Content-Type': 'application/json; charset=UTF-8',
+            'Access-Control-Allow-Origin': '*'
+          }
+        });
+      }
+    }
+
+    // 2e. 调试：查看 Supabase 表结构
+    if (path === '/api/debug/schema' && request.method === 'GET') {
+      try {
+        const sb = createSupabaseClient(env);
+        // Fetch customers table schema via PostgREST
+        const resp = await fetch(env.SUPABASE_URL + '/rest/v1/', {
+          headers: {
+            'apikey': env.SUPABASE_KEY,
+            'Authorization': 'Bearer ' + env.SUPABASE_KEY
+          }
+        });
+        const openApi = await resp.text();
+        // Try to query a few rows to see actual column names
+        let sampleData = null;
+        try {
+          const sampleResp = await fetch(env.SUPABASE_URL + '/rest/v1/customers?limit=1', {
+            headers: {
+              'apikey': env.SUPABASE_KEY,
+              'Authorization': 'Bearer ' + env.SUPABASE_KEY
+            }
+          });
+          sampleData = await sampleResp.json();
+        } catch(e) {
+          sampleData = { error: e.message };
+        }
+        return new Response(JSON.stringify({
+          openapi_preview: openApi.slice(0, 3000),
+          sample_customers: sampleData,
+          customers_row_count: Array.isArray(sampleData) ? sampleData.length : 0
+        }, null, 2), {
+          headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ error: e.message }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+    }
+
+    // 2f-0. 管理员：IP 黑名单管理
+    if (path === '/api/admin/blocked-ips') {
+      // 验证管理密码
+      const adminPwd = await env.DATA_KV.get('config:db_password');
+      if (!adminPwd) {
+        return new Response(JSON.stringify({ error: 'Admin password not configured in KV' }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+      const reqKey = request.headers.get('x-admin-key');
+      const urlKey = url.searchParams.get('key');
+      const authKey = reqKey || urlKey || '';
+      if (authKey !== adminPwd) {
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+          status: 401,
+          headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+
+      try {
+        if (request.method === 'GET') {
+          const list = await listBlockedIPs(env);
+          return new Response(JSON.stringify({ blocked: list, count: list.length }), {
+            headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+        if (request.method === 'DELETE') {
+          const body = await request.json().catch(() => ({}));
+          const targetIP = body.ip || url.searchParams.get('ip');
+          if (!targetIP) {
+            return new Response(JSON.stringify({ error: 'Missing ip parameter' }), {
+              status: 400,
+              headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
+            });
+          }
+          await unblockIP(env, targetIP);
+          return new Response(JSON.stringify({ success: true, unblocked: targetIP }), {
+            headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+        return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+          status: 405,
+          headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ error: e.message }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+    }
+
+    // 2f. 管理员：迁移公公积金并清理测试数据
+    if (path === '/api/admin/migrate-fund' && request.method === 'GET') {
+      try {
+        const supabaseUrl = env.SUPABASE_URL;
+        const supabaseKey = env.SUPABASE_KEY;
+        if (!supabaseUrl || !supabaseKey) {
+          throw new Error('Supabase URL or Key is not configured');
+        }
+        const hdrs = {
+          'Content-Type': 'application/json',
+          'apikey': supabaseKey,
+          'Authorization': 'Bearer ' + supabaseKey
+        };
+
+        // 1. 删除测试数据
+        // 匹配 name 包含 "测试"，或者 batch_label 等于 "测试批次" 或 "重入测试"
+        const delResp = await fetch(
+          supabaseUrl + '/rest/v1/customers?or=name.ilike.%25%E6%B5%8B%E8%AF%95%25,batch_label.eq.%E6%B5%8B%E8%AF%95%E6%89%B9%E6%AC%A1,batch_label.eq.%E9%87%8D%E5%85%A5%E6%B5%8B%E8%AF%95',
+          { method: 'DELETE', headers: hdrs }
+        );
+        let delResult = 'OK';
+        if (!delResp.ok) {
+          delResult = await delResp.text();
+        }
+
+        // 2. 循环拉取所有剩余客户
+        var all = [];
+        var pageNum = 0;
+        var pageSizeNum = 1000;
+        while (true) {
+          var fromVal = pageNum * pageSizeNum;
+          var toVal = fromVal + pageSizeNum - 1;
+          var qResp = await fetch(
+            supabaseUrl + '/rest/v1/customers?select=*',
+            { headers: Object.assign({}, hdrs, { 'Range': fromVal + '-' + toVal }) }
+          );
+          if (!qResp.ok) break;
+          var dataList = await qResp.json();
+          if (!Array.isArray(dataList) || dataList.length === 0) break;
+          all.push.apply(all, dataList);
+          if (dataList.length < pageSizeNum) break;
+          pageNum++;
+        }
+
+        // 3. 筛选并执行公积金数据迁移（提取备注里的纯数字，嵌入 note JSON）
+        let migratedCount = 0;
+        let updatePromises = [];
+        // 辅助: 构建 note JSON（fund 嵌入其中）
+        function buildMigrateNoteJSON(rawNote, fundVal) {
+          var obj = { note: '', custom: {} };
+          if (rawNote && rawNote.indexOf('{') === 0) {
+            try { var p = JSON.parse(rawNote); if (p && typeof p === 'object') obj = p; } catch(e) {}
+          } else if (rawNote) {
+            obj.note = rawNote;
+          }
+          if (fundVal) { obj.fund = fundVal; } else { delete obj.fund; }
+          if (!obj.fund && Object.keys(obj.custom || {}).length === 0 && obj.note && obj.note.indexOf('{') !== 0) {
+            return obj.note;
+          }
+          return JSON.stringify(obj);
+        }
+        for (var i = 0; i < all.length; i++) {
+          var c = all[i];
+          var noteVal = (c.note || '').trim();
+          // 提取 note 中的纯文本（如果是 JSON）
+          var plainNote = noteVal;
+          if (noteVal.indexOf('{') === 0) {
+            try { var np = JSON.parse(noteVal); plainNote = (np.note || '').trim(); } catch(e) {}
+          }
+          // 匹配 4 位数或 5 位数纯数字作为公积金（如 19580, 8450）
+          var match = plainNote.match(/\b\d{4,5}\b/);
+          if (match) {
+            var fundVal = match[0];
+            var newPlainNote = plainNote.replace(fundVal, '').trim();
+            if (/^[，。,.\-\s]*$/.test(newPlainNote)) {
+              newPlainNote = '';
+            }
+
+            migratedCount++;
+            var newNotePayload = buildMigrateNoteJSON(noteVal, fundVal);
+            // 如果有纯文本备注内容，覆盖进 JSON
+            if (newPlainNote && newNotePayload.indexOf('{') === 0) {
+              try { var tmp = JSON.parse(newNotePayload); tmp.note = newPlainNote; newNotePayload = JSON.stringify(tmp); } catch(e) {}
+            }
+            const updateFields = { note: newNotePayload };
+            
+            // 发送 PATCH 请求更新每一条记录
+            updatePromises.push((async (mob, fields) => {
+              try {
+                const patchResp = await fetch(
+                  supabaseUrl + '/rest/v1/customers?mobile=eq.' + encodeURIComponent(mob),
+                  {
+                    method: 'PATCH',
+                    headers: Object.assign({}, hdrs, { 'Prefer': 'return=minimal' }),
+                    body: JSON.stringify(fields)
+                  }
+                );
+                return patchResp.ok;
+              } catch(errPatch) {
+                return false;
+              }
+            })(c.mobile, updateFields));
+          }
+        }
+
+        const results = await Promise.all(updatePromises);
+        const successCount = results.filter(Boolean).length;
+
+        return new Response(JSON.stringify({
+          success: true,
+          deleted_test_data: delResult,
+          total_customers_found: all.length,
+          matching_note_records: migratedCount,
+          successfully_migrated: successCount
+        }), {
+          headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
+        });
+
+      } catch (e) {
+        return new Response(JSON.stringify({ error: e.message }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+    }
+
+    // 共享函数：AI 修正公积金，供 HTTP 和定时任务复用
+    async function runAICorrectFund(env) {
+      const supabaseUrl = env.SUPABASE_URL;
+      const supabaseKey = env.SUPABASE_KEY;
+      if (!supabaseUrl || !supabaseKey) {
+        return { success: false, error: 'Supabase URL or Key is not configured' };
+      }
+      const hdrs = {
+        'Content-Type': 'application/json',
+        'apikey': supabaseKey,
+        'Authorization': 'Bearer ' + supabaseKey
+      };
+
+      // 辅助: 构建 {note, custom, fund} JSON，fund 非空时嵌入
+      function buildFundNoteJSON(noteText, fundVal) {
+        var obj = { note: '', custom: {} };
+        // 尝试解析已有 JSON note
+        if (noteText && noteText.indexOf('{') === 0) {
+          try { var parsed = JSON.parse(noteText); if (parsed && typeof parsed === 'object') obj = parsed; } catch(e) {}
+        } else if (noteText) {
+          obj.note = noteText;
+        }
+        if (fundVal) { obj.fund = fundVal; } else { delete obj.fund; }
+        // 兜底：note 为纯文本且无其他字段时，不套 JSON
+        if (!obj.fund && Object.keys(obj.custom || {}).length === 0 && obj.note && obj.note.indexOf('{') !== 0) {
+          return obj.note;
+        }
+        return JSON.stringify(obj);
+      }
+
+      // 1. 分页拉取所有客户
+      var all = [];
+      var pageNum = 0;
+      var pageSizeNum = 1000;
+      while (true) {
+        var fromVal = pageNum * pageSizeNum;
+        var toVal = fromVal + pageSizeNum - 1;
+        var qResp = await fetch(
+          supabaseUrl + '/rest/v1/customers?select=*',
+          { headers: Object.assign({}, hdrs, { 'Range': fromVal + '-' + toVal }) }
+        );
+        if (!qResp.ok) break;
+        var dataList = await qResp.json();
+        if (!Array.isArray(dataList) || dataList.length === 0) break;
+        all.push.apply(all, dataList);
+        if (dataList.length < pageSizeNum) break;
+        pageNum++;
+      }
+
+      // 2. 筛选可疑行
+      var suspiciousRows = [];
+      for (var i = 0; i < all.length; i++) {
+        var c = all[i];
+        var fundVal = (c.fund || '').trim();
+        var companyVal = (c.company_name || '').trim();
+        var noteRaw = (c.note || '').trim();
+        var noteText = noteRaw;
+        if (noteRaw.indexOf('{') === 0) {
+          try {
+            var noteObj = JSON.parse(noteRaw);
+            noteText = (noteObj.note || '').trim();
+          } catch(e) { noteText = noteRaw; }
+        }
+        var isFundSuspicious = fundVal && !/^\d{4,5}$/.test(fundVal);
+        var isCompanySuspicious = companyVal && /^\d{4,5}$/.test(companyVal);
+        var isNoteSuspicious = !companyVal && noteText && noteText.length <= 80 && /[一-龥]/.test(noteText) && !/已联系|已拨打|未接|关机|空号|停机|加微信|意向|跟进|备注/.test(noteText);
+        var noteNumMatch = noteText.match(/\b(\d{1,5})\b/g);
+        var isNoteHasFundNumber = false;
+        if (noteNumMatch && !fundVal) {
+          for (var nm = 0; nm < noteNumMatch.length; nm++) {
+            var n = parseInt(noteNumMatch[nm], 10);
+            if (n >= 1 && n <= 49999) { isNoteHasFundNumber = true; break; }
+          }
+        }
+        if (isFundSuspicious || isCompanySuspicious || isNoteSuspicious || isNoteHasFundNumber) {
+          suspiciousRows.push({
+            mobile: c.mobile,
+            fund: fundVal,
+            company_name: companyVal,
+            note: noteText
+          });
+        }
+      }
+
+      if (suspiciousRows.length === 0) {
+        return {
+          success: true,
+          total_scanned: all.length,
+          suspicious_found: 0,
+          ai_corrected: 0,
+          corrections: [],
+          errors: [],
+          message: '没有发现需要修正的数据，fund、company_name 和 note 字段均正常。'
+        };
+      }
+
+      // 3. 批量发送给 AI 判断 (每批最多 20 条)
+      var BATCH_SIZE = 20;
+      var corrected = 0;
+      var corrections = [];
+      var errors = [];
+
+      for (var batchStart = 0; batchStart < suspiciousRows.length; batchStart += BATCH_SIZE) {
+        var batch = suspiciousRows.slice(batchStart, batchStart + BATCH_SIZE);
+        var promptRows = batch.map(function(r, idx) {
+          return '  [' + (batchStart + idx) + '] mobile=' + r.mobile + ', fund="' + r.fund + '", company_name="' + r.company_name + '", note="' + (r.note || '') + '"';
+        }).join('\n');
+
+        var prompt = (
+          '你是一个数据清洗助手。检查以下每条客户记录，判断 fund（公积金）、company_name（单位名称）、note（备注）字段是否存错了位置。\n\n' +
+          '规则：\n' +
+          '1. 如果 fund 存的是单位名称（公司/学校/机构等，含中文组织名）→ 应移到 company_name。输出: {"action": "move_fund_to_company"}\n' +
+          '2. 如果 company_name 存的是纯数字 4-5 位（公积金账号）→ 应移到 fund。输出: {"action": "move_company_to_fund"}\n' +
+          '3. 如果 fund 存单位名 且 company_name 存数字 → 两者互换。输出: {"action": "swap"}\n' +
+          '4. 如果 note 存的是单位名称（company_name 为空时）→ 应移到 company_name。输出: {"action": "move_note_to_company"}\n' +
+          '5. 如果 fund 是乱码/备注/无意义文字（不是单位名也不是数字）→ 清空 fund。输出: {"action": "clear_fund"}\n' +
+          '6. 如果 note（备注）中包含阿拉伯数字且在 1-49999 之间（如 8000、15000），且 fund 为空 → 应将数字移到 fund。输出: {"action": "move_note_number_to_fund", "fund_value": "<数字>"}\n' +
+          '7. 如果不确定 → 跳过。输出: {"action": "skip"}\n\n' +
+          '注意：\n' +
+          '- 单位名包括：公司（腾讯科技）、学校（实验小学、某某幼儿园/小学/中学/大学）、机构（建设银行、人民医院）\n' +
+          '- 备注里只有确信是单位名称时才建议 move_note_to_company\n' +
+          '- 如果备注是普通的跟进记录（"已联系"等）请不要移动\n' +
+          '- 公积金数字通常单独出现（如"公积金8000"、"余额15000"），不要提取电话号码中的数字\n' +
+          '- 只在确定的情况下才建议修正，不确定就 skip\n\n' +
+          '请对以下每条记录分析，只输出 JSON 数组：\n' +
+          '[\n' +
+          '  {"idx": 序号, "action": "move_fund_to_company|move_company_to_fund|swap|move_note_to_company|clear_fund|move_note_number_to_fund|skip"},\n' +
+          '  ...\n' +
+          ']\n\n' +
+          '输入数据：\n' + promptRows
+        );
+
+        try {
+          var apiData = await callAIChat(env, [
+            { role: 'system', content: '你是一个严谨的数据清洗助手。请严格按 JSON 格式输出。' },
+            { role: 'user', content: prompt }
+          ], 0.1);
+
+          var aiContent = apiData.choices[0].message.content.trim();
+          if (aiContent.startsWith('```')) {
+            aiContent = aiContent.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '').trim();
+          }
+
+          var decisions;
+          try { decisions = JSON.parse(aiContent); }
+          catch (parseErr) { errors.push('Batch ' + Math.floor(batchStart / BATCH_SIZE) + ': AI JSON parse error: ' + parseErr.message); continue; }
+          if (!Array.isArray(decisions)) { errors.push('Batch ' + Math.floor(batchStart / BATCH_SIZE) + ': AI returned non-array'); continue; }
+
+          for (var d = 0; d < decisions.length; d++) {
+            var dec = decisions[d];
+            var rowIdx = dec.idx;
+            var originalRow = null;
+            for (var s = 0; s < batch.length; s++) {
+              if ((batchStart + s) === rowIdx) { originalRow = batch[s]; break; }
+            }
+            if (!originalRow) { errors.push('idx ' + rowIdx + ' not found in batch'); continue; }
+
+            if (dec.action === 'move_fund_to_company') {
+              // fund 存的是公司名 → 移到 company_name（fund 值在 note JSON 里，这里只设 company_name）
+              if (!originalRow.fund) { errors.push('row ' + rowIdx + ' move_fund_to_company missing value'); continue; }
+              try {
+                var r1 = await fetch(supabaseUrl + '/rest/v1/customers?mobile=eq.' + encodeURIComponent(originalRow.mobile),
+                  { method: 'PATCH', headers: Object.assign({}, hdrs, { 'Prefer': 'return=minimal' }), body: JSON.stringify({ company_name: originalRow.fund }) });
+                if (r1.ok) { corrected++; corrections.push({ mobile: originalRow.mobile, action: 'move_fund_to_company', old_fund: originalRow.fund, new_company_name: originalRow.fund }); }
+                else { var e1 = await r1.text(); errors.push('PATCH ' + originalRow.mobile + ': ' + e1); }
+              } catch (pe) { errors.push('PATCH err ' + originalRow.mobile + ': ' + pe.message); }
+            } else if (dec.action === 'move_company_to_fund') {
+              // company_name 存的是公积金数字 → 嵌入 note JSON，清空 company_name
+              if (!originalRow.company_name) { errors.push('row ' + rowIdx + ' move_company_to_fund missing value'); continue; }
+              try {
+                var noteJson2 = buildFundNoteJSON(originalRow.note, originalRow.company_name);
+                var r2 = await fetch(supabaseUrl + '/rest/v1/customers?mobile=eq.' + encodeURIComponent(originalRow.mobile),
+                  { method: 'PATCH', headers: Object.assign({}, hdrs, { 'Prefer': 'return=minimal' }), body: JSON.stringify({ company_name: '', note: noteJson2 }) });
+                if (r2.ok) { corrected++; corrections.push({ mobile: originalRow.mobile, action: 'move_company_to_fund', old_company_name: originalRow.company_name, new_fund: originalRow.company_name }); }
+                else { var e2 = await r2.text(); errors.push('PATCH ' + originalRow.mobile + ': ' + e2); }
+              } catch (pe) { errors.push('PATCH err ' + originalRow.mobile + ': ' + pe.message); }
+            } else if (dec.action === 'swap') {
+              // fund 和 company_name 互换（fund 嵌入 note JSON）
+              try {
+                var noteJson3 = buildFundNoteJSON(originalRow.note, originalRow.company_name);
+                var r3 = await fetch(supabaseUrl + '/rest/v1/customers?mobile=eq.' + encodeURIComponent(originalRow.mobile),
+                  { method: 'PATCH', headers: Object.assign({}, hdrs, { 'Prefer': 'return=minimal' }), body: JSON.stringify({ company_name: originalRow.fund, note: noteJson3 }) });
+                if (r3.ok) { corrected++; corrections.push({ mobile: originalRow.mobile, action: 'swap', old_fund: originalRow.fund, old_company_name: originalRow.company_name }); }
+                else { var e3 = await r3.text(); errors.push('PATCH swap ' + originalRow.mobile + ': ' + e3); }
+              } catch (pe) { errors.push('PATCH swap err ' + originalRow.mobile + ': ' + pe.message); }
+            } else if (dec.action === 'move_note_to_company') {
+              if (!originalRow.note) { errors.push('row ' + rowIdx + ' move_note_to_company missing value'); continue; }
+              try {
+                var r4 = await fetch(supabaseUrl + '/rest/v1/customers?mobile=eq.' + encodeURIComponent(originalRow.mobile),
+                  { method: 'PATCH', headers: Object.assign({}, hdrs, { 'Prefer': 'return=minimal' }), body: JSON.stringify({ note: '', company_name: originalRow.note }) });
+                if (r4.ok) { corrected++; corrections.push({ mobile: originalRow.mobile, action: 'move_note_to_company', old_note: originalRow.note, new_company_name: originalRow.note }); }
+                else { var e4 = await r4.text(); errors.push('PATCH note ' + originalRow.mobile + ': ' + e4); }
+              } catch (pe) { errors.push('PATCH note err ' + originalRow.mobile + ': ' + pe.message); }
+            } else if (dec.action === 'clear_fund') {
+              // 清空 fund：从 note JSON 中移除 fund
+              try {
+                var noteJson5 = buildFundNoteJSON(originalRow.note, '');
+                var r5 = await fetch(supabaseUrl + '/rest/v1/customers?mobile=eq.' + encodeURIComponent(originalRow.mobile),
+                  { method: 'PATCH', headers: Object.assign({}, hdrs, { 'Prefer': 'return=minimal' }), body: JSON.stringify({ note: noteJson5 }) });
+                if (r5.ok) { corrected++; corrections.push({ mobile: originalRow.mobile, action: 'clear_fund', old_fund: originalRow.fund }); }
+                else { var e5 = await r5.text(); errors.push('PATCH clear_fund ' + originalRow.mobile + ': ' + e5); }
+              } catch (pe) { errors.push('PATCH clear_fund err ' + originalRow.mobile + ': ' + pe.message); }
+            } else if (dec.action === 'move_note_number_to_fund') {
+              var fundNum = dec.fund_value || '';
+              if (!fundNum) { var autoMatch = originalRow.note.match(/\b(\d{1,5})\b/); if (autoMatch) fundNum = autoMatch[1]; }
+              if (!fundNum) { errors.push('row ' + rowIdx + ' move_note_number_to_fund missing fund_value'); continue; }
+              var newNoteText = originalRow.note.replace(new RegExp('\\b' + fundNum + '\\b'), '').trim();
+              newNoteText = newNoteText.replace(/^[，。,.\-\s]+/, '').replace(/[，。,.\-\s]+$/, '').trim();
+              if (!newNoteText) newNoteText = '';
+              try {
+                var noteJson6 = buildFundNoteJSON(newNoteText, fundNum);
+                var r6 = await fetch(supabaseUrl + '/rest/v1/customers?mobile=eq.' + encodeURIComponent(originalRow.mobile),
+                  { method: 'PATCH', headers: Object.assign({}, hdrs, { 'Prefer': 'return=minimal' }), body: JSON.stringify({ note: noteJson6 }) });
+                if (r6.ok) { corrected++; corrections.push({ mobile: originalRow.mobile, action: 'move_note_number_to_fund', fund_value: fundNum, old_note: originalRow.note, new_note: noteJson6 }); }
+                else { var e6 = await r6.text(); errors.push('PATCH move_note_number_to_fund ' + originalRow.mobile + ': ' + e6); }
+              } catch (pe) { errors.push('PATCH move_note_number_to_fund err ' + originalRow.mobile + ': ' + pe.message); }
+            }
+          }
+        } catch (aiErr) {
+          errors.push('Batch ' + Math.floor(batchStart / BATCH_SIZE) + ' AI error: ' + aiErr.message);
+        }
+      }
+
+      return {
+        success: true,
+        total_scanned: all.length,
+        suspicious_found: suspiciousRows.length,
+        ai_corrected: corrected,
+        corrections: corrections,
+        errors: errors,
+        message: '修正完成。扫描 ' + all.length + ' 条，发现 ' + suspiciousRows.length + ' 条可疑，AI 已修正 ' + corrected + ' 条。'
+      };
+    }
+
+    // 2h. AI: 修正公积金字段（可手动触发或定时任务自动调用）
+    if (path === '/api/admin/ai-correct-fund' && request.method === 'GET') {
+      try {
+        const result = await runAICorrectFund(env);
+        return new Response(JSON.stringify(result), {
+          headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' },
+          status: result.success ? 200 : 500
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ success: false, error: e.message }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+    }
+
+    // 3. 代理 SheetJS 资源以加快文件解析加载
+    if (path === '/xlsx.full.min.js') {
+      return fetch('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js');
+    }
+
+    if (path.startsWith('/tessdata/')) {
+      const fileName = path.replace('/tessdata/', '');
+      
+      if (fileName === 'worker.min.js') {
+        const cacheKey = `tessdata:${fileName}`;
+        let fileData = null;
+        if (env.DATA_KV) {
+          fileData = await env.DATA_KV.get(cacheKey, { type: 'arrayBuffer' });
+        }
+        if (!fileData) {
+          const cdnUrl = 'https://fastly.jsdelivr.net/npm/tesseract.js@4.1.1/dist/worker.min.js';
+          const response = await fetch(cdnUrl);
+          if (response.ok) {
+            const buffer = await response.arrayBuffer();
+            if (env.DATA_KV) {
+              await env.DATA_KV.put(cacheKey, buffer);
+            }
+            fileData = buffer;
+          } else {
+            return new Response('Failed to fetch worker from CDN: ' + response.status, {
+              status: 502,
+              headers: { 'Access-Control-Allow-Origin': '*' }
+            });
+          }
+        }
+        return new Response(fileData, {
+          headers: {
+            'Content-Type': 'application/javascript',
+            'Access-Control-Allow-Origin': '*',
+            'Cache-Control': 'public, max-age=31536000'
+          }
+        });
+      }
+
+      if (fileName.startsWith('core/')) {
+        const coreFile = fileName.replace('core/', '');
+        const cacheKey = `tessdata:core:${coreFile}`;
+        let fileData = null;
+        if (env.DATA_KV) {
+          fileData = await env.DATA_KV.get(cacheKey, { type: 'arrayBuffer' });
+        }
+        if (!fileData) {
+          const cdnUrl = `https://fastly.jsdelivr.net/npm/tesseract.js-core@4.0.2/${coreFile}`;
+          const response = await fetch(cdnUrl);
+          if (response.ok) {
+            const buffer = await response.arrayBuffer();
+            if (env.DATA_KV) {
+              await env.DATA_KV.put(cacheKey, buffer);
+            }
+            fileData = buffer;
+          } else {
+            return new Response('Failed to fetch core from CDN: ' + response.status, {
+              status: 502,
+              headers: { 'Access-Control-Allow-Origin': '*' }
+            });
+          }
+        }
+        let contentType = 'application/octet-stream';
+        if (coreFile.endsWith('.js')) {
+          contentType = 'application/javascript';
+        } else if (coreFile.endsWith('.wasm')) {
+          contentType = 'application/wasm';
+        }
+        return new Response(fileData, {
+          headers: {
+            'Content-Type': contentType,
+            'Access-Control-Allow-Origin': '*',
+            'Cache-Control': 'public, max-age=31536000'
+          }
+        });
+      }
+
+      if (fileName.endsWith('.traineddata.gz')) {
+        const cacheKey = `tessdata:${fileName}`;
+        let fileData = null;
+        if (env.DATA_KV) {
+          fileData = await env.DATA_KV.get(cacheKey, { type: 'arrayBuffer' });
+        }
+        
+        if (!fileData) {
+          const cdnUrl = `https://fastly.jsdelivr.net/gh/naptha/tessdata@gh-pages/4.0.0_fast/${fileName}`;
+          const response = await fetch(cdnUrl);
+          if (response.ok) {
+            const buffer = await response.arrayBuffer();
+            if (env.DATA_KV) {
+              await env.DATA_KV.put(cacheKey, buffer);
+            }
+            fileData = buffer;
+          } else {
+            return new Response('Failed to fetch from CDN: ' + response.status, {
+              status: 502,
+              headers: { 'Access-Control-Allow-Origin': '*' }
+            });
+          }
+        }
+        
+        return new Response(fileData, {
+          headers: {
+            'Content-Type': 'application/octet-stream',
+            'Access-Control-Allow-Origin': '*',
+            'Cache-Control': 'public, max-age=31536000'
+          }
+        });
+      }
+    }
+
+    // 4. 服务 PWA manifest
+    if (path === '/manifest.json') {
+      const manifest = {
+        name: '每日工作',
+        short_name: '每日工作',
+        description: '每日工作追踪：微信、意向、上门、回款、待办',
+        start_url: '/',
+        display: 'standalone',
+        background_color: '#ededed',
+        theme_color: '#4a6cf7',
+        orientation: 'portrait',
+        icons: [
+          { src: '/icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any maskable' }
+        ]
+      };
+      return new Response(JSON.stringify(manifest), {
+        headers: { 'Content-Type': 'application/manifest+json', 'Access-Control-Allow-Origin': '*' }
+      });
+    }
+
+    // 5. 服务 App 图标 SVG
+    if (path === '/icon.svg') {
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><defs><linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#4a6cf7"/><stop offset="50%" stop-color="#6b8dff"/><stop offset="100%" stop-color="#07c160"/></linearGradient></defs><rect width="512" height="512" rx="110" fill="url(#bg)"/><rect x="72" y="96" width="368" height="344" rx="50" fill="none" stroke="white" stroke-width="22"/><line x1="72" y1="196" x2="440" y2="196" stroke="white" stroke-width="22"/><rect x="140" y="48" width="44" height="88" rx="22" fill="white"/><rect x="328" y="48" width="44" height="88" rx="22" fill="white"/><circle cx="180" cy="290" r="28" fill="white"/><circle cx="256" cy="290" r="28" fill="white"/><circle cx="332" cy="290" r="28" fill="white"/><circle cx="180" cy="380" r="28" fill="white"/><circle cx="256" cy="380" r="28" fill="white"/></svg>`;
+      return new Response(svg, {
+        headers: { 'Content-Type': 'image/svg+xml', 'Cache-Control': 'public, max-age=86400', 'Access-Control-Allow-Origin': '*' }
+      });
+    }
+
+    // 6. 服务拨号器单页 HTML
+    if (path === '/dialer' || path === '/dialer/') {
+      return new Response(DIALER_HTML, {
+        headers: {
+          'Content-Type': 'text/html; charset=UTF-8',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
+      });
+    }
+
+    // ==================== API 接口 ====================
+    
+    // 获取数据
+    if (path === '/api/data' && request.method === 'GET') {
+      const date = url.searchParams.get('date');
+      if (!date) {
+        return new Response(JSON.stringify({ error: '缺少 date 参数' }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+      const rawData = await env.DATA_KV.get(`work:${date}`);
+      const data = rawData ? JSON.parse(rawData) : {
+        date,
+        wechatCount: 0,
+        intentCount: 0,
+        revisitCount: 0,
+        visitCount: 0,
+        paymentCount: 0,
+        clients: [],
+        todayTodos: [],
+        tomorrowTodos: [],
+        tempClients: [],
+        lastLoadDate: date
+      };
+      if (!data.lastLoadDate) data.lastLoadDate = date;
+      if (!data.tempClients) data.tempClients = [];
+      if (data.visitCount === undefined) data.visitCount = 0;
+      if (data.paymentCount === undefined) data.paymentCount = 0;
+      // Inject global webhook URL so it persists across all dates and new days
+      data.webhookUrl = await env.DATA_KV.get('config:webhook_url') || '';
+      data.deepseekApiKey = await env.DATA_KV.get('config:deepseek_api_key') || '';
+      data.wecomCorpId = await env.DATA_KV.get('config:wecom_corp_id') || '';
+      data.wecomToken = await env.DATA_KV.get('config:wecom_token') || '';
+      data.wecomAesKey = await env.DATA_KV.get('config:wecom_aes_key') || '';
+      data.aiProvider = await env.DATA_KV.get('config:ai_provider') || '';
+      data.aiApiKey = await env.DATA_KV.get('config:ai_api_key') || '';
+      data.aiApiBase = await env.DATA_KV.get('config:ai_api_base') || '';
+      data.aiModel = await env.DATA_KV.get('config:ai_model') || '';
+      data.searchProvider = await env.DATA_KV.get('config:search_provider') || '';
+      data.searchApiKey = await env.DATA_KV.get('config:search_api_key') || '';
+      data.momentsWebhookUrl = await env.DATA_KV.get('config:moments_webhook_url') || '';
+      data.momentsEnabled = await env.DATA_KV.get('config:moments_enabled') || 'true';
+      data.visionApiKey = await env.DATA_KV.get('config:vision_api_key') || '';
+      data.visionApiBase = await env.DATA_KV.get('config:vision_api_base') || '';
+      // Inject goals
+      data.goals = JSON.parse(await env.DATA_KV.get('config:goals') || '{}');
+      return new Response(JSON.stringify(data), {
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+      });
+    }
+
+    // 保存数据（服务端合并，解决多设备同步冲突）
+    if (path === '/api/data' && request.method === 'POST') {
+      const body = await request.json();
+      const items = Array.isArray(body) ? body : [body];
+      let hasError = false;
+      for (const item of items) {
+        const { date, wechatCount, intentCount, revisitCount, visitCount, paymentCount, clients, todayTodos, tomorrowTodos, tempClients, scripts, learns, todoLog, webhookUrl, deepseekApiKey, wecomCorpId, wecomToken, wecomAesKey, aiProvider, aiApiKey, aiApiBase, aiModel, searchProvider, searchApiKey, momentsWebhookUrl, momentsEnabled, visionApiKey, visionApiBase, _ts } = item;
+        if (!date) { hasError = true; continue; }
+        
+        // If a non-empty Webhook URL is supplied, persist it globally
+        if (webhookUrl) {
+          await env.DATA_KV.put('config:webhook_url', webhookUrl);
+        }
+        if (deepseekApiKey !== undefined) {
+          await env.DATA_KV.put('config:deepseek_api_key', deepseekApiKey);
+        }
+        if (wecomCorpId !== undefined) {
+          await env.DATA_KV.put('config:wecom_corp_id', wecomCorpId);
+        }
+        if (wecomToken !== undefined) {
+          await env.DATA_KV.put('config:wecom_token', wecomToken);
+        }
+        if (wecomAesKey !== undefined) {
+          await env.DATA_KV.put('config:wecom_aes_key', wecomAesKey);
+        }
+        if (aiProvider !== undefined) {
+          await env.DATA_KV.put('config:ai_provider', aiProvider);
+        }
+        if (aiApiKey !== undefined) {
+          await env.DATA_KV.put('config:ai_api_key', aiApiKey);
+        }
+        if (aiApiBase !== undefined) {
+          await env.DATA_KV.put('config:ai_api_base', aiApiBase);
+        }
+        if (aiModel !== undefined) {
+          await env.DATA_KV.put('config:ai_model', aiModel);
+        }
+        if (searchProvider !== undefined) {
+          await env.DATA_KV.put('config:search_provider', searchProvider);
+        }
+        if (searchApiKey !== undefined) {
+          await env.DATA_KV.put('config:search_api_key', searchApiKey);
+        }
+        if (momentsWebhookUrl !== undefined) {
+          await env.DATA_KV.put('config:moments_webhook_url', momentsWebhookUrl);
+        }
+        if (momentsEnabled !== undefined) {
+          await env.DATA_KV.put('config:moments_enabled', momentsEnabled ? 'true' : 'false');
+        }
+        if (visionApiKey !== undefined) {
+          await env.DATA_KV.put('config:vision_api_key', visionApiKey);
+        }
+        if (visionApiBase !== undefined) {
+          await env.DATA_KV.put('config:vision_api_base', visionApiBase);
+        }
+
+        // 读取云端现有数据
+        const rawExisting = await env.DATA_KV.get(`work:${date}`);
+        const existing = rawExisting ? JSON.parse(rawExisting) : {};
+        // 客户列表按 phone 号码唯一性合并（同一电话号码只保留最新记录）
+        // incoming 中的客户记录会覆盖 base 中相同电话号码 of 旧记录
+        const mergeClients = (base, incoming) => {
+          const map = new Map();
+          (base || []).forEach(c => map.set(c.phone, c));
+          (incoming || []).forEach(c => map.set(c.phone, c));
+          return [...map.values()];
+        };
+        const mergedClients = mergeClients(existing.clients, clients);
+        const merged = {
+          date,
+          wechatCount: Math.max(existing.wechatCount || 0, wechatCount || 0),
+          intentCount: mergedClients.length,
+          revisitCount: Math.max(existing.revisitCount || 0, revisitCount || 0),
+          visitCount: Math.max(existing.visitCount || 0, visitCount || 0),
+          paymentCount: Math.max(existing.paymentCount || 0, paymentCount || 0),
+          clients: mergedClients,
+          todayTodos: todayTodos || existing.todayTodos || [],
+          tomorrowTodos: tomorrowTodos || existing.tomorrowTodos || [],
+          tempClients: tempClients || existing.tempClients || [],
+          scripts: scripts || existing.scripts || [],
+          learns: learns || existing.learns || [],
+          todoLog: todoLog || existing.todoLog || [],
+          webhookUrl: webhookUrl || existing.webhookUrl || '',
+          deepseekApiKey: deepseekApiKey !== undefined ? deepseekApiKey : (existing.deepseekApiKey || ''),
+          wecomCorpId: wecomCorpId !== undefined ? wecomCorpId : (existing.wecomCorpId || ''),
+          wecomToken: wecomToken !== undefined ? wecomToken : (existing.wecomToken || ''),
+          wecomAesKey: wecomAesKey !== undefined ? wecomAesKey : (existing.wecomAesKey || ''),
+          aiProvider: aiProvider !== undefined ? aiProvider : (existing.aiProvider || ''),
+          aiApiKey: aiApiKey !== undefined ? aiApiKey : (existing.aiApiKey || ''),
+          aiApiBase: aiApiBase !== undefined ? aiApiBase : (existing.aiApiBase || ''),
+          aiModel: aiModel !== undefined ? aiModel : (existing.aiModel || ''),
+          searchProvider: searchProvider !== undefined ? searchProvider : (existing.searchProvider || ''),
+          searchApiKey: searchApiKey !== undefined ? searchApiKey : (existing.searchApiKey || ''),
+          momentsWebhookUrl: momentsWebhookUrl !== undefined ? momentsWebhookUrl : (existing.momentsWebhookUrl || ''),
+          momentsEnabled: momentsEnabled !== undefined ? momentsEnabled : (existing.momentsEnabled || 'true'),
+          visionApiKey: visionApiKey !== undefined ? visionApiKey : (existing.visionApiKey || ''),
+          visionApiBase: visionApiBase !== undefined ? visionApiBase : (existing.visionApiBase || ''),
+          lastLoadDate: date,
+          lastModified: new Date().toISOString(),
+          _ts: _ts || Date.now()
+        };
+        await env.DATA_KV.put(`work:${date}`, JSON.stringify(merged));
+      }
+      if (items.length === 0 || (hasError && items.length === 1)) {
+        return new Response(JSON.stringify({ error: '缺少 date 参数' }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+      });
+    }
+
+    // 原子操作同步 —— 每个增删改作为独立 delta 推送到 KV，保证最快同步
+    if (path === '/api/sync' && request.method === 'POST') {
+      const body = await request.json();
+      const { date, op } = body;
+      if (!date || !op) {
+        return new Response(JSON.stringify({ error: '缺少 date 或 op 参数' }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+      const raw = await env.DATA_KV.get(`work:${date}`);
+      const data = raw ? JSON.parse(raw) : {
+        date, wechatCount: 0, intentCount: 0, revisitCount: 0, visitCount: 0, paymentCount: 0, clients: [],
+        todayTodos: [], tomorrowTodos: [], tempClients: [], scripts: [], learns: [], todoLog: []
+      };
+      if (!data.tempClients) data.tempClients = [];
+      const ts = Date.now();
+      switch (op) {
+        case 'incWechat': {
+          const delta = body.delta || 0;
+          data.wechatCount = Math.max((data.wechatCount || 0) + delta, 0);
+          break;
+        }
+        case 'incRevisit': {
+          const delta = body.delta || 0;
+          data.revisitCount = Math.max((data.revisitCount || 0) + delta, 0);
+          break;
+        }
+        case 'incVisit': {
+          const delta = body.delta || 0;
+          data.visitCount = Math.max((data.visitCount || 0) + delta, 0);
+          break;
+        }
+        case 'incPayment': {
+          const delta = body.delta || 0;
+          data.paymentCount = Math.max((data.paymentCount || 0) + delta, 0);
+          break;
+        }
+        case 'addClient': {
+          if (body.client) {
+            data.clients = [...(data.clients || []), body.client];
+            data.intentCount = data.clients.length;
+          }
+          break;
+        }
+        // DEPRECATED: Use removeClientByMatch instead to avoid index mismatch on multi-device concurrent deletes
+        case 'removeClientByIndex': {
+          if (body.index !== undefined && body.index >= 0) {
+            data.clients = data.clients || [];
+            data.clients.splice(body.index, 1);
+            data.intentCount = data.clients.length;
+          }
+          break;
+        }
+        case 'removeClientByMatch': {
+          if (body.name && body.phone) {
+            data.clients = (data.clients || []).filter(
+              c => !(c.name === body.name && c.phone === body.phone &&
+                (body.time ? c.time === body.time : true))
+            );
+            data.intentCount = data.clients.length;
+          }
+          break;
+        }
+        case 'updateClient': {
+          if (body.matchName && body.matchPhone && body.client) {
+            data.clients = data.clients || [];
+            const idx = data.clients.findIndex(c =>
+              c.name === body.matchName &&
+              c.phone === body.matchPhone &&
+              (body.matchTime ? c.time === body.matchTime : true)
+            );
+            if (idx >= 0) {
+              data.clients[idx] = body.client;
+            } else {
+              data.clients.push(body.client);
+            }
+            data.intentCount = data.clients.length;
+          }
+          break;
+        }
+        case 'updateClientNote': {
+          if (body.name && body.phone && body.note !== undefined) {
+            data.clients = (data.clients || []).map(c =>
+              c.name === body.name && c.phone === body.phone ? { ...c, note: body.note } : c
+            );
+          }
+          break;
+        }
+        case 'setTodayTodos':
+          data.todayTodos = body.todos || [];
+          break;
+        case 'setTomorrowTodos':
+          data.tomorrowTodos = body.todos || [];
+          break;
+        case 'setTempClients':
+          data.tempClients = body.tempClients || [];
+          break;
+        case 'pushTodoLog':
+          if (body.todo) {
+            data.todoLog = [...(data.todoLog || []), body.todo];
+          }
+          break;
+        case 'setScripts':
+          data.scripts = body.scripts || [];
+          break;
+        case 'setLearns':
+          data.learns = body.learns || [];
+          break;
+        case 'setAllClients':
+          data.clients = body.clients || [];
+          data.intentCount = (body.clients || []).length;
+          break;
+        case 'setWebhookUrl':
+          data.webhookUrl = body.webhookUrl || '';
+          await env.DATA_KV.put('config:webhook_url', data.webhookUrl);
+          break;
+        case 'setDeepseekApiKey':
+          await env.DATA_KV.put('config:deepseek_api_key', body.deepseekApiKey || '');
+          break;
+        case 'setWecomCorpId':
+          await env.DATA_KV.put('config:wecom_corp_id', body.wecomCorpId || '');
+          break;
+        case 'setWecomToken':
+          await env.DATA_KV.put('config:wecom_token', body.wecomToken || '');
+          break;
+        case 'setWecomAesKey':
+          await env.DATA_KV.put('config:wecom_aes_key', body.wecomAesKey || '');
+          break;
+        case 'setWecomAgentId':
+          await env.DATA_KV.put('config:wecom_agent_id', body.wecomAgentId || '');
+          break;
+        case 'setWecomSecret':
+          await env.DATA_KV.put('config:wecom_secret', body.wecomSecret || '');
+          break;
+        case 'setWecomTouser':
+          await env.DATA_KV.put('config:wecom_touser', body.wecomTouser || '');
+          break;
+        case 'setWecomApiProxy':
+          await env.DATA_KV.put('config:wecom_api_proxy', body.wecomApiProxy || '');
+          break;
+        case 'setSearchConfig':
+          if (body.searchProvider !== undefined) await env.DATA_KV.put('config:search_provider', body.searchProvider || '');
+          if (body.searchApiKey !== undefined) await env.DATA_KV.put('config:search_api_key', body.searchApiKey || '');
+          break;
+        case 'setMomentsConfig':
+          if (body.momentsWebhookUrl !== undefined) await env.DATA_KV.put('config:moments_webhook_url', body.momentsWebhookUrl || '');
+          if (body.momentsEnabled !== undefined) await env.DATA_KV.put('config:moments_enabled', body.momentsEnabled ? 'true' : 'false');
+          break;
+        case 'setVisionConfig':
+          if (body.visionApiKey !== undefined) await env.DATA_KV.put('config:vision_api_key', body.visionApiKey || '');
+          if (body.visionApiBase !== undefined) await env.DATA_KV.put('config:vision_api_base', body.visionApiBase || '');
+          break;
+        case 'setAiConfig':
+          if (body.aiProvider !== undefined) await env.DATA_KV.put('config:ai_provider', body.aiProvider || '');
+          if (body.aiApiKey !== undefined) await env.DATA_KV.put('config:ai_api_key', body.aiApiKey || '');
+          if (body.aiApiBase !== undefined) await env.DATA_KV.put('config:ai_api_base', body.aiApiBase || '');
+          if (body.aiModel !== undefined) await env.DATA_KV.put('config:ai_model', body.aiModel || '');
+          break;
+        case 'setGoals':
+          await env.DATA_KV.put('config:goals', JSON.stringify(body.goals || {}));
+          break;
+        case 'setSiriKey':
+          await env.DATA_KV.put('config:siri_key', body.siriKey || '');
+          break;
+        default:
+          return new Response(JSON.stringify({ error: '未知操作: ' + op }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
+      }
+      data._ts = ts;
+      data.lastModified = new Date().toISOString();
+      await env.DATA_KV.put(`work:${date}`, JSON.stringify(data));
+      return new Response(JSON.stringify({ success: true, _ts: ts }), {
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+      });
+    }
+
+    // 获取日历数据
+    if (path === '/api/calendar' && request.method === 'GET') {
+      const month = url.searchParams.get('month');
+      if (!month) {
+        return new Response(JSON.stringify({ error: '缺少 month 参数' }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+      const keys = await getAllKVKeys(env, 'work:' + month);
+      const keyValues = await getKVValuesConcurrently(env, keys);
+      const calendar = {};
+      for (const kv of keyValues) {
+        if (kv.val) {
+          try {
+            const d = JSON.parse(kv.val);
+            const dateKey = kv.name.replace('work:', '');
+            calendar[dateKey] = {
+              w: d.wechatCount || 0,
+              i: d.intentCount || 0,
+              r: d.revisitCount || 0,
+              v: d.visitCount || 0,
+              p: d.paymentCount || 0
+            };
+          } catch(e) {}
+        }
+      }
+      return new Response(JSON.stringify(calendar), {
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+      });
+    }
+
+    // 获取周/月统计
+    if (path === '/api/stats' && request.method === 'GET') {
+      const month = url.searchParams.get('month');
+      if (!month) {
+        return new Response(JSON.stringify({ error: '缺少 month 参数' }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+      const keys = await getAllKVKeys(env, 'work:' + month);
+      const keyValues = await getKVValuesConcurrently(env, keys);
+      let weekW = 0, monthW = 0, weekI = 0, monthI = 0, weekR = 0, monthR = 0, weekV = 0, monthV = 0, weekP = 0, monthP = 0;
+      const today = new Date();
+      const dow = today.getDay();
+      const diff = (dow === 0 ? 6 : dow - 1);
+      const mon = new Date(today);
+      mon.setDate(today.getDate() - diff);
+      const monStr = mon.getFullYear() + '-' + String(mon.getMonth()+1).padStart(2,'0') + '-' + String(mon.getDate()).padStart(2,'0');
+      const todayStr = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0') + '-' + String(today.getDate()).padStart(2,'0');
+      for (const kv of keyValues) {
+        if (kv.val) {
+          try {
+            const d = JSON.parse(kv.val);
+            monthW += d.wechatCount || 0;
+            monthI += d.intentCount || 0;
+            monthR += d.revisitCount || 0;
+            monthV += d.visitCount || 0;
+            monthP += d.paymentCount || 0;
+            if (d.date >= monStr && d.date <= todayStr) {
+              weekW += d.wechatCount || 0;
+              weekI += d.intentCount || 0;
+              weekR += d.revisitCount || 0;
+              weekV += d.visitCount || 0;
+              weekP += d.paymentCount || 0;
+            }
+          } catch(e) {}
+        }
+      }
+      const goals = JSON.parse(await env.DATA_KV.get('config:goals') || '{}');
+      return new Response(JSON.stringify({ weekW, monthW, weekI, monthI, weekR, monthR, weekV, monthV, weekP, monthP, goals }), {
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+      });
+    }
+    // 获取全量意向客户
+    if (path === '/api/all-clients' && request.method === 'GET') {
+      const keys = await getAllKVKeys(env, 'work:');
+      const keyValues = await getKVValuesConcurrently(env, keys);
+      const allClients = [];
+      for (const kv of keyValues) {
+        if (kv.val) {
+          try {
+            const d = JSON.parse(kv.val);
+            if (d.clients) {
+              d.clients.forEach(c => {
+                c.date = c.date || kv.name.replace('work:', '');
+                allClients.push(c);
+              });
+            }
+          } catch(e) {}
+        }
+      }
+      allClients.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+      return new Response(JSON.stringify(allClients), {
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+      });
+    }
+
+    // 导出数据并发送企业微信 webhook
+    if (path === '/api/export' && request.method === 'POST') {
+      const body = await request.json();
+      const { type, webhookUrl } = body;
+      if (!type) {
+        return new Response(JSON.stringify({ error: '缺少 type 参数' }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+
+      let target;
+      if (webhookUrl && webhookUrl.trim() !== '') {
+        // SSRF Defence: Only allow official Weixin Work domain prefixes
+        if (!webhookUrl.startsWith('https://qyapi.weixin.qq.com/')) {
+          return new Response(JSON.stringify({ error: 'SSRF 安全防御：仅允许向企业微信官方域名发送 Webhook 请求' }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+        target = webhookUrl.trim();
+      } else {
+        // Fallback to self-built App configuration
+        const corpId = await env.DATA_KV.get('config:wecom_corp_id') || env.WECOM_CORP_ID;
+        const agentId = await env.DATA_KV.get('config:wecom_agent_id');
+        const secret = await env.DATA_KV.get('config:wecom_secret');
+        const touser = await env.DATA_KV.get('config:wecom_touser') || '@all';
+        if (!corpId || !agentId || !secret) {
+          return new Response(JSON.stringify({ error: '缺少 Webhook URL，且未配置自建应用凭证 (CorpID / AgentID / Secret)' }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+        target = { corpId, agentId, secret, touser };
+      }
+
+      // 导出单个意向客户
+      if (type === 'single_client') {
+        const client = body.client;
+        if (!client) {
+          return new Response(JSON.stringify({ error: '缺少 client 参数' }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+        const weekNames = ['日', '一', '二', '三', '四', '五', '六'];
+        const datePart = (client.date || '').slice(5);
+        const wk = client.date ? ' 周' + weekNames[new Date(client.date + 'T00:00:00').getDay()] : '';
+        
+        let text = '> 客户姓名：' + client.name + '\n';
+        text += '> 日期：' + datePart + wk + ' | 时间：' + (client.time || '') + '\n';
+        text += '> 电话：' + (client.phone || '') + '\n';
+        text += '> 单位名称：' + (client.company || '') + '\n';
+        text += '> 公积金基数：' + (client.fund || '') + '\n';
+        text += '> 社保养老基数：' + (client.socialSecurity || '') + '\n';
+        text += '> 月均工资：' + (client.avgSalary || '') + '\n';
+        text += '> 近2年个税：' + (client.tax2yr || '') + '\n';
+        text += '> 代发工资银行：' + (client.salaryBank || '') + '\n';
+        text += '> 学历：' + (client.education || '') + '\n';
+        text += '> 婚姻状况：' + (client.maritalStatus || '') + '\n';
+        text += '> 是否深户：' + (client.isShenzhenHukou || '') + '\n';
+        text += '> 房产：' + (client.property || '') + '\n';
+        text += '> 客户年龄：' + (client.age || '') + '\n';
+        text += '> 银行信贷负债：' + (client.bankDebt || '') + '\n';
+        text += '> 信用卡负债：' + (client.creditCardDebt || '') + '\n';
+        text += '> 近3个月查询次数：' + (client.query3m || '') + '\n';
+        text += '> 小额网贷笔数：' + (client.onlineLoanCount || '') + '\n';
+        text += '> 客户大致需求：' + (client.demand || '').replace(/\n/g, ' ') + '\n';
+        text += '> 资金用途和时间：' + (client.fundUsage || '').replace(/\n/g, ' ') + '\n';
+        text += '> 沟通记录：' + (client.note || '').replace(/\n/g, ' ') + '\n';
+        text += '> 跟进情况：' + (client.followUp || '').replace(/\n/g, ' ') + '\n';
+        if (client.status) text += '> 状态：' + (client.status==='success'?'已办理成功':'未办理成功') + '\n';
+
+        try {
+          await sendMarkdownMessage(env, target, text);
+          return new Response(JSON.stringify({ success: true }), {
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
+        } catch (e) {
+          return new Response(JSON.stringify({ error: '发送遇到错误: ' + e.message }), {
+            status: 500,
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+      }
+
+      // 导出全量意向客户
+      if (type === 'all_clients') {
+        const keys = await getAllKVKeys(env, 'work:');
+        const keyValues = await getKVValuesConcurrently(env, keys);
+        const allClients = [];
+        for (const kv of keyValues) {
+          if (kv.val) {
+            try {
+              const d = JSON.parse(kv.val);
+              if (d.clients) {
+                (d.clients || []).forEach(c => {
+                  allClients.push({ ...c, date: c.date || kv.name.replace('work:', '') });
+                });
+              }
+            } catch(e) {}
+          }
+        }
+        allClients.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+
+        const weekNames = ['日', '一', '二', '三', '四', '五', '六'];
+        const total = allClients.length;
+
+        const baseHeader = '### 意向客户全量表\n> 共计 **' + total + '** 位意向客户\n\n---\n\n';
+        const itemFormatter = (c) => {
+          const datePart = (c.date || '').slice(5);
+          const wk = c.date ? ' 周' + weekNames[new Date(c.date + 'T00:00:00').getDay()] : '';
+          let itemText = '> 客户姓名：' + c.name + '\n';
+          itemText += '> 日期：' + datePart + wk + ' | 时间：' + (c.time || '') + '\n';
+          itemText += '> 电话：' + (c.phone || '') + '\n';
+          itemText += '> 单位名称：' + (c.company || '') + '\n';
+          itemText += '> 公积金基数：' + (c.fund || '') + '\n';
+          itemText += '> 社保养老基数：' + (c.socialSecurity || '') + '\n';
+          itemText += '> 月均工资：' + (c.avgSalary || '') + '\n';
+          itemText += '> 近2年个税：' + (c.tax2yr || '') + '\n';
+          itemText += '> 代发工资银行：' + (c.salaryBank || '') + '\n';
+          itemText += '> 学历：' + (c.education || '') + '\n';
+          itemText += '> 婚姻状况：' + (c.maritalStatus || '') + '\n';
+          itemText += '> 是否深户：' + (c.isShenzhenHukou || '') + '\n';
+          itemText += '> 房产：' + (c.property || '') + '\n';
+          itemText += '> 客户年龄：' + (c.age || '') + '\n';
+          itemText += '> 银行信贷负债：' + (c.bankDebt || '') + '\n';
+          itemText += '> 信用卡负债：' + (c.creditCardDebt || '') + '\n';
+          itemText += '> 近3个月查询次数：' + (c.query3m || '') + '\n';
+          itemText += '> 小额网贷笔数：' + (c.onlineLoanCount || '') + '\n';
+          itemText += '> 客户大致需求：' + (c.demand || '').replace(/\n/g, ' ') + '\n';
+          itemText += '> 资金用途和时间：' + (c.fundUsage || '').replace(/\n/g, ' ') + '\n';
+          itemText += '> 沟通记录：' + (c.note || '').replace(/\n/g, ' ') + '\n';
+          itemText += '> 跟进情况：' + (c.followUp || '').replace(/\n/g, ' ') + '\n';
+          if (c.status) itemText += '> 状态：' + (c.status==='success'?'已办理成功':'未办理成功') + '\n';
+          itemText += '\n';
+          return itemText;
+        };
+
+        try {
+          await sendWebhookMarkdown(env, target, baseHeader, allClients, itemFormatter);
+          return new Response(JSON.stringify({ success: true }), {
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
+        } catch (e) {
+          return new Response(JSON.stringify({ error: '发送失败: ' + e.message }), {
+            status: 500,
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+      }
+
+      // 逐条导出全量意向客户（每个客户一条消息）
+      if (type === 'all_clients_solo') {
+        const keys = await getAllKVKeys(env, 'work:');
+        const keyValues = await getKVValuesConcurrently(env, keys);
+        const allClients = [];
+        for (const kv of keyValues) {
+          if (kv.val) {
+            try {
+              const d = JSON.parse(kv.val);
+              if (d.clients) {
+                (d.clients || []).forEach(c => {
+                  allClients.push({ ...c, date: c.date || kv.name.replace('work:', '') });
+                });
+              }
+            } catch(e) {}
+          }
+        }
+        allClients.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+
+        const weekNames = ['日', '一', '二', '三', '四', '五', '六'];
+        const buildText = (c) => {
+          const datePart = (c.date || '').slice(5);
+          const wk = c.date ? ' 周' + weekNames[new Date(c.date + 'T00:00:00').getDay()] : '';
+          let text = '> 客户姓名：' + c.name + '\n';
+          text += '> 日期：' + datePart + wk + ' | 时间：' + (c.time || '') + '\n';
+          text += '> 电话：' + (c.phone || '') + '\n';
+          text += '> 单位名称：' + (c.company || '') + '\n';
+          text += '> 公积金基数：' + (c.fund || '') + '\n';
+          text += '> 社保养老基数：' + (c.socialSecurity || '') + '\n';
+          text += '> 月均工资：' + (c.avgSalary || '') + '\n';
+          text += '> 近2年个税：' + (c.tax2yr || '') + '\n';
+          text += '> 代发工资银行：' + (c.salaryBank || '') + '\n';
+          text += '> 学历：' + (c.education || '') + '\n';
+          text += '> 婚姻状况：' + (c.maritalStatus || '') + '\n';
+          text += '> 是否深户：' + (c.isShenzhenHukou || '') + '\n';
+          text += '> 房产：' + (c.property || '') + '\n';
+          text += '> 客户年龄：' + (c.age || '') + '\n';
+          text += '> 银行信贷负债：' + (c.bankDebt || '') + '\n';
+          text += '> 信用卡负债：' + (c.creditCardDebt || '') + '\n';
+          text += '> 近3个月查询次数：' + (c.query3m || '') + '\n';
+          text += '> 小额网贷笔数：' + (c.onlineLoanCount || '') + '\n';
+          text += '> 客户大致需求：' + (c.demand || '').replace(/\n/g, ' ') + '\n';
+          text += '> 资金用途和时间：' + (c.fundUsage || '').replace(/\n/g, ' ') + '\n';
+          text += '> 沟通记录：' + (c.note || '').replace(/\n/g, ' ') + '\n';
+          text += '> 跟进情况：' + (c.followUp || '').replace(/\n/g, ' ') + '\n';
+          if (c.status) text += '> 状态：' + (c.status==='success'?'已办理成功':'未办理成功') + '\n';
+          return text;
+        };
+
+        let sent = 0, failed = 0;
+        const concurrency = 3;
+        for (let i = 0; i < allClients.length; i += concurrency) {
+          const batch = allClients.slice(i, i + concurrency);
+          const results = await Promise.all(batch.map(async (c) => {
+            try {
+              await sendMarkdownMessage(env, target, buildText(c));
+              return true;
+            } catch(e) { return false; }
+          }));
+          for (const r of results) {
+            if (r) sent++; else failed++;
+          }
+        }
+
+        return new Response(JSON.stringify({ success: true, sent, failed, total: allClients.length }), {
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+
+      const today = new Date();
+      const dow = today.getDay();
+      const diff = dow === 0 ? 6 : dow - 1;
+      const mon = new Date(today);
+      mon.setDate(today.getDate() - diff);
+      const monStr = mon.getFullYear() + '-' + String(mon.getMonth()+1).padStart(2,'0') + '-' + String(mon.getDate()).padStart(2,'0');
+      const todayStr = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0') + '-' + String(today.getDate()).padStart(2,'0');
+      const monthPrefix = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0');
+
+      const keys = await getAllKVKeys(env, 'work:' + monthPrefix);
+      const keyValues = await getKVValuesConcurrently(env, keys);
+      let weekW = 0, monthW = 0, weekI = 0, monthI = 0, weekR = 0, monthR = 0;
+      const sorted = [];
+      for (const kv of keyValues) {
+        if (!kv.val) continue;
+        try {
+          const d = JSON.parse(kv.val);
+          sorted.push(d);
+          monthW += d.wechatCount || 0;
+          monthI += d.intentCount || 0;
+          monthR += d.revisitCount || 0;
+          if (d.date >= monStr && d.date <= todayStr) {
+            weekW += d.wechatCount || 0;
+            weekI += d.intentCount || 0;
+            weekR += d.revisitCount || 0;
+          }
+        } catch(e) {}
+      }
+      sorted.sort((a,b) => (a.date||'').localeCompare(b.date||''));
+
+      const weekNames = ['日', '一', '二', '三', '四', '五', '六'];
+      const title = type === 'week' ? '本周数据统计' : '本月数据统计';
+      const dateRange = type === 'week'
+        ? monStr + ' ～ ' + todayStr
+        : monthPrefix + '-01 ～ ' + todayStr;
+      const wTotal = type === 'week' ? weekW : monthW;
+      const iTotal = type === 'week' ? weekI : monthI;
+      const rTotal = type === 'week' ? weekR : monthR;
+
+      const baseHeader = '### ' + title + '\n' +
+        '> ' + dateRange + '\n\n' +
+        '<font color="info">新增微信：**' + wTotal + '**</font>\n' +
+        '<font color="warning">新增意向：**' + iTotal + '**</font>\n' +
+        '<font color="comment">客户回访：**' + rTotal + '**</font>\n' +
+        (type !== 'week' ? '\n> 本周参考: 微信 **' + weekW + '** | 意向 **' + weekI + '** | 回访 **' + weekR + '**\n' : '') +
+        '\n---\n\n';
+
+      const activeDays = sorted.filter(d => {
+        if (type === 'week' && (d.date < monStr || d.date > todayStr)) return false;
+        return true;
+      });
+
+      const itemFormatter = (d) => {
+        const datePart = d.date.slice(5);
+        const wk = '周' + weekNames[new Date(d.date + 'T00:00:00').getDay()];
+        const w = d.wechatCount || 0;
+        const it = d.intentCount || 0;
+        const r = d.revisitCount || 0;
+        
+        const clients = d.clients || [];
+        let detail = '';
+        if (clients.length > 0) {
+          detail = clients.map(c => c.name + (c.company ? ' [' + c.company + ']' : '') + (c.fund ? ' {' + c.fund + '}' : '') + (c.note ? ' （' + c.note + '）' : '')).join('\n> ');
+        } else {
+          detail = '*(无新增意向)*';
+        }
+        
+        let itemText = '**' + datePart + ' ' + wk + '**\n';
+        itemText += '> <font color="info">微信: ' + w + '</font> | <font color="warning">意向: ' + it + '</font> | <font color="comment">回访: ' + r + '</font>\n';
+        itemText += '> ' + detail + '\n\n';
+        return itemText;
+      };
+
+      try {
+        await sendWebhookMarkdown(env, target, baseHeader, activeDays, itemFormatter);
+        return new Response(JSON.stringify({ success: true }), {
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ error: '发送失败: ' + e.message }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+    }
+
+    // ==================== HTML 页面 ====================
+
+    // 从 KV 读取自定义 PIN 码，默认 '8520'（首次部署需在 KV 中设置 config:pin_code）
+    const pinCode = await env.DATA_KV.get('config:pin_code') || '8520';
+    let _ph = 5381;
+    for (let _i = 0; _i < pinCode.length; _i++) {
+      _ph = ((_ph << 5) + _ph) + pinCode.charCodeAt(_i);
+    }
+    const PIN_HASH = (_ph >>> 0).toString(16);
+
+    const HTML = `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes, viewport-fit=cover, shrink-to-fit=no">
+  <title>每日工作</title>
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="theme-color" content="#ededed">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/icon.svg">
+  <link rel="icon" href="/icon.svg" type="image/svg+xml">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg-app: #ededed;
+      --card-bg: #ffffff;
+      --card-border: #e0e0e0;
+      --text-main: #191919;
+      --text-soft: #5e5e5e;
+      --text-light: #8e8e8e;
+      --accent-wechat: #07c160;
+      --accent-intent: #07c160;
+      --accent-wechat-bg: #f0fdf5;
+      --accent-intent-bg: #f0fdf5;
+      --btn-bg: #f5f5f5;
+      --btn-hover: #e5e5e5;
+      --shadow-card: 0 1px 3px rgba(0,0,0,0.06);
+      --cal-hover: #f5f5f5;
+      --cal-today: rgba(7,193,96,0.1);
+      --border-light: #e5e5e5;
+      --tooltip-bg: #191919;
+      --tooltip-text: #ffffff;
+      --modal-bg: rgba(0,0,0,0.45);
+      --modal-card: #ffffff;
+      --radius-ios: 10px;
+      --radius-sm: 8px;
+      --radius-xs: 6px;
+      --wechat-gradient: linear-gradient(135deg, #b7f0ce 0%, #6be89d 50%, #1aad5a 100%);
+      --intent-gradient: linear-gradient(135deg, #ffe0b2 0%, #ffb74d 50%, #f57c00 100%);
+      --revisit-gradient: linear-gradient(135deg, #d1e0ff 0%, #7b9ff5 50%, #4a6cf7 100%);
+      --visit-gradient: linear-gradient(135deg, #c8e6c9 0%, #66bb6a 50%, #388e3c 100%);
+      --payment-gradient: linear-gradient(135deg, #fff9c4 0%, #ffd54f 50%, #f9a825 100%);
+      --today-gradient: linear-gradient(135deg, #ffe0cc 0%, #ffab7a 50%, #ff7744 100%);
+      --stats-gradient: linear-gradient(135deg, #d4f0f0 0%, #80cbc4 50%, #26a69a 100%);
+      --wallpaper-url: '';
+      --wallpaper-opacity: 0.13;
+    }
+    body.dark-mode {
+      --bg-app: rgba(17,17,17,0.92);
+      --card-bg: rgba(26,26,26,0.9);
+      --card-border: #2c2c2c;
+      --text-main: #e5e5e5;
+      --text-soft: #a0a0a0;
+      --text-light: #6b6b6b;
+      --accent-wechat: #07c160;
+      --accent-intent: #07c160;
+      --accent-wechat-bg: #17241c;
+      --accent-intent-bg: #17241c;
+      --btn-bg: rgba(38,38,38,0.85);
+      --btn-hover: #2c2c2c;
+      --cal-hover: #222222;
+      --cal-today: rgba(7,193,96,0.18);
+      --border-light: #262626;
+      --tooltip-bg: #e5e5e5;
+      --tooltip-text: #111111;
+      --modal-bg: rgba(0,0,0,0.88);
+      --modal-card: #1a1a1a;
+      --wechat-gradient: linear-gradient(135deg, #0d3320 0%, #144d2e 50%, #1a6b3a 100%);
+      --intent-gradient: linear-gradient(135deg, #332010 0%, #4d2e14 50%, #6b3a1a 100%);
+      --revisit-gradient: linear-gradient(135deg, #1a2233 0%, #2a354d 50%, #3a4d6b 100%);
+      --visit-gradient: linear-gradient(135deg, #1b3320 0%, #2d5a30 50%, #3d7a40 100%);
+      --payment-gradient: linear-gradient(135deg, #332b10 0%, #5a4a1a 50%, #7a6a20 100%);
+      --today-gradient: linear-gradient(135deg, #2a1a0d 0%, #3d2614 50%, #52331a 100%);
+      --stats-gradient: linear-gradient(135deg, #0d2626 0%, #143d3d 50%, #1a5252 100%);
+      --wallpaper-opacity: 0.12;
+    }
+    html, body { height: 100%; min-height: 100%; min-height: -webkit-fill-available; width: 100%; overflow: hidden; background: var(--bg-app); font-family: system-ui, -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif; font-weight: 600; text-rendering: optimizeLegibility; transition: background 0.3s; position: relative; }
+    .wallpaper-background { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; background-image: var(--wallpaper-url); background-size: cover; background-position: center; background-repeat: no-repeat; opacity: var(--wallpaper-opacity); transition: opacity 0.8s ease, background-image 0.8s ease; pointer-events: none; }
+    body.dark-mode .wallpaper-background { opacity: 0.12; }
+    .wallpaper-fallback { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; background: linear-gradient(135deg, #a8e6cf 0%, #dcedc1 100%); opacity: 0.15; pointer-events: none; }
+    body.dark-mode .wallpaper-fallback { background: linear-gradient(180deg, #0a0a0a 0%, #141414 50%, #0d0d0d 100%); opacity: 0.6; }
+    .privacy-mask { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.3); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); z-index: 9999; flex-direction: column; justify-content: center; align-items: center; gap: 2rem; color: var(--text-main); font-weight: 600; pointer-events: none; }
+    .privacy-wallpaper { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 9998; background-image: var(--wallpaper-url); background-size: cover; background-position: center; background-repeat: no-repeat; opacity: 0; transition: opacity 0.5s ease; pointer-events: none; }
+    body.page-hidden .privacy-wallpaper { opacity: 0.85; pointer-events: auto; }
+    body.dark-mode.page-hidden .privacy-wallpaper { opacity: 0.70; }
+    body.page-hidden .privacy-mask { display: flex; pointer-events: auto; }
+    body.page-hidden .app-shell { display: none; }
+    .pin-box { display: flex; flex-direction: column; align-items: center; gap: 22px; background: #ffffff; padding: 45px 56px; border-radius: var(--radius-ios); box-shadow: 0 8px 30px rgba(0,0,0,0.08); border: 1px solid rgba(0,0,0,0.04); min-width: 448px; max-width: 588px; transition: all 0.3s ease; z-index: 45; position: absolute; top: 60%; left: 50%; transform: translate(-50%, -50%); }
+    body.dark-mode .pin-box { background: rgba(26,26,26,0.9); border: 1px solid rgba(255,255,255,0.06); box-shadow: 0 25px 60px rgba(0,0,0,0.55); }
+    .pin-stats { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; }
+    .pin-stat-item { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px 16px; background: #fafafa; border-radius: var(--radius-sm); border: 1px solid rgba(0,0,0,0.04); min-width: 110px; flex: 1; }
+    body.dark-mode .pin-stat-item { background: rgba(38,38,38,0.7); border: 1px solid rgba(255,255,255,0.06); }
+    .pin-stat-label { font-size: 0.82rem; font-weight: 700; color: var(--text-soft); letter-spacing: 0.3px; white-space: nowrap; }
+    .pin-stat-value { font-size: 2.2rem; font-weight: 900; line-height: 1; }
+    .pin-wechat-value { background: var(--wechat-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .pin-intent-value { background: var(--intent-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .pin-revisit-value { background: var(--revisit-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .pin-visit-value { background: var(--visit-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .pin-payment-value { background: var(--payment-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .pin-input { width: 196px; padding: 11px 20px; border-radius: var(--radius-xs); border: 1.5px solid rgba(0,0,0,0.08); background: #fafafa; text-align: center; font-size: 1.4rem; letter-spacing: 7px; color: var(--text-main); outline: none; font-weight: 700; transition: all 0.3s; }
+    body.dark-mode .pin-input { background: rgba(38,38,38,0.6); border-color: rgba(255,255,255,0.08); }
+    .pin-input:focus { border-color: var(--accent-wechat); box-shadow: 0 0 0 4px rgba(7,193,96,0.25); background: #ffffff; }
+    .pin-btn { background: var(--accent-wechat); border: none; color: white; padding: 11px 45px; border-radius: var(--radius-xs); font-weight: 700; cursor: pointer; font-size: 1.12rem; letter-spacing: 1px; transition: all 0.2s; box-shadow: 0 4px 15px rgba(7,193,96,0.25); }
+    .pin-btn:hover { opacity: 0.9; transform: translateY(-2px); box-shadow: 0 6px 20px rgba(7,193,96,0.35); }
+    .pin-btn:active { transform: translateY(0); }
+    .pin-error { color: #e74c3c; font-size: 1.26rem; min-height: 24px; font-weight: 600; letter-spacing: 0.5px; }
+    .timer-container { position: absolute; top: 18%; left: 50%; margin-left: -160px; width: 320px; z-index: 20000; display: none; cursor: grab; user-select: none; }
+    .timer-container.show { display: block; }
+    .timer-box { width: 100%; display: flex; flex-direction: column; gap: 12px; align-items: center; background: #ffffff; padding: 24px 32px; border-radius: var(--radius-ios); box-shadow: 0 4px 20px rgba(0,0,0,0.06); border: 1px solid rgba(0,0,0,0.04); }
+    body.dark-mode .timer-box { background: rgba(26,26,26,0.9); border: 1px solid rgba(255,255,255,0.06); box-shadow: 0 15px 40px rgba(0,0,0,0.55); }
+    .timer-display { font-size: 3.2rem; font-weight: 900; text-align: center; font-variant-numeric: tabular-nums; letter-spacing: 3px; color: var(--accent-wechat); text-shadow: 0 2px 8px rgba(0,0,0,0.1); height: 70px; line-height: 70px; display: block; }
+    .timer-box.active .timer-input, .timer-box.active .timer-label, .timer-box.active .timer-separator { display: none; }
+    .timer-inputs { display: flex; gap: 8px; justify-content: center; align-items: center; transition: all 0.3s ease; }
+    .timer-input-group { display: flex; flex-direction: column; gap: 4px; align-items: center; }
+    .timer-input { width: 50px; padding: 8px 6px; text-align: center; font-size: 1rem; font-weight: 700; border: 1.5px solid rgba(0,0,0,0.08); border-radius: var(--radius-xs); background: #fafafa; color: var(--text-main); outline: none; transition: all 0.2s; }
+    body.dark-mode .timer-input { background: rgba(38,38,38,0.6); border-color: rgba(255,255,255,0.08); }
+    .timer-input:focus { border-color: var(--accent-wechat); box-shadow: 0 0 0 3px rgba(7,193,96,0.25); background: #ffffff; }
+    .timer-label { font-size: 0.75rem; font-weight: 600; color: var(--text-soft); }
+    .timer-separator { font-size: 1.2rem; font-weight: 700; color: var(--text-main); margin-bottom: 12px; }
+    .timer-buttons { display: flex; gap: 8px; justify-content: center; transition: all 0.3s ease; }
+    .timer-btn { padding: 8px 16px; border: none; border-radius: var(--radius-xs); font-weight: 700; cursor: pointer; font-size: 0.9rem; transition: all 0.2s; }
+    .timer-btn-start { background: var(--accent-wechat); color: white; box-shadow: 0 4px 12px rgba(7,193,96,0.25); }
+    .timer-btn-start:hover { opacity: 0.9; transform: translateY(-2px); }
+    .timer-btn-start:active { transform: translateY(0); }
+    .timer-btn-reset { background: rgba(0,0,0,0.04); color: var(--text-main); }
+    body.dark-mode .timer-btn-reset { background: rgba(255,255,255,0.06); }
+    body.dark-mode .icon-simple { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.06); color: var(--text-main); }
+    body.dark-mode .icon-simple:hover { background: rgba(255,255,255,0.1); box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+    body.dark-mode .goal-chip.goal-met { background: rgba(7,193,96,0.12); color: #2ecc71; }
+    body.dark-mode .goal-chip.goal-half { background: rgba(245,124,0,0.12); color: #f0a04b; }
+    body.dark-mode .goal-chip.goal-low { background: rgba(74,108,247,0.1); color: #7b9ff5; }
+    body.dark-mode .sync-indicator { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.06); color: var(--text-main); }
+    body.dark-mode .sync-indicator:hover { background: rgba(255,255,255,0.1); box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+    .timer-btn-reset:hover { background: rgba(0,0,0,0.08); }
+    .timer-display.completed { animation: pulse 0.6s ease-in-out; }
+    @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+    .notify-bar { position: fixed; top: 0; left: 0; right: 0; background: var(--accent-intent); color: #fff; padding: 12px 20px; font-size: 0.85rem; font-weight: 700; z-index: 10000; transform: translateY(-100%); transition: transform 0.3s ease; text-align: center; box-shadow: 0 4px 20px rgba(0,0,0,0.2); cursor: pointer; }
+    .notify-bar.show { transform: translateY(0); }
+    .notify-bar .notify-close { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); font-size: 1.1rem; opacity: 0.7; }
+    .script-container { position: absolute; left: 20px; top: 80px; display: flex; flex-direction: column; gap: 10px; max-width: 420px; z-index: 1; }
+    .script-module { text-align: left; padding: 16px 20px; background: #ffffff; border-radius: var(--radius-ios); border: 1px solid rgba(0,0,0,0.04); box-shadow: 0 2px 12px rgba(0,0,0,0.06); cursor: grab; user-select: none; position: relative; font-size: 0.92rem; font-weight: 400; color: var(--text-main); line-height: 1.8; letter-spacing: 0.2px; white-space: pre-wrap; word-break: break-word; }
+    body.dark-mode .script-module { background: rgba(26,26,26,0.9); border: 1px solid rgba(255,255,255,0.06); box-shadow: 0 25px 60px rgba(0,0,0,0.55); }
+    .learn-container { position: absolute; right: 20px; top: 80px; display: flex; flex-direction: column; gap: 10px; max-width: 460px; z-index: 1; }
+    .learn-module { padding: 16px 20px; background: #ffffff; border-radius: var(--radius-ios); border: 1px solid rgba(0,0,0,0.04); box-shadow: 0 2px 12px rgba(0,0,0,0.06); cursor: grab; user-select: none; position: relative; font-size: 0.85rem; font-weight: 400; color: var(--text-main); line-height: 1.8; letter-spacing: 0.2px; text-align: left; white-space: pre-wrap; word-break: break-word; }
+    body.dark-mode .learn-module { background: rgba(26,26,26,0.9); border: 1px solid rgba(255,255,255,0.06); box-shadow: 0 25px 60px rgba(0,0,0,0.55); }
+    .learn-check-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-size: 0.8rem; color: var(--text-soft); font-weight: 600; }
+    .learn-check-row input[type=checkbox] { width: 16px; height: 16px; accent-color: var(--accent-wechat); cursor: pointer; }
+    .script-input-modal { max-width: 460px; }
+    .script-input-modal textarea { width: 100%; min-height: 100px; background: var(--btn-bg); border: 1px solid var(--card-border); border-radius: var(--radius-xs); padding: 12px 16px; font-size: 0.85rem; color: var(--text-main); outline: none; resize: vertical; font-weight: 600; line-height: 1.6; }
+    .script-input-modal textarea:focus { border-color: var(--accent-wechat); }
+    .script-list { max-height: 180px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+    .script-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: var(--btn-bg); border-radius: var(--radius-xs); border: 1px solid var(--card-border); font-size: 0.78rem; color: var(--text-main); font-weight: 600; }
+    .script-item-text { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-right: 8px; }
+    .app-shell { height: 100%; height: 100dvh; width: 100%; display: flex; flex-direction: column; overflow: hidden; position: relative; z-index: 1; }
+    .container { flex: 1; display: flex; flex-direction: column; padding: 14px 18px 12px; overflow-y: auto; scrollbar-width: thin; -webkit-overflow-scrolling: touch; }
+    .header-bar { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 20px; padding-bottom: 6px; border-bottom: 1px solid var(--border-light); flex-shrink: 0; }
+    .title-section { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+    h3 { font-size: 1.45rem; font-weight: 800; letter-spacing: -0.2px; color: var(--text-main); }
+    .app-logo { display: flex; align-items: center; gap: 10px; }
+    .app-icon { width: 40px; height: 40px; border-radius: 10px; background: linear-gradient(135deg, #4a6cf7 0%, #6b8dff 40%, #07c160 100%); box-shadow: 0 0 24px rgba(74,108,247,0.3), 0 4px 16px rgba(7,193,96,0.2); position: relative; flex-shrink: 0; animation: iconPulse 4s ease-in-out infinite; }
+    .app-icon svg { width: 100%; height: 100%; }
+    @keyframes iconPulse { 0%, 100% { box-shadow: 0 0 24px rgba(74,108,247,0.3), 0 4px 16px rgba(7,193,96,0.2); } 50% { box-shadow: 0 0 36px rgba(74,108,247,0.45), 0 6px 24px rgba(7,193,96,0.3); } }
+    body.dark-mode .app-icon { box-shadow: 0 0 20px rgba(74,108,247,0.4), 0 4px 16px rgba(7,193,96,0.25); }
+    body.dark-mode .app-icon { animation: iconPulseDark 4s ease-in-out infinite; }
+    @keyframes iconPulseDark { 0%, 100% { box-shadow: 0 0 20px rgba(74,108,247,0.4), 0 4px 16px rgba(7,193,96,0.25); } 50% { box-shadow: 0 0 32px rgba(74,108,247,0.55), 0 6px 24px rgba(7,193,96,0.35); } }
+    /* PWA safe area for iOS notch & home indicator */
+    .app-shell { padding-top: constant(safe-area-inset-top); padding-top: env(safe-area-inset-top); padding-bottom: constant(safe-area-inset-bottom); padding-bottom: env(safe-area-inset-bottom); }
+    .container { padding-bottom: max(env(safe-area-inset-bottom),12px); }
+    @media (max-width: 760px) { .app-icon { width: 34px; height: 34px; border-radius: 8px; } .app-logo { gap: 8px; } }
+    .date-chip { background: var(--card-bg); padding: 4px 12px; border-radius: var(--radius-xs); font-size: 0.75rem; font-weight: 700; color: var(--text-soft); border: 1px solid var(--card-border); }
+    .goal-chips { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .goal-chip { background: var(--card-bg); padding: 4px 12px; border-radius: var(--radius-xs); font-size: 0.75rem; font-weight: 700; border: 1px solid var(--card-border); color: var(--text-soft); white-space: nowrap; cursor: default; }
+    .goal-chip.goal-met { background: rgba(7,193,96,0.08); color: #07c160; }
+    .goal-chip.goal-half { background: rgba(245,124,0,0.08); color: #e67e22; }
+    .goal-chip.goal-low { background: rgba(74,108,247,0.06); color: #4a6cf7; }
+    .goal-eye { background: none; border: none; cursor: pointer; font-size: 0.85rem; padding: 2px 4px; opacity: 0.5; transition: opacity 0.2s; line-height: 1; }
+    .goal-eye:hover { opacity: 1; }
+    .goal-eye.eye-off { opacity: 0.25; }
+    .action-group { display: flex; gap: 10px; align-items: center; padding: 2px; position: relative; }
+    .icon-simple { background: #f5f5f5; border: 1px solid rgba(0,0,0,0.04); min-width: 38px; height: 38px; padding: 0 6px; border-radius: var(--radius-xs); display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 0.78rem; color: var(--text-soft); transition: all 0.2s cubic-bezier(0.34,1.56,0.64,1); user-select: none; font-weight: 600; position: relative; white-space: nowrap; }
+    .icon-simple:hover { background: #e8e8e8; transform: translateY(-2px) scale(1.06); box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+    .icon-simple:active { transform: translateY(0px) scale(0.98); }
+	    .log-list { max-height: 50vh; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; font-size: 0.8rem; font-weight: 600; color: var(--text-main); margin-top: 10px; }
+	    .log-item { background: var(--btn-bg); padding: 10px 14px; border-radius: var(--radius-xs); border: 1px solid var(--card-border); display: flex; flex-direction: column; gap: 6px; }
+	    .log-time { font-size: 0.7rem; color: var(--text-light); }
+	    .menu-dropdown { position: absolute; right: 0; top: 100%; margin-top: 8px; background: var(--card-bg); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border-radius: var(--radius-ios); border: 1px solid var(--card-border); box-shadow: 0 12px 32px rgba(0,0,0,0.15); display: none; flex-direction: column; gap: 2px; padding: 6px; z-index: 100; min-width: 168px; }
+	    .menu-dropdown.show { display: flex; }
+	    .menu-item { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: transparent; border: none; border-radius: var(--radius-xs); cursor: pointer; font-size: 0.8rem; font-weight: 600; color: var(--text-main); white-space: nowrap; transition: background 0.15s; width: 100%; text-align: left; }
+	    .menu-item:hover { background: var(--btn-hover); }
+    .two-columns { display: flex; gap: 20px; flex: 1; min-height: 0; }
+    .left-area { flex: 1; display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+    .right-area { flex: 2; display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+    .card { background: var(--card-bg); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-radius: var(--radius-ios); border: 1px solid var(--card-border); box-shadow: var(--shadow-card); padding: 18px 20px; }
+    .counter-row { display: flex; gap: 14px; }
+    .counter-card { flex: 1; border-radius: var(--radius-sm); padding: 12px; border: 1px solid var(--card-border); position: relative; overflow: hidden; }
+    .counter-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0; opacity: 0.15; z-index: 0; border-radius: var(--radius-sm); }
+    .wechat-fill { background: var(--wechat-gradient); color: white; }
+    .wechat-fill::before { background: var(--wechat-gradient); }
+    .intent-fill { background: var(--intent-gradient); color: white; }
+    .intent-fill::before { background: var(--intent-gradient); }
+    .revisit-fill { background: var(--revisit-gradient); color: white; }
+    .revisit-fill::before { background: var(--revisit-gradient); }
+    .visit-fill { background: var(--visit-gradient); color: white; }
+    .visit-fill::before { background: var(--visit-gradient); }
+    .payment-fill { background: var(--payment-gradient); color: white; }
+    .payment-fill::before { background: var(--payment-gradient); }
+    .counter-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; position: relative; z-index: 1; }
+    .counter-header .button-group { display: flex; gap: 6px; margin-top: 0; }
+    .counter-header .circle-btn { width: 28px; height: 28px; font-size: 1.1rem; border-radius: 4px; }
+    .counter-label { font-size: 0.8rem; font-weight: 700; color: rgba(255,255,255,0.95); text-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+    .reset-mini { background: rgba(255,255,255,0.3); border: none; font-size: 0.7rem; color: rgba(255,255,255,0.9); cursor: pointer; padding: 4px 8px; border-radius: var(--radius-xs); font-weight: 600; position: relative; z-index: 1; backdrop-filter: blur(4px); }
+    .counter-value { font-size: 2.4rem; font-weight: 800; line-height: 1; color: white; text-shadow: 0 2px 4px rgba(0,0,0,0.15); position: relative; z-index: 1; }
+    .counter-stats { display: flex; gap: 12px; margin-top: 6px; position: relative; z-index: 1; font-size: 0.7rem; color: rgba(255,255,255,0.8); font-weight: 600; }
+    .counter-stats b { font-weight: 800; }
+    .button-group { display: flex; gap: 12px; margin-top: 12px; position: relative; z-index: 1; }
+    .circle-btn { width: 40px; height: 40px; border-radius: var(--radius-xs); background: rgba(255,255,255,0.35); border: 1px solid rgba(255,255,255,0.5); font-size: 1.5rem; display: flex; align-items: center; justify-content: center; cursor: pointer; color: white; font-weight: 700; backdrop-filter: blur(4px); transition: 0.2s; }
+    .circle-btn:hover { background: rgba(255,255,255,0.5); }
+    .btn-special { background: rgba(255,255,255,0.45); }
+    .stats-row { display: flex; gap: 10px; }
+    .stat-block { flex: 1; text-align: center; border-radius: var(--radius-sm); padding: 10px 4px; border: 1px solid var(--card-border); color: white; text-shadow: 0 1px 2px rgba(0,0,0,0.1); box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+    .stat-wechat { background: var(--wechat-gradient); }
+    .stat-intent { background: var(--intent-gradient); }
+    .stat-revisit { background: var(--revisit-gradient); }
+    .stat-block .label { font-size: 0.7rem; font-weight: 600; opacity: 0.9; }
+    .stat-block .number { font-size: 1.35rem; font-weight: 800; margin-left: 4px; }
+    .calendar-compact { padding: 10px 12px; }
+    .cal-head { display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 0.8rem; font-weight: 700; color: var(--text-soft); margin-bottom: 8px; }
+    .cal-nav-btn { background: none; border: 1px solid var(--card-border); border-radius: var(--radius-xs); cursor: pointer; padding: 2px 8px; font-size: 0.7rem; color: var(--text-soft); transition: all 0.2s; }
+    .cal-nav-btn:hover { background: var(--card-bg); color: var(--text-main); }
+    .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; text-align: center; }
+    .cal-weekday { font-size: 0.65rem; font-weight: 800; color: var(--text-soft); padding: 4px 0; }
+    .cal-day { aspect-ratio: 1/1; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: var(--radius-xs); font-size: 0.7rem; font-weight: 800; color: var(--text-main); background: transparent; cursor: pointer; transition: 0.2s; position: relative; }
+    .cal-day:hover { background: var(--cal-hover); transform: scale(0.98); }
+    .cal-day.today { background: var(--today-gradient); color: white; box-shadow: 0 0 20px rgba(255,138,101,0.5); text-shadow: 0 1px 2px rgba(0,0,0,0.2); }
+    .cal-day.past { background: rgba(128,138,150,0.08); color: var(--text-soft); }
+    body.dark-mode .cal-day.past { background: rgba(255,255,255,0.03); }
+    .day-number { font-size: 0.78rem; font-weight: 800; }
+    .day-badge { display: flex; gap: 3px; font-size: 0.5rem; margin-top: 2px; color: var(--text-soft); font-weight: 700; }
+    .cal-day.today .day-badge { color: rgba(255,255,255,0.9); }
+    .day-badge span { background: rgba(100,110,130,0.15); padding: 0px 3px; border-radius: var(--radius-xs); }
+    .cal-day.today .day-badge span { background: rgba(255,255,255,0.3); }
+    .tooltip-simple { position: fixed; background: var(--tooltip-bg); color: var(--tooltip-text); padding: 6px 14px; border-radius: var(--radius-xs); font-size: 0.7rem; pointer-events: none; z-index: 1100; opacity: 0; transition: 0.1s; white-space: nowrap; box-shadow: 0 2px 8px rgba(0,0,0,0.1); font-weight: 600; }
+    .tooltip-simple.show { opacity: 1; }
+    .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--modal-bg); backdrop-filter: blur(10px); z-index: 2000; display: flex; align-items: center; justify-content: center; visibility: hidden; opacity: 0; transition: 0.2s; }
+    .modal-overlay.active { visibility: visible; opacity: 1; }
+    .modal-card { background: var(--modal-card); border-radius: var(--radius-ios); width: 1100px; max-width: 98vw; max-height: 90vh; padding: 24px 32px; box-shadow: 0 24px 60px rgba(0,0,0,0.25); border: 1px solid var(--card-border); display: flex; flex-direction: column; gap: 16px; color: var(--text-main); }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; font-weight: 700; font-size: 1.1rem; border-bottom: 1px solid var(--border-light); padding-bottom: 10px; }
+    .modal-header button { background: none; border: none; font-size: 1.2rem; cursor: pointer; color: var(--text-soft); font-weight: 700; }
+    .modal-header-meta { display: flex; align-items: center; gap: 14px; }
+    .modal-section-title { font-size: 0.78rem; font-weight: 700; color: var(--text-soft); letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+    .modal-section-title::after { content: ''; flex: 1; height: 1px; background: var(--border-light); }
+    .client-modal-list { overflow-y: auto; display: flex; flex-direction: column; gap: 16px; max-height: 75vh; padding-top: 2px; position: relative; }
+    /* ===== 意向客户表格 ===== */
+    .intent-table { width: 100%; border-collapse: collapse; font-size: 0.83rem; table-layout: auto; }
+    .intent-table thead tr { background: linear-gradient(90deg, rgba(7,193,96,0.08) 0%, rgba(7,193,96,0.03) 100%); border-bottom: 2px solid rgba(7,193,96,0.18); }
+    body.dark-mode .intent-table thead tr { background: linear-gradient(90deg, rgba(7,193,96,0.12) 0%, rgba(7,193,96,0.04) 100%); }
+    .intent-table th { padding: 9px 14px; font-size: 0.72rem; font-weight: 800; color: var(--accent-intent); letter-spacing: 0.4px; text-align: left; white-space: nowrap; }
+    .intent-table td { padding: 11px 14px; border-bottom: 1px solid var(--border-light); vertical-align: top; color: var(--text-main); font-weight: 600; }
+    .intent-table tbody tr { transition: background 0.15s; }
+    .intent-table tbody tr:hover { background: rgba(7,193,96,0.04); }
+    body.dark-mode .intent-table tbody tr:hover { background: rgba(7,193,96,0.06); }
+    .intent-table tbody tr:last-child td { border-bottom: none; }
+    /* 序号/姓名/电话/公司/时间/编辑 — 按内容撑开，不折行 */
+    .tbl-seq { font-size: 0.68rem; font-weight: 800; color: var(--text-light); text-align: center; white-space: nowrap; }
+    .tbl-name { font-weight: 800; font-size: 0.88rem; white-space: nowrap; }
+    .tbl-phone-wrap { display: inline-flex; align-items: center; gap: 5px; font-family: monospace; font-size: 0.8rem; color: var(--text-soft); white-space: nowrap; }
+    .tbl-tag { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 0.68rem; font-weight: 700; white-space: nowrap; }
+    .tbl-tag-company { background: rgba(7,193,96,0.08); color: var(--accent-wechat); }
+    .tbl-tag-fund { background: rgba(255,154,60,0.15); color: #c97a00; }
+    body.dark-mode .tbl-tag-fund { color: #d4933a; }
+    /* 沟通记录列 — 最大宽度优先，文字完整换行显示 */
+    .tbl-note-cell { min-width: 320px; width: 99%; }
+    .tbl-note-text { color: var(--text-main); font-size: 0.86rem; font-weight: 600; line-height: 1.7; word-break: break-word; white-space: pre-wrap; text-align: left; }
+    .tbl-note-empty { color: var(--text-light); font-size: 0.75rem; font-style: italic; }
+    .tbl-time { font-size: 0.7rem; color: var(--text-light); white-space: nowrap; }
+    .tbl-action { text-align: center; white-space: nowrap; }
+    .edit-note-btn { font-size: 0.78rem; background: transparent; border: 1px solid var(--accent-wechat); color: var(--accent-wechat); border-radius: 50%; cursor: pointer; width: 26px; height: 26px; padding: 0; display: inline-flex; justify-content: center; align-items: center; font-weight: 700; transition: all 0.2s; }
+    .edit-note-btn:hover { background: var(--accent-wechat); color: #fff; transform: scale(1.1); }
+    .tbl-note-edit-wrap { display: flex; flex-direction: column; gap: 6px; }
+    .tbl-note-edit-wrap textarea { width: 100%; min-height: 90px; background: var(--btn-bg); border: 1.5px solid var(--accent-wechat); border-radius: 6px; padding: 8px 10px; font-size: 0.86rem; color: var(--text-main); outline: none; font-weight: 600; resize: vertical; line-height: 1.7; }
+    .tbl-note-edit-wrap textarea:focus { box-shadow: 0 0 0 3px rgba(7,193,96,0.25); }
+    .tbl-note-edit-btns { display: flex; gap: 5px; }
+    .tbl-save-btn { font-size: 0.65rem; background: var(--accent-wechat); color: #fff; border: none; border-radius: 6px; cursor: pointer; padding: 4px 12px; font-weight: 700; }
+    .tbl-cancel-btn { font-size: 0.65rem; background: var(--btn-bg); border: 1px solid var(--card-border); color: var(--text-soft); border-radius: 6px; cursor: pointer; padding: 4px 12px; font-weight: 700; }
+    /* ===== 待办卡片（保留原样式） ===== */
+    .todo-card-item { display: flex; align-items: flex-start; gap: 10px; padding: 10px 14px; background: var(--btn-bg); border-radius: var(--radius-xs); border: 1px solid var(--card-border); font-size: 0.82rem; font-weight: 600; color: var(--text-main); }
+    .todo-card-icon { font-size: 1rem; flex-shrink: 0; margin-top: 1px; }
+    .todo-card-text { flex: 1; line-height: 1.5; word-break: break-word; }
+    .todo-card-time { font-size: 0.68rem; color: var(--text-light); white-space: nowrap; margin-top: 2px; }
+    .phone-toggle { background: none; border: none; font-size: 0.8rem; cursor: pointer; opacity: 0.6; transition: opacity 0.2s; padding: 0; outline: none; }
+    .phone-toggle:hover { opacity: 1; }
+    .empty-clients { text-align: center; color: var(--text-light); padding: 30px 20px; font-size: 0.85rem; font-weight: 600; }
+    .card-title { font-weight: 700; font-size: 0.9rem; margin-bottom: 12px; color: var(--text-main); }
+    .register-block { display: flex; flex-direction: column; gap: 8px; }
+    .form-line { display: flex; gap: 8px; align-items: center; width: 100%; }
+    .input-simple, .todo-input { flex: 1; width: 100%; height: 38px; padding: 0 12px; font-size: 0.85rem; background: var(--btn-bg); border: 0.5px solid var(--card-border); border-radius: var(--radius-xs); color: var(--text-main); outline: none; min-width: 0; font-weight: 600; box-sizing: border-box; transition: all 0.2s; }
+    .input-simple:focus, .todo-input:focus { border-color: var(--accent-wechat); box-shadow: 0 0 0 2px rgba(7,193,96,0.25); }
+    textarea.input-simple, .note-textarea { height: auto; min-height: 68px; padding: 10px 12px; resize: vertical; line-height: 1.6; }
+    .note-textarea { font-family: inherit; }
+    .btn-add, .todo-add-btn { height: 38px; padding: 0 18px; font-size: 0.85rem; font-weight: 700; border: none; border-radius: var(--radius-xs); color: white; cursor: pointer; white-space: nowrap; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; transition: all 0.2s; }
+    .btn-add { background: var(--accent-intent); }
+    .todo-add-btn { background: var(--accent-wechat); }
+    .btn-add:hover, .todo-add-btn:hover { opacity: 0.92; transform: translateY(-1px); }
+    .btn-add:active, .todo-add-btn:active { transform: translateY(0); }
+    .btn-add:disabled, .todo-add-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+    .time-input-compact { flex: 0 0 92px !important; min-width: 92px !important; padding: 0 6px !important; text-align: center; }
+    .client-scroll { max-height: 220px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+    .client-row { background: var(--btn-bg); border-radius: var(--radius-sm); padding: 10px 14px; display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem; border: 0.5px solid var(--card-border); font-weight: 600; }
+    .client-info { flex: 1; display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline; }
+    .client-name { font-weight: 700; }
+    .client-phone, .modal-client-phone { color: var(--text-soft) !important; font-size: 0.75rem; font-weight: 600; text-decoration: none !important; cursor: pointer; }
+    .client-phone:hover, .modal-client-phone:hover { text-decoration: underline !important; }
+    .phone-toggle { background: none; border: none; font-size: 0.8rem; cursor: pointer; padding: 0 2px; opacity: 0.5; transition: opacity 0.2s; vertical-align: middle; line-height: 1; }
+    .phone-toggle:hover { opacity: 1; }
+    .client-note { color: var(--text-light); font-size: 0.75rem; font-weight: 600; }
+    .del-icon { background: none; border: none; font-size: 0.9rem; color: #c97a7a; cursor: pointer; width: 28px; height: 28px; border-radius: var(--radius-xs); font-weight: 700; }
+    .edit-icon { background: none; border: none; font-size: 0.9rem; color: var(--accent-wechat); cursor: pointer; width: 28px; height: 28px; border-radius: var(--radius-xs); font-weight: 700; margin-right: 4px; }
+    .export-single-btn { background: none; border: none; font-size: 0.9rem; color: var(--accent-intent); cursor: pointer; width: 28px; height: 28px; border-radius: var(--radius-xs); font-weight: 700; margin-right: 4px; }
+    .export-timeline-single-btn { font-size: 0.78rem; background: transparent; border: 1px solid var(--accent-intent); color: var(--accent-intent); border-radius: 50%; cursor: pointer; width: 26px; height: 26px; padding: 0; display: inline-flex; justify-content: center; align-items: center; font-weight: 700; transition: all 0.2s; margin-right: 4px; }
+    .export-timeline-single-btn:hover { background: var(--accent-intent); color: #fff; transform: scale(1.1); }
+    .sync-indicator.offline { border-color: rgba(231,76,60,0.6); background: rgba(231,76,60,0.05); }
+    body.dark-mode .sync-indicator.offline { border-color: rgba(231,76,60,0.7); background: rgba(231,76,60,0.1); }
+    .client-actions { display: flex; align-items: center; gap: 4px; }
+    .todo-list { display: flex; flex-direction: column; gap: 8px; max-height: 200px; overflow-y: auto; }
+    .todo-item { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: var(--btn-bg); border-radius: var(--radius-xs); border: 0.5px solid var(--card-border); font-size: 0.8rem; font-weight: 600; color: var(--text-main); }
+    .todo-number { font-weight: 800; color: var(--accent-wechat); min-width: 20px; font-size: 0.85rem; }
+    .todo-text { flex: 1; word-break: break-word; line-height: 1.4; }
+    .todo-input-row { display: flex; gap: 8px; align-items: center; width: 100%; }
+    .todo-del-btn { background: none; border: none; color: #c97a7a; cursor: pointer; font-size: 0.85rem; padding: 0 4px; }
+    .sync-indicator { display: flex; align-items: center; gap: 5px; background: #f5f5f5; border: 1px solid rgba(0,0,0,0.04); height: 38px; border-radius: var(--radius-xs); padding: 0 12px; cursor: pointer; font-size: 0.72rem; color: var(--text-soft); transition: all 0.2s cubic-bezier(0.34,1.56,0.64,1); user-select: none; font-weight: 700; white-space: nowrap; position: relative; }
+    .sync-indicator:hover { background: #e8e8e8; transform: translateY(-2px) scale(1.02); box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+    .sync-indicator:active { transform: translateY(0px) scale(0.97); }
+    .sync-indicator .sync-icon { font-size: 1rem; display: inline-block; transition: transform 0.3s; }
+    .sync-indicator.syncing .sync-icon { animation: sync-spin 1.2s ease-in-out infinite; }
+    .sync-indicator.synced { border-color: rgba(7,193,96,0.3); }
+    .sync-indicator.pending { border-color: rgba(255,154,60,0.45); }
+    .sync-indicator.error { border-color: rgba(201,122,122,0.5); }
+    .sync-badge { display: inline-flex; align-items: center; justify-content: center; background: rgba(255,154,60,0.85); color: #fff; border-radius: 50%; min-width: 16px; height: 16px; font-size: 0.55rem; font-weight: 800; }
+    .sync-indicator.synced .sync-badge { background: rgba(7,193,96,0.8); }
+    .sync-indicator.error .sync-badge { background: rgba(201,122,122,0.85); }
+    .sync-tooltip { position: absolute; top: calc(100% + 8px); right: 0; background: var(--tooltip-bg); color: var(--tooltip-text); padding: 6px 12px; border-radius: var(--radius-xs); font-size: 0.62rem; white-space: nowrap; box-shadow: 0 4px 12px rgba(0,0,0,0.15); font-weight: 600; opacity: 0; pointer-events: none; transition: opacity 0.15s; z-index: 200; }
+    .sync-indicator:hover .sync-tooltip { opacity: 1; }
+    @keyframes sync-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    @media (min-width: 761px) {
+      .right-area { order: 2; } .left-area { order: 1; }
+      .card { padding: 14px 16px; }
+      .counter-card { padding: 16px 14px; }
+      .counter-label { font-size: 0.85rem; }
+      .counter-value { font-size: 3.2rem; font-weight: 900; }
+      .circle-btn { width: 42px; height: 42px; font-size: 1.5rem; }
+      .button-group { gap: 12px; margin-top: 14px; }
+      .reset-mini { font-size: 0.75rem; }
+      .client-scroll { max-height: 200px; }
+      .todo-list { max-height: 180px; }
+      .card-title { font-size: 0.85rem; margin-bottom: 10px; }
+      .input-simple, .todo-input { height: 34px; padding: 0 10px; font-size: 0.8rem; }
+      .btn-add, .todo-add-btn { height: 34px; padding: 0 14px; font-size: 0.8rem; }
+      .time-input-compact { flex: 0 0 84px !important; min-width: 84px !important; padding: 0 4px !important; }
+      .client-row { padding: 8px 12px; font-size: 0.8rem; }
+      .todo-item { padding: 6px 10px; font-size: 0.8rem; }
+      /* PC/desktop monthly calendar font size increases and bottom alignment */
+      .calendar-compact { flex: 1; display: flex; flex-direction: column; }
+      .cal-head { font-size: 0.95rem; margin-bottom: 12px; }
+      .cal-grid { flex: 1; align-content: space-around; }
+      .cal-weekday { font-size: 0.8rem; padding: 6px 0; }
+      .cal-day { font-size: 0.82rem; }
+      .day-number { font-size: 0.94rem; }
+      .day-badge { font-size: 0.65rem; margin-top: 4px; gap: 4px; }
+      .day-badge span { padding: 1px 4px; }
+    }
+    @media (min-width: 1024px) {
+      .right-area {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 16px;
+      }
+    }
+    @media (max-width: 760px) {
+      .timer-container { display: none !important; }
+      .timer-box { padding: 16px 20px; }
+      .timer-display { font-size: 2.5rem; }
+      .two-columns { flex-direction: column; gap: 20px; flex: none; }
+      .left-area, .right-area { flex: none; width: 100%; }
+      .right-area { order: 1; } .left-area { order: 2; }
+      .container { padding: 10px 12px 10px; }
+      .header-bar { margin-bottom: 12px; padding-bottom: 8px; flex-wrap: wrap; gap: 8px; align-items: center; }
+      .title-section h3 { font-size: 1.2rem; }
+      .modal-card { padding: 16px 14px; gap: 12px; }
+      .client-modal-list { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+      .pin-box { min-width: 320px; max-width: 92vw; padding: 28px 20px; gap: 14px; top: 35%; transform: translate(-50%, -35%); }
+      .pin-stats { gap: 8px; }
+      .pin-stat-item { padding: 10px 10px; min-width: 90px; gap: 4px; }
+      .pin-stat-label { font-size: 0.75rem; }
+      .pin-stat-value { font-size: 1.8rem; }
+      .pin-input { width: 182px; padding: 10px 17px; font-size: 1.26rem; }
+      .pin-btn { padding: 10px 28px; font-size: 0.98rem; }
+      .script-container { display: none !important; }
+      .learn-container { right: 8px; top: 60px; max-width: 52vw; max-height: 25vh; overflow-y: auto; }
+      .script-module { padding: 8px 12px; font-size: 0.72rem; text-align: left; font-weight: 400; line-height: 1.6; }
+      .learn-module { padding: 8px 12px; font-size: 0.7rem; }
+      
+      /* Mobile optimization additions */
+      .card { padding: 12px 14px; border-radius: 10px; }
+      .card-title { font-size: 0.82rem; margin-bottom: 8px; }
+      .counter-row { gap: 8px; }
+      .counter-card { padding: 8px; }
+      .counter-value { font-size: 1.6rem; }
+      .counter-header .circle-btn { width: 24px; height: 24px; font-size: 0.9rem; border-radius: 3px; }
+      .counter-header .button-group { gap: 4px; }
+      .counter-stats { font-size: 0.6rem; gap: 8px; }
+      .button-group { gap: 6px; margin-top: 6px; justify-content: center; }
+      .circle-btn { width: 30px; height: 30px; font-size: 1.1rem; border-radius: 6px; }
+      .reset-mini { padding: 2px 4px; font-size: 0.6rem; }
+      .stats-row { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+      .stat-block { padding: 6px 2px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; }
+      .stat-block .label { font-size: 0.62rem; }
+      .stat-block .number { font-size: 1rem; margin-left: 0; }
+      .cal-day { aspect-ratio: auto; min-height: 38px; padding: 4px 2px; }
+      .todo-input-row { flex-wrap: wrap; gap: 8px; }
+      .todo-input { flex: 1 1 100%; }
+      .time-input-compact { flex: 1 !important; min-width: 0 !important; }
+      .todo-add-btn { flex: 1; }
+      .client-actions { flex-shrink: 0; }
+      .icon-simple { min-width: 32px; height: 32px; font-size: 0.72rem; padding: 0 4px; }
+      .sync-indicator { height: 32px; padding: 0 8px; font-size: 0.68rem; }
+      #logBtn { height: 32px !important; padding: 0 8px !important; font-size: 0.72rem !important; }
+      .intent-table { font-size: 0.75rem; }
+      .intent-table th, .intent-table td { padding: 8px 6px; }
+      .tbl-note-cell { min-width: 200px; }
+
+      /* Mobile: 全量客户弹窗卡片适配 */
+      #allClientsModal .modal-card { max-height: 93vh !important; max-width: 100vw !important; margin-top: 7vh !important; border-radius: 16px 16px 0 0 !important; }
+      .all-client-card .card-action-btn { font-size: 0.7rem !important; padding: 4px 10px !important; }
+    }
+    /* ===== 紧凑表格与待办行样式 ===== */
+    .table-compact { width: 100%; border-collapse: collapse; font-size: 0.78rem; color: var(--text-main); text-align: left; }
+    .table-compact th { padding: 4px 6px; font-weight: 700; color: var(--text-soft); border-bottom: 0.5px solid var(--card-border); font-size: 0.72rem; }
+    .table-compact td { padding: 6px 6px; border-bottom: 0.5px solid var(--card-border); vertical-align: middle; font-weight: 600; }
+    .table-compact tr:last-child td { border-bottom: none; }
+    .table-compact tr:hover { background: var(--btn-hover); }
+    .client-detail { color: var(--text-light); font-size: 0.72rem; }
+    .client-note-text { color: var(--text-soft); font-size: 0.75rem; word-break: break-word; }
+    .client-time-text { color: var(--text-light); font-size: 0.7rem; }
+    
+    .todo-item-clean { display: flex; align-items: center; gap: 8px; padding: 6px 4px; border-bottom: 0.5px solid var(--card-border); font-size: 0.78rem; font-weight: 600; color: var(--text-main); transition: background 0.15s; }
+    .todo-item-clean:hover { background: var(--btn-hover); }
+    .todo-item-clean:last-child { border-bottom: none; }
+    .todo-number-clean { font-weight: 800; color: var(--accent-wechat); font-size: 0.78rem; min-width: 16px; }
+    .todo-text-clean { flex: 1; word-break: break-word; line-height: 1.4; }
+    .todo-del-btn-clean { background: none; border: none; color: #c97a7a; cursor: pointer; font-size: 0.8rem; padding: 0 4px; opacity: 0.5; transition: opacity 0.2s; }
+    .todo-del-btn-clean:hover { opacity: 1; }
+    .todo-time-tag { background: var(--card-border); color: var(--text-soft); padding: 1px 4px; border-radius: 4px; font-size: 0.65rem; margin-left: 6px; font-weight: 700; }
+
+    /* ===== 客户端卡片排版样式 ===== */
+    .client-card-item {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius-sm);
+      padding: 12px 14px;
+      margin-bottom: 12px;
+      box-shadow: var(--shadow-card);
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      position: relative;
+    }
+    .client-card-item:hover {
+      border-color: rgba(7, 193, 96, 0.4);
+      box-shadow: 0 6px 16px rgba(0,0,0,0.06);
+      transform: translateY(-1px);
+    }
+    body.dark-mode .client-card-item:hover {
+      border-color: rgba(7, 193, 96, 0.5);
+      box-shadow: 0 6px 16px rgba(0,0,0,0.25);
+    }
+    .client-card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .client-card-primary {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .client-card-name {
+      font-size: 0.88rem;
+      font-weight: 800;
+      color: var(--text-main);
+    }
+    .client-card-phone-wrap {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--btn-bg);
+      padding: 2px 8px;
+      border-radius: 12px;
+    }
+    .client-card-phone {
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--accent-intent);
+      text-decoration: none;
+    }
+    .client-card-time {
+      font-size: 0.72rem;
+      color: var(--text-light);
+      font-weight: 600;
+    }
+    .client-card-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+    .client-card-date-badge {
+      font-size: 0.68rem;
+      font-weight: 700;
+      color: var(--accent-intent);
+      background: var(--accent-intent-bg);
+      padding: 2px 8px;
+      border-radius: 10px;
+      white-space: nowrap;
+    }
+    .client-card-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .client-card-tag {
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: var(--radius-xs);
+    }
+    .client-card-tag-company {
+      background: var(--accent-intent-bg);
+      color: var(--accent-intent);
+      border: 0.5px solid rgba(7, 193, 96, 0.2);
+    }
+    .client-card-tag-bank {
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: var(--radius-xs);
+      border: 0.5px solid rgba(7,193,96,0.3);
+    }
+    .client-card-tag-fund {
+      background: rgba(255, 183, 77, 0.1);
+      color: #e67e22;
+      border: 0.5px solid rgba(255, 183, 77, 0.2);
+    }
+    body.dark-mode .client-card-tag-fund {
+      background: rgba(230, 126, 34, 0.15);
+      color: #f39c12;
+    }
+    /* Detail info tags */
+    .client-card-tag-detail {
+      background: rgba(52, 152, 219, 0.08);
+      color: #2980b9;
+      border: 0.5px solid rgba(52, 152, 219, 0.15);
+      font-size: 0.68rem;
+    }
+    body.dark-mode .client-card-tag-detail {
+      background: rgba(52, 152, 219, 0.12);
+      color: #5dade2;
+    }
+    /* Collapsible detail panel */
+    .detail-toggle-wrap {
+      display: flex;
+      justify-content: center;
+      padding: 4px 0;
+    }
+    .detail-toggle-btn {
+      background: none;
+      border: none;
+      border-top: 1px dashed var(--border-light);
+      padding: 6px 20px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: var(--accent-wechat);
+      cursor: pointer;
+      width: 100%;
+      letter-spacing: 1px;
+      transition: opacity 0.2s;
+    }
+    .detail-toggle-btn:hover { opacity: 0.7; }
+    .detail-toggle-icon {
+      display: inline-block;
+      transition: transform 0.25s ease;
+      margin-right: 4px;
+      font-size: 0.6rem;
+    }
+    .detail-toggle-icon.open { transform: rotate(90deg); }
+    .detail-panel {
+      border: 0.5px solid var(--border-light);
+      border-radius: 6px;
+      padding: 8px;
+      margin: 4px 0;
+      background: rgba(0,0,0,0.008);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    body.dark-mode .detail-panel {
+      background: rgba(255,255,255,0.02);
+    }
+    .status-conditional-area { display: none; flex-direction: column; gap: 8px; padding: 4px 0; }
+    .status-conditional-area.visible { display: flex; }
+    .status-field-separator { font-size: 0.65rem; font-weight: 800; color: var(--text-light); padding: 4px 0 2px 0; border-top: 1px dashed var(--border-light); margin-top: 2px; }
+    .input-select {
+      appearance: auto;
+      -webkit-appearance: auto;
+      background: var(--card-bg);
+      color: var(--text-main);
+      cursor: pointer;
+      height: 38px;
+    }
+    .client-card-body {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      background: rgba(0,0,0,0.015);
+      padding: 8px;
+      border-radius: 6px;
+      border: 0.5px solid var(--border-light);
+    }
+    body.dark-mode .client-card-body {
+      background: rgba(255,255,255,0.01);
+    }
+    .client-card-content-block {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      font-size: 0.78rem;
+      border-left: 2px solid var(--border-light);
+      padding-left: 8px;
+    }
+    .client-card-content-block.follow-up {
+      border-left-color: var(--accent-wechat);
+    }
+    .client-card-label {
+      font-size: 0.65rem;
+      font-weight: 800;
+      color: var(--text-light);
+      letter-spacing: 0.5px;
+    }
+    .client-card-text {
+      color: var(--text-soft);
+      font-weight: 600;
+      line-height: 1.45;
+      word-break: break-all;
+    }
+    /* Status marker — card level */
+    .client-card-item.status-success {
+      border: 1px solid rgba(39,174,96,0.35);
+      border-left: 5px solid #27ae60;
+      border-top: 3px solid #27ae60;
+      background: linear-gradient(135deg, rgba(39,174,96,0.14) 0%, rgba(39,174,96,0.05) 50%, var(--card-bg) 100%);
+      box-shadow: 0 2px 10px rgba(39,174,96,0.18);
+    }
+    .client-card-item.status-failed {
+      border: 1px solid rgba(230,126,34,0.35);
+      border-left: 5px solid #e67e22;
+      border-top: 3px solid #e67e22;
+      background: linear-gradient(135deg, rgba(230,126,34,0.14) 0%, rgba(230,126,34,0.05) 50%, var(--card-bg) 100%);
+      box-shadow: 0 2px 10px rgba(230,126,34,0.18);
+    }
+    .client-card-item.status-success:hover {
+      border-color: rgba(39,174,96,0.55);
+      box-shadow: 0 4px 16px rgba(39,174,96,0.25);
+    }
+    .client-card-item.status-failed:hover {
+      border-color: rgba(230,126,34,0.55);
+      box-shadow: 0 4px 16px rgba(230,126,34,0.25);
+    }
+    body.dark-mode .client-card-item.status-success {
+      border-color: rgba(39,174,96,0.4);
+      background: linear-gradient(135deg, rgba(39,174,96,0.18) 0%, rgba(39,174,96,0.06) 50%, var(--card-bg) 100%);
+      box-shadow: 0 2px 12px rgba(39,174,96,0.22);
+    }
+    body.dark-mode .client-card-item.status-failed {
+      border-color: rgba(230,126,34,0.4);
+      background: linear-gradient(135deg, rgba(230,126,34,0.18) 0%, rgba(230,126,34,0.06) 50%, var(--card-bg) 100%);
+      box-shadow: 0 2px 12px rgba(230,126,34,0.22);
+    }
+    /* Status badge inside card */
+    .client-card-status-badge {
+      display: inline-block;
+      font-size: 0.7rem;
+      font-weight: 900;
+      padding: 3px 10px;
+      border-radius: 10px;
+      letter-spacing: 0.4px;
+      white-space: nowrap;
+      align-self: flex-start;
+    }
+    .client-card-status-badge.status-badge-success {
+      background: linear-gradient(135deg, #27ae60, #2ecc71);
+      color: #fff;
+      box-shadow: 0 2px 6px rgba(39,174,96,0.35);
+    }
+    .client-card-status-badge.status-badge-failed {
+      background: linear-gradient(135deg, #e67e22, #f39c12);
+      color: #fff;
+      box-shadow: 0 2px 6px rgba(230,126,34,0.35);
+    }
+    body.dark-mode .client-card-status-badge.status-badge-success {
+      background: linear-gradient(135deg, #1e8449, #27ae60);
+      box-shadow: 0 2px 8px rgba(39,174,96,0.4);
+    }
+    body.dark-mode .client-card-status-badge.status-badge-failed {
+      background: linear-gradient(135deg, #c0651f, #e67e22);
+      box-shadow: 0 2px 8px rgba(230,126,34,0.4);
+    }
+    /* Status toggle button */
+    .status-toggle-btn {
+      width: 28px;
+      height: 28px;
+      font-size: 0.9rem;
+      font-weight: 700;
+      border-radius: var(--radius-xs);
+      border: none;
+      background: none;
+      color: var(--text-soft);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s;
+    }
+    .status-toggle-btn:hover { opacity: 0.75; }
+    .status-toggle-btn.status-success {
+      background: rgba(39,174,96,0.12);
+      color: #27ae60;
+    }
+    .status-toggle-btn.status-failed {
+      background: rgba(230,126,34,0.12);
+      color: #e67e22;
+    }
+    body.dark-mode .status-toggle-btn.status-success {
+      background: rgba(39,174,96,0.16);
+      color: #2ecc71;
+    }
+    body.dark-mode .status-toggle-btn.status-failed {
+      background: rgba(230,126,34,0.16);
+      color: #f0a04b;
+    }
+
+    .client-card-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-top: 4px;
+      border-top: 1px dashed var(--border-light);
+      padding-top: 8px;
+    }
+    .client-card-actions-top {
+      position: absolute;
+      top: 8px;
+      right: 10px;
+      display: flex;
+      gap: 4px;
+      z-index: 2;
+    }
+    .client-card-actions-top .card-action-btn {
+      font-size: 0.68rem;
+      padding: 3px 8px;
+      opacity: 0.6;
+      transition: opacity 0.15s;
+    }
+    .all-client-card:hover .client-card-actions-top .card-action-btn {
+      opacity: 1;
+    }
+
+
+
+
+    /* ===== 全量客户卡片布局 ===== */
+    .all-client-card {
+      margin-bottom: 10px;
+      padding-right: 60px;
+    }
+    .all-client-card-editing {
+      border-color: var(--accent-wechat) !important;
+      box-shadow: 0 0 0 1px rgba(7,193,96,0.2) !important;
+    }
+    .card-action-btn {
+      background: none;
+      border: 1px solid var(--card-border);
+      color: var(--text-soft);
+      cursor: pointer;
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 5px 12px;
+      border-radius: var(--radius-xs);
+      transition: all 0.15s;
+    }
+    .card-action-btn:hover {
+      background: var(--btn-hover);
+      border-color: var(--accent-wechat);
+      color: var(--accent-wechat);
+    }
+    /* ==================== Android 专属适配 ==================== */
+    body.android { font-family: Roboto, "Noto Sans CJK SC", "Noto Sans SC", sans-serif; }
+    /* Android 使用 static vh 避免 toolbar 收展导致 dvh 布局抖动 */
+    body.android .app-shell { height: 100vh; height: -webkit-fill-available; padding-top: 39px; }
+    /* Android backdrop-filter 性能差，降低或关闭 */
+    body.android .card { backdrop-filter: none; -webkit-backdrop-filter: none; }
+    body.android .menu-dropdown { backdrop-filter: none; -webkit-backdrop-filter: none; }
+    body.android .pin-box { backdrop-filter: none; -webkit-backdrop-filter: none; }
+    body.android .privacy-mask { backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px); }
+    body.android .modal-overlay { backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px); }
+    body.android .circle-btn { backdrop-filter: none; }
+    body.android .reset-mini { backdrop-filter: none; }
+    /* Android 调整锁屏 PIN 框位置 */
+    body.android .pin-box { top: 45%; }
+
+    /* Whitelist management modal */
+    .whitelist-textarea {
+      width: 100%;
+      height: 100px;
+      background: var(--btn-bg);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius-xs);
+      padding: 8px 10px;
+      font-size: 0.72rem;
+      color: var(--text-main);
+      outline: none;
+      font-weight: 600;
+      resize: none;
+      line-height: 1.5;
+    }
+    .whitelist-textarea:focus {
+      border-color: var(--accent-wechat);
+    }
+    .whitelist-company-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 10px;
+      background: var(--btn-bg);
+      border-radius: var(--radius-xs);
+      border: 1px solid var(--card-border);
+      margin-bottom: 6px;
+    }
+    .whitelist-company-item:last-child {
+      margin-bottom: 0;
+    }
+
+    /* ==================== 贷款利息计算器 ==================== */
+    #loanModal .modal-card { overflow-y: auto; }
+    .loan-input-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 10px; }
+    .loan-input-row label { font-size: 0.75rem; font-weight: 700; color: var(--text-soft); min-width: 70px; }
+    .loan-unit { font-size: 0.7rem; color: var(--text-light); font-weight: 700; min-width: 20px; }
+    .loan-rate-toggle { display: inline-flex; border: 1px solid var(--card-border); border-radius: var(--radius-xs); overflow: hidden; }
+    .loan-rate-toggle button { padding: 4px 14px; font-size: 0.72rem; font-weight: 700; border: none; background: var(--btn-bg); color: var(--text-soft); cursor: pointer; transition: 0.15s; }
+    .loan-rate-toggle button.active { background: var(--accent-wechat); color: #fff; }
+    .loan-rate-toggle button:not(:last-child) { border-right: 1px solid var(--card-border); }
+    .loan-tabs { display: flex; gap: 0; border-bottom: 2px solid var(--card-border); margin-bottom: 14px; }
+    .loan-tab { padding: 8px 16px; font-size: 0.8rem; font-weight: 700; cursor: pointer; border: none; background: transparent; color: var(--text-soft); border-bottom: 2px solid transparent; margin-bottom: -2px; transition: 0.15s; }
+    .loan-tab:hover { color: var(--text-main); }
+    .loan-tab.active { color: var(--accent-wechat); border-bottom-color: var(--accent-wechat); }
+    .loan-results { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 14px 0; }
+    .loan-result-card { background: var(--btn-bg); border-radius: var(--radius-xs); padding: 12px; text-align: center; border: 1px solid var(--card-border); }
+    .loan-result-card .label { font-size: 0.7rem; color: var(--text-light); font-weight: 700; }
+    .loan-result-card .value { font-size: 1.1rem; font-weight: 900; color: var(--text-main); margin-top: 4px; }
+    .loan-result-card .value.positive { color: var(--accent-wechat); }
+    .loan-result-card .value.warning { color: #e67e22; }
+    .loan-compare-table { width: 100%; border-collapse: collapse; font-size: 0.75rem; margin: 10px 0; }
+    .loan-compare-table th { background: var(--btn-bg); padding: 8px 10px; font-weight: 800; color: var(--text-soft); border-bottom: 2px solid var(--card-border); text-align: center; }
+    .loan-compare-table td { padding: 8px 10px; border-bottom: 1px solid var(--border-light); text-align: center; font-weight: 600; }
+    .loan-compare-table tr:last-child td { border-bottom: none; }
+    .loan-compare-table .highlight { background: rgba(7,193,96,0.05); }
+    body.dark-mode .loan-compare-table .highlight { background: rgba(7,193,96,0.08); }
+    .loan-schedule-wrap { max-height: 280px; overflow-y: auto; border: 1px solid var(--card-border); border-radius: var(--radius-xs); margin-top: 8px; }
+    .loan-schedule-table { width: 100%; border-collapse: collapse; font-size: 0.7rem; }
+    .loan-schedule-table th { position: sticky; top: 0; background: var(--btn-bg); padding: 6px 8px; font-weight: 800; color: var(--text-soft); border-bottom: 2px solid var(--card-border); text-align: center; z-index: 1; }
+    .loan-schedule-table td { padding: 5px 8px; border-bottom: 1px solid var(--border-light); text-align: center; font-weight: 600; }
+    .loan-schedule-table tr:last-child td { border-bottom: none; }
+    .loan-schedule-table tr:hover { background: var(--btn-hover); }
+    .loan-method-field { display: none; }
+    .loan-method-field.visible { display: flex; }
+    @media (max-width: 760px) {
+      .loan-results { grid-template-columns: repeat(2, 1fr); }
+      .loan-input-row { flex-direction: column; align-items: stretch; }
+      .loan-input-row label { min-width: auto; }
+      .loan-tab { padding: 6px 10px; font-size: 0.72rem; }
+      #loanModal .modal-card { padding: 14px; }
+      .loan-compare-table { font-size: 0.68rem; }
+      .loan-compare-table th,
+      .loan-compare-table td { padding: 5px 4px; }
+    }
+  </style>
+  <script src="/xlsx.full.min.js"></script>
+</head>
+<body>
+<div class="notify-bar" id="notifyBar" onclick="this.classList.remove('show')"><span id="notifyText"></span><span class="notify-close">✕</span></div>
+<div class="wallpaper-fallback"></div>
+<div class="wallpaper-background" id="wallpaperBackground"></div>
+<div class="privacy-wallpaper" id="privacyWallpaper"></div>
+<div class="timer-container" id="timerContainer">
+  <div class="timer-box" id="timerBox">
+    <div class="timer-display" id="timerDisplay">00:00:00</div>
+    <div class="timer-inputs">
+      <div class="timer-input-group">
+        <input type="number" class="timer-input" id="timerHours" min="0" max="23" value="0" placeholder="0">
+        <span class="timer-label">时</span>
+      </div>
+      <span class="timer-separator">:</span>
+      <div class="timer-input-group">
+        <input type="number" class="timer-input" id="timerMinutes" min="0" max="59" value="1" placeholder="0">
+        <span class="timer-label">分</span>
+      </div>
+      <span class="timer-separator">:</span>
+      <div class="timer-input-group">
+        <input type="number" class="timer-input" id="timerSeconds" min="0" max="59" value="0" placeholder="0">
+        <span class="timer-label">秒</span>
+      </div>
+    </div>
+    <div class="timer-buttons">
+      <button class="timer-btn timer-btn-start" id="timerStartBtn">启动</button>
+      <button class="timer-btn timer-btn-reset" id="timerResetBtn">重置</button>
+    </div>
+  </div>
+</div>
+<div class="privacy-mask" id="privacyMask">
+  <div class="script-container" id="scriptContainer"></div>
+  <div class="learn-container" id="learnContainer"></div>
+  <div class="pin-box">
+    <div class="pin-stats" id="pinStatsContainer">
+      <div class="pin-stat-item"><span class="pin-stat-label">今日微信</span><span class="pin-stat-value pin-wechat-value" id="pinWechatNum">0</span></div>
+      <div class="pin-stat-item"><span class="pin-stat-label">今日意向</span><span class="pin-stat-value pin-intent-value" id="pinIntentNum">0</span></div>
+      <div class="pin-stat-item"><span class="pin-stat-label">今日回访</span><span class="pin-stat-value pin-revisit-value" id="pinRevisitNum">0</span></div>
+    </div>
+    <input type="password" class="pin-input" id="pinInput" placeholder="" maxlength="6" inputmode="numeric" autofocus>
+    <button class="pin-btn" id="pinUnlockBtn">解锁进入</button>
+    <div class="pin-error" id="pinError"></div>
+  </div>
+</div>
+<div class="app-shell">
+  <div class="container">
+    <div class="header-bar">
+      <div class="title-section"><div class="app-logo"><div class="app-icon"><svg viewBox="0 0 48 48" fill="none"><rect x="6" y="8" width="36" height="34" rx="5" fill="none" stroke="white" stroke-width="2.5"/><line x1="6" y1="18" x2="42" y2="18" stroke="white" stroke-width="2.5"/><rect x="12" y="4" width="4" height="8" rx="2" fill="white"/><rect x="32" y="4" width="4" height="8" rx="2" fill="white"/><circle cx="16" cy="27" r="2.5" fill="white"/><circle cx="24" cy="27" r="2.5" fill="white"/><circle cx="32" cy="27" r="2.5" fill="white"/><circle cx="16" cy="35" r="2.5" fill="white"/><circle cx="24" cy="35" r="2.5" fill="white"/></svg></div><h3>每日工作</h3></div><div class="date-chip" id="liveDate"></div><button class="goal-eye eye-off" id="goalEyeBtn" title="显示目标数字">👁</button><div class="goal-chips" id="goalChips"></div></div>
+      <div class="action-group">
+        <button class="icon-simple" id="loanCalcBtn" title="贷款利息计算器">计算器</button>
+        <button class="sync-indicator" id="syncBtn" title="点击手动同步"><span class="sync-icon" id="syncIcon">⇅</span><span id="syncLabel">同步中</span><div class="sync-tooltip" id="syncTooltip">正在连接...</div></button>
+        <button class="icon-simple" id="allClientsBtn" title="意向客户全量表">全量</button>
+        <button class="icon-simple" id="dialerBtn" title="快捷拨号助手" onclick="window.open('/dialer', '_blank')">拨号</button>
+        <button class="icon-simple" id="hideBtn" title="一键隐藏 (Ctrl+Z)">锁屏</button>
+        <button class="icon-simple" id="menuToggleBtn" title="菜单">≡</button>
+        <div class="menu-dropdown" id="menuDropdown">
+          <button class="menu-item" id="logBtn">同步日志</button>
+          <button class="menu-item" id="scriptBtn">话术管理</button>
+          <button class="menu-item" id="learnBtn">学习管理</button>
+          <button class="menu-item" id="exportBtn">导出数据</button>
+          <button class="menu-item" id="goalBtn">目标设定</button>
+          <button class="menu-item" id="whitelistMenuBtn">白名单管理</button>
+          <button class="menu-item" id="darkToggleBtn">深色模式</button>
+        </div>
+      </div>
+    </div>
+    <div class="two-columns">
+      <div class="left-area">
+        <div class="card" style="position: relative; z-index: 10; overflow: visible;">
+          <div class="card-title" style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-size:0.72rem;">白名单快捷查询</span>
+            <span style="font-size:0.55rem; color:var(--text-soft); font-weight:normal;" id="mainWlStatus">建行建易贷</span>
+          </div>
+          <div class="register-block" style="position: relative;">
+            <input type="text" class="input-simple" id="mainWlSearchInput" placeholder="输入企业名称进行模糊搜索..." autocomplete="off" style="width:100%; box-sizing:border-box; padding:10px 12px; height:38px; font-size:0.72rem;">
+            <div id="mainWlSearchResults" style="display:none; position:absolute; top:calc(100% + 4px); left:0; right:0; background:var(--card-bg); border:1px solid var(--card-border); border-radius:var(--radius-xs); box-shadow:var(--shadow-md); z-index:100; max-height:180px; overflow-y:auto; padding:4px; flex-direction:column; gap:4px; text-align:left; box-sizing:border-box;"></div>
+          </div>
+        </div>
+        <div class="counter-row">
+          <div class="counter-card wechat-fill">
+            <div class="counter-header"><span class="counter-label">微信</span><div class="button-group"><button class="circle-btn" id="wechatMinus">−</button><button class="circle-btn btn-special" id="wechatPlus">+</button></div></div>
+            <div class="counter-value" id="wechatNum">0</div>
+            <div class="counter-stats"><span>本周 <b id="weekWechat">0</b></span><span>本月 <b id="monthWechat">0</b></span></div>
+          </div>
+          <div class="counter-card intent-fill">
+            <div class="counter-header"><span class="counter-label">意向</span></div>
+            <div class="counter-value" id="intentNum">0</div>
+            <div class="counter-stats"><span>本周 <b id="weekIntent">0</b></span><span>本月 <b id="monthIntent">0</b></span></div>
+          </div>
+          <div class="counter-card revisit-fill">
+            <div class="counter-header"><span class="counter-label">回访</span><div class="button-group"><button class="circle-btn" id="revisitMinus">−</button><button class="circle-btn btn-special" id="revisitPlus">+</button></div></div>
+            <div class="counter-value" id="revisitNum">0</div>
+            <div class="counter-stats"><span>本周 <b id="weekRevisit">0</b></span><span>本月 <b id="monthRevisit">0</b></span></div>
+          </div>
+        </div>
+        <div class="card calendar-compact">
+          <div class="cal-head"><button class="cal-nav-btn" id="calPrevBtn" title="上个月">◀</button><span id="calMonthTitle"></span><button class="cal-nav-btn" id="calNextBtn" title="下个月">▶</button></div>
+          <div class="cal-grid" id="calGrid"></div>
+          <div style="font-size:0.55rem;text-align:center;margin-top:6px;color:var(--text-light);font-weight:600;">点击日期查看意向客户</div>
+        </div>
+      </div>
+      <div class="right-area">
+        <div class="card">
+          <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;">意向登记<button class="btn-add" id="clipboardPasteBtn" style="font-size:0.65rem;padding:3px 10px;height:24px;background:linear-gradient(135deg,#667eea,#764ba2);color:white;border:none;border-radius:12px;font-weight:700;cursor:pointer;" title="从剪贴板粘贴截图自动识别">粘贴截图识别</button></div>
+          <div class="register-block">
+            <div class="form-line"><input type="text" class="input-simple" id="custName" placeholder="姓名" autocomplete="off"><input type="text" class="input-simple" id="custPhone" placeholder="电话" autocomplete="off"></div>
+            <div class="form-line"><input type="text" class="input-simple" id="custCompany" placeholder="单位" autocomplete="off"><input type="text" class="input-simple" id="custFund" placeholder="公积金基数" autocomplete="off"></div>
+            <!-- Collapsible detail panel toggle -->
+            <div class="detail-toggle-wrap">
+              <button type="button" class="detail-toggle-btn" id="detailToggleBtn">
+                <span class="detail-toggle-icon">▶</span> 详细资料
+              </button>
+            </div>
+            <div class="detail-panel" id="detailPanel" style="display:none;">
+              <div class="form-line"><input type="text" class="input-simple" id="custAge" placeholder="客户年龄" autocomplete="off" inputmode="numeric"><select class="input-simple input-select" id="custMaritalStatus"><option value="">婚姻状况</option><option value="未婚">未婚</option><option value="已婚">已婚</option><option value="离异">离异</option><option value="丧偶">丧偶</option></select></div>
+              <div class="form-line"><select class="input-simple input-select" id="custIsShenzhenHukou"><option value="">是否深户</option><option value="是">是</option><option value="否">否</option></select><select class="input-simple input-select" id="custEducation"><option value="">学历</option><option value="初中及以下">初中及以下</option><option value="高中">高中</option><option value="大专">大专</option><option value="本科">本科</option><option value="硕士">硕士</option><option value="博士">博士</option></select></div>
+              <div class="form-line"><input type="text" class="input-simple" id="custSocialSecurity" placeholder="社保养老基数" autocomplete="off" inputmode="numeric"><input type="text" class="input-simple" id="custAvgSalary" placeholder="月均工资" autocomplete="off" inputmode="numeric"></div>
+              <div class="form-line"><input type="text" class="input-simple" id="custTax2yr" placeholder="近2年个税" autocomplete="off" inputmode="numeric"><input type="text" class="input-simple" id="custSalaryBank" placeholder="代发工资银行" autocomplete="off"></div>
+              <div class="form-line"><select class="input-simple input-select" id="custProperty"><option value="">房产</option><option value="无房">无房</option><option value="有一套">有一套</option><option value="有多套">有多套</option></select><input type="text" class="input-simple" id="custBankDebt" placeholder="银行信贷负债" autocomplete="off" inputmode="numeric"></div>
+              <div class="form-line"><input type="text" class="input-simple" id="custCreditCardDebt" placeholder="信用卡负债" autocomplete="off" inputmode="numeric"><input type="text" class="input-simple" id="custQuery3m" placeholder="近3个月查询次数" autocomplete="off" inputmode="numeric"></div>
+              <div class="form-line"><input type="text" class="input-simple" id="custOnlineLoanCount" placeholder="小额网贷笔数" autocomplete="off" inputmode="numeric"><span style="flex:1;"></span></div>
+              <div class="form-line"><input type="text" class="input-simple" id="custVisitTime" placeholder="上门办理时间" autocomplete="off"><select class="input-simple input-select" id="custStatus"><option value="">状态（未标记）</option><option value="success">已办理成功</option><option value="failed">未办理成功</option></select></div>
+              <div class="status-conditional-area" id="successStatusFields"><div class="status-field-separator">办理成功信息</div><div class="form-line"><input type="text" class="input-simple" id="custApprovedBank" placeholder="批款银行" autocomplete="off"><input type="text" class="input-simple" id="custApprovedAmount" placeholder="批款金额" autocomplete="off"></div><div class="form-line"><input type="text" class="input-simple" id="custRateTerm" placeholder="利率年限" autocomplete="off"><span style="flex:1;"></span></div></div>
+              <div class="status-conditional-area" id="failedStatusFields"><div class="status-field-separator">办理未成功信息</div><div class="form-line"><input type="text" class="input-simple" id="custRejectedBank" placeholder="拒绝银行" autocomplete="off"><input type="text" class="input-simple" id="custRejectReason" placeholder="拒绝原因" autocomplete="off"></div></div>
+              <textarea class="input-simple note-textarea" id="custDemand" placeholder="客户大致需求" rows="2"></textarea>
+              <textarea class="input-simple note-textarea" id="custFundUsage" placeholder="资金用途和时间" rows="2"></textarea>
+            </div>
+            <textarea class="input-simple note-textarea" id="custNote" placeholder="沟通记录 (必填)" rows="3"></textarea>
+            <textarea class="input-simple note-textarea" id="custFollowUp" placeholder="跟进情况" rows="2"></textarea>
+            <button class="btn-add" id="addClientBtn">+ 添加</button>
+            <div id="clipboardStatus" style="font-size:0.65rem;color:var(--text-light);text-align:center;min-height:18px;margin-top:4px;"></div>
+            <div class="client-scroll" id="clientList"></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">临时登记 (待晚回访)</div>
+          <div class="register-block">
+            <div class="form-line"><input type="text" class="input-simple" id="tempCustName" placeholder="姓名" autocomplete="off"><input type="text" class="input-simple" id="tempCustPhone" placeholder="电话/联系方式" autocomplete="off"></div>
+            <textarea class="input-simple note-textarea" id="tempCustNote" placeholder="回访备注/待聊内容" rows="2"></textarea>
+            <button class="btn-add" id="addTempCustBtn" style="background:var(--accent-wechat);">+ 登记</button>
+            <div class="client-scroll" id="tempClientList"></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">今日待办</div>
+          <div class="register-block">
+            <div class="todo-input-row"><input type="text" class="todo-input" id="todayTodoInput" placeholder="添加今日待办..." autocomplete="off"><input type="time" class="todo-input time-input-compact" id="todayRemindTime"><button class="todo-add-btn" id="addTodayTodoBtn">+ 添加</button></div>
+            <div class="todo-list" id="todayTodoList"></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">明日待办</div>
+          <div class="register-block">
+            <div class="todo-input-row"><input type="text" class="todo-input" id="todoInput" placeholder="添加明日待办..." autocomplete="off"><input type="time" class="todo-input time-input-compact" id="tomorrowRemindTime"><button class="todo-add-btn" id="addTodoBtn">+ 添加</button></div>
+            <div class="todo-list" id="tomorrowTodoList"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="globalTooltip" class="tooltip-simple"></div>
+<div id="scriptModal" class="modal-overlay">
+  <div class="modal-card script-input-modal">
+    <div class="modal-header"><span>话术管理</span><button id="closeScriptModalBtn">×</button></div>
+    <textarea id="newScriptInput" placeholder="输入话术内容..."></textarea>
+    <button class="btn-add" id="addScriptBtn" style="width:100%;">+ 添加话术</button>
+    <div class="script-list" id="scriptList"></div>
+  </div>
+</div>
+<div id="learnModal" class="modal-overlay">
+  <div class="modal-card script-input-modal" style="max-width: 500px; width: 90%;">
+    <div class="modal-header">
+      <span style="font-weight:900;">AI学习管理</span>
+      <button id="closeLearnModalBtn">×</button>
+    </div>
+    
+    <div style="display:flex; gap:6px; margin-bottom:10px;">
+      <span style="font-size:0.75rem; color:var(--text-soft); align-self:center; font-weight:700;">来源类型:</span>
+      <select id="learnSourceSelect" class="input-simple" style="flex:1; font-size:0.75rem; height:32px; padding:0 8px; border-radius:var(--radius-xs); font-weight:700;">
+        <option value="微信聊天" selected>微信聊天 (WeChat Chat)</option>
+        <option value="电话录音">电话录音 (Phone Recording)</option>
+        <option value="客户案例">客户案例 (Client Case)</option>
+        <option value="企业资料">企业资料 (Company Info)</option>
+      </select>
+    </div>
+
+    <textarea id="newLearnInput" placeholder="在此输入或粘贴原始材料（如：微信聊天记录、录音文字转写、批贷案例描述、白名单政策等）..." style="min-height: 120px; font-size: 0.75rem; line-height: 1.5; margin-bottom: 10px;"></textarea>
+
+
+    <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:10px;">
+      <label class="learn-check-row" style="margin-bottom:0; font-weight:700; cursor:pointer;">
+        <input type="checkbox" id="learnShowCheck" checked style="margin-right:4px;">锁屏显示
+      </label>
+      <div style="display:flex; gap:8px; flex:1; justify-content:flex-end;">
+        <button class="btn-add" id="aiLearnBtn" style="background: linear-gradient(135deg, #4a6cf7 0%, #07c160 100%); color:white; border:none; padding:8px 16px; font-size:0.75rem; border-radius:var(--radius-xs); cursor:pointer; font-weight:800; display:flex; align-items:center; gap:4px; box-shadow: 0 2px 6px rgba(74,108,247,0.25);">
+          AI 智能总结
+        </button>
+        <button class="btn-add" id="addLearnBtn" style="background: var(--btn-bg); color:var(--text-main); border:1px solid var(--card-border); padding:8px 16px; font-size:0.75rem; border-radius:var(--radius-xs); cursor:pointer; font-weight:800;">
+          手动保存
+        </button>
+      </div>
+    </div>
+
+    <details id="aiConfigDetails" style="margin-bottom:12px; border:1px dashed var(--card-border); border-radius:var(--radius-xs); padding:6px 10px; background:rgba(120,120,120,0.02);">
+      <summary style="font-size:0.7rem; color:var(--text-soft); cursor:pointer; font-weight:700; outline:none; user-select:none;">AI 大模型配置 (选填)</summary>
+      <div style="display:flex; flex-direction:column; gap:6px; margin-top:6px;">
+        <div style="display:flex; align-items:center; gap:6px;">
+          <span style="font-size:0.65rem; color:var(--text-soft); width:50px; font-weight:700;">服务商:</span>
+          <select id="aiProviderSelect" class="input-simple" style="flex:1; font-size:0.7rem; height:28px; padding:0 4px; font-weight:700; background:var(--btn-bg); border-color:var(--card-border); color:var(--text-main);">
+            <option value="gemini">Google Gemini</option>
+            <option value="deepseek">DeepSeek V4 Pro</option>
+            <option value="custom">OpenAI / 其它兼容接口</option>
+          </select>
+        </div>
+        <div style="display:flex; align-items:center; gap:6px;">
+          <span style="font-size:0.65rem; color:var(--text-soft); width:50px; font-weight:700;">API Key:</span>
+          <input type="password" class="input-simple" id="aiApiKeyInput" placeholder="输入 API Key / 密钥" style="flex:1; font-size:0.7rem; height:28px; padding:0 8px;">
+        </div>
+        <div style="display:flex; align-items:center; gap:6px;">
+          <span style="font-size:0.65rem; color:var(--text-soft); width:50px; font-weight:700;">接口地址:</span>
+          <input type="text" class="input-simple" id="aiApiBaseInput" placeholder="默认地址" style="flex:1; font-size:0.7rem; height:28px; padding:0 8px;">
+        </div>
+        <div style="display:flex; align-items:center; gap:6px;">
+          <span style="font-size:0.65rem; color:var(--text-soft); width:50px; font-weight:700;">模型名称:</span>
+          <input type="text" class="input-simple" id="aiModelInput" placeholder="默认模型" style="flex:1; font-size:0.7rem; height:28px; padding:0 8px;">
+        </div>
+        <div style="display:flex; justify-content:flex-end; margin-top:2px;">
+          <button id="saveAiConfigBtn" class="btn-add" style="padding:0 16px; font-size:0.7rem; height:28px; margin:0; background:var(--accent-wechat); color:white; border:none; border-radius:var(--radius-xs); font-weight:700;">保存配置</button>
+        </div>
+        <div style="font-size:0.6rem; color:var(--text-light); line-height:1.4; border-top:1px dashed var(--card-border); padding-top:4px; margin-top:2px;">
+          配置 API Key 后将使用真实 AI 接口进行知识提取与回复（Gemini 使用其 OpenAI 兼容接口，留空使用内置模拟 AI）。
+        </div>
+      </div>
+    </details>
+
+    <div class="script-list" id="learnList" style="max-height: 220px; overflow-y: auto;"></div>
+  </div>
+</div>
+<div id="exportModal" class="modal-overlay">
+  <div class="modal-card" style="max-width:420px; width: 90%;">
+    <div class="modal-header"><span>数据导出与配置</span><button id="closeExportModalBtn">×</button></div>
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <div style="display:flex;gap:8px;"><button class="btn-add" id="exportWeekBtn" style="flex:1;">导出本周</button><button class="btn-add" id="exportMonthBtn" style="flex:1;">导出本月</button><button class="btn-add" id="exportAllClientsBtn" style="flex:1;background:var(--intent-gradient);">导出全量</button></div>
+      <div style="display:flex;gap:8px;"><button class="btn-add" id="exportSoloBtn" style="flex:1;background:var(--revisit-gradient);">逐条导出全量</button></div>
+      
+      <div style="border-top: 1px solid var(--card-border); padding-top: 10px; margin-top: 5px;">
+        <input type="text" class="input-simple" id="webhookUrlInput" placeholder="企业微信群 Webhook URL" style="margin-bottom: 4px;">
+        <div style="font-size:0.65rem;color:var(--text-light);">用于数据主动导出推送的群机器人 Webhook 地址</div>
+      </div>
+
+            <details style="margin-top:10px; border:1px dashed var(--card-border); border-radius:var(--radius-xs); padding:8px; background:rgba(120,120,120,0.02);">
+        <summary style="font-size:0.75rem; color:var(--text-soft); cursor:pointer; font-weight:700; outline:none; user-select:none;">企业微信应用与机器人回调配置</summary>
+        <div style="display:flex; flex-direction:column; gap:8px; margin-top:8px;">
+          <input type="text" class="input-simple" id="wecomCorpIdInput" placeholder="企业 Corp ID（如 ww1234567890abcdef）" style="font-size:0.7rem; height:28px; padding:0 8px;">
+          <input type="text" class="input-simple" id="wecomTokenInput" placeholder="应用 Token (用于回调)" style="font-size:0.7rem; height:28px; padding:0 8px;">
+          <input type="password" class="input-simple" id="wecomAesKeyInput" placeholder="应用 EncodingAESKey (用于回调)" style="font-size:0.7rem; height:28px; padding:0 8px;">
+          <input type="text" class="input-simple" id="wecomAgentIdInput" placeholder="应用 Agent ID (用于推送，如 1000002)" style="font-size:0.7rem; height:28px; padding:0 8px;">
+          <input type="password" class="input-simple" id="wecomSecretInput" placeholder="应用 Secret (用于推送)" style="font-size:0.7rem; height:28px; padding:0 8px;">
+          <input type="text" class="input-simple" id="wecomTouserInput" placeholder="接收成员 UserID (如 WangWu，留空则为全员 @all)" style="font-size:0.7rem; height:28px; padding:0 8px;">
+          <input type="text" class="input-simple" id="wecomApiProxyInput" placeholder="API 代理地址 (中转代理，留空使用官方默认)" style="font-size:0.7rem; height:28px; padding:0 8px;">
+          <div style="display:flex; gap:6px;">
+            <button id="saveWecomBotBtn" class="btn-add" style="font-size:0.7rem; height:28px; margin:0; background:var(--accent-wechat); color:white; border:none; flex:1;">保存配置</button>
+            <button id="testWecomBtn" class="btn-add" style="font-size:0.7rem; height:28px; margin:0; background:linear-gradient(135deg,#36d1dc,#5b86e5); color:white; border:none; flex:1;">测试连接</button>
+          </div>
+          <div id="wecomConfigStatus" style="font-size:0.62rem; padding:6px; border-radius:4px; background:var(--btn-bg); display:none; line-height:1.5;"></div>
+          
+          <div style="font-size:0.6rem; color:var(--text-light); line-height:1.4; margin-top:4px;">
+            <strong>⚠️ 回调与推送配置步骤：</strong><br>
+            ① 先在此页面填入 Corp ID、Token、AESKey（若使用主动推送，还需填写 Agent ID 和 Secret）并点击"保存配置"<br>
+            ② 点击"测试连接"确认配置已生效（若配置了 Secret，将执行 API 连通性测试）<br>
+            ③ 再到企业微信后台填入下面的 URL 并保存<br><br>
+            <strong>回调 URL:</strong> <span id="wecomCallbackUrlDisplay" style="user-select:all; background:var(--btn-bg); padding:1px 3px; border-radius:3px; word-break:break-all;"></span>
+          </div>
+        </div>
+      </details>
+
+      <details style="margin-top:10px; border:1px dashed var(--card-border); border-radius:var(--radius-xs); padding:8px; background:rgba(120,120,120,0.02);">
+        <summary style="font-size:0.75rem; color:var(--text-soft); cursor:pointer; font-weight:700; outline:none; user-select:none;">Siri 语音快捷指令配置</summary>
+        <div style="display:flex; flex-direction:column; gap:8px; margin-top:8px;">
+          <input type="text" class="input-simple" id="siriKeyInput" placeholder="Siri 认证密钥 (默认: siri_default_123)" style="font-size:0.7rem; height:28px; padding:0 8px;">
+          <button id="saveSiriKeyBtn" class="btn-add" style="font-size:0.7rem; height:28px; margin:0; background:linear-gradient(135deg,#ff9966,#ff5e62); color:white; border:none; width:100%;">保存密钥</button>
+          
+          <button id="downloadSiriShortcutBtn" class="btn-secondary" style="font-size:0.7rem; height:28px; margin:0; background:var(--btn-bg); color:var(--text-main); border:1px solid var(--card-border); border-radius:var(--radius-xs); cursor:pointer; width:100%; font-weight:700;">一键下载快捷指令文件 (.shortcut)</button>
+
+          <div id="siriConfigStatus" style="font-size:0.62rem; padding:6px; border-radius:4px; background:var(--btn-bg); display:none; line-height:1.5;"></div>
+
+          <div style="font-size:0.6rem; color:var(--text-light); line-height:1.4; margin-top:4px;">
+            <strong style="color:var(--accent-orange);">快捷指令导入提示：</strong><br>
+            由于苹果 iOS 15 及以上系统的安全机制，直接下载的 <code>.shortcut</code> 文件在手机上打开时可能会提示“未签名”而无法直接导入。如果您遇到此问题：<br>
+            - <strong>推荐做法：</strong>直接使用下方极其简单的 <strong>30秒极速手动配置步骤</strong> 即可配置完成。<br>
+            - <strong>极客做法：</strong>可在 Mac 上使用终端命令 <code>shortcuts sign</code> 签名后再导入，或在已越狱设备上使用插件导入。<br><br>
+            <strong>苹果 iOS 快捷指令配置步骤：</strong><br>
+            ① 点击“保存密钥”将配置写入云端。<br>
+            ② 打开 iPhone 的 **快捷指令** (Shortcuts) App。<br>
+            ③ 新建快捷指令：<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;- 动作 1：<code>要求输入</code> -> 文本（如“你想对 AI 助手说什么？”）<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;- 动作 2：<code>获取 URL 内容</code> -> 填入下方的 API 地址，并以 <code>GET</code> 方式请求，拼接参数如下：<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<code>&lt;API地址&gt;&amp;query=&lt;输入的文本&gt;</code><br>
+            &nbsp;&nbsp;&nbsp;&nbsp;- 动作 3：<code>获取词典值</code> -> 键填入 <code>reply</code>，对象选择为“URL 的内容”<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;- 动作 4：<code>朗读文本</code> -> 填入上面的“词典值”<br><br>
+            <strong>API 基础地址:</strong> <span id="siriApiUrlDisplay" style="user-select:all; background:var(--btn-bg); padding:1px 3px; border-radius:3px; word-break:break-all;"></span>
+          </div>
+        </div>
+      </details>
+
+      <details style="margin-top:10px; border:1px dashed var(--card-border); border-radius:var(--radius-xs); padding:8px; background:rgba(120,120,120,0.02);">
+        <summary style="font-size:0.75rem; color:var(--text-soft); cursor:pointer; font-weight:700; outline:none; user-select:none;">Google Gemini AI 配置</summary>
+        <div style="display:flex; flex-direction:column; gap:6px; margin-top:8px;">
+          <div style="font-size:0.7rem; color:var(--text-soft); line-height:1.4;">
+            配置 Gemini API Key 后，本地 Tesseract OCR 提取的联系人数据将自动通过 Gemini 整理分类（智能排齐姓名、公司、备注等）并修正识别错别字。<br>免费获取 Key: <a href="https://aistudio.google.com/apikey" target="_blank" style="color:#4285f4;font-weight:700;">aistudio.google.com/apikey</a>
+          </div>
+          <input type="password" class="input-simple" id="visionApiKeyInput" placeholder="Gemini API Key (支持逗号分隔多个key)" style="font-size:0.7rem; height:28px; padding:0 8px;">
+          <input type="text" class="input-simple" id="visionApiBaseInput" placeholder="API Base (可选，默认 Gemini 官方)" style="font-size:0.7rem; height:28px; padding:0 8px;">
+          <div style="display:flex; gap:6px;">
+            <button id="saveVisionConfigBtn" class="btn-add" style="font-size:0.7rem; height:28px; flex:1; margin:0; background:linear-gradient(135deg,#4285f4,#0d47a1); color:white; border:none; font-weight:700;">保存</button>
+            <button id="testVisionBtn" class="btn-add" style="font-size:0.7rem; height:28px; flex:1; margin:0; background:linear-gradient(135deg,#36d1dc,#5b86e5); color:white; border:none; font-weight:700;">测试连接</button>
+          </div>
+          <div id="visionConfigStatus" style="font-size:0.62rem; padding:4px 6px; border-radius:4px; background:var(--btn-bg); display:none; line-height:1.5; margin-top:4px;"></div>
+        </div>
+      </details>
+
+      <details style="margin-top:10px; border:1px dashed var(--card-border); border-radius:var(--radius-xs); padding:8px; background:rgba(120,120,120,0.02);">
+        <summary style="font-size:0.75rem; color:var(--text-soft); cursor:pointer; font-weight:700; outline:none; user-select:none;">AI 联网搜索配置</summary>
+        <div style="display:flex; flex-direction:column; gap:6px; margin-top:8px;">
+          <div style="display:flex; align-items:center; gap:6px;">
+            <span style="font-size:0.65rem; color:var(--text-soft); width:50px; font-weight:700;">搜索引擎:</span>
+            <select id="searchProviderSelect" class="input-simple" style="flex:1; font-size:0.7rem; height:28px; padding:0 4px; font-weight:700; background:var(--btn-bg); border-color:var(--card-border); color:var(--text-main);">
+              <option value="duckduckgo">DuckDuckGo (免费)</option>
+              <option value="tavily">Tavily Search</option>
+              <option value="brave">Brave Search</option>
+            </select>
+          </div>
+          <input type="password" class="input-simple" id="searchApiKeyInput" placeholder="搜索 API Key (DuckDuckGo 无需填写)" style="font-size:0.7rem; height:28px; padding:0 8px;">
+          <button id="saveSearchConfigBtn" class="btn-add" style="font-size:0.7rem; height:28px; margin:0; background:linear-gradient(135deg,#667eea,#764ba2); color:white; border:none; width:100%; font-weight:700;">保存搜索配置</button>
+          <div style="font-size:0.6rem; color:var(--text-light); line-height:1.4; margin-top:2px;">
+            配置后，AI 助手可联网搜索最新资讯、政策、行业动态等实时信息。默认使用 DuckDuckGo（免费无需 API Key），也可配置 Tavily 或 Brave Search 获得更好的搜索结果。
+          </div>
+        </div>
+      </details>
+
+      <details style="margin-top:10px; border:1px dashed var(--card-border); border-radius:var(--radius-xs); padding:8px; background:rgba(120,120,120,0.02);">
+        <summary style="font-size:0.75rem; color:var(--text-soft); cursor:pointer; font-weight:700; outline:none; user-select:none;">朋友圈文案定时推送</summary>
+        <div style="display:flex; flex-direction:column; gap:6px; margin-top:8px;">
+          <div style="display:flex; align-items:center; gap:6px;">
+            <label style="font-size:0.7rem; color:var(--text-main); font-weight:700; display:flex; align-items:center; gap:4px; cursor:pointer;">
+              <input type="checkbox" id="momentsEnabledCheck" checked style="width:16px; height:16px;"> 启用每日定时推送
+            </label>
+          </div>
+          <input type="text" class="input-simple" id="momentsWebhookUrlInput" placeholder="朋友圈推送专用 Webhook URL（留空使用上方通用地址）" style="font-size:0.7rem; height:28px; padding:0 8px;">
+          <button id="saveMomentsConfigBtn" class="btn-add" style="font-size:0.7rem; height:28px; margin:0; background:linear-gradient(135deg,#f093fb,#f5576c); color:white; border:none; width:100%; font-weight:700;">保存推送配置</button>
+          <button id="manualPushBtn" class="btn-add" style="font-size:0.7rem; height:28px; margin:0; background:linear-gradient(135deg,#667eea,#764ba2); color:white; border:none; width:100%; font-weight:700;">手动立即发送</button>
+          <div style="font-size:0.6rem; color:var(--text-light); line-height:1.4; margin-top:2px;">
+            ⏰ 每天早上 <strong>8:00 (北京时间)</strong> 自动生成 <strong>30 条</strong>朋友圈文案（励志生活·社会热点·财经电报·股市热点·贷款回访·日常招呼各5条），并通过企业微信 Webhook 推送到指定群聊。<br>
+            文案由 AI 结合新浪财经实时快讯和搜索引擎最新资讯自动生成，涵盖40-60字长文案和25字内短招呼语，风格多样（励志、热点、财经、股市、回访、招呼）。<br>
+            ⚠️ 需要已配置 AI 大模型 API Key 才能正常生成文案，否则仅发送提醒。
+          </div>
+        </div>
+      </details>
+
+      <div id="exportStatus" style="font-size:0.75rem;text-align:center;min-height:20px;"></div>
+    </div>
+  </div>
+</div>
+<!-- Whitelist Management Modal -->
+<div id="whitelistModal" class="modal-overlay">
+  <div class="modal-card" style="max-width: 440px;">
+    <div class="modal-header">
+      <span style="font-weight:900;">白名单管理</span>
+      <button id="closeWhitelistBtn" style="background:none; border:none; font-size:1.2rem; cursor:pointer; color:var(--text-soft); padding:0;">✕</button>
+    </div>
+    <div class="whitelist-status" id="whitelistStatus" style="font-size:0.7rem; color:var(--text-soft); font-weight:700;">未加载白名单</div>
+    
+    <div style="display:flex; flex-direction:column; gap:6px;">
+      <div style="display:flex; gap:8px; align-items:center;">
+        <label style="font-size:0.65rem; color:var(--text-light); font-weight:800; flex:1;">粘贴公司名称 (每行一家企业)</label>
+        <label for="whitelistFileInput" class="btn-secondary" style="padding:4px 8px; font-size:0.65rem; cursor:pointer; display:inline-block; border-radius:var(--radius-xs); border:1px solid var(--card-border); background:var(--btn-bg); font-weight:700; margin-bottom:2px;">导入表格 (Excel/CSV)</label>
+        <a id="whitelistTemplateBtn" class="btn-secondary" style="padding:4px 8px; font-size:0.65rem; cursor:pointer; display:inline-block; border-radius:var(--radius-xs); border:1px solid var(--card-border); background:var(--btn-bg); font-weight:700; margin-bottom:2px; text-decoration:none; color:var(--text-main);">下载模板</a>
+        <input type="file" id="whitelistFileInput" accept=".xlsx,.xls,.csv" style="display:none;">
+      </div>
+      <textarea id="whitelistTextarea" class="whitelist-textarea" placeholder="例：&#10;中国石油化工集团公司&#10;国家电网有限公司&#10;中国工商银行股份有限公司"></textarea>
+      <div style="display:flex; gap:8px;">
+        <button id="whitelistUploadBtn" class="btn-primary" style="flex:1; padding:8px; font-size:0.78rem;">上传白名单</button>
+        <button id="whitelistRefreshBtn" class="btn-secondary" style="padding:8px 14px; font-size:0.78rem;">刷新列表</button>
+      </div>
+    </div>
+    
+    <!-- Upload Failed Area -->
+    <div id="whitelistFailedArea" style="display:none; border:1px solid #e74c3c; background:rgba(231,76,60,0.05); border-radius:var(--radius-xs); padding:10px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; font-size:0.7rem; font-weight:800; color:#e74c3c;">
+        <span>⚠️ 上次上传失败的企业 (<span id="whitelistFailedCount">0</span>)</span>
+        <a href="#" id="whitelistFailedClearBtn" style="color:#e74c3c; text-decoration:underline; font-size:0.65rem;">清除</a>
+      </div>
+      <div id="whitelistFailedList" style="max-height:80px; overflow-y:auto; font-size:0.68rem; color:var(--text-soft); border:1px solid rgba(231,76,60,0.2); border-radius:4px; padding:4px; background:#fff; margin-bottom:8px; text-align:left; white-space:pre-wrap;"></div>
+      <button id="whitelistFailedRetryBtn" class="btn-primary" style="background:#e74c3c; border-color:#e74c3c; color:#fff; width:100%; padding:6px; font-size:0.75rem;">尝试重新上传</button>
+    </div>
+
+    <!-- Search in Whitelist -->
+    <div style="display:flex; flex-direction:column; gap:6px; border-top: 1px dashed var(--border-light); padding-top:12px; margin-top:4px;">
+      <label style="font-size:0.65rem; color:var(--text-light); font-weight:800;">搜索白名单列表</label>
+      <input type="text" id="whitelistModalSearchInput" class="search-input" placeholder="输入企业名称进行搜索..." style="height:28px; font-size:0.72rem; border-radius:var(--radius-xs); padding:0 8px; border:1px solid var(--card-border); background:var(--btn-bg); color:var(--text-main); font-weight:700; width:100%;">
+    </div>
+
+    <div class="modal-section-title" style="margin-top:4px;">企业白名单列表</div>
+    <div id="whitelistCompanyList" style="font-size:0.7rem; color:var(--text-light); text-align:center;">点击"刷新列表"加载白名单企业</div>
+  </div>
+</div>
+
+<div id="logModal" class="modal-overlay">
+  <div class="modal-card" style="max-width:420px;">
+    <div class="modal-header"><span>同步日志</span><button id="closeLogModalBtn">×</button></div>
+    <div class="log-list" id="syncLogList"></div>
+  </div>
+</div>
+<div id="allClientsModal" class="modal-overlay">
+  <div class="modal-card" style="width:100vw;height:100vh;max-width:100vw;max-height:100vh;margin:0;border-radius:0;border:none;box-sizing:border-box;">
+    <div class="modal-header"><div style="display:flex;align-items:center;gap:12px;"><span>意向客户全量登记表</span><button id="allClientsAddBtn" class="btn-add" style="font-size:0.75rem;padding:4px 12px;height:28px;">+ 新增意向</button><button id="allClientsExportBtn" class="btn-add" style="font-size:0.75rem;padding:4px 12px;height:28px;background:var(--intent-gradient);">导出</button></div><button id="closeAllClientsModalBtn">✕</button></div>
+    <div style="overflow-y:auto;flex:1;min-height:0;margin-top:10px;padding:0 4px;" id="allClientsCardList">
+      <!-- JS 动态渲染为卡片 -->
+    </div>
+  </div>
+</div>
+<div id="dateModal" class="modal-overlay">
+  <div class="modal-card">
+    <div class="modal-header"><span id="modalDateTitle">时间线</span><button id="closeModalBtn">×</button></div>
+    <div id="modalClientList" class="client-modal-list"></div>
+  </div>
+</div>
+<div id="goalModal" class="modal-overlay">
+  <div class="modal-card" style="max-width:420px;">
+    <div class="modal-header"><span>目标设定</span><button id="closeGoalModalBtn">×</button></div>
+    <div style="display:flex;flex-direction:column;gap:12px;">
+      <div style="font-size:0.75rem;font-weight:800;color:var(--text-soft);border-bottom:1px solid var(--border-light);padding-bottom:4px;">每周目标</div>
+      <div style="display:flex;gap:8px;align-items:center;"><label style="font-size:0.8rem;font-weight:600;min-width:60px;">上门</label><input type="number" class="input-simple" id="goalWeeklyVisit" min="0" placeholder="0" style="flex:1;"></div>
+      <div style="display:flex;gap:8px;align-items:center;"><label style="font-size:0.8rem;font-weight:600;min-width:60px;">微信</label><input type="number" class="input-simple" id="goalWeeklyWechat" min="0" placeholder="0" style="flex:1;"></div>
+      <div style="font-size:0.75rem;font-weight:800;color:var(--text-soft);border-bottom:1px solid var(--border-light);padding-bottom:4px;margin-top:4px;">每月目标</div>
+      <div style="display:flex;gap:8px;align-items:center;"><label style="font-size:0.8rem;font-weight:600;min-width:60px;">微信</label><input type="number" class="input-simple" id="goalMonthlyWechat" min="0" placeholder="0" style="flex:1;"></div>
+      <div style="display:flex;gap:8px;align-items:center;"><label style="font-size:0.8rem;font-weight:600;min-width:60px;">上门</label><input type="number" class="input-simple" id="goalMonthlyVisit" min="0" placeholder="0" style="flex:1;"></div>
+      <div style="display:flex;gap:8px;align-items:center;"><label style="font-size:0.8rem;font-weight:600;min-width:60px;">回款</label><input type="number" class="input-simple" id="goalMonthlyPayment" min="0" placeholder="0" style="flex:1;"></div>
+      <button class="btn-add" id="saveGoalBtn" style="width:100%;margin-top:4px;">保存目标</button>
+      <div id="goalStatus" style="font-size:0.75rem;text-align:center;min-height:20px;color:var(--text-soft);"></div>
+    </div>
+  </div>
+</div>
+
+<!-- 贷款利息计算器 -->
+<div id="loanModal" class="modal-overlay">
+  <div class="modal-card" style="max-width:800px;width:95%;">
+    <div class="modal-header">
+      <span>贷款利息计算器</span>
+      <button id="closeLoanModalBtn">×</button>
+    </div>
+
+    <!-- Method Tabs -->
+    <div class="loan-tabs">
+      <button class="loan-tab active" data-method="debx">等额本息</button>
+      <button class="loan-tab" data-method="xxhb">先息后本</button>
+      <button class="loan-tab" data-method="sjjh">随借随还</button>
+    </div>
+
+    <!-- Input Section -->
+    <div class="loan-input-row">
+      <label>贷款金额</label>
+      <input type="number" class="input-simple" id="loanPrincipal" placeholder="100000" min="0" step="1000" style="flex:1;min-width:80px;">
+      <span class="loan-unit">元</span>
+    </div>
+
+    <div class="loan-input-row">
+      <label>月息</label>
+      <input type="number" class="input-simple" id="loanMonthlyRate" placeholder="0.35" min="0" step="0.01" style="flex:1;min-width:80px;">
+      <span class="loan-unit">% / 月</span>
+    </div>
+
+    <div class="loan-input-row">
+      <label>年化利率</label>
+      <input type="number" class="input-simple" id="loanAnnualRate" placeholder="4.20" min="0" step="0.01" style="flex:1;min-width:80px;">
+      <span class="loan-unit">% / 年</span>
+    </div>
+
+    <div class="loan-input-row">
+      <label>贷款期限</label>
+      <input type="number" class="input-simple" id="loanTerm" placeholder="12" min="1" max="480" step="1" style="flex:1;min-width:80px;">
+      <span class="loan-unit">个月</span>
+    </div>
+
+    <div class="loan-input-row">
+      <label>月息差</label>
+      <input type="number" class="input-simple" id="loanRateSpread" placeholder="0.00" min="0" step="0.01" style="flex:1;min-width:80px;">
+      <span class="loan-unit">% / 月</span>
+      <span style="font-size:0.62rem;color:var(--text-light);">(实际−基准)</span>
+    </div>
+
+    <div class="loan-input-row">
+      <label>融资成本</label>
+      <input type="number" class="input-simple" id="loanFinanceCost" placeholder="0.00" min="0" step="0.01" style="flex:1;min-width:80px;">
+      <span class="loan-unit">%</span>
+      <span style="font-size:0.62rem;color:var(--text-light);">(借款额的百分比)</span>
+    </div>
+
+    <div class="loan-input-row loan-method-field" id="loanDaysField">
+      <label>计息天数</label>
+      <input type="number" class="input-simple" id="loanDays" placeholder="30" min="1" max="3650" step="1" style="flex:1;min-width:80px;">
+      <span class="loan-unit">天</span>
+    </div>
+
+    <!-- Result Cards -->
+    <div class="loan-results" id="loanResults">
+      <div class="loan-result-card">
+        <div class="label">总利息</div>
+        <div class="value positive" id="loanTotalInterest">--</div>
+      </div>
+      <div class="loan-result-card">
+        <div class="label">总还款</div>
+        <div class="value" id="loanTotalRepayment">--</div>
+      </div>
+      <div class="loan-result-card">
+        <div class="label" id="loanMonthlyLabel">月供</div>
+        <div class="value" id="loanMonthlyPayment">--</div>
+      </div>
+      <div class="loan-result-card">
+        <div class="label">利息占比</div>
+        <div class="value warning" id="loanInterestRatio">--</div>
+      </div>
+    </div>
+
+    <!-- Spread Result Cards (hidden until rateSpread > 0) -->
+    <div class="loan-results" id="loanSpreadResults" style="display:none;">
+      <div class="loan-result-card">
+        <div class="label">月供多付</div>
+        <div class="value" id="loanSpreadMonthly" style="color:#e74c3c;">--</div>
+      </div>
+      <div class="loan-result-card">
+        <div class="label">多还总额</div>
+        <div class="value" id="loanSpreadTotal" style="color:#e74c3c;">--</div>
+      </div>
+      <div class="loan-result-card">
+        <div class="label">多还占比</div>
+        <div class="value" id="loanSpreadPct" style="color:#e74c3c;">--</div>
+      </div>
+    </div>
+
+    <!-- Financing Cost Result Cards (hidden when 0) -->
+    <div class="loan-results" id="loanFinanceResults" style="display:none;">
+      <div class="loan-result-card">
+        <div class="label">融资成本金额</div>
+        <div class="value" id="loanFinanceAmount" style="color:#e74c3c;">--</div>
+      </div>
+      <div class="loan-result-card">
+        <div class="label">实际到账</div>
+        <div class="value" id="loanNetReceived" style="color:var(--text-main);">--</div>
+      </div>
+    </div>
+
+    <!-- Comparison Table -->
+    <div class="modal-section-title">三种方式对比</div>
+    <div id="loanComparisonContainer"></div>
+
+    <!-- Schedule Table -->
+    <div class="modal-section-title">还款计划明细</div>
+    <div id="loanScheduleContainer"></div>
+
+  </div>
+</div>
+
+<script>
+(function(){
+  const WECHAT_K='wechat_v3', INTENT_K='intent_v3', CLIENTS_K='clients_v3', REVISIT_K='revisit_v1';
+  const VISIT_K='visit_v1', PAYMENT_K='payment_v1', GOALS_K='goals_v1';
+  const DARK_K='dark_mode', LOCK_K='locked', TODAY_TODO_K='today_todo_v2', TOMORROW_TODO_K='tomorrow_todo_v2';
+  const LAST_LOAD_DATE_K='last_load_date_v1', WALLPAPER_K='wp_cache', SCRIPTS_K='scripts_v1', LEARN_K='learn_v1', LOCAL_TS_K='local_ts_v1';
+  const TEMP_CLIENTS_K='temp_clients_v1';
+  const OP_QUEUE_K='op_queue_v1'; // 操作队列：持久化到 localStorage，页面关闭后下次打开继续补发
+  const PULL_INTERVAL=15000; // 15秒拉一次，加快跨设备更新
+  let syncTimer=null;
+
+  const getTodayStr=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');};
+  const getCurrentMonth=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');};
+  const getCurrentTime=()=>{const n=new Date();return String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0')+':'+String(n.getSeconds()).padStart(2,'0');};
+  const loadMap=k=>{try{return JSON.parse(localStorage.getItem(k))||{};}catch(e){return{};}};
+  const saveMap=(k,o)=>localStorage.setItem(k,JSON.stringify(o));
+  const loadTodos=k=>{try{const d=JSON.parse(localStorage.getItem(k))||[];return d.map(t=>typeof t==='string'?{text:t,time:'',date:getTodayStr()}:t);}catch(e){return[];}};
+  const saveTodos=(k,a)=>localStorage.setItem(k,JSON.stringify(a));
+  const loadClients=()=>{try{return JSON.parse(localStorage.getItem(CLIENTS_K))||[];}catch(e){return[];}};
+  const loadGoals=()=>{try{return JSON.parse(localStorage.getItem(GOALS_K))||{};}catch(e){return{};}};
+  const saveGoals=(g)=>localStorage.setItem(GOALS_K,JSON.stringify(g));
+  const pushTodoLog=async (todo,ds)=>{syncOp('pushTodoLog',{todo});};
+  const esc=s=>String(s).replace(/[&<>]/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;' })[m]||m);
+  const maskPhone=p=>{if(!p||p.length<7)return '****';return '****'.repeat(Math.ceil(p.length/4));};
+  function getClientDetailTags(c) {
+    let html = '';
+    if (c.age) html += '<span class="client-card-tag client-card-tag-detail">年龄:' + esc(c.age) + '</span>';
+    if (c.maritalStatus) html += '<span class="client-card-tag client-card-tag-detail">' + esc(c.maritalStatus) + '</span>';
+    if (c.isShenzhenHukou) html += '<span class="client-card-tag client-card-tag-detail">深户:' + esc(c.isShenzhenHukou) + '</span>';
+    if (c.education) html += '<span class="client-card-tag client-card-tag-detail">' + esc(c.education) + '</span>';
+    if (c.property) html += '<span class="client-card-tag client-card-tag-detail">' + esc(c.property) + '</span>';
+    if (c.socialSecurity) html += '<span class="client-card-tag client-card-tag-detail">社保:' + esc(c.socialSecurity) + '</span>';
+    if (c.avgSalary) html += '<span class="client-card-tag client-card-tag-detail">月均:' + esc(c.avgSalary) + '</span>';
+    if (c.tax2yr) html += '<span class="client-card-tag client-card-tag-detail">个税:' + esc(c.tax2yr) + '</span>';
+    if (c.salaryBank) html += '<span class="client-card-tag client-card-tag-detail">银行:' + esc(c.salaryBank) + '</span>';
+    if (c.bankDebt) html += '<span class="client-card-tag client-card-tag-detail">信贷:' + esc(c.bankDebt) + '</span>';
+    if (c.creditCardDebt) html += '<span class="client-card-tag client-card-tag-detail">信用卡:' + esc(c.creditCardDebt) + '</span>';
+    if (c.query3m) html += '<span class="client-card-tag client-card-tag-detail">查询:' + esc(c.query3m) + '次</span>';
+    if (c.onlineLoanCount) html += '<span class="client-card-tag client-card-tag-detail">网贷:' + esc(c.onlineLoanCount) + '笔</span>';
+    if (c.demand) html += '<span class="client-card-tag client-card-tag-detail">需求:' + esc(c.demand.length > 15 ? c.demand.slice(0,15) + '…' : c.demand) + '</span>';
+    if (c.fundUsage) html += '<span class="client-card-tag client-card-tag-detail">资金:' + esc(c.fundUsage.length > 15 ? c.fundUsage.slice(0,15) + '…' : c.fundUsage) + '</span>';
+    return html;
+  }
+  // Status helpers
+  const STATUS_LABELS = { 'success': '成', 'failed': '败' };
+  const STATUS_CLASSES = { 'success': 'status-success', 'failed': 'status-failed' };
+  const STATUS_BADGE_LABELS = { 'success': '已办理成功', 'failed': '未办理成功' };
+  const STATUS_BADGE_CLASSES = { 'success': 'status-badge-success', 'failed': 'status-badge-failed' };
+  function getStatusBadgeHtml(c) {
+    if (!c.status) return '';
+    return '<span class="client-card-status-badge ' + STATUS_BADGE_CLASSES[c.status] + '">' + STATUS_BADGE_LABELS[c.status] + '</span>';
+  }
+  function getStatusToggleHtml(c) {
+    var label = c.status ? STATUS_LABELS[c.status] : '标';
+    var cls = c.status ? 'status-toggle-btn ' + STATUS_CLASSES[c.status] : 'status-toggle-btn';
+    return '<button class="' + cls + '" data-status="' + (c.status||'') + '">' + label + '</button>';
+  }
+  function cycleStatus(current) {
+    if (!current) return 'success';
+    if (current === 'success') return 'failed';
+    return '';
+  }
+  function showStatusConditionalFields(status) {
+    var sf = document.getElementById('successStatusFields');
+    var ff = document.getElementById('failedStatusFields');
+    if (!sf || !ff) return;
+    sf.classList.toggle('visible', status === 'success');
+    ff.classList.toggle('visible', status === 'failed');
+  }
+
+  function getWeekTotal(map,month){const ref=month?new Date(month+'-01'):new Date();const dow=ref.getDay();const diff=dow===0?6:dow-1;const mon=new Date(ref);mon.setDate(ref.getDate()-diff);const ms=mon.getFullYear()+'-'+String(mon.getMonth()+1).padStart(2,'0')+'-'+String(mon.getDate()).padStart(2,'0');const end=month?new Date(ref.getFullYear(),ref.getMonth()+1,0):new Date();const es=end.getFullYear()+'-'+String(end.getMonth()+1).padStart(2,'0')+'-'+String(end.getDate()).padStart(2,'0');const tsNow=getTodayStr();const ts=month&&month!==getCurrentMonth()?es:tsNow;let s=0;for(let[d,v]of Object.entries(map))if(d>=ms&&d<=ts)s+=v;return s;}
+  function getMonthTotal(map,month){const p=month||getTodayStr().slice(0,7);let s=0;for(let[d,v]of Object.entries(map))if(d.startsWith(p))s+=v;return s;}
+  let calendarMonth=getCurrentMonth();
+
+  // ==================== 云端 API ====================
+  async function cloudGet(date){try{const r=await fetch('/api/data?date='+date);if(r.ok)return await r.json();}catch(e){}return null;}
+  async function cloudSave(data){try{await fetch('/api/data',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});}catch(e){}}
+
+  // ==================== 白名单 ====================
+  let whitelistCompanies = [];
+  let whitelistLoaded = false;
+  const whitelistSet = new Set();
+  const whitelistMap = new Map();
+
+  function updateWhitelistSet() {
+    whitelistSet.clear();
+    whitelistMap.clear();
+    whitelistCompanies.forEach(c => {
+      const bank = c.bank_name || '建行建易贷';
+      const status = c.status || '正常';
+      const val = { bank, status };
+      const name = (c.company_name || '').trim().toLowerCase();
+      if (name) {
+        whitelistSet.add(name);
+        whitelistMap.set(name, val);
+      }
+      const alias = (c.alias || '').trim().toLowerCase();
+      if (alias) {
+        whitelistSet.add(alias);
+        whitelistMap.set(alias, val);
+      }
+    });
+  }
+
+  function fuzzyMatch(text, query) {
+    if (!text) return false;
+    text = text.toLowerCase().trim();
+    query = query.toLowerCase().trim();
+    if (!query) return true;
+    if (text.includes(query)) return true;
+    const keywords = query.split(/\s+/).filter(Boolean);
+    if (keywords.length > 1) {
+      return keywords.every(kw => text.includes(kw));
+    }
+    const escapedQuery = query.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\\\$&');
+    const chars = escapedQuery.split('');
+    const regexStr = chars.join('.*');
+    try {
+      const regex = new RegExp(regexStr, 'i');
+      return regex.test(text);
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function getWhitelistTagHtml(company, isTbl) {
+    if (!company || company === '-') return isTbl ? '-' : '';
+    const key = String(company).trim().toLowerCase();
+    
+    let matchedName = null;
+    let val = null;
+    
+    if (whitelistSet.has(key)) {
+      matchedName = key;
+      val = whitelistMap.get(key);
+    } else {
+      // Fuzzy match: check if clean name matches (excluding common suffixes/prefixes)
+      const cleanCard = key.replace(/(有限公司|有限责任公司|公司|集团|深圳市|广州市|北京市|上海市|深圳|广州|北京|上海)/g, '').trim();
+      if (cleanCard.length >= 2) {
+        for (let wlName of whitelistSet.keys()) {
+          const cleanWl = wlName.replace(/(有限公司|有限责任公司|公司|集团|深圳市|广州市|北京市|上海市|深圳|广州|北京|上海)/g, '').trim();
+          if (cleanWl.length >= 2 && (cleanCard.includes(cleanWl) || cleanWl.includes(cleanCard))) {
+            matchedName = wlName;
+            val = whitelistMap.get(wlName);
+            break;
+          }
+        }
+      }
+    }
+    if (val && (val.status === '已失效' || val.status === '已删除')) {
+      matchedName = null;
+      val = null;
+    }
+
+    if (!matchedName || !val) {
+      return isTbl ? esc(company) : '<span class="client-card-tag client-card-tag-company">' + esc(company) + '</span>';
+    }
+
+    const bank = val.bank || '建行建易贷';
+    const bankShort = bank.replace('建行', '').replace('建设银行', '') || bank;
+    const status = val.status || '正常';
+    let bankBadgeStyle = 'background:var(--accent-wechat-bg); color:var(--accent-wechat); border-color:rgba(7,193,96,0.3);';
+    let bankLabel = bankShort;
+    if (status === '已失效') {
+      bankBadgeStyle = 'background:rgba(120,120,120,0.12); color:#95a5a6; border-color:rgba(120,120,120,0.25);';
+      bankLabel = bankShort + '(已失效)';
+    } else if (status === '已删除') {
+      bankBadgeStyle = 'background:rgba(231,76,60,0.1); color:#e74c3c; border-color:rgba(231,76,60,0.2);';
+      bankLabel = bankShort + '(已删除)';
+    }
+    if (isTbl) {
+      // Table: keep combined label
+      let label = bank + ': ' + company;
+      if (status === '已失效') label = bank + '(已失效): ' + company;
+      else if (status === '已删除') label = bank + '(已删除): ' + company;
+      return '<span class="tbl-tag tbl-tag-company" style="' + bankBadgeStyle + '">' + esc(label) + '</span>';
+    }
+    // Card: company name + separate bank badge
+    return '<span class="client-card-tag client-card-tag-company">' + esc(company) + '</span>' +
+      '<span class="client-card-tag client-card-tag-bank" style="' + bankBadgeStyle + '">' + esc(bankLabel) + '</span>';
+  }
+
+  function fetchWhitelist() {
+    return fetch('/api/whitelist/companies')
+      .then(r => {
+        if (!r.ok) throw new Error('获取白名单失败');
+        return r.json();
+      })
+      .then(data => {
+        whitelistCompanies = data.companies || [];
+        whitelistLoaded = true;
+        updateWhitelistSet();
+        updateWhitelistStatus();
+        renderWhitelistCompanyList();
+        
+        // Re-render client lists to show whitelist checkmarks
+        renderClientList();
+        const modal = document.getElementById('allClientsModal');
+        if (modal && modal.classList.contains('active')) {
+          loadAllClients();
+        }
+        return whitelistCompanies;
+      })
+      .catch(err => {
+        console.error('Whitelist fetch error:', err);
+        whitelistLoaded = false;
+      });
+  }
+
+  function uploadWhitelist(companyNames) {
+    return fetch('/api/whitelist/upload', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ companies: companyNames })
+    })
+    .then(async r => {
+      if (!r.ok) {
+        let msg = '上传白名单失败';
+        try {
+          const data = await r.json();
+          if (data && data.error) msg += ': ' + data.error;
+        } catch(e) {}
+        throw new Error(msg);
+      }
+      return r.json();
+    });
+  }
+
+
+  function updateWhitelistStatus() {
+    const el = document.getElementById('whitelistStatus');
+    if (el) {
+      el.textContent = '已加载 ' + whitelistCompanies.length + ' 家白名单企业';
+    }
+  }
+
+  function handleFailedUploads(companies) {
+    try {
+      const failed = JSON.parse(localStorage.getItem('whitelist_failed_uploads') || '[]');
+      const failedSet = new Set(failed);
+      companies.forEach(c => failedSet.add(c));
+      localStorage.setItem('whitelist_failed_uploads', JSON.stringify(Array.from(failedSet)));
+      renderFailedUploadsArea();
+    } catch (e) {
+      console.error('Failed to save failed whitelist uploads:', e);
+    }
+  }
+
+  function renderFailedUploadsArea() {
+    const container = document.getElementById('whitelistFailedArea');
+    const listEl = document.getElementById('whitelistFailedList');
+    const countEl = document.getElementById('whitelistFailedCount');
+    if (!container || !listEl || !countEl) return;
+
+    let failed = [];
+    try {
+      failed = JSON.parse(localStorage.getItem('whitelist_failed_uploads') || '[]');
+    } catch (e) {}
+
+    if (failed.length === 0) {
+      container.style.display = 'none';
+      return;
+    }
+
+    container.style.display = 'block';
+    countEl.textContent = failed.length;
+    listEl.textContent = failed.map(c => {
+      if (typeof c === 'string') return c;
+      return c.company_name + (c.status && c.status !== '正常' ? ',' + c.status : '');
+    }).join('\\n');
+  }
+
+  function renderWhitelistCompanyList() {
+    const container = document.getElementById('whitelistCompanyList');
+    if (!container) return;
+
+    const searchInput = document.getElementById('whitelistModalSearchInput');
+    const query = searchInput ? searchInput.value.toLowerCase().trim() : '';
+
+    let filtered = whitelistCompanies;
+    if (query) {
+      filtered = whitelistCompanies.filter(c => {
+        return fuzzyMatch(c.company_name, query) || fuzzyMatch(c.alias, query);
+      });
+    }
+
+    if (filtered.length === 0) {
+      container.innerHTML = '<div style="font-size:0.7rem; color:var(--text-light); text-align:center; padding:10px;">' + (query ? '无匹配搜索的企业' : '暂无白名单企业数据') + '</div>';
+      return;
+    }
+
+    let html = '';
+    filtered.forEach(c => {
+      html += '<div class="whitelist-company-item">' +
+        '<span style="font-size:0.72rem; font-weight:700; color:var(--text-main);">' + esc(c.company_name) + '</span>' +
+        '</div>';
+    });
+    container.innerHTML = html;
+  }
+
+  function initWhitelistFeature() {
+    const whitelistBtn = document.getElementById('whitelistMenuBtn');
+    const whitelistModal = document.getElementById('whitelistModal');
+    const closeBtn = document.getElementById('closeWhitelistBtn');
+    const uploadBtn = document.getElementById('whitelistUploadBtn');
+    const refreshBtn = document.getElementById('whitelistRefreshBtn');
+    const textarea = document.getElementById('whitelistTextarea');
+    const failedClearBtn = document.getElementById('whitelistFailedClearBtn');
+    const failedRetryBtn = document.getElementById('whitelistFailedRetryBtn');
+    const modalSearch = document.getElementById('whitelistModalSearchInput');
+    const fileInput = document.getElementById('whitelistFileInput');
+    const templateBtn = document.getElementById('whitelistTemplateBtn');
+
+    if (whitelistBtn && whitelistModal) {
+      whitelistBtn.addEventListener('click', () => {
+        whitelistModal.classList.add('active');
+        renderFailedUploadsArea();
+        if (!whitelistLoaded) {
+          fetchWhitelist();
+        }
+      });
+    }
+
+    if (closeBtn && whitelistModal) {
+      closeBtn.addEventListener('click', () => {
+        whitelistModal.classList.remove('active');
+      });
+      whitelistModal.addEventListener('click', e => {
+        if (e.target === whitelistModal) {
+          whitelistModal.classList.remove('active');
+        }
+      });
+    }
+
+    if (uploadBtn && textarea) {
+      uploadBtn.addEventListener('click', () => {
+        const text = textarea.value.trim();
+        if (!text) { alert('请先粘贴企业名称'); return; }
+        const companies = text.split('\\n')
+          .map(s => s.trim())
+          .filter(s => s.length > 0)
+          .map(s => {
+            const parts = s.split(',');
+            if (parts.length > 1) {
+              return {
+                company_name: parts[0].trim(),
+                status: parts[1].trim()
+              };
+            }
+            return {
+              company_name: s,
+              status: '正常'
+            };
+          });
+        if (companies.length === 0) { alert('请至少输入一个企业名称'); return; }
+
+        uploadBtn.textContent = '上传中...';
+        uploadBtn.disabled = true;
+        uploadWhitelist(companies)
+          .then(result => {
+            alert('成功上传 ' + result.count + ' 家企业到白名单');
+            textarea.value = '';
+            return fetchWhitelist();
+          })
+          .catch(err => {
+            alert('上传失败：' + err.message + '。已存入本地失败重试列表。');
+            handleFailedUploads(companies);
+          })
+          .then(() => {
+            uploadBtn.textContent = '上传白名单';
+            uploadBtn.disabled = false;
+          });
+      });
+    }
+
+    if (refreshBtn) {
+      refreshBtn.addEventListener('click', () => {
+        fetchWhitelist();
+      });
+    }
+
+    if (modalSearch) {
+      modalSearch.addEventListener('input', () => {
+        renderWhitelistCompanyList();
+      });
+    }
+
+    if (failedClearBtn) {
+      failedClearBtn.addEventListener('click', e => {
+        e.preventDefault();
+        localStorage.removeItem('whitelist_failed_uploads');
+        renderFailedUploadsArea();
+      });
+    }
+
+    if (failedRetryBtn) {
+      failedRetryBtn.addEventListener('click', () => {
+        let failed = [];
+        try {
+          failed = JSON.parse(localStorage.getItem('whitelist_failed_uploads') || '[]');
+        } catch (e) {}
+        if (failed.length === 0) return;
+
+        failedRetryBtn.textContent = '重试中...';
+        failedRetryBtn.disabled = true;
+        uploadWhitelist(failed)
+          .then(result => {
+            alert('重新上传成功，共导入 ' + result.count + ' 家企业');
+            localStorage.removeItem('whitelist_failed_uploads');
+            renderFailedUploadsArea();
+            return fetchWhitelist();
+          })
+          .catch(err => {
+            alert('重试上传依然失败: ' + err.message);
+          })
+          .then(() => {
+            failedRetryBtn.textContent = '尝试重新上传';
+            failedRetryBtn.disabled = false;
+          });
+      });
+    }
+
+    if (templateBtn) {
+      templateBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        // 创建工作簿
+        const wb = XLSX.utils.book_new();
+        // 表头和示例数据
+        const data = [
+          ['单位全称', '操作'],
+          ['示例：中国石油化工集团公司', ''],
+          ['示例：国家电网有限公司', ''],
+          ['示例：中国工商银行股份有限公司', '新增'],
+        ];
+        const ws = XLSX.utils.aoa_to_sheet(data);
+        // 设置列宽
+        ws['!cols'] = [{ wch: 40 }, { wch: 15 }];
+        XLSX.utils.book_append_sheet(wb, ws, '客户导入模板');
+        // 触发下载
+        XLSX.writeFile(wb, '客户导入模板.xlsx');
+      });
+    }
+
+    if (fileInput && textarea) {
+      fileInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+          try {
+            const data = new Uint8Array(evt.target.result);
+            const workbook = XLSX.read(data, { type: 'array' });
+            let allLines = [];
+
+            workbook.SheetNames.forEach(sheetName => {
+              const worksheet = workbook.Sheets[sheetName];
+              const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+              if (rows.length === 0) return;
+
+              let defaultStatus = '正常';
+              if (sheetName.includes('失效')) {
+                defaultStatus = '已失效';
+              } else if (sheetName.includes('删除')) {
+                defaultStatus = '已删除';
+              }
+
+              const headerRow = rows[0] || [];
+              let targetColIndex = -1;
+              let opColIndex = -1;
+              const exactKeywords = ["单位全称", "公司名称", "企业名称", "单位名称", "公司全称", "企业全称"];
+              const secondaryKeywords = ["公司", "单位", "企业", "名称", "白名单", "简称"];
+              const excludeKeywords = ["行业", "性质", "账号", "代码", "等级", "类别", "类型"];
+
+              // First try exact match
+              for (let i = 0; i < headerRow.length; i++) {
+                const val = String(headerRow[i] || '').trim();
+                if (exactKeywords.includes(val)) {
+                  targetColIndex = i;
+                  break;
+                }
+              }
+
+              // If not found, try secondary keywords excluding noise columns
+              if (targetColIndex === -1) {
+                for (let i = 0; i < headerRow.length; i++) {
+                  const val = String(headerRow[i] || '').trim();
+                  const hasExclude = excludeKeywords.some(ex => val.includes(ex));
+                  if (!hasExclude && secondaryKeywords.some(kw => val.includes(kw))) {
+                    targetColIndex = i;
+                    break;
+                  }
+                }
+              }
+
+              // Find operation / status column (prefer "操作" over "状态")
+              for (let i = 0; i < headerRow.length; i++) {
+                const val = String(headerRow[i] || '').trim();
+                if (val.includes("操作")) {
+                  opColIndex = i;
+                  break;
+                }
+              }
+              if (opColIndex === -1) {
+                for (let i = 0; i < headerRow.length; i++) {
+                  const val = String(headerRow[i] || '').trim();
+                  if (val.includes("状态")) {
+                    opColIndex = i;
+                    break;
+                  }
+                }
+              }
+
+              const finalColIndex = targetColIndex !== -1 ? targetColIndex : 0;
+              const startRow = targetColIndex !== -1 ? 1 : 0;
+              for (let r = startRow; r < rows.length; r++) {
+                const row = rows[r] || [];
+                const cellVal = String(row[finalColIndex] || '').trim();
+                if (cellVal && cellVal.length > 1) {
+                  let status = defaultStatus;
+                  if (opColIndex !== -1 && row[opColIndex]) {
+                    const opVal = String(row[opColIndex]).trim();
+                    if (opVal.includes("失效")) {
+                      status = '已失效';
+                    } else if (opVal.includes("删除")) {
+                      status = '已删除';
+                    } else if (opVal.includes("新增") || opVal.includes("修改") || opVal.includes("通过")) {
+                      status = '正常';
+                    }
+                  }
+                  
+                  if (status === '正常') {
+                    allLines.push(cellVal);
+                  } else {
+                    allLines.push(cellVal + ',' + status);
+                  }
+                }
+              }
+            });
+
+            const uniqueLines = Array.from(new Set(allLines));
+            if (uniqueLines.length > 0) {
+              const currentVal = textarea.value.trim();
+              const suffix = currentVal ? '\\n' : '';
+              textarea.value = currentVal + suffix + uniqueLines.join('\\n');
+              alert('成功从表格中读取 ' + uniqueLines.length + ' 家公司，已自动标记已失效或已删除的记录（格式如：“公司名,已失效”）。请确认后点击下方的“上传白名单”进行保存。');
+            } else {
+              alert('未能在表格中识别到公司名称，请确保表格中包含“单位全称”、“公司名称”或“企业名称”字样的表头。');
+            }
+          } catch (err) {
+            console.error(err);
+            alert('解析表格失败: ' + err.message);
+          } finally {
+            fileInput.value = '';
+          }
+        };
+        reader.readAsArrayBuffer(file);
+      });
+    }
+
+    // Whitelist search on the main dashboard
+    const mainSearchInput = document.getElementById('mainWlSearchInput');
+    const mainSearchResults = document.getElementById('mainWlSearchResults');
+    if (mainSearchInput && mainSearchResults) {
+      document.addEventListener('click', e => {
+        if (!mainSearchInput.contains(e.target) && !mainSearchResults.contains(e.target)) {
+          mainSearchResults.style.display = 'none';
+        }
+      });
+      mainSearchInput.addEventListener('input', () => {
+        const query = mainSearchInput.value.toLowerCase().trim();
+        if (!query) {
+          mainSearchResults.style.display = 'none';
+          mainSearchResults.innerHTML = '';
+          return;
+        }
+
+        const matched = whitelistCompanies.filter(c => {
+          return fuzzyMatch(c.company_name, query) || fuzzyMatch(c.alias, query);
+        });
+
+        // Limit results to 15
+        const limitMatches = matched.slice(0, 15);
+        if (limitMatches.length === 0) {
+          mainSearchResults.innerHTML = '<div style="color:var(--text-light); text-align:center; padding:6px; font-style:italic;">无匹配企业</div>';
+        } else {
+          mainSearchResults.innerHTML = limitMatches.map(c => {
+            const bank = c.bank_name || '建行建易贷';
+            const status = c.status || '正常';
+            let label = bank;
+            let badgeStyle = 'background:var(--accent-wechat-bg); color:var(--accent-wechat);';
+            if (status === '已失效') {
+              label = bank + '(已失效)';
+              badgeStyle = 'background:rgba(120,120,120,0.1); color:#7f8c8d;';
+            } else if (status === '已删除') {
+              label = bank + '(已删除)';
+              badgeStyle = 'background:rgba(231,76,60,0.1); color:#e74c3c;';
+            }
+            return '<div style="display:flex; justify-content:space-between; align-items:center; padding:4px 6px; border-bottom:1px dashed var(--card-border); background:var(--btn-bg); border-radius:3px; cursor:pointer;" data-company="' + esc(c.company_name) + '" onclick="document.getElementById(\\\'custCompany\\\').value=this.dataset.company; document.getElementById(\\\'mainWlSearchResults\\\').style.display=\\\'none\\\';">' +
+              '<span style="font-weight:700; color:var(--text-main); font-size:0.62rem;">' + esc(c.company_name) + '</span>' +
+              '<span style="font-size:0.52rem; ' + badgeStyle + ' padding:1px 4px; border-radius:3px; font-weight:700; white-space:nowrap; margin-left:8px;">' + esc(label) + '</span>' +
+              '</div>';
+          }).join('');
+        }
+        mainSearchResults.style.display = 'flex';
+      });
+    }
+
+    renderFailedUploadsArea();
+    fetchWhitelist(); // Load on page load
+  }
+
+
+  // ==================== Outbox 队列（Office式同步）====================
+  // 每次操作先写入队列（localStorage），再发网。关页也不丢，下次打开继续补发。
+  const loadOpQueue=()=>{try{return JSON.parse(localStorage.getItem(OP_QUEUE_K))||[];}catch(e){return[];}};
+  const saveOpQueue=q=>localStorage.setItem(OP_QUEUE_K,JSON.stringify(q));
+  let _draining=false;
+  async function drainQueue(){
+    if(_draining)return;
+    _draining=true;
+    _syncStatus='syncing';updateSyncIndicator();
+    try{
+      let anyOk=false;
+      while(true){
+        const q=loadOpQueue();
+        if(q.length===0)break;
+        const item=q[0];
+        const {_qid,...body}=item;
+        let ok=false;
+        let status=0;
+        let errMsg='';
+        if(!item._retry)item._retry=0;
+        try{
+          const r=await fetch('/api/sync',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+          status=r.status;
+          if(r.ok){const d=await r.json();if(d._ts)localStorage.setItem(LOCAL_TS_K,d._ts);ok=true;anyOk=true;}
+          else{errMsg='HTTP '+r.status;}
+        }catch(e){errMsg=e.message||'网络连接错误';}
+        if(ok){
+          saveOpQueue(loadOpQueue().filter(function(i){return i._qid!==_qid;}));
+          updateSyncIndicator();
+        }else{
+          if(status>=400&&status<500){
+            addSyncLog('⚠️ 放弃无效操作 ['+item.op+']: '+errMsg);
+            saveOpQueue(loadOpQueue().filter(function(i){return i._qid!==_qid;}));
+            updateSyncIndicator();
+            continue;
+          }
+          item._retry++;
+          if(item._retry>=5){
+            addSyncLog('❌ 操作 ['+item.op+'] 重试 5 次失败已丢弃: '+errMsg);
+            saveOpQueue(loadOpQueue().filter(function(i){return i._qid!==_qid;}));
+            updateSyncIndicator();
+            continue;
+          }
+          const currentQueue=loadOpQueue();
+          const currentItemIdx=currentQueue.findIndex(function(i){return i._qid===_qid;});
+          if(currentItemIdx>=0){
+            currentQueue[currentItemIdx]._retry=item._retry;
+            saveOpQueue(currentQueue);
+          }
+          _syncStatus='pending';updateSyncIndicator();
+          break;
+        }
+      }
+      if(loadOpQueue().length===0){_syncStatus='synced';if(anyOk){_lastSyncTime=new Date();addSyncLog('✅ 增量队列推送云端成功');}}
+    }finally{_draining=false;updateSyncIndicator();}
+  }
+  // 每次操作：先写队列（持久化），再尝试发送
+  async function syncOp(op,payload,customDate){
+    const targetDate=customDate||getTodayStr();
+    const item={_qid:Date.now()+'_'+Math.random().toString(36).slice(2),date:targetDate,op,...payload};
+    const q=loadOpQueue();q.push(item);saveOpQueue(q);
+    await drainQueue();
+  }
+  async function cloudCalendar(month){try{const r=await fetch('/api/calendar?month='+month);if(r.ok)return await r.json();}catch(e){}return null;}
+  async function cloudStats(month){try{const r=await fetch('/api/stats?month='+month);if(r.ok)return await r.json();}catch(e){}return null;}
+
+  // ==================== 同步状态指示器 ====================
+  let _lastSyncTime=null;
+  let _syncStatus='syncing';
+  function updateSyncIndicator(){
+    var btn=document.getElementById('syncBtn');
+    var icon=document.getElementById('syncIcon');
+    var label=document.getElementById('syncLabel');
+    var tip=document.getElementById('syncTooltip');
+    if(!btn)return;
+    var q=loadOpQueue();
+    var qLen=q.length;
+    var st=_syncStatus;
+    if(!navigator.onLine)st='offline';
+    if(st!=='syncing'&&st!=='error'&&st!=='offline'){st=qLen>0?'pending':'synced';}
+    btn.className='sync-indicator '+st;
+    if(st==='syncing'){
+      icon.textContent='⇅';label.textContent='同步中...';
+    }else if(st==='offline'){
+      icon.textContent='🔌';label.textContent='离线模式';
+    }else if(st==='pending'){
+      icon.textContent='⇅';label.innerHTML='<span class="sync-badge">'+qLen+'</span> 待同步';
+    }else if(st==='error'){
+      icon.textContent='⇅';label.textContent='同步失败';
+    }else{
+      icon.textContent='⇅';label.textContent='已同步';
+    }
+    var timeStr='--:--';
+    if(_lastSyncTime){
+      var hh=String(_lastSyncTime.getHours()).padStart(2,'0');
+      var mm=String(_lastSyncTime.getMinutes()).padStart(2,'0');
+      var ss=String(_lastSyncTime.getSeconds()).padStart(2,'0');
+      timeStr=hh+':'+mm+':'+ss;
+    }
+    tip.textContent='\u{1F552} '+timeStr+(qLen>0?' | 队列: '+qLen+'\u6761':'');
+  }
+
+  // 保存当前完整状态到 KV
+  async function saveFullState(full){
+    const today=getTodayStr();
+    const wm=loadMap(WECHAT_K);
+    const rm=loadMap(REVISIT_K);
+    const vm=loadMap(VISIT_K);
+    const pm=loadMap(PAYMENT_K);
+    const allClients=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
+    const webhookUrl=localStorage.getItem('webhook_url')||'';
+
+    if(full){
+      const scripts=loadScripts();
+      const learns=loadLearns();
+      const dates = new Set([...Object.keys(wm), ...Object.keys(rm), ...Object.keys(vm), ...Object.keys(pm), ...allClients.map(c=>c.date).filter(Boolean), today]);
+      const ts = Date.now();
+      const payload = [];
+      for(const d of dates){
+        const dClients=allClients.filter(c=>c.date===d);
+        const item = {
+          date:d,
+          wechatCount:wm[d]||0,
+          intentCount:dClients.length,
+          revisitCount:rm[d]||0,
+          visitCount:vm[d]||0,
+          paymentCount:pm[d]||0,
+          clients:dClients,
+          webhookUrl:webhookUrl,
+          _ts:ts
+        };
+        if(d===today){
+          item.todayTodos=loadTodos(TODAY_TODO_K).filter(t=>(typeof t==='string'?today:(t.date||today))===today);
+          item.tomorrowTodos=loadTodos(TOMORROW_TODO_K).filter(t=>(typeof t==='string'?today:(t.date||today))===today);
+          item.tempClients=JSON.parse(localStorage.getItem(TEMP_CLIENTS_K)||'[]');
+          item.scripts=scripts;
+          item.learns=learns;
+        }
+        payload.push(item);
+      }
+      localStorage.setItem(LOCAL_TS_K,ts);
+      await cloudSave(payload);
+      addSyncLog('✅ 手动全量历史数据同步成功');
+    } else {
+      const todayClients=allClients.filter(c=>c.date===today);
+      const data={
+        date:today,
+        wechatCount:wm[today]||0,
+        intentCount:todayClients.length,
+        revisitCount:rm[today]||0,
+        visitCount:vm[today]||0,
+        paymentCount:pm[today]||0,
+        clients:todayClients,
+        todayTodos:loadTodos(TODAY_TODO_K).filter(t=>(typeof t==='string'?today:(t.date||today))===today),
+        tomorrowTodos:loadTodos(TOMORROW_TODO_K).filter(t=>(typeof t==='string'?today:(t.date||today))===today),
+        tempClients:JSON.parse(localStorage.getItem(TEMP_CLIENTS_K)||'[]'),
+        webhookUrl:webhookUrl,
+        _ts:Date.now()
+      };
+      localStorage.setItem(LOCAL_TS_K,data._ts);
+      await cloudSave(data);
+    }
+  }  // 拉取全量意向客户并同步到本地 CLIENTS_K 缓存中
+  async function syncAllClientsFromCloud(){
+    try {
+      const r = await fetch('/api/all-clients');
+      if (r.ok) {
+        const cloudClients = await r.json();
+        if (Array.isArray(cloudClients)) {
+          const allClients = loadClients();
+          const mergeMap = new Map();
+          // Keep local copies first to prevent overriding unsaved local modifications
+          allClients.forEach(c => {
+            const key = c.date + '|' + c.name + '|' + c.phone + '|' + (c.time||'');
+            mergeMap.set(key, c);
+          });
+          // Merge incoming cloud data
+          cloudClients.forEach(c => {
+            const key = c.date + '|' + c.name + '|' + c.phone + '|' + (c.time||'');
+            if (!mergeMap.has(key)) {
+              mergeMap.set(key, c);
+            }
+          });
+          localStorage.setItem(CLIENTS_K, JSON.stringify([...mergeMap.values()]));
+          addSyncLog('✅ 拉取并合并云端所有客户列表完成');
+        }
+      }
+    } catch(e) {
+      console.error('Failed to fetch all clients:', e);
+      addSyncLog('⚠️ 拉取全量客户失败: ' + e.message);
+    }
+  }
+
+  // 从 KV 拉取最新数据，如果云端更新则覆盖本地
+  async function pullLatest(){
+    const today=getTodayStr();
+    let data=null;
+    try{
+      data=await cloudGet(today);
+    }catch(errVal){
+      addSyncLog('⚠️ 同步拉取异常: '+errVal.message);
+      return;
+    }
+    if(!data)return;
+    const localTs=parseInt(localStorage.getItem(LOCAL_TS_K)||'0');
+    if((data._ts||0)>localTs){
+      // 微信计数取最大值
+      const wm=loadMap(WECHAT_K);
+      wm[today]=Math.max(wm[today]||0, data.wechatCount||0);
+      saveMap(WECHAT_K,wm);
+      const im=loadMap(INTENT_K);im[today]=data.intentCount||0;saveMap(INTENT_K,im);
+      // 回访计数取最大值
+      const rm=loadMap(REVISIT_K);
+      rm[today]=Math.max(rm[today]||0, data.revisitCount||0);
+      saveMap(REVISIT_K,rm);
+      // 上门计数取最大值
+      const vm=loadMap(VISIT_K);
+      vm[today]=Math.max(vm[today]||0, data.visitCount||0);
+      saveMap(VISIT_K,vm);
+      // 回款计数取最大值
+      const pm=loadMap(PAYMENT_K);
+      pm[today]=Math.max(pm[today]||0, data.paymentCount||0);
+      saveMap(PAYMENT_K,pm);
+      // 目标：云端版本为准
+      if(data.goals!==undefined)saveGoals(data.goals);
+      // 客户列表：合并（取并集），云端新增的保留，本地新增的也保留
+      if(data.clients!==undefined){
+        const allClients=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
+        const nonToday=allClients.filter(c=>c.date!==today);
+        const localToday=allClients.filter(c=>c.date===today);
+        const mergeMap=new Map();
+        // 先放本地（保留本地未同步的条目）
+        localToday.forEach(c=>mergeMap.set(c.name+'|'+c.phone+'|'+(c.time||''),c));
+        // 再放云端（云端的备注/字段更新会覆盖同 key 的本地旧值）
+        (data.clients||[]).forEach(c=>mergeMap.set(c.name+'|'+c.phone+'|'+(c.time||''),c));
+        localStorage.setItem(CLIENTS_K,JSON.stringify([...nonToday,...mergeMap.values()]));
+      }
+      // 待办：云端版本为准（通过 setTodayTodos/setTomorrowTodos 原子同步）
+      if(data.todayTodos!==undefined)saveTodos(TODAY_TODO_K,data.todayTodos);
+      if(data.tomorrowTodos!==undefined)saveTodos(TOMORROW_TODO_K,data.tomorrowTodos);
+      // 临时登记：云端版本为准
+      if(data.tempClients!==undefined)localStorage.setItem(TEMP_CLIENTS_K,JSON.stringify(data.tempClients));
+      // 话术/学习
+      if(data.scripts!==undefined){saveScripts(data.scripts);renderLockScripts();}
+      if(data.learns!==undefined){saveLearns(data.learns);renderLockLearns();}
+      // 同步 Webhook URL 并保存到本地，解耦 DOM 访问
+      if(data.webhookUrl!==undefined)localStorage.setItem('webhook_url',data.webhookUrl);
+      if(data.deepseekApiKey!==undefined)localStorage.setItem('deepseek_api_key',data.deepseekApiKey);
+      if(data.wecomCorpId!==undefined)localStorage.setItem('wecom_corp_id',data.wecomCorpId);
+      if(data.wecomToken!==undefined)localStorage.setItem('wecom_token',data.wecomToken);
+      if(data.wecomAesKey!==undefined)localStorage.setItem('wecom_aes_key',data.wecomAesKey);
+      if(data.aiProvider!==undefined)localStorage.setItem('ai_provider',data.aiProvider);
+      if(data.aiApiKey!==undefined)localStorage.setItem('ai_api_key',data.aiApiKey);
+      if(data.aiApiBase!==undefined)localStorage.setItem('ai_api_base',data.aiApiBase);
+      if(data.aiModel!==undefined)localStorage.setItem('ai_model',data.aiModel);
+      if(data.searchProvider!==undefined)localStorage.setItem('search_provider',data.searchProvider);
+      if(data.searchApiKey!==undefined)localStorage.setItem('search_api_key',data.searchApiKey);
+      if(data.momentsWebhookUrl!==undefined)localStorage.setItem('moments_webhook_url',data.momentsWebhookUrl);
+      if(data.momentsEnabled!==undefined)localStorage.setItem('moments_enabled',data.momentsEnabled);
+      if(data.visionApiKey!==undefined)localStorage.setItem('vision_api_key',data.visionApiKey);
+      if(data.visionApiBase!==undefined)localStorage.setItem('vision_api_base',data.visionApiBase);
+      localStorage.setItem(LOCAL_TS_K,data._ts);
+      refreshAll();
+      addSyncLog('✅ 拉取并合并云端最新数据完成');
+    }
+    _lastSyncTime=new Date();
+    if(loadOpQueue().length===0)_syncStatus='synced';
+    updateSyncIndicator();
+  }
+
+  // 跨天从云端恢复数据（页面加载时使用）
+  async function loadFromCloud(date){
+    if(!date)date=getTodayStr();
+    let data=null;
+    try{
+      data=await cloudGet(date);
+    }catch(errVal){
+      addSyncLog('⚠️ 跨天数据拉取异常: '+errVal.message);
+      return false;
+    }
+    if(!data)return false;
+    const wm=loadMap(WECHAT_K);wm[date]=data.wechatCount||0;saveMap(WECHAT_K,wm);
+    const im=loadMap(INTENT_K);im[date]=data.intentCount||0;saveMap(INTENT_K,im);
+    const rm=loadMap(REVISIT_K);rm[date]=data.revisitCount||0;saveMap(REVISIT_K,rm);
+    const vm=loadMap(VISIT_K);vm[date]=data.visitCount||0;saveMap(VISIT_K,vm);
+    const pm=loadMap(PAYMENT_K);pm[date]=data.paymentCount||0;saveMap(PAYMENT_K,pm);
+    if(data.goals!==undefined)saveGoals(data.goals);
+    if(data.clients!==undefined){
+      const all=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
+      const nonDay=all.filter(c=>c.date!==date);
+      localStorage.setItem(CLIENTS_K,JSON.stringify([...nonDay,...(data.clients||[])]));
+    }
+    if(data.todayTodos!==undefined)saveTodos(TODAY_TODO_K,data.todayTodos);
+    if(data.tomorrowTodos!==undefined)saveTodos(TOMORROW_TODO_K,data.tomorrowTodos);
+    if(data.tempClients!==undefined)localStorage.setItem(TEMP_CLIENTS_K,JSON.stringify(data.tempClients));
+    if(data.scripts!==undefined)saveScripts(data.scripts);
+    if(data.learns!==undefined)saveLearns(data.learns);
+    if(data.webhookUrl!==undefined)localStorage.setItem('webhook_url',data.webhookUrl);
+    if(data.deepseekApiKey!==undefined)localStorage.setItem('deepseek_api_key',data.deepseekApiKey);
+    if(data.wecomCorpId!==undefined)localStorage.setItem('wecom_corp_id',data.wecomCorpId);
+    if(data.wecomToken!==undefined)localStorage.setItem('wecom_token',data.wecomToken);
+    if(data.wecomAesKey!==undefined)localStorage.setItem('wecom_aes_key',data.wecomAesKey);
+    if(data.aiProvider!==undefined)localStorage.setItem('ai_provider',data.aiProvider);
+    if(data.aiApiKey!==undefined)localStorage.setItem('ai_api_key',data.aiApiKey);
+    if(data.aiApiBase!==undefined)localStorage.setItem('ai_api_base',data.aiApiBase);
+    if(data.aiModel!==undefined)localStorage.setItem('ai_model',data.aiModel);
+    if(data.searchProvider!==undefined)localStorage.setItem('search_provider',data.searchProvider);
+    if(data.searchApiKey!==undefined)localStorage.setItem('search_api_key',data.searchApiKey);
+    if(data.momentsWebhookUrl!==undefined)localStorage.setItem('moments_webhook_url',data.momentsWebhookUrl);
+    if(data.momentsEnabled!==undefined)localStorage.setItem('moments_enabled',data.momentsEnabled);
+    if(data.visionApiKey!==undefined)localStorage.setItem('vision_api_key',data.visionApiKey);
+    if(data.visionApiBase!==undefined)localStorage.setItem('vision_api_base',data.visionApiBase);
+    if(data.lastLoadDate)localStorage.setItem(LAST_LOAD_DATE_K,data.lastLoadDate);
+    localStorage.setItem(LOCAL_TS_K,data._ts||Date.now());
+    return true;
+  }
+
+  // ==================== 每日自动检查 ====================
+  // 保留函数供手动/定时调用，首次加载在 init 中内联处理
+  function autoDailyReset(){
+    const todayStr=getTodayStr();
+    const lastLoadDate=localStorage.getItem(LAST_LOAD_DATE_K);
+    if(lastLoadDate&&lastLoadDate!==todayStr){
+      const tomorrow=loadTodos(TOMORROW_TODO_K);
+      if(tomorrow.length>0){
+        const today=loadTodos(TODAY_TODO_K);
+        saveTodos(TODAY_TODO_K,[...tomorrow,...today]);
+        saveTodos(TOMORROW_TODO_K,[]);
+        console.log('📅 已自动将前一天待办转移到今天');
+      }
+      localStorage.setItem(LAST_LOAD_DATE_K,todayStr);
+    }
+  }
+
+  // ==================== 渲染 ====================
+  function renderClientList(){
+    const today=getTodayStr();
+    const clients=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]').filter(c=>c.date===today);
+    const container = document.getElementById('clientList');
+    if(!container)return;
+    if(clients.length===0){
+      container.innerHTML='<div class="empty-clients">暂无意向客户</div>';
+      return;
+    }
+    container.innerHTML=clients.map((c,i)=>{
+      var statusCls = c.status ? ' ' + STATUS_CLASSES[c.status] : '';
+      return '<div class="client-card-item' + statusCls + '">'+
+        '<div class="client-card-top">'+
+          '<div class="client-card-primary">'+
+            '<span class="client-card-name">'+esc(c.name)+'</span>'+
+            '<span class="client-card-phone-wrap">'+
+              '<a class="client-phone" href="tel:'+esc(c.phone)+'" data-full="'+esc(c.phone)+'">'+esc(maskPhone(c.phone))+'</a>'+
+              '<button class="phone-toggle" title="显示号码">看</button>'+
+            '</span>'+
+          '</div>'+
+          (c.time ? '<span class="client-card-time">'+esc(c.time)+'</span>' : '')+
+        '</div>'+
+        getStatusBadgeHtml(c) +
+        '<div class="client-card-tags">'+
+          (c.company ? getWhitelistTagHtml(c.company, false) : '')+
+          (c.fund ? '<span class="client-card-tag client-card-tag-fund">公积金: '+esc(c.fund)+'</span>' : '')+
+          getClientDetailTags(c) +
+        '</div>'+
+        '<div class="client-card-body">'+
+          '<div class="client-card-content-block">'+
+            '<span class="client-card-label">沟通记录</span>'+
+            '<span class="client-card-text">'+esc(c.note||'')+'</span>'+
+          '</div>'+
+          (c.followUp ?
+            '<div class="client-card-content-block follow-up">'+
+              '<span class="client-card-label">跟进情况</span>'+
+              '<span class="client-card-text">'+esc(c.followUp)+'</span>'+
+            '</div>' : '')+
+          (c.demand ?
+            '<div class="client-card-content-block">'+
+              '<span class="client-card-label">客户需求</span>'+
+              '<span class="client-card-text">'+esc(c.demand)+'</span>'+
+            '</div>' : '')+
+          (c.fundUsage ?
+            '<div class="client-card-content-block">'+
+              '<span class="client-card-label">资金用途</span>'+
+              '<span class="client-card-text">'+esc(c.fundUsage)+'</span>'+
+            '</div>' : '')+
+        '</div>'+
+        '<div class="client-card-actions">'+
+          getStatusToggleHtml(c) +
+          '<button class="export-single-btn" data-name="'+esc(c.name)+'" data-phone="'+esc(c.phone)+'" data-time="'+esc(c.time||'')+'" title="导出">出</button>'+
+          '<button class="edit-icon" data-name="'+esc(c.name)+'" data-phone="'+esc(c.phone)+'" data-time="'+esc(c.time||'')+'" title="编辑">编</button>'+
+          '<button class="del-icon" data-name="'+esc(c.name)+'" data-phone="'+esc(c.phone)+'" data-time="'+esc(c.time||'')+'" title="删除">×</button>'+
+        '</div>'+
+      '</div>';
+    }).join('');
+
+    // Status toggle buttons
+    container.querySelectorAll('.status-toggle-btn').forEach(b=>b.addEventListener('click',async e=>{
+      e.stopPropagation();
+      var current = b.dataset.status;
+      var next = cycleStatus(current);
+      var card = b.closest('.client-card-item');
+      // Find matching client by name+phone from card content
+      var nameEl = card.querySelector('.client-card-name');
+      var phoneEl = card.querySelector('.client-phone');
+      if (!nameEl || !phoneEl) return;
+      var cName = nameEl.textContent;
+      var cPhone = phoneEl.dataset.full;
+      var a = JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
+      var idx = a.findIndex(c=>c.name===cName&&c.phone===cPhone);
+      if (idx < 0) return;
+      a[idx].status = next;
+      localStorage.setItem(CLIENTS_K, JSON.stringify(a));
+      await syncOp('updateClient', { matchName: cName, matchPhone: cPhone, matchTime: a[idx].time||'', client: a[idx] });
+      renderClientList();
+    }));
+
+    container.querySelectorAll('.del-icon').forEach(b=>b.addEventListener('click',async e=>{
+      const name=b.dataset.name;
+      const phone=b.dataset.phone;
+      const time=b.dataset.time;
+      const a=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
+      const idx=a.findIndex(c=>c.name===name&&c.phone===phone&&c.time===time);
+      if(idx<0)return;
+      a.splice(idx,1);localStorage.setItem(CLIENTS_K,JSON.stringify(a));
+      renderClientList();refreshAll();
+      await syncOp('removeClientByMatch',{name:name,phone:phone,time:time});
+    }));
+    container.querySelectorAll('.edit-icon').forEach(b=>b.addEventListener('click',async e=>{
+      const name=b.dataset.name;
+      const phone=b.dataset.phone;
+      const time=b.dataset.time;
+      const a=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
+      const idx=a.findIndex(c=>c.name===name&&c.phone===phone&&c.time===time);
+      if(idx<0)return;
+      const c=a[idx];
+      document.getElementById('custName').value=c.name;
+      document.getElementById('custPhone').value=c.phone;
+      document.getElementById('custCompany').value=c.company||'';
+      document.getElementById('custFund').value=c.fund||'';
+      document.getElementById('custNote').value=c.note||'';
+      document.getElementById('custFollowUp').value=c.followUp||'';
+      // Pre-fill new detail fields
+      var dAge=document.getElementById('custAge'); if(dAge)dAge.value=c.age||'';
+      var dMs=document.getElementById('custMaritalStatus'); if(dMs)dMs.value=c.maritalStatus||'';
+      var dSh=document.getElementById('custIsShenzhenHukou'); if(dSh)dSh.value=c.isShenzhenHukou||'';
+      var dSs=document.getElementById('custSocialSecurity'); if(dSs)dSs.value=c.socialSecurity||'';
+      var dAs=document.getElementById('custAvgSalary'); if(dAs)dAs.value=c.avgSalary||'';
+      var dTx=document.getElementById('custTax2yr'); if(dTx)dTx.value=c.tax2yr||'';
+      var dSb=document.getElementById('custSalaryBank'); if(dSb)dSb.value=c.salaryBank||'';
+      var dEd=document.getElementById('custEducation'); if(dEd)dEd.value=c.education||'';
+      var dPr=document.getElementById('custProperty'); if(dPr)dPr.value=c.property||'';
+      var dBd=document.getElementById('custBankDebt'); if(dBd)dBd.value=c.bankDebt||'';
+      var dCd=document.getElementById('custCreditCardDebt'); if(dCd)dCd.value=c.creditCardDebt||'';
+      var dQ3=document.getElementById('custQuery3m'); if(dQ3)dQ3.value=c.query3m||'';
+      var dOl=document.getElementById('custOnlineLoanCount'); if(dOl)dOl.value=c.onlineLoanCount||'';
+      var dDm=document.getElementById('custDemand'); if(dDm)dDm.value=c.demand||'';
+      var dFu=document.getElementById('custFundUsage'); if(dFu)dFu.value=c.fundUsage||'';
+      var dVt=document.getElementById('custVisitTime'); if(dVt)dVt.value=c.visitTime||'';
+      var dSt=document.getElementById('custStatus'); if(dSt)dSt.value=c.status||'';
+      var dAb=document.getElementById('custApprovedBank'); if(dAb)dAb.value=c.approvedBank||'';
+      var dAa=document.getElementById('custApprovedAmount'); if(dAa)dAa.value=c.approvedAmount||'';
+      var dRt=document.getElementById('custRateTerm'); if(dRt)dRt.value=c.rateTerm||'';
+      var dRb=document.getElementById('custRejectedBank'); if(dRb)dRb.value=c.rejectedBank||'';
+      var dRr=document.getElementById('custRejectReason'); if(dRr)dRr.value=c.rejectReason||'';
+      showStatusConditionalFields(c.status||'');
+      // Auto-expand detail panel if any new field has a value
+      var hasDetail = c.age||c.maritalStatus||c.isShenzhenHukou||c.socialSecurity||c.avgSalary||c.tax2yr||c.salaryBank||c.education||c.property||c.bankDebt||c.creditCardDebt||c.query3m||c.onlineLoanCount||c.demand||c.fundUsage||c.visitTime;
+      var panel = document.getElementById('detailPanel');
+      var toggleBtn = document.getElementById('detailToggleBtn');
+      if (hasDetail && panel && panel.style.display === 'none') {
+        panel.style.display = 'flex';
+        var icon = toggleBtn.querySelector('.detail-toggle-icon');
+        if (icon) icon.classList.add('open');
+        toggleBtn.innerHTML = '<span class="detail-toggle-icon open">▶</span> 收起详细资料';
+      }
+      a.splice(idx,1);localStorage.setItem(CLIENTS_K,JSON.stringify(a));
+      renderClientList();refreshAll();
+      await syncOp('removeClientByMatch',{name:name,phone:phone,time:time});
+      document.getElementById('custName').focus();
+    }));
+    container.querySelectorAll('.export-single-btn').forEach(b=>b.addEventListener('click',async e=>{
+      const name=b.dataset.name;
+      const phone=b.dataset.phone;
+      const time=b.dataset.time;
+      const a=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
+      const c=a.find(item=>item.name===name&&item.phone===phone&&(time?item.time===time:true));
+      if(!c)return;
+      const savedUrl=(localStorage.getItem('webhook_url')||'').trim();
+      if(!savedUrl){
+        alert('请先在主菜单 → 导出数据 中配置企业微信 Webhook URL');
+        return;
+      }
+      b.textContent='...';
+      b.disabled=true;
+      try{
+        const r=await fetch('/api/export',{
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({type:'single_client',webhookUrl:savedUrl,client:c})
+        });
+        if(r.ok){
+          alert('客户已成功导出到企业微信！');
+        }else{
+          const err=await r.json();
+          alert('导出失败: ' + (err.error || r.statusText));
+        }
+      }catch(errVal){
+        alert('网络错误: ' + errVal.message);
+      }
+      b.textContent='出';
+      b.disabled=false;
+    }));
+    container.querySelectorAll('.phone-toggle').forEach(b=>b.addEventListener('click',e=>{
+      e.stopPropagation();
+      const phoneSpan=b.previousElementSibling;
+      const full=phoneSpan.dataset.full;
+      if(phoneSpan.textContent===full){
+        phoneSpan.textContent=maskPhone(full);
+        b.title='显示号码';
+        b.textContent='看';
+      }else{
+        phoneSpan.textContent=full;
+        b.title='隐藏号码';
+        b.textContent='隐';
+      }
+    }));
+  }
+
+  function renderTodos(){
+    const today=getTodayStr();
+    const tt=loadTodos(TODAY_TODO_K).filter(t=>(typeof t==='string'?today:(t.date||today))===today);
+    const tm=loadTodos(TOMORROW_TODO_K).filter(t=>(typeof t==='string'?today:(t.date||today))===today);
+    const tc=document.getElementById('todayTodoList'), mc=document.getElementById('tomorrowTodoList');
+    const makeItem=(t,i,list)=>{
+      const txt=typeof t==='string'?t:t.text;
+      const rm=t&&t.remind?'<span class="todo-time-tag">'+esc(t.remind)+'</span>':'';
+      return '<div class="todo-item-clean"><span class="todo-number-clean">'+(i+1)+'.</span><span class="todo-text-clean">'+esc(txt)+rm+'</span><button class="todo-del-btn-clean" data-idx="'+i+'" data-list="'+list+'">✕</button></div>';
+    };
+    tc.innerHTML=tt.length===0?'<div style="font-size:0.75rem;color:var(--text-light);padding:6px;">暂无待办</div>':tt.map((t,i)=>makeItem(t,i,'today')).join('');
+    mc.innerHTML=tm.length===0?'<div style="font-size:0.75rem;color:var(--text-light);padding:6px;">暂无待办</div>':tm.map((t,i)=>makeItem(t,i,'tomorrow')).join('');
+    document.querySelectorAll('.todo-del-btn-clean').forEach(b=>b.addEventListener('click',async e=>{
+      const i=parseInt(b.dataset.idx),l=b.dataset.list;
+      const todos=loadTodos(l==='today'?TODAY_TODO_K:TOMORROW_TODO_K);
+      todos.splice(i,1);saveTodos(l==='today'?TODAY_TODO_K:TOMORROW_TODO_K,todos);renderTodos();
+      await syncOp(l==='today'?'setTodayTodos':'setTomorrowTodos',{todos});
+    }));
+  }
+
+  function renderCalendar(wm,im){
+    const [y,m]=calendarMonth.split('-').map(Number);const ref=new Date(y,m-1);
+    const fd=new Date(y,m-1,1);let si=(fd.getDay()+6)%7;
+    const dim=new Date(y,m,0).getDate(),ts=getTodayStr();
+    const clients=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
+    const ccMap={};clients.forEach(c=>{if(c.date)ccMap[c.date]=(ccMap[c.date]||0)+1;});
+    const mn=['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+    document.getElementById('calMonthTitle').innerHTML=y+'年 '+mn[m-1];
+    let g='';const wd=['一','二','三','四','五','六','日'];
+    wd.forEach(d=>{g+='<div class="cal-weekday">'+d+'</div>';});
+    for(let i=0;i<si;i++)g+='<div class="cal-day"></div>';
+    for(let d=1;d<=dim;d++){
+      const ds=y+'-'+String(m).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+      const wv=wm[ds]||0,iv=im[ds]||0,cv=ccMap[ds]||0;
+      let bh='';if(wv>0||iv>0||cv>0)bh='<div class="day-badge">'+(wv>0?'<span>微'+wv+'</span>':'')+(iv>0?'<span>意'+iv+'</span>':'')+(cv>0?'<span>客'+cv+'</span>':'')+'</div>';
+      const it=ds===ts, pt=ds<ts;
+      g+='<div class="cal-day'+(it?' today':pt?' past':'')+'" data-date="'+ds+'" data-w="'+wv+'" data-i="'+iv+'"><div class="day-number">'+d+'</div>'+bh+'</div>';
+    }
+    document.getElementById('calGrid').innerHTML=g;
+    const tip=document.getElementById('globalTooltip');
+    document.querySelectorAll('.cal-day[data-date]').forEach(c=>{
+      c.addEventListener('mouseenter',e=>{tip.innerHTML='<strong>'+c.dataset.date+'</strong> 微'+(c.dataset.w||0)+' 意'+(c.dataset.i||0);tip.classList.add('show');});
+      c.addEventListener('mouseleave',()=>tip.classList.remove('show'));
+      c.addEventListener('mousemove',e=>{tip.style.left=(e.clientX+12)+'px';tip.style.top=(e.clientY-28)+'px';});
+      c.addEventListener('click',e=>{e.stopPropagation();if(c.dataset.date)showTimelineForDate(c.dataset.date);});
+    });
+  }
+
+  async function showTimelineForDate(ds){
+    document.getElementById('modalDateTitle').innerText=ds+' 时间线';
+    document.getElementById('modalClientList').innerHTML='<div class="empty-clients">加载中...</div>';
+    document.getElementById('dateModal').classList.add('active');
+    let clients=[], todos=[], cloudData=null;
+    try{
+      const r=await fetch('/api/data?date='+ds);
+      if(r.ok){
+        cloudData=await r.json();
+        if(cloudData.clients&&cloudData.clients.length>0)clients=cloudData.clients;
+        if(cloudData.todayTodos&&cloudData.todayTodos.length>0)todos=cloudData.todayTodos;
+      }
+    }catch(e){}
+    // 合并本地客户到云端列表（本地最新优先）
+    const localAll=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
+    const localDay=localAll.filter(c=>c.date===ds);
+    localDay.forEach(lc=>{
+      const exist=clients.findIndex(cc=>cc.name===lc.name&&cc.phone===lc.phone&&cc.time===lc.time);
+      if(exist>=0){clients[exist]=lc;}else{clients.push(lc);}
+    });
+    if(todos.length===0&&ds===getTodayStr())todos=loadTodos(TODAY_TODO_K);
+    // 同时获取该日期的 todoLog（永久待办记录）
+    let todoLog=[];
+    if(cloudData&&cloudData.todoLog)todoLog=cloudData.todoLog;
+    let timeline=[];
+    clients.forEach((c,i)=>{timeline.push({type:'client',time:c.time||'',name:c.name,phone:c.phone,company:c.company||'',fund:c.fund||'',note:c.note,idx:i,
+      age:c.age,maritalStatus:c.maritalStatus,isShenzhenHukou:c.isShenzhenHukou,
+      socialSecurity:c.socialSecurity,avgSalary:c.avgSalary,tax2yr:c.tax2yr,
+      salaryBank:c.salaryBank,education:c.education,property:c.property,
+      bankDebt:c.bankDebt,creditCardDebt:c.creditCardDebt,query3m:c.query3m,
+      onlineLoanCount:c.onlineLoanCount,demand:c.demand,fundUsage:c.fundUsage,status:c.status,
+      followUp:c.followUp||'',followUpTime:c.followUpTime||'',followUpDate:c.followUpDate||'',
+      visitTime:c.visitTime||'',approvedBank:c.approvedBank||'',approvedAmount:c.approvedAmount||'',
+      rateTerm:c.rateTerm||'',rejectedBank:c.rejectedBank||'',rejectReason:c.rejectReason||''});});
+    todos.forEach(t=>{const txt=typeof t==='string'?t:t.text;const tm=t&&t.time?t.time:'';if(txt)timeline.push({type:'todo',time:tm,text:txt});});
+    todoLog.forEach(t=>{const txt=typeof t==='string'?t:t.text;const tm=t&&t.time?t.time:'';const tp=t.type==='tomorrow'?' (明日)':'';if(txt)timeline.push({type:'todo',time:tm,text:txt+tp});});
+    timeline.sort((a,b)=>(a.time||'').localeCompare(b.time||''));
+    function renderTl(){
+      const clients_in_tl = timeline.filter(e=>e.type==='client');
+      const todos_in_tl   = timeline.filter(e=>e.type==='todo');
+
+      if(timeline.length===0){
+        document.getElementById('modalClientList').innerHTML='<div class="empty-clients">— 当日无记录 —</div>';
+        return;
+      }
+
+      let html = '';
+
+      // ===== 意向客户区 =====
+      if(clients_in_tl.length>0){
+        html += '<div>';
+        html += '<div class="modal-section-title">意向客户<span style="font-size:0.7rem;color:var(--accent-intent);margin-left:4px;font-weight:800;">'+clients_in_tl.length+'人</span></div>';
+        html += '<div style="display:flex;flex-direction:column;gap:10px;">';
+        clients_in_tl.forEach((e,i)=>{
+          html += '<div class="client-card-item' + (e.status ? ' ' + STATUS_CLASSES[e.status] : '') + '">'+
+            '<div class="client-card-top">'+
+              '<div class="client-card-primary">'+
+                '<span class="client-card-name">'+esc(e.name)+'</span>'+
+                '<span class="client-card-phone-wrap">'+
+                  '<a class="modal-client-phone" href="tel:'+esc(e.phone)+'" data-full="'+esc(e.phone)+'">'+esc(maskPhone(e.phone))+'</a>'+
+                  '<button class="phone-toggle" title="显示号码">看</button>'+
+                '</span>'+
+              '</div>'+
+              (e.time ? '<span class="client-card-time">'+esc(e.time)+'</span>' : '')+
+            '</div>'+
+            getStatusBadgeHtml(e) +
+            '<div class="client-card-tags">'+
+              (e.company ? getWhitelistTagHtml(e.company, false) : '')+
+              (e.fund ? '<span class="client-card-tag client-card-tag-fund">公积金: '+esc(e.fund)+'</span>' : '')+
+              getClientDetailTags(e) +
+              (e.visitTime ? '<span class="client-card-tag client-card-tag-detail">上门:'+esc(e.visitTime)+'</span>' : '')+
+            '</div>'+
+            '<div class="client-card-body">'+
+              '<div class="client-card-content-block">'+
+                '<span class="client-card-label">沟通记录</span>'+
+                '<div id="cn_'+e.idx+'">'+
+                  '<div class="tbl-note-text" style="cursor:pointer;">'+(e.note?esc(e.note):'<span class="tbl-note-empty">点击添加沟通记录…</span>')+'</div>'+
+                '</div>'+
+              '</div>'+
+              (e.followUp ?
+                '<div class="client-card-content-block follow-up">'+
+                  '<span class="client-card-label">跟进情况</span>'+
+                  '<span class="client-card-text">'+esc(e.followUp)+'</span>'+
+                '</div>' : '')+
+              (e.demand ?
+                '<div class="client-card-content-block">'+
+                  '<span class="client-card-label">客户需求</span>'+
+                  '<span class="client-card-text">'+esc(e.demand)+'</span>'+
+                '</div>' : '')+
+              (e.fundUsage ?
+                '<div class="client-card-content-block">'+
+                  '<span class="client-card-label">资金用途</span>'+
+                  '<span class="client-card-text">'+esc(e.fundUsage)+'</span>'+
+                '</div>' : '')+
+              (e.status==='success' ?
+                '<div class="client-card-content-block" style="border-left-color:#27ae60;">'+
+                  '<span class="client-card-label">办理成功</span>'+
+                  '<span class="client-card-text">批款银行: '+esc(e.approvedBank||'')+' | 金额: '+esc(e.approvedAmount||'')+' | 利率年限: '+esc(e.rateTerm||'')+'</span>'+
+                '</div>' : '')+
+              (e.status==='failed' ?
+                '<div class="client-card-content-block" style="border-left-color:#e67e22;">'+
+                  '<span class="client-card-label">办理未成功</span>'+
+                  '<span class="client-card-text">拒绝银行: '+esc(e.rejectedBank||'')+' | 原因: '+esc(e.rejectReason||'')+'</span>'+
+                '</div>' : '')+
+            '</div>'+
+            '<div class="client-card-actions">'+
+              getStatusToggleHtml(e) +
+              '<button class="export-timeline-single-btn" data-idx="'+e.idx+'" title="导出">出</button>'+
+              '<button class="edit-note-btn" title="编辑客户信息" data-idx="'+e.idx+'">编</button>'+
+              '<button class="delete-timeline-client-btn" title="删除客户" data-idx="'+e.idx+'">删</button>'+
+            '</div>'+
+          '</div>';
+        });
+        html += '</div></div>';
+      }
+
+      // ===== 待办事项区 =====
+      if(todos_in_tl.length>0){
+        html += '<div style="margin-top:'+(clients_in_tl.length>0?'4px':'0')+'">';
+        html += '<div class="modal-section-title">待办事项 <span style="font-size:0.7rem;color:var(--accent-wechat);margin-left:4px;font-weight:800;">'+todos_in_tl.length+'条</span></div>';
+        html += '<div style="display:flex;flex-direction:column;gap:6px;">';
+        todos_in_tl.forEach(e=>{
+          html += '<div class="todo-card-item"><div style="flex:1;"><div class="todo-card-text">'+esc(e.text)+'</div>'+(e.time?'<div class="todo-card-time">'+esc(e.time)+'</div>':'')+'</div></div>';
+        });
+        html += '</div></div>';
+      }
+
+      document.getElementById('modalClientList').innerHTML = html;
+
+      bindEditBtns();
+      bindDeleteBtns();
+      // Bind Status toggle for timeline cards
+      document.querySelectorAll('#modalClientList .status-toggle-btn').forEach(b=>b.addEventListener('click',async e=>{
+        e.stopPropagation();
+        var current = b.dataset.status;
+        var next = cycleStatus(current);
+        var card = b.closest('.client-card-item');
+        var nameEl = card.querySelector('.client-card-name');
+        var phoneEl = card.querySelector('.modal-client-phone');
+        if (!nameEl || !phoneEl) return;
+        var cName = nameEl.textContent;
+        var cPhone = phoneEl.dataset.full;
+        var a = JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
+        var idx = a.findIndex(c=>c.name===cName&&c.phone===cPhone);
+        if (idx < 0) return;
+        a[idx].status = next;
+        localStorage.setItem(CLIENTS_K, JSON.stringify(a));
+        await syncOp('updateClient', { matchName: cName, matchPhone: cPhone, matchTime: a[idx].time||'', client: a[idx] }, ds);
+        showTimelineForDate(ds);
+      }));
+      // Bind Timeline Single Client Export
+      document.querySelectorAll('.export-timeline-single-btn').forEach(btn=>{
+        btn.onclick=async function(){
+          const idx=parseInt(this.dataset.idx);
+          const ti=timeline.find(t=>t.type==='client'&&t.idx===idx);
+          if(!ti)return;
+          const savedUrl=(localStorage.getItem('webhook_url')||'').trim();
+          if(!savedUrl){
+            alert('请先在主菜单 → 导出数据 中配置企业微信 Webhook URL');
+            return;
+          }
+          btn.textContent='...';
+          btn.disabled=true;
+          try{
+            const r=await fetch('/api/export',{
+              method:'POST',
+              headers:{'Content-Type':'application/json'},
+              body:JSON.stringify({
+                type:'single_client',
+                webhookUrl:savedUrl,
+                client:{
+                  date:ds,
+                  name:ti.name,
+                  phone:ti.phone,
+                  company:ti.company,
+                  fund:ti.fund,
+                  note:ti.note,
+                  time:ti.time,
+                  age:ti.age,
+                  maritalStatus:ti.maritalStatus,
+                  isShenzhenHukou:ti.isShenzhenHukou,
+                  socialSecurity:ti.socialSecurity,
+                  avgSalary:ti.avgSalary,
+                  tax2yr:ti.tax2yr,
+                  salaryBank:ti.salaryBank,
+                  education:ti.education,
+                  property:ti.property,
+                  bankDebt:ti.bankDebt,
+                  creditCardDebt:ti.creditCardDebt,
+                  query3m:ti.query3m,
+                  onlineLoanCount:ti.onlineLoanCount,
+                  demand:ti.demand,
+                  fundUsage:ti.fundUsage
+                }
+              })
+            });
+            if(r.ok){
+              alert('客户已成功导出到企业微信！');
+            }else{
+              const err=await r.json();
+              alert('导出失败: ' + (err.error || r.statusText));
+            }
+          }catch(errVal){
+            alert('网络错误: ' + errVal.message);
+          }
+          btn.textContent='出';
+          btn.disabled=false;
+        };
+      });
+      document.querySelectorAll('#modalClientList .phone-toggle').forEach(b=>b.addEventListener('click',e=>{
+        e.stopPropagation();
+        const phoneSpan=b.previousElementSibling;
+        const full=phoneSpan.dataset.full;
+        if(phoneSpan.textContent===full){
+          phoneSpan.textContent=maskPhone(full);
+          b.title='显示号码';
+          b.textContent='看';
+        }else{
+          phoneSpan.textContent=full;
+          b.title='隐藏号码';
+          b.textContent='隐';
+        }
+      }));
+    }
+    function bindEditBtns(){
+      document.querySelectorAll('.edit-note-btn').forEach(btn=>{
+        btn.onclick=function(){
+          const idx=parseInt(this.dataset.idx);
+          const ti=timeline.find(t=>t.type==='client'&&t.idx===idx);
+          if(!ti)return;
+          // 从完整clients数组获取所有字段（反向遍历优先取本地版本，避免云端旧数据缺少status等新字段）
+          let fullClient = ti;
+          for (let i = clients.length - 1; i >= 0; i--) {
+            if (clients[i].name === ti.name && clients[i].phone === ti.phone) {
+              fullClient = clients[i];
+              break;
+            }
+          }
+          const card = btn.closest('.client-card-item');
+          if(!card) return;
+          card.classList.add('all-client-card-editing');
+          card.innerHTML =
+            '<div class="client-card-top">' +
+              '<span style="font-size:0.75rem;font-weight:700;color:var(--accent-wechat);">编辑客户信息</span>' +
+            '</div>' +
+            '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+              '<input type="text" class="input-simple edit-name-input" placeholder="姓名" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.8rem;font-weight:700;" value="' + esc(fullClient.name||ti.name) + '">' +
+              '<input type="text" class="input-simple edit-phone-input" placeholder="电话" readonly style="flex:1;min-width:100px;padding:6px 8px;font-size:0.8rem;background:var(--input-disabled-bg, #e9ecef);color:var(--text-soft);cursor:not-allowed;" value="' + esc(fullClient.phone||ti.phone) + '">' +
+            '</div>' +
+            '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+              '<input type="text" class="input-simple edit-company-input" placeholder="单位" style="flex:2;min-width:120px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.company||'') + '">' +
+              '<input type="text" class="input-simple edit-fund-input" placeholder="公积金基数" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.fund||'') + '">' +
+            '</div>' +
+            '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+              '<input type="text" class="input-simple edit-age-input" placeholder="年龄" style="flex:1;min-width:60px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.age||'') + '">' +
+              '<select class="input-simple input-select edit-marital-input" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;height:auto;"><option value="">婚姻状况</option><option value="未婚"' + (fullClient.maritalStatus==='未婚'?' selected':'') + '>未婚</option><option value="已婚"' + (fullClient.maritalStatus==='已婚'?' selected':'') + '>已婚</option><option value="离异"' + (fullClient.maritalStatus==='离异'?' selected':'') + '>离异</option><option value="丧偶"' + (fullClient.maritalStatus==='丧偶'?' selected':'') + '>丧偶</option></select>' +
+              '<select class="input-simple input-select edit-hukou-input" style="flex:1;min-width:70px;padding:6px 8px;font-size:0.78rem;height:auto;"><option value="">是否深户</option><option value="是"' + (fullClient.isShenzhenHukou==='是'?' selected':'') + '>是</option><option value="否"' + (fullClient.isShenzhenHukou==='否'?' selected':'') + '>否</option></select>' +
+            '</div>' +
+            '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+              '<input type="text" class="input-simple edit-ss-input" placeholder="社保养老基数" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.socialSecurity||'') + '">' +
+              '<input type="text" class="input-simple edit-salary-input" placeholder="月均工资" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.avgSalary||'') + '">' +
+            '</div>' +
+            '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+              '<input type="text" class="input-simple edit-tax-input" placeholder="近2年个税" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.tax2yr||'') + '">' +
+              '<input type="text" class="input-simple edit-sbank-input" placeholder="代发工资银行" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.salaryBank||'') + '">' +
+            '</div>' +
+            '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+              '<select class="input-simple input-select edit-edu-input" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;height:auto;"><option value="">学历</option><option value="初中及以下"' + (fullClient.education==='初中及以下'?' selected':'') + '>初中及以下</option><option value="高中"' + (fullClient.education==='高中'?' selected':'') + '>高中</option><option value="大专"' + (fullClient.education==='大专'?' selected':'') + '>大专</option><option value="本科"' + (fullClient.education==='本科'?' selected':'') + '>本科</option><option value="硕士"' + (fullClient.education==='硕士'?' selected':'') + '>硕士</option><option value="博士"' + (fullClient.education==='博士'?' selected':'') + '>博士</option></select>' +
+              '<select class="input-simple input-select edit-prop-input" style="flex:1;min-width:70px;padding:6px 8px;font-size:0.78rem;height:auto;"><option value="">房产</option><option value="无房"' + (fullClient.property==='无房'?' selected':'') + '>无房</option><option value="有一套"' + (fullClient.property==='有一套'?' selected':'') + '>有一套</option><option value="有多套"' + (fullClient.property==='有多套'?' selected':'') + '>有多套</option></select>' +
+            '</div>' +
+            '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+              '<input type="text" class="input-simple edit-bankdebt-input" placeholder="银行信贷负债" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.bankDebt||'') + '">' +
+              '<input type="text" class="input-simple edit-ccdebt-input" placeholder="信用卡负债" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.creditCardDebt||'') + '">' +
+            '</div>' +
+            '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+              '<input type="text" class="input-simple edit-query-input" placeholder="近3个月查询次数" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.query3m||'') + '">' +
+              '<input type="text" class="input-simple edit-onlineloan-input" placeholder="小额网贷笔数" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.onlineLoanCount||'') + '">' +
+            '</div>' +
+            '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+              '<input type="text" class="input-simple edit-visittime-input" placeholder="上门办理时间" style="flex:1;min-width:120px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.visitTime||'') + '">' +
+              '<select class="input-simple input-select edit-status-input" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;height:auto;"><option value="">状态</option><option value="success"' + (fullClient.status==='success'?' selected':'') + '>已办理成功</option><option value="failed"' + (fullClient.status==='failed'?' selected':'') + '>未办理成功</option></select>' +
+            '</div>' +
+            '<div class="edit-success-fields" style="display:' + (fullClient.status==='success'?'flex':'none') + ';flex-direction:column;gap:8px;">' +
+              '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+                '<input type="text" class="input-simple edit-approvedbank-input" placeholder="批款银行" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.approvedBank||'') + '">' +
+                '<input type="text" class="input-simple edit-approvedamount-input" placeholder="批款金额" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.approvedAmount||'') + '">' +
+              '</div>' +
+              '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+                '<input type="text" class="input-simple edit-rateterm-input" placeholder="利率年限" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.rateTerm||'') + '">' +
+                '<span style="flex:1;"></span>' +
+              '</div>' +
+            '</div>' +
+            '<div class="edit-failed-fields" style="display:' + (fullClient.status==='failed'?'flex':'none') + ';flex-direction:column;gap:8px;">' +
+              '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+                '<input type="text" class="input-simple edit-rejectedbank-input" placeholder="拒绝银行" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.rejectedBank||'') + '">' +
+                '<input type="text" class="input-simple edit-rejectreason-input" placeholder="拒绝原因" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.rejectReason||'') + '">' +
+              '</div>' +
+            '</div>' +
+            '<textarea class="input-simple edit-demand-input" placeholder="客户大致需求" style="width:100%;min-height:50px;padding:8px;font-size:0.78rem;resize:vertical;box-sizing:border-box;">' + esc(fullClient.demand||'') + '</textarea>' +
+            '<textarea class="input-simple edit-fusage-input" placeholder="资金用途和时间" style="width:100%;min-height:50px;padding:8px;font-size:0.78rem;resize:vertical;box-sizing:border-box;">' + esc(fullClient.fundUsage||'') + '</textarea>' +
+            '<textarea class="input-simple edit-note-input" placeholder="沟通记录（必填）" style="width:100%;min-height:70px;padding:8px;font-size:0.78rem;resize:vertical;box-sizing:border-box;">' + esc(fullClient.note||ti.note||'') + '</textarea>' +
+            '<textarea class="input-simple edit-follow-input" placeholder="跟进情况" style="width:100%;min-height:60px;padding:8px;font-size:0.78rem;resize:vertical;box-sizing:border-box;">' + esc(fullClient.followUp||'') + '</textarea>' +
+            '<div style="display:flex;justify-content:flex-end;gap:8px;border-top:1px dashed var(--card-border);padding-top:8px;">' +
+              '<button class="save-timeline-client-btn btn-add" style="font-size:0.75rem;padding:6px 16px;background:var(--accent-wechat);color:white;border:none;border-radius:6px;font-weight:700;">保存</button>' +
+              '<button class="cancel-timeline-client-btn btn-add" style="font-size:0.75rem;padding:6px 16px;background:var(--btn-bg);color:var(--text-soft);border:1px solid var(--card-border);border-radius:6px;font-weight:700;">取消</button>' +
+            '</div>';
+
+          // Bind status change for conditional fields
+          card.querySelector('.edit-status-input').addEventListener('change', function() {
+            var sf = card.querySelector('.edit-success-fields');
+            var ff = card.querySelector('.edit-failed-fields');
+            if (sf) sf.style.display = this.value === 'success' ? 'flex' : 'none';
+            if (ff) ff.style.display = this.value === 'failed' ? 'flex' : 'none';
+          });
+
+          // Bind Save
+          card.querySelector('.save-timeline-client-btn').onclick = async () => {
+            const n = card.querySelector('.edit-name-input').value.trim();
+            const p = card.querySelector('.edit-phone-input').value.trim();
+            const comp = card.querySelector('.edit-company-input').value.trim();
+            const fund = card.querySelector('.edit-fund-input').value.trim();
+            const nt = card.querySelector('.edit-note-input').value.trim();
+            const fu = card.querySelector('.edit-follow-input').value.trim();
+            // Read new detail fields
+            const age = (card.querySelector('.edit-age-input')||{}).value||''; const ageV = age.trim();
+            const ms = (card.querySelector('.edit-marital-input')||{}).value||'';
+            const sh = (card.querySelector('.edit-hukou-input')||{}).value||'';
+            const ss = (card.querySelector('.edit-ss-input')||{}).value||''; const ssV = ss.trim();
+            const as = (card.querySelector('.edit-salary-input')||{}).value||''; const asV = as.trim();
+            const tx = (card.querySelector('.edit-tax-input')||{}).value||''; const txV = tx.trim();
+            const sb = (card.querySelector('.edit-sbank-input')||{}).value||''; const sbV = sb.trim();
+            const ed = (card.querySelector('.edit-edu-input')||{}).value||'';
+            const pr = (card.querySelector('.edit-prop-input')||{}).value||'';
+            const bd = (card.querySelector('.edit-bankdebt-input')||{}).value||''; const bdV = bd.trim();
+            const cd = (card.querySelector('.edit-ccdebt-input')||{}).value||''; const cdV = cd.trim();
+            const q3 = (card.querySelector('.edit-query-input')||{}).value||''; const q3V = q3.trim();
+            const ol = (card.querySelector('.edit-onlineloan-input')||{}).value||''; const olV = ol.trim();
+            const dm = (card.querySelector('.edit-demand-input')||{}).value||''; const dmV = dm.trim();
+            const fg = (card.querySelector('.edit-fusage-input')||{}).value||''; const fgV = fg.trim();
+            const vt = (card.querySelector('.edit-visittime-input')||{}).value||''; const vtV = vt.trim();
+            const stV = (card.querySelector('.edit-status-input')||{}).value||'';
+            const ab = (card.querySelector('.edit-approvedbank-input')||{}).value||''; const abV = ab.trim();
+            const aa = (card.querySelector('.edit-approvedamount-input')||{}).value||''; const aaV = aa.trim();
+            const rt = (card.querySelector('.edit-rateterm-input')||{}).value||''; const rtV = rt.trim();
+            const rb = (card.querySelector('.edit-rejectedbank-input')||{}).value||''; const rbV = rb.trim();
+            const rr = (card.querySelector('.edit-rejectreason-input')||{}).value||''; const rrV = rr.trim();
+
+            if (!n) { alert('姓名不能为空，请填写完整！'); return; }
+            if (!p) { alert('电话号码不能为空，请填写完整！'); return; }
+            if (!nt) { alert('沟通记录为必填项，请填写完整！'); return; }
+
+            const allList = JSON.parse(localStorage.getItem(CLIENTS_K) || '[]');
+            const matchIdx = allList.findIndex(item => item.date === ds && item.name === ti.name && item.phone === ti.phone &&
+              (ti.time ? item.time === ti.time : true));
+            const updatedClient = {
+              date: ds, time: fullClient.time || ti.time || getCurrentTime(),
+              name: n, phone: p, company: comp, fund: fund, note: nt, followUp: fu,
+              followUpTime: fu !== (fullClient.followUp || '') ? getCurrentTime() : (fullClient.followUpTime || ''),
+              followUpDate: fu !== (fullClient.followUp || '') ? getTodayStr() : (fullClient.followUpDate || ds),
+              age: ageV, maritalStatus: ms, isShenzhenHukou: sh, socialSecurity: ssV,
+              avgSalary: asV, tax2yr: txV, salaryBank: sbV, education: ed, property: pr,
+              bankDebt: bdV, creditCardDebt: cdV, query3m: q3V, onlineLoanCount: olV,
+              demand: dmV, fundUsage: fgV,
+              visitTime: vtV, status: stV, approvedBank: abV, approvedAmount: aaV,
+              rateTerm: rtV, rejectedBank: rbV, rejectReason: rrV
+            };
+            if (matchIdx !== -1) { allList[matchIdx] = updatedClient; }
+            else { allList.push(updatedClient); }
+            localStorage.setItem(CLIENTS_K, JSON.stringify(allList));
+
+            await syncOp('updateClient', { matchName: ti.name, matchPhone: ti.phone, matchTime: ti.time || '', client: updatedClient }, ds);
+
+            renderTl();
+          };
+
+          // Bind Cancel
+          card.querySelector('.cancel-timeline-client-btn').onclick = () => { renderTl(); };
+        };
+      });
+    }
+    function bindDeleteBtns(){
+      document.querySelectorAll('.delete-timeline-client-btn').forEach(btn=>{
+        btn.onclick=async function(){
+          const idx=parseInt(this.dataset.idx);
+          const ti=timeline.find(t=>t.type==='client'&&t.idx===idx);
+          if(!ti)return;
+          const pin=prompt('删除客户「' + ti.name + '」需输入解锁密码：');
+          if(!pin){return;}
+          if(hashPinSimple(pin)!==${PIN_HASH}){alert('密码错误，删除取消');return;}
+          const allList=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
+          const matchIdx=allList.findIndex(c=>c.date===ds&&c.name===ti.name&&c.phone===ti.phone&&(ti.time?c.time===ti.time:true));
+          if(matchIdx>=0) allList.splice(matchIdx,1);
+          localStorage.setItem(CLIENTS_K,JSON.stringify(allList));
+          await syncOp('removeClientByMatch',{name:ti.name,phone:ti.phone,time:ti.time||''},ds);
+          renderTl();
+        };
+      });
+    }
+    renderTl();
+  }
+
+  async function syncCalendarFromCloud(){
+    const month=calendarMonth;
+    const cal=await cloudCalendar(month);
+    if(cal){
+      const wm=loadMap(WECHAT_K), im=loadMap(INTENT_K), rm=loadMap(REVISIT_K), vm=loadMap(VISIT_K), pm=loadMap(PAYMENT_K);
+      let changed=false;
+      for(const [date, d] of Object.entries(cal)){
+        const nw = Math.max(wm[date]||0, d.w||0);
+        if(nw !== (wm[date]||0)){ wm[date]=nw; changed=true; }
+        const ni = Math.max(im[date]||0, d.i||0);
+        if(ni !== (im[date]||0)){ im[date]=ni; changed=true; }
+        const nr = Math.max(rm[date]||0, d.r||0);
+        if(nr !== (rm[date]||0)){ rm[date]=nr; changed=true; }
+        const nv = Math.max(vm[date]||0, d.v||0);
+        if(nv !== (vm[date]||0)){ vm[date]=nv; changed=true; }
+        const np = Math.max(pm[date]||0, d.p||0);
+        if(np !== (pm[date]||0)){ pm[date]=np; changed=true; }
+      }
+      if(changed){saveMap(WECHAT_K,wm);saveMap(INTENT_K,im);saveMap(REVISIT_K,rm);saveMap(VISIT_K,vm);saveMap(PAYMENT_K,pm);}
+      addSyncLog('✅ 拉取云端历史日历完成');
+    }
+  }
+
+  const SHOW_GOAL_NUM_K='show_goal_num_v1';
+  function renderGoalChips(){
+    const container=document.getElementById('goalChips');
+    const showNum=localStorage.getItem(SHOW_GOAL_NUM_K)==='true';
+    const eyeBtn=document.getElementById('goalEyeBtn');
+    if(eyeBtn){
+      eyeBtn.className='goal-eye'+(showNum?'':' eye-off');
+      eyeBtn.title=showNum?'隐藏目标数字':'显示目标数字';
+    }
+    const wm=loadMap(WECHAT_K),vm=loadMap(VISIT_K),pm=loadMap(PAYMENT_K);
+    const goals=loadGoals();
+    let html='';
+    const makeChip=(label,actual,target)=>{
+      if(!target||target<=0)return'';
+      if(!showNum) return '<span class="goal-chip">'+label+'</span>';
+      const pct=Math.round(actual/target*100);
+      const cls=pct>=100?'goal-met':pct>=50?'goal-half':'goal-low';
+      return '<span class="goal-chip '+cls+'">'+label+' '+actual+'/'+target+'</span>';
+    };
+    html+=makeChip('本周上门',getWeekTotal(vm),goals.weeklyVisit);
+    html+=makeChip('本周微信',getWeekTotal(wm),goals.weeklyWechat);
+    html+=makeChip('本月微信',getMonthTotal(wm,calendarMonth),goals.monthlyWechat);
+    html+=makeChip('本月上门',getMonthTotal(vm,calendarMonth),goals.monthlyVisit);
+    html+=makeChip('本月回款',getMonthTotal(pm,calendarMonth),goals.monthlyPayment);
+    container.innerHTML=html;
+  }
+  function toggleGoalNumbers(){
+    const cur=localStorage.getItem(SHOW_GOAL_NUM_K)==='true';
+    localStorage.setItem(SHOW_GOAL_NUM_K,!cur);
+    renderGoalChips();
+  }
+
+  function refreshAll(){
+    const wm=loadMap(WECHAT_K),im=loadMap(INTENT_K),rm=loadMap(REVISIT_K),vm=loadMap(VISIT_K),pm=loadMap(PAYMENT_K),today=getTodayStr();
+    // 意向计数直接从当日客户数派生，确保永远准确
+    const allClients=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
+    const todayClients=allClients.filter(c=>c.date===today);
+    const todayIntent=todayClients.length;
+    im[today]=todayIntent;saveMap(INTENT_K,im);
+    document.getElementById('wechatNum').innerText=wm[today]||0;
+    document.getElementById('intentNum').innerText=todayIntent;
+    document.getElementById('revisitNum').innerText=rm[today]||0;
+    document.getElementById('pinWechatNum').innerText=wm[today]||0;
+    document.getElementById('pinIntentNum').innerText=todayIntent;
+    document.getElementById('pinRevisitNum').innerText=rm[today]||0;
+    document.getElementById('weekWechat').innerText=getWeekTotal(wm);
+    document.getElementById('monthWechat').innerText=getMonthTotal(wm);
+    document.getElementById('weekIntent').innerText=getWeekTotal(im);
+    document.getElementById('monthIntent').innerText=getMonthTotal(im);
+    document.getElementById('weekRevisit').innerText=getWeekTotal(rm);
+    document.getElementById('monthRevisit').innerText=getMonthTotal(rm);
+    const now=new Date();const wk=['周日','周一','周二','周三','周四','周五','周六'];
+    document.getElementById('liveDate').innerHTML=(now.getMonth()+1)+'月'+now.getDate()+'日 '+wk[now.getDay()];
+    renderCalendar(wm,im);renderClientList();renderTodos();renderTempClientList();
+    renderGoalChips();
+  }
+
+  async function modCounter(key,delta,op){
+    // 直接在本地值基础上增减，立即响应；服务端原子写入保证多设备最终一致
+    const t=getTodayStr();
+    const d=loadMap(key);
+    let v=Math.max((d[t]||0)+delta,0);
+    if(v===0)delete d[t];else d[t]=v;saveMap(key,d);
+    refreshAll();
+    await syncOp(op||'incWechat',{delta});
+  }
+  async function resetToday(key,op){const d=loadMap(key);const t=getTodayStr();const old=d[t]||0;delete d[t];saveMap(key,d);refreshAll();if(old>0)await syncOp(op||'incWechat',{delta:-old});}
+
+  function getElVal(id) { const el = document.getElementById(id); return el ? el.value.trim() : ''; }
+  function clearEl(id) { const el = document.getElementById(id); if (el) el.value = ''; }
+  async function addClient(){
+    const n=document.getElementById('custName').value.trim();
+    const p=document.getElementById('custPhone').value.trim();
+    const c=document.getElementById('custCompany').value.trim();
+    const f=document.getElementById('custFund').value.trim();
+    const nt=document.getElementById('custNote').value.trim();
+    const fu=document.getElementById('custFollowUp').value.trim();
+    // New detail fields
+    const age = getElVal('custAge');
+    const maritalStatus = getElVal('custMaritalStatus');
+    const isShenzhenHukou = getElVal('custIsShenzhenHukou');
+    const socialSecurity = getElVal('custSocialSecurity');
+    const avgSalary = getElVal('custAvgSalary');
+    const tax2yr = getElVal('custTax2yr');
+    const salaryBank = getElVal('custSalaryBank');
+    const education = getElVal('custEducation');
+    const propertyVal = getElVal('custProperty');
+    const bankDebt = getElVal('custBankDebt');
+    const creditCardDebt = getElVal('custCreditCardDebt');
+    const query3m = getElVal('custQuery3m');
+    const onlineLoanCount = getElVal('custOnlineLoanCount');
+    const demand = getElVal('custDemand');
+    const fundUsage = getElVal('custFundUsage');
+    const visitTime = getElVal('custVisitTime');
+    const status = getElVal('custStatus');
+    const approvedBank = getElVal('custApprovedBank');
+    const approvedAmount = getElVal('custApprovedAmount');
+    const rateTerm = getElVal('custRateTerm');
+    const rejectedBank = getElVal('custRejectedBank');
+    const rejectReason = getElVal('custRejectReason');
+    if(!n){alert('姓名不能为空，请填写完整！');return;}
+    if(!p){alert('电话号码不能为空，请填写完整！');return;}
+    if(!nt){alert('沟通记录为必填项，请填写完整！');return;}
+    const list=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
+    const today=getTodayStr(),time=getCurrentTime();
+    const newClient={name:n,phone:p,company:c,fund:f,note:nt,followUp:fu,date:today,time:time,
+      age,maritalStatus,isShenzhenHukou,socialSecurity,avgSalary,tax2yr,salaryBank,
+      education,property:propertyVal,bankDebt,creditCardDebt,query3m,onlineLoanCount,demand,fundUsage,
+      visitTime,status,approvedBank,approvedAmount,rateTerm,rejectedBank,rejectReason};
+    list.push(newClient);
+    localStorage.setItem(CLIENTS_K,JSON.stringify(list));
+    clearEl('custName'); clearEl('custPhone'); clearEl('custCompany'); clearEl('custFund');
+    clearEl('custNote'); clearEl('custFollowUp');
+    clearEl('custAge'); clearEl('custMaritalStatus'); clearEl('custIsShenzhenHukou');
+    clearEl('custSocialSecurity'); clearEl('custAvgSalary'); clearEl('custTax2yr');
+    clearEl('custSalaryBank'); clearEl('custEducation'); clearEl('custProperty');
+    clearEl('custBankDebt'); clearEl('custCreditCardDebt'); clearEl('custQuery3m');
+    clearEl('custOnlineLoanCount'); clearEl('custDemand'); clearEl('custFundUsage');
+    clearEl('custVisitTime'); clearEl('custApprovedBank'); clearEl('custApprovedAmount');
+    clearEl('custRateTerm'); clearEl('custRejectedBank'); clearEl('custRejectReason');
+    var stEl = document.getElementById('custStatus'); if (stEl) stEl.value = '';
+    showStatusConditionalFields('');
+    renderClientList();refreshAll();
+    // 只用原子 syncOp，不再并发 saveFullState（避免竞态导致云端客户重复/覆盖）
+    await syncOp('addClient',{client:newClient});
+  }
+
+  async function addTempClient(){
+    const n=document.getElementById('tempCustName').value.trim();
+    const p=document.getElementById('tempCustPhone').value.trim();
+    const nt=document.getElementById('tempCustNote').value.trim();
+    if(!n||!p){alert('请填写姓名和联系方式');return;}
+    const list=JSON.parse(localStorage.getItem(TEMP_CLIENTS_K)||'[]');
+    const today=getTodayStr(),time=getCurrentTime();
+    const newClient={name:n,phone:p,note:nt,date:today,time:time};
+    list.push(newClient);
+    localStorage.setItem(TEMP_CLIENTS_K,JSON.stringify(list));
+    document.getElementById('tempCustName').value='';
+    document.getElementById('tempCustPhone').value='';
+    document.getElementById('tempCustNote').value='';
+    renderTempClientList();
+    await syncOp('setTempClients',{tempClients:list});
+  }
+
+  function renderTempClientList(){
+    const list=JSON.parse(localStorage.getItem(TEMP_CLIENTS_K)||'[]');
+    const container = document.getElementById('tempClientList');
+    if(!container) return;
+    if(list.length===0){
+      container.innerHTML='<div class="empty-clients">暂无临时登记客户</div>';
+      return;
+    }
+    container.innerHTML=list.map((c,i)=>{
+      return '<div class="client-card-item">'+
+        '<div class="client-card-top">'+
+          '<div class="client-card-primary">'+
+            '<span class="client-card-name">'+esc(c.name)+'</span>'+
+            '<span class="client-card-phone-wrap">'+
+              '<a class="client-phone" href="tel:'+esc(c.phone)+'" data-full="'+esc(c.phone)+'">'+esc(maskPhone(c.phone))+'</a>'+
+              '<button class="phone-toggle" title="显示号码">看</button>'+
+            '</span>'+
+          '</div>'+
+          (c.time ? '<span class="client-card-time">'+esc(c.time)+'</span>' : '')+
+        '</div>'+
+        '<div class="client-card-body">'+
+          '<div class="client-card-content-block">'+
+            '<span class="client-card-label">回访备注</span>'+
+            '<span class="client-card-text">'+esc(c.note||'')+'</span>'+
+          '</div>'+
+        '</div>'+
+        '<div class="client-card-actions">'+
+          '<button class="convert-temp-btn" data-idx="'+i+'" title="转为正式意向客户" style="font-size:1.1rem;padding:0;background:none;border:none;color:var(--accent-intent);cursor:pointer;margin-right:8px;font-weight:700;">→</button>'+
+          '<button class="del-icon del-temp-btn" data-idx="'+i+'" title="删除" style="vertical-align:middle;padding:0;width:20px;height:20px;line-height:20px;display:inline-block;">×</button>'+
+        '</div>'+
+      '</div>';
+    }).join('');
+    
+    // 绑定删除按钮
+    container.querySelectorAll('.del-temp-btn').forEach(b=>{
+      b.onclick=async function(){
+        const idx=parseInt(this.dataset.idx);
+        const a=JSON.parse(localStorage.getItem(TEMP_CLIENTS_K)||'[]');
+        a.splice(idx,1);
+        localStorage.setItem(TEMP_CLIENTS_K,JSON.stringify(a));
+        renderTempClientList();
+        await syncOp('setTempClients',{tempClients:a});
+      };
+    });
+
+    // 绑定转意向按钮
+    container.querySelectorAll('.convert-temp-btn').forEach(b=>{
+      b.onclick=async function(){
+        const idx=parseInt(this.dataset.idx);
+        const a=JSON.parse(localStorage.getItem(TEMP_CLIENTS_K)||'[]');
+        const c=a[idx];
+        
+        // 填充正式客户登记输入框
+        document.getElementById('custName').value=c.name;
+        document.getElementById('custPhone').value=c.phone;
+        document.getElementById('custNote').value=c.note||'';
+        document.getElementById('custCompany').value='';
+        document.getElementById('custFund').value='';
+        
+        // 从临时列表中删除
+        a.splice(idx,1);
+        localStorage.setItem(TEMP_CLIENTS_K,JSON.stringify(a));
+        renderTempClientList();
+        await syncOp('setTempClients',{tempClients:a});
+        
+        // 聚焦姓名输入框，方便用户补充单位/公积金并点击添加
+        document.getElementById('custName').focus();
+        
+        // 正式卡片微缩放动画高亮
+        const card = document.getElementById('custName').closest('.card');
+        if(card){
+          card.style.transform = 'scale(1.02)';
+          card.style.transition = 'all 0.3s';
+          setTimeout(() => card.style.transform = 'none', 500);
+        }
+      };
+    });
+
+    // 绑定手机号切换
+    container.querySelectorAll('.phone-toggle').forEach(b=>b.addEventListener('click',e=>{
+      e.stopPropagation();
+      const phoneSpan=b.previousElementSibling;
+      const full=phoneSpan.dataset.full;
+      if(phoneSpan.textContent===full){
+        phoneSpan.textContent=maskPhone(full);
+        b.title='显示号码';
+        b.textContent='看';
+      }else{
+        phoneSpan.textContent=full;
+        b.title='隐藏号码';
+        b.textContent='隐';
+      }
+    }));
+  }
+
+  async function addTodayTodo(){
+    const input=document.getElementById('todayTodoInput'),text=input.value.trim();
+    if(!text)return;const remind=document.getElementById('todayRemindTime').value;
+    const todo={text,time:getCurrentTime(),date:getTodayStr(),remind:remind||'',type:'today'};
+    const t=loadTodos(TODAY_TODO_K);t.push(todo);saveTodos(TODAY_TODO_K,t);input.value='';document.getElementById('todayRemindTime').value='';renderTodos();
+    pushTodoLog(todo,getTodayStr());
+    await syncOp('setTodayTodos',{todos:t});
+  }
+  async function addTodo(){
+    const input=document.getElementById('todoInput'),text=input.value.trim();
+    if(!text)return;const remind=document.getElementById('tomorrowRemindTime').value;
+    const todo={text,time:getCurrentTime(),date:getTodayStr(),remind:remind||'',type:'tomorrow'};
+    const t=loadTodos(TOMORROW_TODO_K);t.push(todo);saveTodos(TOMORROW_TODO_K,t);input.value='';document.getElementById('tomorrowRemindTime').value='';renderTodos();
+    pushTodoLog(todo,getTodayStr());
+    await syncOp('setTomorrowTodos',{todos:t});
+  }
+
+  // ==================== 壁纸 ====================
+  const FW=['https://images.pexels.com/photos/36717/amazing-animal-beautiful-beautifull.jpg','https://images.pexels.com/photos/3244513/pexels-photo-3244513.jpeg','https://images.pexels.com/photos/1366919/pexels-photo-1366919.jpeg','https://images.pexels.com/photos/147411/italy-mountains-dawn-daybreak-147411.jpeg','https://images.pexels.com/photos/1671325/pexels-photo-1671325.jpeg'];
+  function getWpCache(){try{const c=JSON.parse(localStorage.getItem(WALLPAPER_K));if(c&&c.date===getTodayStr()&&c.url)return c;}catch(e){}return null;}
+  function saveWpCache(url){localStorage.setItem(WALLPAPER_K,JSON.stringify({date:getTodayStr(),url}));}
+  function rndWp(){return FW[Math.floor(Math.random()*FW.length)];}
+  async function fetchWp(){
+    const w=Math.floor(screen.width*devicePixelRatio),h=Math.floor(screen.height*devicePixelRatio);
+const rid=Math.floor(Math.random()*1000);
+    try{const r=await fetch('https://picsum.photos/id/'+rid+'/info');if(r.ok){const d=await r.json();return 'https://picsum.photos/id/'+d.id+'/'+w+'/'+h;}}catch(e){}
+    return 'https://picsum.photos/'+w+'/'+h+'?random='+Date.now();
+  }
+  function applyWp(url){
+    if(!url)return;const img=new Image();
+    img.onload=()=>{document.documentElement.style.setProperty('--wallpaper-url','url('+url+')');const pw=document.getElementById('privacyWallpaper');if(pw)pw.style.backgroundImage='url('+url+')';};
+    img.onerror=()=>{const fu=rndWp();const fi=new Image();fi.onload=()=>{document.documentElement.style.setProperty('--wallpaper-url','url('+fu+')');const pw=document.getElementById('privacyWallpaper');if(pw)pw.style.backgroundImage='url('+fu+')';};fi.src=fu;};
+    img.src=url;
+  }
+  async function loadWp(force=false){
+    if(!force){const c=getWpCache();if(c){applyWp(c.url);return;}}
+    let u=null;try{u=await fetchWp();}catch(e){}
+    if(!u)u=rndWp();
+    if(u){applyWp(u);saveWpCache(u);}
+  }
+  function initWp(){
+    setTimeout(()=>loadWp(false),1000);
+    setInterval(()=>{loadWp(true);},3600000);
+    function smr(){const n=new Date(),mn=new Date(n);mn.setHours(24,0,0,0);setTimeout(()=>{if(!document.body.classList.contains('page-hidden'))loadWp(true);smr();},mn-n+60000);}smr();
+  }
+
+  // ==================== 学习 ====================
+  const loadLearns=()=>{try{return JSON.parse(localStorage.getItem(LEARN_K))||[];}catch(e){return[];}};
+  const saveLearns=(a)=>localStorage.setItem(LEARN_K,JSON.stringify(a));
+  
+  function getSourceTypeColor(type) {
+    switch(type) {
+      case '微信聊天':
+        return 'background:rgba(7,193,96,0.1); color:#07c160;';
+      case '电话录音':
+        return 'background:rgba(74,108,247,0.1); color:#4a6cf7;';
+      case '客户案例':
+        return 'background:rgba(245,124,0,0.1); color:#f57c00;';
+      case '企业资料':
+        return 'background:rgba(231,76,60,0.1); color:#e74c3c;';
+      default:
+        return 'background:rgba(120,120,120,0.1); color:#7f8c8d;';
+    }
+  }
+
+  function normalizeLearnItem(l) {
+    if (!l) return null;
+    if (typeof l === 'string') {
+      return {
+        title: '自主学习',
+        summary: l.length > 20 ? l.slice(0, 17) + '...' : l,
+        content: l,
+        tags: ['学习'],
+        source_type: '自定义',
+        show: true
+      };
+    }
+    if (l.text && !l.content) {
+      return {
+        title: l.title || '自主学习',
+        summary: l.summary || (l.text.length > 20 ? l.text.slice(0, 17) + '...' : l.text),
+        content: l.text,
+        tags: l.tags || ['学习'],
+        source_type: l.source_type || '自定义',
+        show: l.show !== undefined ? l.show : true
+      };
+    }
+    return {
+      title: l.title || '自主学习',
+      summary: l.summary || '',
+      content: l.content || l.text || '',
+      tags: Array.isArray(l.tags) ? l.tags : ['学习'],
+      source_type: l.source_type || '自定义',
+      show: l.show !== undefined ? l.show : true
+    };
+  }
+
+  function renderLearnList(){
+    const ls=loadLearns().map(normalizeLearnItem).filter(Boolean);
+    document.getElementById('learnList').innerHTML=ls.length===0?'<div style="font-size:0.75rem;color:var(--text-light);padding:8px;text-align:center;">暂无学习</div>':ls.map((l,i)=>{
+      return '<div class="script-item" style="display:flex; flex-direction:column; gap:6px; padding:10px; align-items:stretch; border:1px solid var(--card-border); background:var(--btn-bg); border-radius:6px; margin-bottom:8px;">' +
+        '<div style="display:flex; justify-content:space-between; align-items:center;">' +
+          '<span style="font-size:0.65rem; padding:2px 6px; border-radius:4px; font-weight:700; ' + getSourceTypeColor(l.source_type) + '">' + esc(l.source_type) + '</span>' +
+          '<div style="display:flex; gap:8px; align-items:center;">' +
+            '<label style="font-size:0.65rem; color:var(--text-soft); display:flex; align-items:center; gap:3px; cursor:pointer;">' +
+              '<input type="checkbox" ' + (l.show ? 'checked' : '') + ' data-li="' + i + '"> 锁屏' +
+            '</label>' +
+            '<button class="del-icon" data-li="' + i + '" style="border:none; background:none; color:var(--text-light); font-size:1.1rem; cursor:pointer; padding:0 4px; line-height:1;">×</button>' +
+          '</div>' +
+        '</div>' +
+        '<div style="font-weight:800; font-size:0.8rem; color:var(--text-main);">' + esc(l.title) + '</div>' +
+        '<div style="font-size:0.7rem; color:var(--text-soft); font-weight:400; line-height:1.4; word-break:break-all; white-space:pre-wrap;">' + esc(l.content) + '</div>' +
+        (l.tags && l.tags.length > 0 ? 
+          '<div style="display:flex; gap:4px; flex-wrap:wrap; margin-top:2px;">' +
+            l.tags.map(t => '<span style="font-size:0.55rem; color:var(--accent-wechat); background:var(--accent-wechat-bg); padding:1px 5px; border-radius:3px;">#' + esc(t) + '</span>').join('') +
+          '</div>' : '') +
+      '</div>';
+    }).join('');
+
+    document.querySelectorAll('#learnList .del-icon').forEach(b=>b.addEventListener('click',async e=>{
+      const i=parseInt(b.dataset.li);const a=loadLearns();a.splice(i,1);saveLearns(a);renderLearnList();renderLockLearns();
+      await syncOp('setLearns',{learns:a});
+    }));
+
+    document.querySelectorAll('#learnList input[type=checkbox]').forEach(cb=>cb.addEventListener('change',async e=>{
+      const i=parseInt(cb.dataset.li);const a=loadLearns();a[i].show=cb.checked;saveLearns(a);renderLearnList();renderLockLearns();
+      await syncOp('setLearns',{learns:a});
+    }));
+  }
+
+  function renderLockLearns(){
+    const ls=loadLearns().map(normalizeLearnItem).filter(Boolean);
+    const container=document.getElementById('learnContainer');
+    const visible=ls.filter(l=>l.show);
+    if(visible.length===0){container.innerHTML='';return;}
+    container.innerHTML=visible.map((l,i)=>{
+      return '<div class="learn-module" data-li="' + i + '">' +
+        '<div style="font-weight:900; font-size:0.85rem; border-bottom:1px solid var(--border-light); padding-bottom:6px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;">' +
+          '<span>' + esc(l.title) + '</span>' +
+          '<span style="font-size:0.6rem; ' + getSourceTypeColor(l.source_type) + ' padding:2px 6px; border-radius:3px; font-weight:700;">' + esc(l.source_type) + '</span>' +
+        '</div>' +
+        '<div style="font-size:0.75rem; line-height:1.5; margin-bottom:6px; opacity:0.95;">' + esc(l.content) + '</div>' +
+        (l.tags && l.tags.length > 0 ? 
+          '<div style="display:flex; gap:4px; flex-wrap:wrap; margin-top:4px;">' +
+            l.tags.map(t => '<span style="font-size:0.6rem; color:#7b9ff5; background:rgba(74,108,247,0.1); padding:1px 4px; border-radius:3px;">#' + esc(t) + '</span>').join('') +
+          '</div>' : '') +
+      '</div>';
+    }).join('');
+    container.querySelectorAll('.learn-module').forEach(el=>makeDraggable(el));
+  }
+
+  function initLearnFeature(){
+    renderLockLearns();
+    
+    const providerSel = document.getElementById('aiProviderSelect');
+    const apiBaseInp = document.getElementById('aiApiBaseInput');
+    const modelInp = document.getElementById('aiModelInput');
+    const apiKeyInp = document.getElementById('aiApiKeyInput');
+
+    function updateAiPlaceholders() {
+      const p = providerSel.value;
+      if (p === 'deepseek') {
+        apiBaseInp.placeholder = 'https://api.deepseek.com/v1 (默认)';
+        modelInp.placeholder = 'deepseek-chat (V4 Pro 默认)';
+      } else if (p === 'gemini') {
+        apiBaseInp.placeholder = 'https://generativelanguage.googleapis.com/v1beta/openai (默认)';
+        modelInp.placeholder = 'gemini-2.5-flash (默认)';
+      } else {
+        apiBaseInp.placeholder = 'https://api.openai.com/v1 (默认)';
+        modelInp.placeholder = 'gpt-4o (默认)';
+      }
+    }
+
+    providerSel.addEventListener('change', updateAiPlaceholders);
+
+    document.getElementById('learnBtn').addEventListener('click',()=>{
+      renderLearnList();
+      document.getElementById('newLearnInput').value='';
+      document.getElementById('learnShowCheck').checked=true;
+      
+      providerSel.value = localStorage.getItem('ai_provider') || 'gemini';
+      apiKeyInp.value = localStorage.getItem('ai_api_key') || localStorage.getItem('deepseek_api_key') || '';
+      apiBaseInp.value = localStorage.getItem('ai_api_base') || '';
+      modelInp.value = localStorage.getItem('ai_model') || '';
+      updateAiPlaceholders();
+
+      document.getElementById('learnModal').classList.add('active');
+    });
+
+    document.getElementById('closeLearnModalBtn').addEventListener('click',()=>document.getElementById('learnModal').classList.remove('active'));
+    document.getElementById('learnModal').addEventListener('click',e=>{if(e.target===document.getElementById('learnModal'))document.getElementById('learnModal').classList.remove('active');});
+
+    document.getElementById('saveAiConfigBtn').addEventListener('click',async ()=>{
+      const provider = providerSel.value;
+      const apiKey = apiKeyInp.value.trim();
+      const apiBase = apiBaseInp.value.trim();
+      const model = modelInp.value.trim();
+
+      localStorage.setItem('ai_provider', provider);
+      localStorage.setItem('ai_api_key', apiKey);
+      localStorage.setItem('ai_api_base', apiBase);
+      localStorage.setItem('ai_model', model);
+      localStorage.setItem('deepseek_api_key', apiKey); // Backwards compatibility fallback
+
+      await syncOp('setAiConfig', {
+        aiProvider: provider,
+        aiApiKey: apiKey,
+        aiApiBase: apiBase,
+        aiModel: model
+      });
+      alert('AI 大模型配置已保存到本地及云端！');
+    });
+
+    document.getElementById('addLearnBtn').addEventListener('click',async ()=>{
+      const content=document.getElementById('newLearnInput').value.trim();
+      const source_type=document.getElementById('learnSourceSelect').value;
+      if(!content)return;
+      const show=document.getElementById('learnShowCheck').checked;
+      
+      const newItem={
+        title: '手动登记',
+        summary: content.length > 25 ? content.slice(0, 22) + '...' : content,
+        content: content,
+        tags: ['学习'],
+        source_type: source_type,
+        show: show
+      };
+
+      const a=loadLearns();
+      a.unshift(newItem);
+      saveLearns(a);
+      document.getElementById('newLearnInput').value='';
+      await syncOp('setLearns',{learns:a});
+      renderLearnList();renderLockLearns();
+    });
+
+    document.getElementById('aiLearnBtn').addEventListener('click',async ()=>{
+      const content=document.getElementById('newLearnInput').value.trim();
+      const source_type=document.getElementById('learnSourceSelect').value;
+      if(!content){
+        alert('请先在输入框中粘贴/输入需要提炼的原始内容！');
+        return;
+      }
+
+      const btn=document.getElementById('aiLearnBtn');
+      const originalText=btn.innerHTML;
+      btn.innerHTML='AI 提炼中...';
+      btn.disabled=true;
+
+      try{
+        const apiKey = localStorage.getItem('ai_api_key') || localStorage.getItem('deepseek_api_key') || '';
+        const r=await fetch('/api/learning/save',{
+          method:'POST',
+          headers:{
+            'Content-Type':'application/json'
+          },
+          body:JSON.stringify({
+            source_type:source_type,
+            content:content,
+            apiKey:apiKey
+          })
+        });
+
+        if(!r.ok){
+          const errData=await r.json();
+          throw new Error(errData.error || ('HTTP '+r.status));
+        }
+
+        const res=await r.json();
+        if(res.success && res.data){
+          const l=res.data;
+          const show=document.getElementById('learnShowCheck').checked;
+          const newItem={
+            title:l.title,
+            summary:l.summary,
+            content:l.content,
+            tags:l.tags,
+            source_type:l.source_type,
+            show:show
+          };
+
+          const a=loadLearns();
+          a.unshift(newItem);
+          saveLearns(a);
+          document.getElementById('newLearnInput').value='';
+          await syncOp('setLearns',{learns:a});
+          renderLearnList();renderLockLearns();
+          
+          if(res.isMock){
+            alert('🎉 （模拟AI）提炼并保存成功！由于未设置真实 DeepSeek API Key，已使用本地模板完成归纳。在 API 配置中填入密钥可享受真实 AI 提炼。');
+          }else{
+            alert('🎉 AI 提炼并保存成功！');
+          }
+        }
+      }catch(err){
+        console.error(err);
+        alert('AI 提炼失败: '+err.message);
+      }finally{
+        btn.innerHTML=originalText;
+        btn.disabled=false;
+      }
+    });
+
+  }
+
+  // ==================== 话术 ====================
+  const loadScripts=()=>{try{return JSON.parse(localStorage.getItem(SCRIPTS_K))||[];}catch(e){return[];}};
+  const saveScripts=(a)=>localStorage.setItem(SCRIPTS_K,JSON.stringify(a));
+  function renderScriptList(){
+    const ss=loadScripts();
+    document.getElementById('scriptList').innerHTML=ss.length===0?'<div style="font-size:0.75rem;color:var(--text-light);padding:8px;text-align:center;">暂无话术</div>':ss.map((s,i)=>'<div class="script-item" data-si="'+i+'"><span class="script-item-text">'+esc(s)+'</span><div style="display:flex;gap:4px;align-items:center;flex-shrink:0;"><button class="edit-icon" data-si="'+i+'" title="编辑">编</button><button class="del-icon" data-si="'+i+'">×</button></div></div>').join('');
+    document.querySelectorAll('#scriptList .del-icon').forEach(b=>b.addEventListener('click',async e=>{
+      const i=parseInt(b.dataset.si);const a=loadScripts();a.splice(i,1);saveScripts(a);renderScriptList();renderLockScripts();
+      await syncOp('setScripts',{scripts:a});
+    }));
+    document.querySelectorAll('#scriptList .edit-icon').forEach(b=>b.addEventListener('click',e=>{
+      const i=parseInt(b.dataset.si);const a=loadScripts();const old=a[i];const item=document.querySelector('#scriptList .script-item[data-si="'+i+'"]');
+      item.innerHTML='<input class="input-simple" id="editScriptInput_'+i+'" value="'+esc(old).replace(/"/g,'&quot;')+'" style="flex:1;font-size:0.75rem;padding:6px 10px;min-width:0;"><div style="display:flex;gap:4px;flex-shrink:0;"><button class="btn-add" id="saveScriptEdit_'+i+'" style="font-size:0.7rem;padding:6px 12px;">保存</button><button class="del-icon" id="cancelScriptEdit_'+i+'" style="color:var(--text-soft);">取消</button></div>';
+      document.getElementById('saveScriptEdit_'+i).addEventListener('click',async ()=>{
+        const v=document.getElementById('editScriptInput_'+i).value.trim();if(!v)return;
+        a[i]=v;saveScripts(a);renderScriptList();renderLockScripts();
+        await syncOp('setScripts',{scripts:a});
+      });
+      document.getElementById('cancelScriptEdit_'+i).addEventListener('click',()=>renderScriptList());
+      document.getElementById('editScriptInput_'+i).addEventListener('keypress',e=>{if(e.key==='Enter')document.getElementById('saveScriptEdit_'+i).click();});
+      document.getElementById('editScriptInput_'+i).focus();
+    }));
+  }
+  function makeDraggable(el){
+    let active=false,sx=0,sy=0,tx=0,ty=0;
+    el.addEventListener('mousedown',e=>{active=true;sx=e.clientX-tx;sy=e.clientY-ty;el.style.cursor='grabbing';e.preventDefault();});
+    el.addEventListener('touchstart',e=>{active=true;sx=e.touches[0].clientX-tx;sy=e.touches[0].clientY-ty;el.style.cursor='grabbing';},{passive:false});
+    document.addEventListener('mousemove',e=>{if(!active)return;tx=e.clientX-sx;ty=e.clientY-sy;el.style.transform='translate('+tx+'px,'+ty+'px)';});
+    document.addEventListener('touchmove',e=>{if(!active)return;tx=e.touches[0].clientX-sx;ty=e.touches[0].clientY-sy;el.style.transform='translate('+tx+'px,'+ty+'px)';},{passive:false});
+    document.addEventListener('mouseup',()=>{active=false;el.style.cursor='grab';});
+    document.addEventListener('touchend',()=>{active=false;el.style.cursor='grab';});
+  }
+  function renderLockScripts(){
+    const ss=loadScripts();
+    const container=document.getElementById('scriptContainer');
+    if(ss.length===0){container.innerHTML='';return;}
+    container.innerHTML=ss.map((s,i)=>'<div class="script-module" data-si="'+i+'">'+esc(s)+'</div>').join('');
+    container.querySelectorAll('.script-module').forEach(el=>makeDraggable(el));
+  }
+  function initScriptFeature(){
+    renderLockScripts();
+    // script button
+    document.getElementById('scriptBtn').addEventListener('click',()=>{
+      renderScriptList();document.getElementById('newScriptInput').value='';document.getElementById('scriptModal').classList.add('active');
+    });
+    document.getElementById('closeScriptModalBtn').addEventListener('click',()=>document.getElementById('scriptModal').classList.remove('active'));
+    document.getElementById('scriptModal').addEventListener('click',e=>{if(e.target===document.getElementById('scriptModal'))document.getElementById('scriptModal').classList.remove('active');});
+    document.getElementById('addScriptBtn').addEventListener('click',async ()=>{
+      const t=document.getElementById('newScriptInput').value.trim();if(!t)return;
+      const a=loadScripts();a.push(t);saveScripts(a);document.getElementById('newScriptInput').value='';renderScriptList();renderLockScripts();
+      await syncOp('setScripts',{scripts:a});
+    });
+  }
+
+
+
+  // ==================== 导出 ====================
+  function initExport(){
+    document.getElementById('exportBtn').addEventListener('click',()=>{
+      document.getElementById('exportStatus').innerText='';
+      document.getElementById('webhookUrlInput').value=localStorage.getItem('webhook_url')||'';
+      
+      // Load WeCom Bot Config
+      document.getElementById('wecomCorpIdInput').value=localStorage.getItem('wecom_corp_id')||'';
+      document.getElementById('wecomTokenInput').value=localStorage.getItem('wecom_token')||'';
+      document.getElementById('wecomAesKeyInput').value=localStorage.getItem('wecom_aes_key')||'';
+      document.getElementById('wecomAgentIdInput').value=localStorage.getItem('wecom_agent_id')||'';
+      document.getElementById('wecomSecretInput').value=localStorage.getItem('wecom_secret')||'';
+      document.getElementById('wecomTouserInput').value=localStorage.getItem('wecom_touser')||'';
+      document.getElementById('wecomApiProxyInput').value=localStorage.getItem('wecom_api_proxy')||'';
+      document.getElementById('wecomCallbackUrlDisplay').innerText = window.location.origin + '/api/wecom/callback';
+
+      // Load Siri Key
+      document.getElementById('siriKeyInput').value=localStorage.getItem('siri_key')||'siri_default_123';
+      document.getElementById('siriApiUrlDisplay').innerText = window.location.origin + '/api/siri?key=' + (localStorage.getItem('siri_key')||'siri_default_123');
+
+      // Load search config
+      document.getElementById('searchProviderSelect').value = localStorage.getItem('search_provider') || 'duckduckgo';
+      document.getElementById('searchApiKeyInput').value = localStorage.getItem('search_api_key') || '';
+
+      // Load moments config
+      document.getElementById('momentsEnabledCheck').checked = localStorage.getItem('moments_enabled') !== 'false';
+      document.getElementById('momentsWebhookUrlInput').value = localStorage.getItem('moments_webhook_url') || '';
+
+      // Load vision config
+      document.getElementById('visionApiKeyInput').value = localStorage.getItem('vision_api_key') || '';
+      document.getElementById('visionApiBaseInput').value = localStorage.getItem('vision_api_base') || '';
+
+      document.getElementById('exportModal').classList.add('active');
+    });
+    document.getElementById('closeExportModalBtn').addEventListener('click',()=>document.getElementById('exportModal').classList.remove('active'));
+    document.getElementById('exportModal').addEventListener('click',e=>{if(e.target===document.getElementById('exportModal'))document.getElementById('exportModal').classList.remove('active');});
+    
+    // Bind blur to immediately sync the webhookUrl to KV
+    document.getElementById('webhookUrlInput').addEventListener('blur',()=>{
+      const val=document.getElementById('webhookUrlInput').value.trim();
+      localStorage.setItem('webhook_url',val);
+      syncOp('setWebhookUrl',{webhookUrl:val});
+    });
+
+    // Save WeCom Bot configs
+    document.getElementById('saveWecomBotBtn').addEventListener('click',async ()=>{
+      const corpId = document.getElementById('wecomCorpIdInput').value.trim();
+      const token = document.getElementById('wecomTokenInput').value.trim();
+      const aesKey = document.getElementById('wecomAesKeyInput').value.trim();
+      const agentId = document.getElementById('wecomAgentIdInput').value.trim();
+      const secret = document.getElementById('wecomSecretInput').value.trim();
+      const touser = document.getElementById('wecomTouserInput').value.trim();
+      const apiProxy = document.getElementById('wecomApiProxyInput').value.trim();
+      const statusEl = document.getElementById('wecomConfigStatus');
+      
+      if (!corpId || !token || !aesKey) {
+        statusEl.style.display = 'block';
+        statusEl.innerHTML = '❌ 请填写企业基本配置（Corp ID、Token、EncodingAESKey）';
+        statusEl.style.color = '#e53935';
+        return;
+      }
+      if (aesKey.length !== 43) {
+        statusEl.style.display = 'block';
+        statusEl.innerHTML = '❌ EncodingAESKey 长度应为 43 个字符，当前长度: ' + aesKey.length + '<br>请从企业微信后台完整复制';
+        statusEl.style.color = '#e53935';
+        return;
+      }
+
+      statusEl.style.display = 'block';
+      statusEl.innerHTML = '⏳ 正在保存配置到云端...';
+      statusEl.style.color = 'var(--text-soft)';
+      
+      localStorage.setItem('wecom_corp_id', corpId);
+      localStorage.setItem('wecom_token', token);
+      localStorage.setItem('wecom_aes_key', aesKey);
+      localStorage.setItem('wecom_agent_id', agentId);
+      localStorage.setItem('wecom_secret', secret);
+      localStorage.setItem('wecom_touser', touser);
+      localStorage.setItem('wecom_api_proxy', apiProxy);
+
+      try {
+        await Promise.all([
+          syncOp('setWecomCorpId', { wecomCorpId: corpId }),
+          syncOp('setWecomToken', { wecomToken: token }),
+          syncOp('setWecomAesKey', { wecomAesKey: aesKey }),
+          syncOp('setWecomAgentId', { wecomAgentId: agentId }),
+          syncOp('setWecomSecret', { wecomSecret: secret }),
+          syncOp('setWecomTouser', { wecomTouser: touser }),
+          syncOp('setWecomApiProxy', { wecomApiProxy: apiProxy })
+        ]);
+        statusEl.innerHTML = '✅ 配置已保存并同步到云端！请点击"测试连接"确认配置生效';
+        statusEl.style.color = '#43a047';
+      } catch (e) {
+        statusEl.innerHTML = '❌ 保存失败: ' + e.message;
+        statusEl.style.color = '#e53935';
+      }
+    });
+
+    // Test WeCom config by calling debug endpoint
+    document.getElementById('testWecomBtn').addEventListener('click', async ()=>{
+      const statusEl = document.getElementById('wecomConfigStatus');
+      statusEl.style.display = 'block';
+      statusEl.innerHTML = '⏳ 正在检测云端配置并执行 API 连通性测试...';
+      statusEl.style.color = 'var(--text-soft)';
+      try {
+        const resp = await fetch('/api/wecom/debug');
+        const data = await resp.json();
+        let html = '<strong>🔍 云端配置检测结果：</strong><br>';
+        html += 'Corp ID: ' + data.effective.corpId + '<br>';
+        html += 'Token: ' + data.effective.token + '<br>';
+        html += 'AES Key: ' + data.effective.aesKey + '<br>';
+        html += 'Agent ID: ' + (data.kv.wecom_agent_id || '❌ 未配置') + '<br>';
+        html += 'Secret: ' + (data.kv.wecom_secret || '❌ 未配置') + '<br>';
+        html += 'Recipient: ' + (data.kv.wecom_touser || '未配置 (默认 @all)') + '<br>';
+        html += 'Proxy: ' + (data.kv.wecom_api_proxy || '官方默认') + '<br>';
+        
+        if (data.connection_test) {
+          html += '<br><strong>📡 API 连通性测试：</strong><br>';
+          html += '状态: ' + data.connection_test.status + '<br>';
+          html += '详情: ' + data.connection_test.message + '<br>';
+        }
+        
+        html += '<br><strong>回调 URL:</strong> ' + data.callback_url + '<br>';
+        
+        const hasSecret = data.kv.wecom_secret && !data.kv.wecom_secret.includes('❌');
+        const allGood = data.effective.corpId.includes('✅') &&
+                        data.effective.token.includes('✅') &&
+                        data.effective.aesKey.includes('✅');
+        const connGood = data.connection_test && data.connection_test.status.includes('✅');
+        if (allGood && (!hasSecret || connGood)) {
+          html += '<br>🎉 <strong style="color:#43a047;">全部配置已就绪！现在可以去企业微信后台设置回调 URL 了</strong>';
+          statusEl.style.color = '#43a047';
+        } else {
+          html += '<br>⚠️ <strong style="color:#e53935;">配置不完整或连通测试失败！请检查填写</strong>';
+          statusEl.style.color = '#e53935';
+        }
+        statusEl.innerHTML = html;
+      } catch (e) {
+        statusEl.innerHTML = '❌ 检测请求失败: ' + e.message;
+        statusEl.style.color = '#e53935';
+      }
+    });
+
+    // Save Siri Key
+    document.getElementById('saveSiriKeyBtn').addEventListener('click', async ()=>{
+      const siriKey = document.getElementById('siriKeyInput').value.trim();
+      const statusEl = document.getElementById('siriConfigStatus');
+      if (!siriKey) {
+        statusEl.style.display = 'block';
+        statusEl.innerHTML = '❌ 密钥不能为空';
+        statusEl.style.color = '#e53935';
+        return;
+      }
+      statusEl.style.display = 'block';
+      statusEl.innerHTML = '⏳ 正在保存密钥到云端...';
+      statusEl.style.color = 'var(--text-soft)';
+      
+      localStorage.setItem('siri_key', siriKey);
+      document.getElementById('siriApiUrlDisplay').innerText = window.location.origin + '/api/siri?key=' + siriKey;
+
+      try {
+        await syncOp('setSiriKey', { siriKey: siriKey });
+        statusEl.innerHTML = '✅ Siri 密钥已保存并同步！';
+        statusEl.style.color = '#43a047';
+      } catch (e) {
+        statusEl.innerHTML = '❌ 同步失败: ' + e.message;
+        statusEl.style.color = '#e53935';
+      }
+    });
+
+    // Download Siri Shortcut File
+    document.getElementById('downloadSiriShortcutBtn').addEventListener('click', () => {
+      const siriKey = document.getElementById('siriKeyInput').value.trim() || 'siri_default_123';
+      window.open(window.location.origin + '/api/siri/download?key=' + encodeURIComponent(siriKey), '_blank');
+    });
+
+    // Vision: client-side cooldown to prevent rapid-fire API calls
+    let visionTestCooldown = 0;
+
+    // Save Vision API config
+    document.getElementById('saveVisionConfigBtn').addEventListener('click', async () => {
+      const statusEl = document.getElementById('visionConfigStatus');
+      const apiKey = document.getElementById('visionApiKeyInput').value.trim();
+      const apiBase = document.getElementById('visionApiBaseInput').value.trim();
+      const saveBtn = document.getElementById('saveVisionConfigBtn');
+      statusEl.style.display = 'block';
+      statusEl.innerHTML = '⏳ 正在保存...';
+      statusEl.style.color = 'var(--text-soft)';
+      saveBtn.disabled = true;
+
+      try {
+        const resp = await fetch('/api/ocr/test', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ saveOnly: true, visionApiKey: apiKey, visionApiBase: apiBase })
+        });
+        const result = await resp.json();
+        if (result.success) {
+          localStorage.setItem('vision_api_key', apiKey);
+          localStorage.setItem('vision_api_base', apiBase);
+          statusEl.innerHTML = '✅ 已保存！';
+          statusEl.style.color = '#43a047';
+        } else {
+          statusEl.innerHTML = '❌ 保存失败: ' + (result.error || '');
+          statusEl.style.color = '#e53935';
+        }
+      } catch (e) {
+        statusEl.innerHTML = '❌ 请求失败: ' + e.message;
+        statusEl.style.color = '#e53935';
+      } finally {
+        setTimeout(function() { saveBtn.disabled = false; }, 1500);
+      }
+    });
+
+    // Test Vision API connectivity (Gemini or Workers AI fallback)
+    document.getElementById('testVisionBtn').addEventListener('click', async () => {
+      const statusEl = document.getElementById('visionConfigStatus');
+      const testBtn = document.getElementById('testVisionBtn');
+      const apiKey = document.getElementById('visionApiKeyInput').value.trim();
+      const apiBase = document.getElementById('visionApiBaseInput').value.trim();
+
+      // Client-side cooldown: prevent clicking faster than every 10 seconds
+      if (visionTestCooldown > Date.now()) {
+        var remain = Math.ceil((visionTestCooldown - Date.now()) / 1000);
+        statusEl.style.display = 'block';
+        statusEl.innerHTML = '⏳ 请等待 ' + remain + ' 秒后再测试（避免触发 API 限流）';
+        statusEl.style.color = '#e67e22';
+        return;
+      }
+      visionTestCooldown = Date.now() + 10000; // 10 second cooldown
+
+      testBtn.disabled = true;
+      testBtn.textContent = '⏳ 测试中...';
+      statusEl.style.display = 'block';
+      statusEl.innerHTML = '⏳ 正在测试连接（10秒冷却中）...';
+      statusEl.style.color = 'var(--text-soft)';
+
+      try {
+        const resp = await fetch('/api/ocr/test', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ visionApiKey: apiKey, visionApiBase: apiBase })
+        });
+
+        const result = await resp.json();
+        if (result.success) {
+          statusEl.innerHTML = '✅ 连接成功！<br>引擎: ' + (result.engine || result.model || '') + '<br>' + (result.note || '可正常使用图片识别。');
+          statusEl.style.color = '#43a047';
+        } else {
+          statusEl.innerHTML = '❌ 失败: ' + (result.error || '未知错误') + '<br><span style="font-size:0.58rem;">' + (result.hint || '') + '</span>';
+          statusEl.style.color = '#e53935';
+        }
+      } catch (e) {
+        statusEl.innerHTML = '❌ 请求失败: ' + e.message;
+        statusEl.style.color = '#e53935';
+      }
+
+      // Countdown timer to re-enable button
+      var updateCooldown = function() {
+        var remain = Math.ceil((visionTestCooldown - Date.now()) / 1000);
+        if (remain <= 0) {
+          testBtn.disabled = false;
+          testBtn.textContent = '测试连接';
+        } else {
+          testBtn.textContent = '⏳ ' + remain + 's';
+          setTimeout(updateCooldown, 500);
+        }
+      };
+      setTimeout(updateCooldown, 1000);
+    });
+
+    // Save search config
+    document.getElementById('saveSearchConfigBtn').addEventListener('click', async () => {
+      const provider = document.getElementById('searchProviderSelect').value;
+      const apiKey = document.getElementById('searchApiKeyInput').value.trim();
+      localStorage.setItem('search_provider', provider);
+      localStorage.setItem('search_api_key', apiKey);
+      try {
+        await syncOp('setSearchConfig', { searchProvider: provider, searchApiKey: apiKey });
+        document.getElementById('exportStatus').innerText = '✅ 搜索配置已保存！AI 现在可以联网搜索了。';
+      } catch (e) {
+        document.getElementById('exportStatus').innerText = '❌ 保存失败: ' + e.message;
+      }
+    });
+
+    // Save moments config
+    document.getElementById('saveMomentsConfigBtn').addEventListener('click', async () => {
+      const enabled = document.getElementById('momentsEnabledCheck').checked;
+      const webhookUrl = document.getElementById('momentsWebhookUrlInput').value.trim();
+      localStorage.setItem('moments_enabled', enabled ? 'true' : 'false');
+      localStorage.setItem('moments_webhook_url', webhookUrl);
+      try {
+        await syncOp('setMomentsConfig', { momentsEnabled: enabled, momentsWebhookUrl: webhookUrl });
+        const msg = enabled
+          ? '✅ 朋友圈定时推送已启用！每天早 8:00 自动发送 30 条文案（励志生活·热点·财经·股市·回访·招呼各5条）到企业微信。'
+          : '⏸️ 朋友圈定时推送已停用。';
+        document.getElementById('exportStatus').innerText = msg;
+      } catch (e) {
+        document.getElementById('exportStatus').innerText = '❌ 保存失败: ' + e.message;
+      }
+    });
+
+    // Manual push button
+    document.getElementById('manualPushBtn').addEventListener('click', async () => {
+      const btn = document.getElementById('manualPushBtn');
+      const statusEl = document.getElementById('exportStatus');
+      btn.disabled = true;
+      btn.textContent = '⏳ 正在生成文案...';
+      statusEl.innerText = '⏳ 正在联网搜索并生成 30 条文案，预计需要 30-60 秒...';
+      try {
+        const resp = await fetch('/api/moments-push', { method: 'POST' });
+        const result = await resp.json();
+        if (result.success) {
+          statusEl.innerText = '✅ 手动发送成功！已推送 ' + result.posts.length + ' 条文案到企业微信。';
+        } else {
+          statusEl.innerText = '❌ 发送失败: ' + result.message;
+        }
+      } catch (e) {
+        statusEl.innerText = '❌ 请求失败: ' + e.message;
+      }
+      btn.disabled = false;
+      btn.textContent = '手动立即发送';
+    });
+
+    async function doExport(type){
+      const webhookUrl=document.getElementById('webhookUrlInput').value.trim();
+      const corpId=localStorage.getItem('wecom_corp_id');
+      const agentId=localStorage.getItem('wecom_agent_id');
+      const secret=localStorage.getItem('wecom_secret');
+      
+      if(!webhookUrl && (!corpId || !agentId || !secret)){
+        document.getElementById('exportStatus').innerText='请填写 Webhook URL 或配置自建应用(CorpID / AgentID / Secret)';
+        return;
+      }
+      
+      if(webhookUrl){
+        localStorage.setItem('webhook_url',webhookUrl);
+        syncOp('setWebhookUrl',{webhookUrl:webhookUrl});
+      }
+      
+      document.getElementById('exportStatus').innerText='发送中...';
+      try{
+        const r=await fetch('/api/export',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type,webhookUrl})});
+        if(r.ok){
+          const data = await r.json();
+          if (data.sent !== undefined) {
+            document.getElementById('exportStatus').innerText = '已发送 ' + data.sent + '/' + data.total + (data.failed > 0 ? '（' + data.failed + ' 条失败）' : '');
+          } else {
+            document.getElementById('exportStatus').innerText = '已发送到企业微信';
+          }
+        }
+        else{
+          const err=await r.json();
+          document.getElementById('exportStatus').innerText='发送失败: '+(err.error||r.statusText);
+        }
+      }catch(e){document.getElementById('exportStatus').innerText='网络错误: '+e.message;}
+    }
+    document.getElementById('exportWeekBtn').addEventListener('click',()=>doExport('week'));
+    document.getElementById('exportMonthBtn').addEventListener('click',()=>doExport('month'));
+    document.getElementById('exportAllClientsBtn').addEventListener('click',()=>doExport('all_clients'));
+    document.getElementById('exportSoloBtn').addEventListener('click',()=>doExport('all_clients_solo'));
+  }
+  // ==================== Android 设备检测 ====================
+  function initAndroid(){
+    const ua=navigator.userAgent||"";
+    const isAndroid=/Android/.test(ua)&&!/iPhone|iPad|iPod/.test(ua);
+    if(isAndroid)document.body.classList.add("android");
+  }
+  function initDark(){
+    const btn=document.getElementById('darkToggleBtn');
+    const themeMeta=document.querySelector('meta[name="theme-color"]');
+    const updateDarkTitle=()=>{
+      if(!btn)return;
+      const isDark=document.body.classList.contains('dark-mode');
+      btn.textContent=(isDark?'浅色':'深色')+'模式';
+      btn.title=isDark?'切换浅色模式':'切换深色模式';
+      if(themeMeta)themeMeta.content=isDark?'#111111':'#ededed';
+    };
+    if(localStorage.getItem(DARK_K)==='true')document.body.classList.add('dark-mode');
+    updateDarkTitle();
+    if(btn){
+      btn.addEventListener('click',()=>{document.body.classList.toggle('dark-mode');localStorage.setItem(DARK_K,document.body.classList.contains('dark-mode'));updateDarkTitle();});
+    }
+  }
+  function initGoals(){
+    const modal=document.getElementById('goalModal');
+    const btn=document.getElementById('goalBtn');
+    const closeBtn=document.getElementById('closeGoalModalBtn');
+    const saveBtn=document.getElementById('saveGoalBtn');
+    const status=document.getElementById('goalStatus');
+    btn.addEventListener('click',()=>{
+      const goals=loadGoals();
+      document.getElementById('goalWeeklyVisit').value=goals.weeklyVisit||'';
+      document.getElementById('goalWeeklyWechat').value=goals.weeklyWechat||'';
+      document.getElementById('goalMonthlyWechat').value=goals.monthlyWechat||'';
+      document.getElementById('goalMonthlyVisit').value=goals.monthlyVisit||'';
+      document.getElementById('goalMonthlyPayment').value=goals.monthlyPayment||'';
+      status.textContent='';
+      modal.classList.add('active');
+    });
+    closeBtn.addEventListener('click',()=>modal.classList.remove('active'));
+    modal.addEventListener('click',e=>{if(e.target===modal)modal.classList.remove('active');});
+    saveBtn.addEventListener('click',async()=>{
+      const goals={
+        weeklyVisit:parseInt(document.getElementById('goalWeeklyVisit').value)||0,
+        weeklyWechat:parseInt(document.getElementById('goalWeeklyWechat').value)||0,
+        monthlyWechat:parseInt(document.getElementById('goalMonthlyWechat').value)||0,
+        monthlyVisit:parseInt(document.getElementById('goalMonthlyVisit').value)||0,
+        monthlyPayment:parseInt(document.getElementById('goalMonthlyPayment').value)||0
+      };
+      saveGoals(goals);
+      try{await syncOp('setGoals',{goals});status.textContent='✅ 目标已保存';}catch(e){status.textContent='⚠️ 保存失败，已存本地';}
+      modal.classList.remove('active');
+      renderGoalChips();
+    });
+  }
+  function isLocked(){return localStorage.getItem(LOCK_K)==='true';}
+
+  // ==================== 日志功能 ====================
+  const SYNC_LOG_K='sync_logs_v1';
+  function loadSyncLogs(){try{return JSON.parse(localStorage.getItem(SYNC_LOG_K))||[];}catch(e){return[];}}
+  function saveSyncLogs(logs){localStorage.setItem(SYNC_LOG_K,JSON.stringify(logs.slice(0,50)));}
+  function addSyncLog(msg){
+    const logs=loadSyncLogs();
+    const d=new Date();
+    const ts=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')+':'+String(d.getSeconds()).padStart(2,'0');
+    logs.unshift({ts,msg});
+    saveSyncLogs(logs);
+  }
+  function renderSyncLogs(){
+    const list=document.getElementById('syncLogList');
+    if(!list)return;
+    const esc=(s)=>s.replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    const logs=loadSyncLogs();
+    list.innerHTML=logs.length===0?'<div style="text-align:center;padding:20px;color:var(--text-light);">暂无日志</div>':logs.map(l=>'<div class="log-item"><span class="log-msg">'+esc(l.msg)+'</span><span class="log-time">'+l.ts+'</span></div>').join('');
+  }
+  function initLogs(){
+    document.getElementById('logBtn').addEventListener('click',()=>{
+      renderSyncLogs();
+      document.getElementById('logModal').classList.add('active');
+    });
+    document.getElementById('closeLogModalBtn').addEventListener('click',()=>document.getElementById('logModal').classList.remove('active'));
+    document.getElementById('logModal').addEventListener('click',e=>{if(e.target===document.getElementById('logModal'))document.getElementById('logModal').classList.remove('active');});
+  }
+  function setLocked(l){if(l){localStorage.setItem(LOCK_K,'true');document.body.classList.add('page-hidden');setTimeout(()=>{const pi=document.getElementById('pinInput');if(pi)pi.focus();},100);}else{localStorage.setItem(LOCK_K,'false');document.body.classList.remove('page-hidden');const tc=document.getElementById('timerContainer');if(tc)tc.classList.remove('show');}}
+
+  function hashPinSimple(str){
+    let hash = 5381;
+    for (let i = 0; i < str.length; i++) {
+      hash = ((hash << 5) + hash) + str.charCodeAt(i);
+    }
+    return (hash >>> 0).toString(16);
+  }
+  const pi=document.getElementById('pinInput'),pib=document.getElementById('pinUnlockBtn'),pie=document.getElementById('pinError');
+  function au(){const e=pi.value.trim();if(hashPinSimple(e)===${PIN_HASH}){localStorage.setItem(UNLOCK_TS_K,Date.now());setLocked(false);pi.value='';pie.innerText='';refreshAll();}else{pie.innerText='PIN码错误';pi.value='';setTimeout(function(){pi.focus();},50);}}
+  pib.addEventListener('click',au);pi.addEventListener('keypress',e=>{if(e.key==='Enter')au();});
+  document.getElementById('hideBtn').addEventListener('click',()=>{setLocked(true);pi.value='';pie.innerText='';});
+  window.addEventListener('keydown',e=>{if(e.ctrlKey&&e.key==='z'){const a=document.activeElement;if(a&&(a.tagName==='INPUT'||a.tagName==='TEXTAREA'))return;e.preventDefault();if(document.body.classList.contains('page-hidden'))pie.innerText='请使用PIN解锁';else{setLocked(true);pi.value='';pie.innerText='';}}});
+  window.addEventListener('keydown',e=>{if(e.ctrlKey&&e.key.toLowerCase()==='q'){if(!document.body.classList.contains('page-hidden'))return;const a=document.activeElement;if(a&&(a.tagName==='INPUT'||a.tagName==='TEXTAREA'))return;e.preventDefault();const tc=document.getElementById('timerContainer');if(tc)tc.classList.toggle('show');}});
+  window.addEventListener('keydown',e=>{if(e.key==='+'||e.key==='='){e.preventDefault();modCounter(WECHAT_K,1,'incWechat');}else if(e.key==='-'||e.key==='_'){e.preventDefault();modCounter(WECHAT_K,-1,'incWechat');}else if(e.key==='ArrowUp'){e.preventDefault();modCounter(REVISIT_K,1,'incRevisit');}else if(e.key==='ArrowDown'){e.preventDefault();modCounter(REVISIT_K,-1,'incRevisit');}});
+
+  // ==================== 锁屏计时器 ====================
+  const TIMER_K='timer_state_v1';
+  let timerInterval=null,timerRunning=false,timerTotalSeconds=0,timerRemainingSeconds=0;
+  const th=document.getElementById('timerHours'),tm=document.getElementById('timerMinutes'),ts=document.getElementById('timerSeconds');
+  const tdb=document.getElementById('timerDisplay'),tsb=document.getElementById('timerStartBtn'),trb=document.getElementById('timerResetBtn'),tb=document.getElementById('timerBox');
+  const loadTimerState=()=>{try{return JSON.parse(localStorage.getItem(TIMER_K))||{running:false,h:0,m:1,s:0,remainder:0};}catch(e){return{running:false,h:0,m:1,s:0,remainder:0};}};
+  const saveTimerState=()=>localStorage.setItem(TIMER_K,JSON.stringify({running:timerRunning,h:parseInt(th.value||0),m:parseInt(tm.value||0),s:parseInt(ts.value||0),remainder:timerRemainingSeconds}));
+  const updateTimerDisplay=()=>{const hh=String(Math.floor(timerRemainingSeconds/3600)).padStart(2,'0'),mm=String(Math.floor((timerRemainingSeconds%3600)/60)).padStart(2,'0'),ss=String(timerRemainingSeconds%60).padStart(2,'0');tdb.textContent=hh+':'+mm+':'+ss;};
+  const stopTimer=()=>{if(timerInterval)clearInterval(timerInterval);timerRunning=false;tsb.textContent='启动';tb.classList.remove('active');trb.disabled=false;updateTimerDisplay();saveTimerState();};
+  const startTimer=()=>{
+    const h=Math.max(0,Math.min(23,parseInt(th.value||0)));const m=Math.max(0,Math.min(59,parseInt(tm.value||0)));const s=Math.max(0,Math.min(59,parseInt(ts.value||0)));
+    timerTotalSeconds=h*3600+m*60+s;if(timerTotalSeconds===0 && timerRemainingSeconds===0){return; }
+    if(timerRemainingSeconds===0)timerRemainingSeconds=timerTotalSeconds;
+    timerRunning=true;tsb.textContent='暂停';tb.classList.add('active');trb.disabled=false;
+    timerInterval=setInterval(()=>{if(timerRemainingSeconds>0){timerRemainingSeconds--;updateTimerDisplay();}else{stopTimer();timerRemainingSeconds=0;updateTimerDisplay();tdb.classList.add('completed');setTimeout(()=>tdb.classList.remove('completed'),600);document.getElementById('notifyText').innerText='⏱️ 计时器已结束';document.getElementById('notifyBar').classList.add('show');setTimeout(()=>document.getElementById('notifyBar').classList.remove('show'),5000);}saveTimerState();},1000);
+    saveTimerState();
+  };
+  const toggleTimer=()=>{if(timerRunning){stopTimer();}else{startTimer();}};
+  const resetTimer=()=>{stopTimer();timerRemainingSeconds=0;updateTimerDisplay();trb.disabled=true;saveTimerState();};
+  const initTimer=()=>{
+    const state=loadTimerState();
+    th.value=state.h;
+    tm.value=state.m;
+    ts.value=state.s;
+    timerRemainingSeconds=state.remainder;
+    updateTimerDisplay();
+    [th,tm,ts].forEach(el=>el.addEventListener('change',()=>{if(timerRunning)stopTimer();timerRemainingSeconds=0;saveTimerState();}));
+    [th,tm,ts].forEach(el=>el.addEventListener('input',()=>{if(timerRunning)stopTimer();timerRemainingSeconds=0;updateTimerDisplay();saveTimerState();}));
+    tsb.addEventListener('click',toggleTimer);
+    trb.addEventListener('click',resetTimer);
+    trb.disabled=timerRemainingSeconds===0;
+
+    const tc=document.getElementById('timerContainer');
+    if(tc){
+      let active=false,sx=0,sy=0,tx=0,ty=0;
+      tc.addEventListener('mousedown',e=>{
+        if(e.target.tagName==='INPUT'||e.target.tagName==='BUTTON'||e.target.closest('.timer-inputs')||e.target.closest('.timer-buttons')) return;
+        active=true;
+        sx=e.clientX-tx;
+        sy=e.clientY-ty;
+        tc.style.cursor='grabbing';
+        e.preventDefault();
+      });
+      tc.addEventListener('touchstart',e=>{
+        if(e.target.tagName==='INPUT'||e.target.tagName==='BUTTON'||e.target.closest('.timer-inputs')||e.target.closest('.timer-buttons')) return;
+        active=true;
+        sx=e.touches[0].clientX-tx;
+        sy=e.touches[0].clientY-ty;
+        tc.style.cursor='grabbing';
+      },{passive:true});
+      document.addEventListener('mousemove',e=>{
+        if(!active)return;
+        tx=e.clientX-sx;
+        ty=e.clientY-sy;
+        tc.style.transform='translate('+tx+'px,'+ty+'px)';
+      });
+      document.addEventListener('touchmove',e=>{
+        if(!active)return;
+        tx=e.touches[0].clientX-sx;
+        ty=e.touches[0].clientY-sy;
+        tc.style.transform='translate('+tx+'px,'+ty+'px)';
+      },{passive:false});
+      const endDrag=()=>{active=false;tc.style.cursor='grab';};
+      document.addEventListener('mouseup',endDrag);
+      document.addEventListener('touchend',endDrag);
+    }
+  };
+  initTimer();
+
+  document.getElementById('wechatPlus').addEventListener('click',()=>modCounter(WECHAT_K,1,'incWechat'));
+  document.getElementById('wechatMinus').addEventListener('click',()=>modCounter(WECHAT_K,-1,'incWechat'));
+  document.getElementById('revisitPlus').addEventListener('click',()=>modCounter(REVISIT_K,1,'incRevisit'));
+  document.getElementById('revisitMinus').addEventListener('click',()=>modCounter(REVISIT_K,-1,'incRevisit'));  const syncBtn = document.getElementById('syncBtn');
+  if(syncBtn){
+    syncBtn.addEventListener('click',async()=>{
+      _syncStatus='syncing';updateSyncIndicator();
+      calendarMonth=getCurrentMonth();
+      try{
+        await drainQueue();
+        await saveFullState(true);
+        await pullLatest();
+        await syncAllClientsFromCloud();
+        await syncCalendarFromCloud();
+        refreshAll();
+      }catch(e){
+        _syncStatus='error';
+      }
+      updateSyncIndicator();
+    });
+  }
+  document.getElementById('addClientBtn').addEventListener('click',addClient);
+  // Status selector: toggle conditional fields
+  document.getElementById('custStatus').addEventListener('change', function() {
+    showStatusConditionalFields(this.value);
+  });
+  // Detail panel toggle
+  document.getElementById('detailToggleBtn').addEventListener('click', function() {
+    const panel = document.getElementById('detailPanel');
+    const icon = this.querySelector('.detail-toggle-icon');
+    if (panel.style.display === 'none') {
+      panel.style.display = 'flex';
+      icon.classList.add('open');
+      this.innerHTML = '<span class="detail-toggle-icon open">▶</span> 收起详细资料';
+    } else {
+      panel.style.display = 'none';
+      icon.classList.remove('open');
+      this.innerHTML = '<span class="detail-toggle-icon">▶</span> 详细资料';
+    }
+  });
+
+  // ========== 剪贴板截图 OCR 识别 ==========
+  document.getElementById('clipboardPasteBtn').addEventListener('click', async () => {
+    const statusEl = document.getElementById('clipboardStatus');
+    const btn = document.getElementById('clipboardPasteBtn');
+    statusEl.textContent = '⏳ 读取剪贴板...';
+    btn.disabled = true;
+
+    try {
+      // 检查浏览器支持
+      if (!navigator.clipboard || !navigator.clipboard.read) {
+        throw new Error('浏览器不支持剪贴板读取，请使用 Chrome/Edge');
+      }
+
+      // 读取剪贴板
+      const items = await navigator.clipboard.read();
+      let imageBlob = null;
+
+      for (const item of items) {
+        const imageTypes = item.types.filter(t => t.startsWith('image/'));
+        if (imageTypes.length > 0) {
+          imageBlob = await item.getType(imageTypes[0]);
+          break;
+        }
+      }
+
+      if (!imageBlob) {
+        throw new Error('剪贴板中没有图片，请先截图（Win+Shift+S 或 微信截图）后重试');
+      }
+
+      statusEl.textContent = '⏳ 正在进行双通道智能识别...';
+
+      // 转 base64
+      const reader = new FileReader();
+      const base64Promise = new Promise((resolve, reject) => {
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(new Error('图片读取失败'));
+      });
+      reader.readAsDataURL(imageBlob);
+      const base64 = await base64Promise;
+
+      // 定义本地提取正则辅助函数
+      const extractContactsFromText = (text) => {
+        const lines = text.split('\\n');
+        const phoneRe = /1[3-9]\\d{9}/g;
+        const list = [];
+        const seenPhones = {};
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i].trim();
+          if (!line) continue;
+          const phones = line.match(phoneRe);
+          if (phones) {
+            phones.forEach(p => {
+              if (seenPhones[p]) return;
+              seenPhones[p] = true;
+              const cols = line.split(/\\s+/);
+              let name = '';
+              let company = '';
+              let fund = '';
+              let note = '';
+              const phoneIdx = cols.findIndex(c => c.includes(p));
+              if (phoneIdx !== -1) {
+                if (phoneIdx > 0) {
+                  name = cols[phoneIdx - 1].replace(/^[新旧听一]+[\\s\\-\\|]*/, '').trim();
+                }
+                if (cols.length > phoneIdx + 1) {
+                  company = cols[phoneIdx + 1].trim();
+                }
+                for (let j = phoneIdx + 1; j < cols.length; j++) {
+                  if (/^\\d{4,6}$/.test(cols[j])) {
+                    fund = cols[j];
+                    break;
+                  }
+                }
+                note = cols.slice(phoneIdx + 1).filter(c => c !== fund && c !== company).join(' ').trim();
+              }
+              list.push({ name: name, phone: p, company: company, fund: fund, note: note });
+            });
+          }
+        }
+        return list;
+      };
+
+      statusEl.textContent = '⏳ 正在并行运行本地 OCR 与云端视觉识别...';
+
+      // A. 云端 Vision AI
+      const cloudVisionPromise = fetch('/api/ocr', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image: base64 })
+      })
+      .then(async r => {
+        if (!r.ok) throw new Error('Cloud OCR failed: ' + (await r.text()));
+        return r.json();
+      })
+      .then(data => data.text || '')
+      .catch(err => {
+        console.warn('Cloud Vision failed:', err);
+        return '';
+      });
+
+      // B. 本地 Tesseract
+      const localOcrPromise = (async () => {
+        try {
+          const worker = await Tesseract.createWorker({
+            workerPath: window.location.origin + '/tessdata/worker.min.js',
+            corePath: window.location.origin + '/tessdata/core',
+            langPath: window.location.origin + '/tessdata'
+          });
+          await worker.load();
+          await worker.loadLanguage('chi_sim');
+          await worker.initialize('chi_sim');
+          const { data: { text } } = await worker.recognize(base64);
+          await worker.terminate();
+          return text;
+        } catch (err) {
+          console.error('Local Tesseract failed:', err);
+          return '';
+        }
+      })();
+
+      const [localText, visionText] = await Promise.all([localOcrPromise, cloudVisionPromise]);
+
+      if (!visionText && !localText) {
+        throw new Error('本地与云端 OCR 均未识别出任何内容');
+      }
+
+      if (visionText) {
+        statusEl.innerHTML = '🤖 <span style="color:var(--accent-wechat);font-weight:bold;">双通道就绪：</span>已成功结合云端 AI 与本地 OCR 数据，正在智能纠错中...';
+      } else {
+        statusEl.innerHTML = '⚠️ <span style="color:#e67e22;font-weight:bold;">视觉 AI 未响应：</span>未检测到云端 AI 结果，已降级使用本地 OCR 单通道纠错...';
+      }
+
+      const localContacts = localText ? extractContactsFromText(localText) : [];
+
+      // C. 混合合并
+      const mergeResp = await fetch('/api/ocr/correct', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          localContacts: localContacts,
+          visionText: visionText || localText,
+          fileName: 'dashboard_clipboard'
+        })
+      });
+
+      if (!mergeResp.ok) {
+        const errText = await mergeResp.text();
+        throw new Error('合并纠错失败 HTTP ' + mergeResp.status + ': ' + errText.substring(0, 100));
+      }
+
+      const mergeResult = await mergeResp.json();
+      const contacts = mergeResult.contacts || [];
+
+      if (contacts.length === 0) {
+        throw new Error('未识别到有效的客户信息');
+      }
+
+      const result = contacts[0];
+
+      // 自动填入表单
+      if (result.name) {
+        document.getElementById('custName').value = result.name;
+        document.getElementById('custName').style.borderColor = 'var(--accent-wechat)';
+      }
+      if (result.phone) {
+        document.getElementById('custPhone').value = result.phone;
+        document.getElementById('custPhone').style.borderColor = 'var(--accent-wechat)';
+      }
+      if (result.company) {
+        document.getElementById('custCompany').value = result.company;
+        document.getElementById('custCompany').style.borderColor = 'var(--accent-wechat)';
+      }
+      if (result.note) {
+        document.getElementById('custNote').value = result.note;
+        document.getElementById('custNote').style.borderColor = 'var(--accent-wechat)';
+      }
+      if (result.fund) {
+        document.getElementById('custFund').value = result.fund;
+        document.getElementById('custFund').style.borderColor = 'var(--accent-wechat)';
+      }
+
+      // 构建成功消息
+      const fields = [];
+      if (result.name) fields.push('姓名: ' + result.name);
+      if (result.phone) fields.push('电话: ' + result.phone);
+      if (result.company) fields.push('单位: ' + result.company);
+      if (result.note) fields.push('备注: ' + result.note);
+      if (result.fund) fields.push('公积金: ' + result.fund);
+
+      statusEl.innerHTML = '✅ 识别与合并成功！' + (fields.length > 0 ? '<br>' + fields.join(' | ') : '');
+      statusEl.style.color = 'var(--accent-wechat)';
+
+      // 3秒后恢复边框颜色
+      setTimeout(() => {
+        ['custName','custPhone','custCompany','custNote','custFund'].forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.style.borderColor = '';
+        });
+      }, 3000);
+
+    } catch (e) {
+      statusEl.innerHTML = '❌ ' + e.message;
+      statusEl.style.color = '#e53935';
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  document.getElementById('addTodayTodoBtn').addEventListener('click',addTodayTodo);
+  document.getElementById('addTodoBtn').addEventListener('click',addTodo);
+  document.getElementById('todayTodoInput').addEventListener('keypress',e=>{if(e.key==='Enter')addTodayTodo();});
+  document.getElementById('todoInput').addEventListener('keypress',e=>{if(e.key==='Enter')addTodo();});
+  ['custName','custPhone','custCompany','custFund','custAge','custSocialSecurity','custAvgSalary','custTax2yr','custSalaryBank','custBankDebt','custCreditCardDebt','custQuery3m','custOnlineLoanCount'].forEach(id=>{const el=document.getElementById(id);if(el)el.addEventListener('keypress',e=>{if(e.key==='Enter')addClient();});});
+  document.getElementById('addTempCustBtn').addEventListener('click',addTempClient);
+  ['tempCustName','tempCustPhone'].forEach(id=>document.getElementById(id).addEventListener('keypress',e=>{if(e.key==='Enter')addTempClient();}));
+  document.getElementById('closeModalBtn').addEventListener('click',()=>document.getElementById('dateModal').classList.remove('active'));
+  document.getElementById('dateModal').addEventListener('click',e=>{if(e.target===document.getElementById('dateModal'))document.getElementById('dateModal').classList.remove('active');});
+
+  // 云端同步：自适应动态调度排空队列与数据拉取
+  function scheduleNextTick(){
+    if(syncTimer)clearTimeout(syncTimer);
+    syncTimer=setTimeout(async function(){
+      if(!document.hidden && navigator.onLine){
+        try{await drainQueue();await pullLatest();}catch(e){}
+      }
+      scheduleNextTick();
+    },PULL_INTERVAL);
+  }
+
+  window.triggerFastSync=function(){
+    if(syncTimer)clearTimeout(syncTimer);
+    drainQueue().then(function(){
+      pullLatest().catch(function(){});
+    }).finally(function(){
+      scheduleNextTick();
+    });
+  };
+
+  function startSyncTimer(){
+    scheduleNextTick();
+    // 切回标签时立即触发极速同步并刷新历史日历
+    document.addEventListener('visibilitychange',function(){
+      if(!document.hidden){
+        window.triggerFastSync();
+        syncCalendarFromCloud().then(function(){refreshAll();}).catch(function(){});
+      }
+    });
+    // 监听网络连接状态事件，提供即时状态感知和自动重试
+    window.addEventListener('online',function(){
+      addSyncLog('🌐 网络已恢复，正在重试同步...');
+      _syncStatus='syncing';
+      updateSyncIndicator();
+      window.triggerFastSync();
+    });
+    window.addEventListener('offline',function(){
+      addSyncLog('📡 网络已断开，切换到本地离线模式');
+      _syncStatus='offline';
+      updateSyncIndicator();
+    });
+  }
+
+  // 提醒检查
+  let lastNotified={};
+  setInterval(()=>{
+    const now=new Date();
+    const hm=String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
+    const today=getTodayStr();
+    const all=[...loadTodos(TODAY_TODO_K).map(t=>({...t,list:'today',targetDate:t.date||today})),...loadTodos(TOMORROW_TODO_K).map(t=>{
+      const cd=t.date||today;const d=new Date(cd);d.setDate(d.getDate()+1);
+      const td=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+      return {...t,list:'tomorrow',targetDate:td};
+    })];
+    for(const t of all){
+      if(!t.remind||t.remind!==hm)continue;
+      if(t.targetDate!==today)continue;
+      const key=t.list+'_'+t.text+'_'+t.remind+'_'+today;
+      if(lastNotified[key])continue;
+      lastNotified[key]=true;
+      document.getElementById('notifyText').innerText='🔔 '+esc(t.text)+' ('+esc(t.remind)+')';
+      document.getElementById('notifyBar').classList.add('show');
+      setTimeout(()=>document.getElementById('notifyBar').classList.remove('show'),8000);
+    }
+  },30000);
+
+  // ==================== 意向客户全量表（卡片模式） ====================
+  async function loadAllClients() {
+    try {
+      const r = await fetch('/api/all-clients');
+      if (r.ok) {
+        const data = await r.json();
+        renderAllClientsCards(data);
+      }
+    } catch(e) {
+      const local = JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
+      local.sort((a,b) => (b.date||'').localeCompare(a.date||''));
+      renderAllClientsCards(local);
+    }
+  }
+
+  function renderAllClientsCards(clients) {
+    const container = document.getElementById('allClientsCardList');
+    if (!container) return;
+    if (clients.length === 0) {
+      container.innerHTML = '<div style="text-align:center;color:var(--text-light);padding:40px;font-size:0.9rem;">暂无数据</div>';
+      return;
+    }
+
+    // Sort by date descending
+    clients.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+
+    let html = '';
+    clients.forEach((c, idx) => {
+      html += '<div class="client-card-item all-client-card' + (c.status ? ' ' + STATUS_CLASSES[c.status] : '') + '" data-date="' + esc(c.date) + '" data-name="' + esc(c.name) + '" data-phone="' + esc(c.phone) + '" data-time="' + esc(c.time || '') + '">' +
+        '<div class="client-card-top">' +
+          '<div class="client-card-primary">' +
+            '<span class="client-card-name">' + esc(c.name) + '</span>' +
+            '<span class="client-card-phone-wrap">' +
+              '<a class="client-card-phone all-phone-link" href="tel:' + esc(c.phone) + '" data-full="' + esc(c.phone) + '">' + esc(maskPhone(c.phone)) + '</a>' +
+              '<button class="phone-toggle all-phone-toggle" title="显示号码">看</button>' +
+            '</span>' +
+          '</div>' +
+        '</div>' +
+        getStatusBadgeHtml(c) +
+        '<div class="client-card-tags">' +
+          (c.company ? getWhitelistTagHtml(c.company, false) : '') +
+          (c.fund ? '<span class="client-card-tag client-card-tag-fund">公积金: ' + esc(c.fund) + '</span>' : '') +
+          getClientDetailTags(c) +
+          (c.visitTime ? '<span class="client-card-tag client-card-tag-detail">上门:' + esc(c.visitTime) + '</span>' : '') +
+        '</div>' +
+        '<div class="client-card-body">' +
+          '<div class="client-card-content-block">' +
+            '<span class="client-card-label">沟通记录 <span class="client-card-time-inline">' + esc(c.date) + ' ' + esc(c.time || '') + '</span></span>' +
+            '<span class="client-card-text">' + esc(c.note || '') + '</span>' +
+          '</div>' +
+          (c.followUp ?
+            '<div class="client-card-content-block follow-up">' +
+              '<span class="client-card-label">跟进情况 <span class="client-card-time-inline">' + esc(c.followUpDate || c.date) + ' ' + esc(c.followUpTime || getCurrentTime()) + '</span></span>' +
+              '<span class="client-card-text">' + esc(c.followUp) + '</span>' +
+            '</div>' : '') +
+          (c.demand ?
+            '<div class="client-card-content-block">' +
+              '<span class="client-card-label">客户需求</span>' +
+              '<span class="client-card-text">' + esc(c.demand) + '</span>' +
+            '</div>' : '') +
+          (c.fundUsage ?
+            '<div class="client-card-content-block">' +
+              '<span class="client-card-label">资金用途</span>' +
+              '<span class="client-card-text">' + esc(c.fundUsage) + '</span>' +
+            '</div>' : '') +
+          (c.status === 'success' ?
+            '<div class="client-card-content-block" style="border-left-color:#27ae60;">' +
+              '<span class="client-card-label">办理成功</span>' +
+              '<span class="client-card-text">批款银行: ' + esc(c.approvedBank||'') + ' | 金额: ' + esc(c.approvedAmount||'') + ' | 利率年限: ' + esc(c.rateTerm||'') + '</span>' +
+            '</div>' : '') +
+          (c.status === 'failed' ?
+            '<div class="client-card-content-block" style="border-left-color:#e67e22;">' +
+              '<span class="client-card-label">办理未成功</span>' +
+              '<span class="client-card-text">拒绝银行: ' + esc(c.rejectedBank||'') + ' | 原因: ' + esc(c.rejectReason||'') + '</span>' +
+            '</div>' : '') +
+        '</div>' +
+        '<div class="client-card-actions-top">' +
+          getStatusToggleHtml(c) +
+          '<button class="all-edit-btn card-action-btn" data-date="' + esc(c.date) + '" data-name="' + esc(c.name) + '" data-phone="' + esc(c.phone) + '" data-time="' + esc(c.time || '') + '" title="编辑">编辑</button>' +
+          '<button class="all-export-btn card-action-btn" data-date="' + esc(c.date) + '" data-name="' + esc(c.name) + '" data-phone="' + esc(c.phone) + '" data-time="' + esc(c.time || '') + '" title="导出">导出</button>' +
+        '</div>' +
+      '</div>';
+    });
+
+    container.innerHTML = html;
+
+    // --- Status toggle for all-clients cards ---
+    container.querySelectorAll('.status-toggle-btn').forEach(b => b.addEventListener('click', async e => {
+      e.stopPropagation();
+      var current = b.dataset.status;
+      var next = cycleStatus(current);
+      var card = b.closest('.all-client-card');
+      var date = card.dataset.date;
+      var cName = card.dataset.name;
+      var cPhone = card.dataset.phone;
+      var cTime = card.dataset.time;
+      var a = JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
+      var idx = a.findIndex(c=>c.date===date&&c.name===cName&&c.phone===cPhone&&(cTime?c.time===cTime:true));
+      if (idx < 0) return;
+      a[idx].status = next;
+      localStorage.setItem(CLIENTS_K, JSON.stringify(a));
+      await syncOp('updateClient', { matchName: cName, matchPhone: cPhone, matchTime: cTime, client: a[idx] }, date);
+      loadAllClients();
+    }));
+
+    // --- Phone toggle ---
+    container.querySelectorAll('.all-phone-toggle').forEach(b => b.addEventListener('click', e => {
+      e.stopPropagation();
+      const phoneLink = b.previousElementSibling;
+      const full = phoneLink.dataset.full;
+      if (phoneLink.textContent === full) {
+        phoneLink.textContent = maskPhone(full);
+        b.title = '显示号码';
+        b.textContent = '看';
+      } else {
+        phoneLink.textContent = full;
+        b.title = '隐藏号码';
+        b.textContent = '隐';
+      }
+    }));
+
+    // --- Export single client ---
+    container.querySelectorAll('.all-export-btn').forEach(b => b.addEventListener('click', async e => {
+      e.stopPropagation();
+      const date = b.dataset.date, name = b.dataset.name, phone = b.dataset.phone, time = b.dataset.time;
+      const c = clients.find(item => item.date === date && item.name === name && item.phone === phone &&
+        (time ? item.time === time : true));
+      if (!c) return;
+      const savedUrl = (localStorage.getItem('webhook_url') || '').trim();
+      if (!savedUrl) {
+        alert('请先在主菜单 → 导出数据 中配置企业微信 Webhook URL');
+        return;
+      }
+      b.textContent = '发送中...'; b.disabled = true;
+      try {
+        const r = await fetch('/api/export', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: 'single_client', webhookUrl: savedUrl, client: c })
+        });
+        if (r.ok) { alert('客户已成功导出到企业微信！'); }
+        else { const err = await r.json(); alert('导出失败: ' + (err.error || r.statusText)); }
+      } catch (errVal) { alert('网络错误: ' + errVal.message); }
+      b.textContent = '导出'; b.disabled = false;
+    }));
+
+    // --- Edit client (inline card edit) ---
+    container.querySelectorAll('.all-edit-btn').forEach(b => b.addEventListener('click', e => {
+      e.stopPropagation();
+      const date = b.dataset.date, name = b.dataset.name, phone = b.dataset.phone, time = b.dataset.time;
+      const card = b.closest('.all-client-card');
+      const c = clients.find(item => item.date === date && item.name === name && item.phone === phone &&
+        (time ? item.time === time : true));
+      if (!c || !card) return;
+
+      // Replace card content with edit form
+      card.classList.add('all-client-card-editing');
+      card.innerHTML =
+        '<div class="client-card-top">' +
+          '<span style="font-size:0.75rem;font-weight:700;color:var(--accent-wechat);">' + esc(date) + ' · 编辑中</span>' +
+        '</div>' +
+        '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+          '<input type="text" class="input-simple edit-name-input" placeholder="姓名" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.8rem;font-weight:700;" value="' + esc(c.name) + '">' +
+          '<input type="text" class="input-simple edit-phone-input" placeholder="电话" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.8rem;" value="' + esc(c.phone) + '">' +
+        '</div>' +
+        '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+          '<input type="text" class="input-simple edit-company-input" placeholder="单位" style="flex:2;min-width:120px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.company || '') + '">' +
+          '<input type="text" class="input-simple edit-fund-input" placeholder="公积金基数" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.fund || '') + '">' +
+        '</div>' +
+        '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+          '<input type="text" class="input-simple edit-age-input" placeholder="年龄" style="flex:1;min-width:60px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.age||'') + '">' +
+          '<select class="input-simple input-select edit-marital-input" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;height:auto;"><option value="">婚姻状况</option><option value="未婚"' + (c.maritalStatus==='未婚'?' selected':'') + '>未婚</option><option value="已婚"' + (c.maritalStatus==='已婚'?' selected':'') + '>已婚</option><option value="离异"' + (c.maritalStatus==='离异'?' selected':'') + '>离异</option><option value="丧偶"' + (c.maritalStatus==='丧偶'?' selected':'') + '>丧偶</option></select>' +
+          '<select class="input-simple input-select edit-hukou-input" style="flex:1;min-width:70px;padding:6px 8px;font-size:0.78rem;height:auto;"><option value="">是否深户</option><option value="是"' + (c.isShenzhenHukou==='是'?' selected':'') + '>是</option><option value="否"' + (c.isShenzhenHukou==='否'?' selected':'') + '>否</option></select>' +
+        '</div>' +
+        '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+          '<input type="text" class="input-simple edit-ss-input" placeholder="社保养老基数" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.socialSecurity||'') + '">' +
+          '<input type="text" class="input-simple edit-salary-input" placeholder="月均工资" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.avgSalary||'') + '">' +
+        '</div>' +
+        '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+          '<input type="text" class="input-simple edit-tax-input" placeholder="近2年个税" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.tax2yr||'') + '">' +
+          '<input type="text" class="input-simple edit-sbank-input" placeholder="代发工资银行" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.salaryBank||'') + '">' +
+        '</div>' +
+        '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+          '<select class="input-simple input-select edit-edu-input" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;height:auto;"><option value="">学历</option><option value="初中及以下"' + (c.education==='初中及以下'?' selected':'') + '>初中及以下</option><option value="高中"' + (c.education==='高中'?' selected':'') + '>高中</option><option value="大专"' + (c.education==='大专'?' selected':'') + '>大专</option><option value="本科"' + (c.education==='本科'?' selected':'') + '>本科</option><option value="硕士"' + (c.education==='硕士'?' selected':'') + '>硕士</option><option value="博士"' + (c.education==='博士'?' selected':'') + '>博士</option></select>' +
+          '<select class="input-simple input-select edit-prop-input" style="flex:1;min-width:70px;padding:6px 8px;font-size:0.78rem;height:auto;"><option value="">房产</option><option value="无房"' + (c.property==='无房'?' selected':'') + '>无房</option><option value="有一套"' + (c.property==='有一套'?' selected':'') + '>有一套</option><option value="有多套"' + (c.property==='有多套'?' selected':'') + '>有多套</option></select>' +
+        '</div>' +
+        '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+          '<input type="text" class="input-simple edit-bankdebt-input" placeholder="银行信贷负债" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.bankDebt||'') + '">' +
+          '<input type="text" class="input-simple edit-ccdebt-input" placeholder="信用卡负债" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.creditCardDebt||'') + '">' +
+        '</div>' +
+        '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+          '<input type="text" class="input-simple edit-query-input" placeholder="近3个月查询次数" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.query3m||'') + '">' +
+          '<input type="text" class="input-simple edit-onlineloan-input" placeholder="小额网贷笔数" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.onlineLoanCount||'') + '">' +
+        '</div>' +
+        '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+          '<input type="text" class="input-simple edit-visittime-input" placeholder="上门办理时间" style="flex:1;min-width:120px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.visitTime||'') + '">' +
+          '<select class="input-simple input-select edit-status-input" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;height:auto;"><option value="">状态</option><option value="success"' + (c.status==='success'?' selected':'') + '>已办理成功</option><option value="failed"' + (c.status==='failed'?' selected':'') + '>未办理成功</option></select>' +
+        '</div>' +
+        '<div class="edit-success-fields" style="display:' + (c.status==='success'?'flex':'none') + ';flex-direction:column;gap:8px;">' +
+          '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+            '<input type="text" class="input-simple edit-approvedbank-input" placeholder="批款银行" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.approvedBank||'') + '">' +
+            '<input type="text" class="input-simple edit-approvedamount-input" placeholder="批款金额" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.approvedAmount||'') + '">' +
+          '</div>' +
+          '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+            '<input type="text" class="input-simple edit-rateterm-input" placeholder="利率年限" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.rateTerm||'') + '">' +
+            '<span style="flex:1;"></span>' +
+          '</div>' +
+        '</div>' +
+        '<div class="edit-failed-fields" style="display:' + (c.status==='failed'?'flex':'none') + ';flex-direction:column;gap:8px;">' +
+          '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+            '<input type="text" class="input-simple edit-rejectedbank-input" placeholder="拒绝银行" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.rejectedBank||'') + '">' +
+            '<input type="text" class="input-simple edit-rejectreason-input" placeholder="拒绝原因" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.rejectReason||'') + '">' +
+          '</div>' +
+        '</div>' +
+        '<textarea class="input-simple edit-demand-input" placeholder="客户大致需求" style="width:100%;min-height:50px;padding:8px;font-size:0.78rem;resize:vertical;box-sizing:border-box;">' + esc(c.demand||'') + '</textarea>' +
+        '<textarea class="input-simple edit-fusage-input" placeholder="资金用途和时间" style="width:100%;min-height:50px;padding:8px;font-size:0.78rem;resize:vertical;box-sizing:border-box;">' + esc(c.fundUsage||'') + '</textarea>' +
+        '<textarea class="input-simple edit-note-input" placeholder="沟通记录" style="width:100%;min-height:70px;padding:8px;font-size:0.78rem;resize:vertical;box-sizing:border-box;">' + esc(c.note || '') + '</textarea>' +
+        '<textarea class="input-simple edit-follow-input" placeholder="跟进情况" style="width:100%;min-height:60px;padding:8px;font-size:0.78rem;resize:vertical;box-sizing:border-box;">' + esc(c.followUp || '') + '</textarea>' +
+        '<div style="display:flex;justify-content:flex-end;gap:8px;border-top:1px dashed var(--card-border);padding-top:8px;">' +
+          '<button class="save-all-client-btn btn-add" style="font-size:0.75rem;padding:6px 16px;background:var(--accent-wechat);color:white;border:none;border-radius:6px;font-weight:700;">保存</button>' +
+          '<button class="cancel-all-client-btn btn-add" style="font-size:0.75rem;padding:6px 16px;background:var(--btn-bg);color:var(--text-soft);border:1px solid var(--card-border);border-radius:6px;font-weight:700;">取消</button>' +
+        '</div>';
+
+      // Bind status change for conditional fields
+      card.querySelector('.edit-status-input').addEventListener('change', function() {
+        var sf = card.querySelector('.edit-success-fields');
+        var ff = card.querySelector('.edit-failed-fields');
+        if (sf) sf.style.display = this.value === 'success' ? 'flex' : 'none';
+        if (ff) ff.style.display = this.value === 'failed' ? 'flex' : 'none';
+      });
+
+      // Bind Save
+      card.querySelector('.save-all-client-btn').onclick = async () => {
+        const n = card.querySelector('.edit-name-input').value.trim();
+        const p = card.querySelector('.edit-phone-input').value.trim();
+        const comp = card.querySelector('.edit-company-input').value.trim();
+        const fund = card.querySelector('.edit-fund-input').value.trim();
+        const nt = card.querySelector('.edit-note-input').value.trim();
+        const fu = card.querySelector('.edit-follow-input').value.trim();
+        // Read new detail fields
+        const age = (card.querySelector('.edit-age-input')||{}).value||''; const ageV = age.trim();
+        const ms = (card.querySelector('.edit-marital-input')||{}).value||'';
+        const sh = (card.querySelector('.edit-hukou-input')||{}).value||'';
+        const ss = (card.querySelector('.edit-ss-input')||{}).value||''; const ssV = ss.trim();
+        const as = (card.querySelector('.edit-salary-input')||{}).value||''; const asV = as.trim();
+        const tx = (card.querySelector('.edit-tax-input')||{}).value||''; const txV = tx.trim();
+        const sb = (card.querySelector('.edit-sbank-input')||{}).value||''; const sbV = sb.trim();
+        const ed = (card.querySelector('.edit-edu-input')||{}).value||'';
+        const pr = (card.querySelector('.edit-prop-input')||{}).value||'';
+        const bd = (card.querySelector('.edit-bankdebt-input')||{}).value||''; const bdV = bd.trim();
+        const cd = (card.querySelector('.edit-ccdebt-input')||{}).value||''; const cdV = cd.trim();
+        const q3 = (card.querySelector('.edit-query-input')||{}).value||''; const q3V = q3.trim();
+        const ol = (card.querySelector('.edit-onlineloan-input')||{}).value||''; const olV = ol.trim();
+        const dm = (card.querySelector('.edit-demand-input')||{}).value||''; const dmV = dm.trim();
+        const fg = (card.querySelector('.edit-fusage-input')||{}).value||''; const fgV = fg.trim();
+        const vt = (card.querySelector('.edit-visittime-input')||{}).value||''; const vtV = vt.trim();
+        const stV = (card.querySelector('.edit-status-input')||{}).value||'';
+        const ab = (card.querySelector('.edit-approvedbank-input')||{}).value||''; const abV = ab.trim();
+        const aa = (card.querySelector('.edit-approvedamount-input')||{}).value||''; const aaV = aa.trim();
+        const rt = (card.querySelector('.edit-rateterm-input')||{}).value||''; const rtV = rt.trim();
+        const rb = (card.querySelector('.edit-rejectedbank-input')||{}).value||''; const rbV = rb.trim();
+        const rr = (card.querySelector('.edit-rejectreason-input')||{}).value||''; const rrV = rr.trim();
+
+        if (!n) { alert('姓名不能为空，请填写完整！'); return; }
+        if (!p) { alert('电话号码不能为空，请填写完整！'); return; }
+        if (!nt) { alert('沟通记录为必填项，请填写完整！'); return; }
+
+        const allList = JSON.parse(localStorage.getItem(CLIENTS_K) || '[]');
+        const idx = allList.findIndex(item => item.date === date && item.name === name && item.phone === phone &&
+          (time ? item.time === time : true));
+        const updatedClient = {
+          date: date, time: c.time || getCurrentTime(),
+          name: n, phone: p, company: comp, fund: fund, note: nt, followUp: fu,
+          followUpTime: fu !== (c.followUp || '') ? getCurrentTime() : (c.followUpTime || ''),
+          followUpDate: fu !== (c.followUp || '') ? getTodayStr() : (c.followUpDate || c.date),
+          age: ageV, maritalStatus: ms, isShenzhenHukou: sh, socialSecurity: ssV,
+          avgSalary: asV, tax2yr: txV, salaryBank: sbV, education: ed, property: pr,
+          bankDebt: bdV, creditCardDebt: cdV, query3m: q3V, onlineLoanCount: olV,
+          demand: dmV, fundUsage: fgV,
+          visitTime: vtV, status: stV, approvedBank: abV, approvedAmount: aaV,
+          rateTerm: rtV, rejectedBank: rbV, rejectReason: rrV
+        };
+        if (idx !== -1) { allList[idx] = updatedClient; }
+        else { allList.push(updatedClient); }
+        localStorage.setItem(CLIENTS_K, JSON.stringify(allList));
+
+        await syncOp('updateClient', { matchName: name, matchPhone: phone, matchTime: c.time || '', client: updatedClient }, date);
+
+        loadAllClients();
+        renderClientList();
+        refreshAll();
+      };
+
+      // Bind Cancel
+      card.querySelector('.cancel-all-client-btn').onclick = () => { loadAllClients(); };
+    }));
+  }
+
+  function initAllClientsBtn() {
+    const allClientsBtn = document.getElementById('allClientsBtn');
+    if (allClientsBtn) {
+      allClientsBtn.addEventListener('click', () => {
+        loadAllClients();
+        const modal = document.getElementById('allClientsModal');
+        if (modal) modal.classList.add('active');
+      });
+    }
+    const closeBtn = document.getElementById('closeAllClientsModalBtn');
+    if (closeBtn) {
+      closeBtn.addEventListener('click', () => {
+        const modal = document.getElementById('allClientsModal');
+        if (modal) modal.classList.remove('active');
+      });
+    }
+    const modal = document.getElementById('allClientsModal');
+    if (modal) {
+      modal.addEventListener('click', e => {
+        if (e.target === modal) {
+          modal.classList.remove('active');
+          return;
+        }
+        const card = document.querySelector('#allClientsModal .modal-card');
+        if (card && card.contains(e.target) && !e.target.closest('button, input, textarea, a, select, label')) {
+          modal.classList.remove('active');
+        }
+      });
+    }
+
+    const addBtn = document.getElementById('allClientsAddBtn');
+    if (addBtn) {
+      addBtn.addEventListener('click', () => {
+        if (document.getElementById('newClientCard')) return;
+        const container = document.getElementById('allClientsCardList');
+        if (!container) return;
+
+        const card = document.createElement('div');
+        card.id = 'newClientCard';
+        card.className = 'client-card-item all-client-card';
+        card.style.border = '2px dashed var(--accent-wechat)';
+        card.innerHTML =
+          '<div class="client-card-top">' +
+            '<span style="font-size:0.8rem;font-weight:800;color:var(--accent-wechat);">新增意向客户</span>' +
+          '</div>' +
+          '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+            '<input type="date" class="input-simple new-date-input" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + getTodayStr() + '">' +
+            '<input type="text" class="input-simple new-name-input" placeholder="姓名" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.8rem;font-weight:700;">' +
+            '<input type="text" class="input-simple new-phone-input" placeholder="电话" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.8rem;">' +
+          '</div>' +
+          '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+            '<input type="text" class="input-simple new-company-input" placeholder="单位" style="flex:2;min-width:120px;padding:6px 8px;font-size:0.78rem;">' +
+            '<input type="text" class="input-simple new-fund-input" placeholder="公积金基数" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;">' +
+          '</div>' +
+          '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+            '<input type="text" class="input-simple new-age-input" placeholder="年龄" style="flex:1;min-width:60px;padding:6px 8px;font-size:0.78rem;">' +
+            '<select class="input-simple input-select new-marital-input" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;height:auto;"><option value="">婚姻状况</option><option value="未婚">未婚</option><option value="已婚">已婚</option><option value="离异">离异</option><option value="丧偶">丧偶</option></select>' +
+            '<select class="input-simple input-select new-hukou-input" style="flex:1;min-width:70px;padding:6px 8px;font-size:0.78rem;height:auto;"><option value="">是否深户</option><option value="是">是</option><option value="否">否</option></select>' +
+          '</div>' +
+          '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+            '<input type="text" class="input-simple new-ss-input" placeholder="社保养老基数" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;">' +
+            '<input type="text" class="input-simple new-salary-input" placeholder="月均工资" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;">' +
+          '</div>' +
+          '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+            '<input type="text" class="input-simple new-tax-input" placeholder="近2年个税" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;">' +
+            '<input type="text" class="input-simple new-sbank-input" placeholder="代发工资银行" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;">' +
+          '</div>' +
+          '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+            '<select class="input-simple input-select new-edu-input" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;height:auto;"><option value="">学历</option><option value="初中及以下">初中及以下</option><option value="高中">高中</option><option value="大专">大专</option><option value="本科">本科</option><option value="硕士">硕士</option><option value="博士">博士</option></select>' +
+            '<select class="input-simple input-select new-prop-input" style="flex:1;min-width:70px;padding:6px 8px;font-size:0.78rem;height:auto;"><option value="">房产</option><option value="无房">无房</option><option value="有一套">有一套</option><option value="有多套">有多套</option></select>' +
+          '</div>' +
+          '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+            '<input type="text" class="input-simple new-bankdebt-input" placeholder="银行信贷负债" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;">' +
+            '<input type="text" class="input-simple new-ccdebt-input" placeholder="信用卡负债" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;">' +
+          '</div>' +
+          '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+            '<input type="text" class="input-simple new-query-input" placeholder="近3个月查询次数" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;">' +
+            '<input type="text" class="input-simple new-onlineloan-input" placeholder="小额网贷笔数" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;">' +
+          '</div>' +
+          '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+            '<input type="text" class="input-simple new-visittime-input" placeholder="上门办理时间" style="flex:1;min-width:120px;padding:6px 8px;font-size:0.78rem;">' +
+            '<select class="input-simple input-select new-status-input" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;height:auto;"><option value="">状态</option><option value="success">已办理成功</option><option value="failed">未办理成功</option></select>' +
+          '</div>' +
+          '<div class="new-success-fields" style="display:none;flex-direction:column;gap:8px;">' +
+            '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+              '<input type="text" class="input-simple new-approvedbank-input" placeholder="批款银行" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;">' +
+              '<input type="text" class="input-simple new-approvedamount-input" placeholder="批款金额" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;">' +
+            '</div>' +
+            '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+              '<input type="text" class="input-simple new-rateterm-input" placeholder="利率年限" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;">' +
+              '<span style="flex:1;"></span>' +
+            '</div>' +
+          '</div>' +
+          '<div class="new-failed-fields" style="display:none;flex-direction:column;gap:8px;">' +
+            '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+              '<input type="text" class="input-simple new-rejectedbank-input" placeholder="拒绝银行" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;">' +
+              '<input type="text" class="input-simple new-rejectreason-input" placeholder="拒绝原因" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;">' +
+            '</div>' +
+          '</div>' +
+          '<textarea class="input-simple new-demand-input" placeholder="客户大致需求" style="width:100%;min-height:50px;padding:8px;font-size:0.78rem;resize:vertical;box-sizing:border-box;"></textarea>' +
+          '<textarea class="input-simple new-fusage-input" placeholder="资金用途和时间" style="width:100%;min-height:50px;padding:8px;font-size:0.78rem;resize:vertical;box-sizing:border-box;"></textarea>' +
+          '<textarea class="input-simple new-note-input" placeholder="沟通记录（必填）" style="width:100%;min-height:70px;padding:8px;font-size:0.78rem;resize:vertical;box-sizing:border-box;"></textarea>' +
+          '<textarea class="input-simple new-follow-input" placeholder="跟进情况" style="width:100%;min-height:60px;padding:8px;font-size:0.78rem;resize:vertical;box-sizing:border-box;"></textarea>' +
+          '<div style="display:flex;justify-content:flex-end;gap:8px;border-top:1px dashed var(--card-border);padding-top:8px;">' +
+            '<button class="save-new-client-btn btn-add" style="font-size:0.75rem;padding:6px 16px;background:var(--accent-wechat);color:white;border:none;border-radius:6px;font-weight:700;">保存</button>' +
+            '<button class="cancel-new-client-btn btn-add" style="font-size:0.75rem;padding:6px 16px;background:var(--btn-bg);color:var(--text-soft);border:1px solid var(--card-border);border-radius:6px;font-weight:700;">取消</button>' +
+          '</div>';
+
+        container.insertBefore(card, container.firstChild);
+        card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+        card.querySelector('.new-status-input').addEventListener('change', function() {
+          var sf = card.querySelector('.new-success-fields');
+          var ff = card.querySelector('.new-failed-fields');
+          if (sf) sf.style.display = this.value === 'success' ? 'flex' : 'none';
+          if (ff) ff.style.display = this.value === 'failed' ? 'flex' : 'none';
+        });
+
+        card.querySelector('.save-new-client-btn').onclick = async () => {
+          const d = card.querySelector('.new-date-input').value.trim();
+          const n = card.querySelector('.new-name-input').value.trim();
+          const p = card.querySelector('.new-phone-input').value.trim();
+          const comp = card.querySelector('.new-company-input').value.trim();
+          const fund = card.querySelector('.new-fund-input').value.trim();
+          const nt = card.querySelector('.new-note-input').value.trim();
+          const fu = card.querySelector('.new-follow-input').value.trim();
+          // Read new detail fields
+          const age = (card.querySelector('.new-age-input')||{}).value||''; const ageV = age.trim();
+          const ms = (card.querySelector('.new-marital-input')||{}).value||'';
+          const sh = (card.querySelector('.new-hukou-input')||{}).value||'';
+          const ss = (card.querySelector('.new-ss-input')||{}).value||''; const ssV = ss.trim();
+          const as = (card.querySelector('.new-salary-input')||{}).value||''; const asV = as.trim();
+          const tx = (card.querySelector('.new-tax-input')||{}).value||''; const txV = tx.trim();
+          const sb = (card.querySelector('.new-sbank-input')||{}).value||''; const sbV = sb.trim();
+          const ed = (card.querySelector('.new-edu-input')||{}).value||'';
+          const pr = (card.querySelector('.new-prop-input')||{}).value||'';
+          const bd = (card.querySelector('.new-bankdebt-input')||{}).value||''; const bdV = bd.trim();
+          const cd = (card.querySelector('.new-ccdebt-input')||{}).value||''; const cdV = cd.trim();
+          const q3 = (card.querySelector('.new-query-input')||{}).value||''; const q3V = q3.trim();
+          const ol = (card.querySelector('.new-onlineloan-input')||{}).value||''; const olV = ol.trim();
+          const dm = (card.querySelector('.new-demand-input')||{}).value||''; const dmV = dm.trim();
+          const fg = (card.querySelector('.new-fusage-input')||{}).value||''; const fgV = fg.trim();
+          const vt = (card.querySelector('.new-visittime-input')||{}).value||''; const vtV = vt.trim();
+          const stV = (card.querySelector('.new-status-input')||{}).value||'';
+          const ab = (card.querySelector('.new-approvedbank-input')||{}).value||''; const abV = ab.trim();
+          const aa = (card.querySelector('.new-approvedamount-input')||{}).value||''; const aaV = aa.trim();
+          const rt = (card.querySelector('.new-rateterm-input')||{}).value||''; const rtV = rt.trim();
+          const rb = (card.querySelector('.new-rejectedbank-input')||{}).value||''; const rbV = rb.trim();
+          const rr = (card.querySelector('.new-rejectreason-input')||{}).value||''; const rrV = rr.trim();
+
+          if (!d) { alert('请选择日期！'); return; }
+          if (!n) { alert('姓名不能为空，请填写完整！'); return; }
+          if (!p) { alert('电话号码不能为空，请填写完整！'); return; }
+          if (!nt) { alert('沟通记录为必填项，请填写完整！'); return; }
+
+          const newClient = { name: n, phone: p, company: comp, fund: fund, note: nt, followUp: fu, date: d, time: getCurrentTime(), followUpTime: fu ? getCurrentTime() : '', followUpDate: fu ? getTodayStr() : '',
+            age: ageV, maritalStatus: ms, isShenzhenHukou: sh, socialSecurity: ssV,
+            avgSalary: asV, tax2yr: txV, salaryBank: sbV, education: ed, property: pr,
+            bankDebt: bdV, creditCardDebt: cdV, query3m: q3V, onlineLoanCount: olV,
+            demand: dmV, fundUsage: fgV,
+            visitTime: vtV, status: stV, approvedBank: abV, approvedAmount: aaV,
+            rateTerm: rtV, rejectedBank: rbV, rejectReason: rrV };
+
+          const allList = JSON.parse(localStorage.getItem(CLIENTS_K) || '[]');
+          allList.push(newClient);
+          localStorage.setItem(CLIENTS_K, JSON.stringify(allList));
+
+          const countForDate = allList.filter(c => c.date === d).length;
+          const im = loadMap(INTENT_K);
+          im[d] = countForDate;
+          saveMap(INTENT_K, im);
+
+          await syncOp('addClient', { client: newClient }, d);
+
+          loadAllClients();
+          renderClientList();
+          refreshAll();
+        };
+
+        card.querySelector('.cancel-new-client-btn').onclick = () => { loadAllClients(); };
+      });
+    }
+
+    // 一键导出全量意向
+    const exportBtn = document.getElementById('allClientsExportBtn');
+    if (exportBtn) {
+      exportBtn.addEventListener('click', async () => {
+        const webhookUrl = (localStorage.getItem('webhook_url') || '').trim();
+        if (!webhookUrl) { alert('请先在主菜单 → 导出数据 中配置企业微信 Webhook URL'); return; }
+        exportBtn.textContent = '发送中...';
+        exportBtn.disabled = true;
+        try {
+          const r = await fetch('/api/export', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'all_clients', webhookUrl }) });
+          if (r.ok) { alert('已发送到企业微信'); }
+          else {
+            try { const err = await r.json(); alert('发送失败: ' + (err.error || r.statusText)); }
+            catch(_) { alert('发送失败，请检查 Webhook URL'); }
+          }
+        } catch(e) { alert('网络错误: ' + e.message); }
+        exportBtn.textContent = '导出';
+        exportBtn.disabled = false;
+      });
+    }
+  }
+
+  function initLoanCalc() {
+    const LOAN_CALC_K = 'loan_calc_v1';
+    function loadState() {
+      try { return JSON.parse(localStorage.getItem(LOAN_CALC_K)) || {}; } catch(e) { return {}; }
+    }
+    function saveState(state) {
+      localStorage.setItem(LOAN_CALC_K, JSON.stringify(state));
+    }
+
+    // === Core Calculation Functions ===
+    function calcDEBX(P, rate, n, rateMode) {
+      var r = rateMode === 'annual' ? rate / 100 / 12 : rate / 100;
+      var mp, total, interest, schedule = [];
+      if (r === 0) {
+        mp = n > 0 ? P / n : P;
+        total = P;
+        interest = 0;
+        var rem = P;
+        for (var i = 0; i < n; i++) {
+          rem -= mp;
+          schedule.push({ period: i + 1, payment: mp, interest: 0, principal: mp, remaining: Math.max(0, rem) });
+        }
+      } else {
+        var pow = Math.pow(1 + r, n);
+        mp = P * r * pow / (pow - 1);
+        total = mp * n;
+        interest = total - P;
+        var remaining = P;
+        for (var j = 0; j < n; j++) {
+          var intPart = remaining * r;
+          var prinPart = mp - intPart;
+          remaining -= prinPart;
+          schedule.push({ period: j + 1, payment: mp, interest: intPart, principal: prinPart, remaining: Math.max(0, remaining) });
+        }
+      }
+      return { totalInterest: interest, totalRepayment: total, monthlyPayment: mp, interestRatio: total > 0 ? (interest / total) * 100 : 0, schedule: schedule };
+    }
+
+    function calcXXHB(P, rate, n, rateMode) {
+      var r = rateMode === 'annual' ? rate / 100 / 12 : rate / 100;
+      var monthlyInt = P * r;
+      var totalInterest = monthlyInt * n;
+      var totalRepayment = P + totalInterest;
+      var schedule = [];
+      for (var i = 0; i < n; i++) {
+        if (i < n - 1) {
+          schedule.push({ period: i + 1, payment: monthlyInt, interest: monthlyInt, principal: 0, remaining: P });
+        } else {
+          schedule.push({ period: i + 1, payment: monthlyInt + P, interest: monthlyInt, principal: P, remaining: 0 });
+        }
+      }
+      return { totalInterest: totalInterest, totalRepayment: totalRepayment, monthlyPayment: monthlyInt, interestRatio: totalRepayment > 0 ? (totalInterest / totalRepayment) * 100 : 0, schedule: schedule };
+    }
+
+    function calcSJJH(P, rate, termMonths, rateMode, days) {
+      var d = days || 30;
+      var monthlyRate = rateMode === 'annual' ? rate / 100 / 12 : rate / 100;
+      var dailyRate = monthlyRate / 30;
+      var totalInterest = P * dailyRate * d;
+      var totalRepayment = P + totalInterest;
+      var avgDaily = d > 0 ? totalInterest / d : 0;
+      return { totalInterest: totalInterest, totalRepayment: totalRepayment, monthlyPayment: avgDaily, interestRatio: totalRepayment > 0 ? (totalInterest / totalRepayment) * 100 : 0, schedule: [{ period: 1, payment: totalRepayment, interest: totalInterest, principal: P, remaining: 0 }] };
+    }
+
+    function fmt(v) {
+      return v.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+    function pct(v) {
+      return v.toFixed(2) + '%';
+    }
+
+    function getInputs() {
+      var principal = parseFloat(document.getElementById('loanPrincipal').value) || 0;
+      var monthlyRate = parseFloat(document.getElementById('loanMonthlyRate').value) || 0;
+      var term = parseInt(document.getElementById('loanTerm').value) || 1;
+      var days = parseInt(document.getElementById('loanDays').value) || 30;
+      var rateSpread = parseFloat(document.getElementById('loanRateSpread').value) || 0;
+      var financeCost = parseFloat(document.getElementById('loanFinanceCost').value) || 0;
+      var methodEl = document.querySelector('.loan-tab.active');
+      var method = methodEl ? methodEl.dataset.method : 'debx';
+      return { principal: principal, rate: monthlyRate, rateMode: 'monthly', term: term, days: days, method: method, rateSpread: rateSpread, financeCost: financeCost };
+    }
+
+    var methods = [
+      { id: 'debx', name: '等额本息', fn: calcDEBX },
+      { id: 'xxhb', name: '先息后本', fn: calcXXHB },
+      { id: 'sjjh', name: '随借随还', fn: calcSJJH }
+    ];
+
+    function updateResultCards(result, method) {
+      document.getElementById('loanTotalInterest').textContent = '￥' + fmt(result.totalInterest);
+      document.getElementById('loanTotalRepayment').textContent = '￥' + fmt(result.totalRepayment);
+      var payLabel = document.getElementById('loanMonthlyLabel');
+      var payVal = document.getElementById('loanMonthlyPayment');
+      if (method === 'sjjh') {
+        payLabel.textContent = '日均利息';
+        payVal.textContent = '￥' + fmt(result.monthlyPayment);
+      } else {
+        payLabel.textContent = '月供';
+        payVal.textContent = '￥' + fmt(result.monthlyPayment);
+      }
+      document.getElementById('loanInterestRatio').textContent = pct(result.interestRatio);
+    }
+
+    function updateSpreadCards(baseResult, spreadResult, method, principal) {
+      var spreadEl = document.getElementById('loanSpreadResults');
+      if (!spreadResult) {
+        if (spreadEl) spreadEl.style.display = 'none';
+        return;
+      }
+      if (spreadEl) spreadEl.style.display = '';
+      var diffTotal = spreadResult.totalRepayment - baseResult.totalRepayment;
+      document.getElementById('loanSpreadMonthly').textContent = '￥' + fmt(Math.max(0, spreadResult.monthlyPayment - baseResult.monthlyPayment));
+      document.getElementById('loanSpreadTotal').textContent = '￥' + fmt(Math.max(0, diffTotal));
+      var pctVal = principal > 0 ? (diffTotal / principal * 100) : 0;
+      document.getElementById('loanSpreadPct').textContent = pct(pctVal);
+    }
+
+    function buildComparisonTable(P, rate, term, rateMode, days) {
+      var activeMethodEl = document.querySelector('.loan-tab.active');
+      var activeMethod = activeMethodEl ? activeMethodEl.dataset.method : 'debx';
+      var html = '<table class="loan-compare-table"><thead><tr><th>还款方式</th><th>月供/日均</th><th>总利息</th><th>总还款</th><th>利息占比</th></tr></thead><tbody>';
+      methods.forEach(function(m) {
+        var r = m.fn(P, rate, term, rateMode, days);
+        var cls = m.id === activeMethod ? ' highlight' : '';
+        html += '<tr class="' + cls + '"><td>' + esc(m.name) + '</td><td>' + esc(fmt(r.monthlyPayment)) + '</td><td>' + esc(fmt(r.totalInterest)) + '</td><td>' + esc(fmt(r.totalRepayment)) + '</td><td>' + esc(pct(r.interestRatio)) + '</td></tr>';
+      });
+      html += '</tbody></table>';
+      return html;
+    }
+
+    function buildScheduleTable(schedule) {
+      if (!schedule || schedule.length === 0) return '<div style="text-align:center;color:var(--text-light);padding:20px;font-size:0.75rem;">输入参数后生成还款计划</div>';
+      var html = '<div class="loan-schedule-wrap"><table class="loan-schedule-table"><thead><tr><th>期次</th><th>还款金额</th><th>利息</th><th>本金</th><th>剩余本金</th></tr></thead><tbody>';
+      schedule.forEach(function(row) {
+        html += '<tr><td>' + row.period + '</td><td>' + esc(fmt(row.payment)) + '</td><td>' + esc(fmt(row.interest)) + '</td><td>' + esc(fmt(row.principal)) + '</td><td>' + esc(fmt(Math.max(0, row.remaining))) + '</td></tr>';
+      });
+      html += '</tbody></table></div>';
+      return html;
+    }
+
+    function renderLoanCalc() {
+      var inp = getInputs();
+      saveState(inp);
+      if (inp.principal <= 0 || inp.rate <= 0) {
+        document.getElementById('loanTotalInterest').textContent = '--';
+        document.getElementById('loanTotalRepayment').textContent = '--';
+        document.getElementById('loanMonthlyPayment').textContent = '--';
+        document.getElementById('loanInterestRatio').textContent = '--';
+        document.getElementById('loanSpreadResults').style.display = 'none';
+        document.getElementById('loanFinanceResults').style.display = 'none';
+        document.getElementById('loanComparisonContainer').innerHTML = '';
+        document.getElementById('loanScheduleContainer').innerHTML = '';
+        return;
+      }
+      var activeMethod = inp.method;
+      var activeFn = null;
+      methods.forEach(function(m) { if (m.id === activeMethod) activeFn = m.fn; });
+      if (activeFn) {
+        var result = activeFn(inp.principal, inp.rate, inp.term, inp.rateMode, inp.days);
+        updateResultCards(result, activeMethod);
+        document.getElementById('loanScheduleContainer').innerHTML = buildScheduleTable(result.schedule);
+
+        // 月息差计算
+        if (inp.rateSpread > 0) {
+          var higherRate = inp.rate + inp.rateSpread;
+          var spreadResult = activeFn(inp.principal, higherRate, inp.term, inp.rateMode, inp.days);
+          updateSpreadCards(result, spreadResult, activeMethod, inp.principal);
+        } else {
+          document.getElementById('loanSpreadResults').style.display = 'none';
+        }
+
+        // 融资成本计算
+        if (inp.financeCost > 0) {
+          var costAmount = inp.principal * inp.financeCost / 100;
+          var netReceived = inp.principal - costAmount;
+          document.getElementById('loanFinanceResults').style.display = '';
+          document.getElementById('loanFinanceAmount').textContent = '￥' + fmt(costAmount);
+          document.getElementById('loanNetReceived').textContent = '￥' + fmt(Math.max(0, netReceived));
+        } else {
+          document.getElementById('loanFinanceResults').style.display = 'none';
+        }
+      }
+      document.getElementById('loanComparisonContainer').innerHTML = buildComparisonTable(inp.principal, inp.rate, inp.term, inp.rateMode, inp.days);
+    }
+
+    // === Modal & Event Bindings ===
+    var modal = document.getElementById('loanModal');
+    var closeBtn = document.getElementById('closeLoanModalBtn');
+
+    function openLoanCalc() {
+      var state = loadState();
+      var principalEl = document.getElementById('loanPrincipal');
+      if (principalEl && state.principal) principalEl.value = state.principal;
+      var mRateEl = document.getElementById('loanMonthlyRate');
+      if (mRateEl && state.rate) mRateEl.value = state.rate;
+      // Auto-sync annual rate
+      var aRateEl = document.getElementById('loanAnnualRate');
+      if (aRateEl && state.rate) aRateEl.value = (state.rate * 12).toFixed(4);
+      var termEl = document.getElementById('loanTerm');
+      if (termEl && state.term) termEl.value = state.term;
+      var daysEl = document.getElementById('loanDays');
+      if (daysEl && state.days) daysEl.value = state.days;
+      var spreadEl = document.getElementById('loanRateSpread');
+      if (spreadEl && state.rateSpread) spreadEl.value = state.rateSpread;
+      var financeEl = document.getElementById('loanFinanceCost');
+      if (financeEl && state.financeCost) financeEl.value = state.financeCost;
+      if (state.method) {
+        document.querySelectorAll('.loan-tab').forEach(function(t) {
+          t.classList.toggle('active', t.dataset.method === state.method);
+        });
+        document.getElementById('loanDaysField').classList.toggle('visible', state.method === 'sjjh');
+      }
+      renderLoanCalc();
+      modal.classList.add('active');
+    }
+
+    // Open from menu
+    var menuBtn = document.getElementById('loanCalcBtn');
+    if (menuBtn) {
+      menuBtn.addEventListener('click', function() { openLoanCalc(); });
+    }
+
+    closeBtn.addEventListener('click', function() { modal.classList.remove('active'); });
+    modal.addEventListener('click', function(e) { if (e.target === modal) modal.classList.remove('active'); });
+
+    // Tab switching
+    document.querySelectorAll('.loan-tab').forEach(function(tab) {
+      tab.addEventListener('click', function() {
+        document.querySelectorAll('.loan-tab').forEach(function(t) { t.classList.remove('active'); });
+        tab.classList.add('active');
+        document.getElementById('loanDaysField').classList.toggle('visible', tab.dataset.method === 'sjjh');
+        renderLoanCalc();
+      });
+    });
+
+    // 月息 → 年化 自动同步 (×12)
+    var monthlyRateEl = document.getElementById('loanMonthlyRate');
+    var annualRateEl = document.getElementById('loanAnnualRate');
+    var syncing = false;
+    if (monthlyRateEl) {
+      monthlyRateEl.addEventListener('input', function() {
+        if (syncing) return;
+        syncing = true;
+        var monthlyVal = parseFloat(monthlyRateEl.value) || 0;
+        if (annualRateEl) annualRateEl.value = (monthlyVal * 12).toFixed(4);
+        syncing = false;
+        renderLoanCalc();
+      });
+    }
+    // 年化 → 月息 自动同步 (÷12)
+    if (annualRateEl) {
+      annualRateEl.addEventListener('input', function() {
+        if (syncing) return;
+        syncing = true;
+        var annualVal = parseFloat(annualRateEl.value) || 0;
+        if (monthlyRateEl) monthlyRateEl.value = (annualVal / 12).toFixed(4);
+        syncing = false;
+        renderLoanCalc();
+      });
+    }
+
+    // Auto-recalc on input change
+    ['loanPrincipal', 'loanMonthlyRate', 'loanAnnualRate', 'loanTerm', 'loanDays', 'loanRateSpread', 'loanFinanceCost'].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) el.addEventListener('input', renderLoanCalc);
+    });
+
+  }
+
+  function safeInit(name, fn) { try { fn(); } catch (e) { console.error('Init error: ' + name, e); } }
+  safeInit('initAndroid', initAndroid);
+  safeInit('initLogs', initLogs);
+  safeInit('initDark', initDark);
+  safeInit('initWp', initWp);
+  safeInit('initScriptFeature', initScriptFeature);
+  safeInit('initLearnFeature', initLearnFeature);
+  safeInit('initExport', initExport);
+  safeInit('initAllClientsBtn', initAllClientsBtn);
+  safeInit('initGoals', initGoals);
+  safeInit('initWhitelistFeature', initWhitelistFeature);
+  safeInit('initLoanCalc', initLoanCalc);
+  document.getElementById('goalEyeBtn').addEventListener('click',toggleGoalNumbers);
+  function calGo(delta){
+    const [y,m]=calendarMonth.split('-').map(Number);
+    const d=new Date(y,m-1+delta,1);
+    calendarMonth=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+    syncCalendarFromCloud().then(()=>refreshAll());
+  }
+  document.getElementById('calPrevBtn').addEventListener('click',()=>calGo(-1));
+  document.getElementById('calNextBtn').addEventListener('click',()=>calGo(1));
+  // 菜单下拉
+  (function(){
+    const toggle=document.getElementById('menuToggleBtn');
+    const dropdown=document.getElementById('menuDropdown');
+    toggle.addEventListener('click',e=>{e.stopPropagation();dropdown.classList.toggle('show');});
+    document.addEventListener('click',e=>{if(!dropdown.contains(e.target)&&e.target!==toggle)dropdown.classList.remove('show');});
+    dropdown.querySelectorAll('.menu-item').forEach(item=>item.addEventListener('click',()=>dropdown.classList.remove('show')));
+  })();
+  const UNLOCK_TS_K='unlock_ts';
+  if((Date.now()-parseInt(localStorage.getItem(UNLOCK_TS_K)||'0'))<3600000){setLocked(false);}else{setLocked(true);}  // 首次加载：先补发上次未完成的操作，再从云端拉取最新状态
+  (async()=>{
+    try {
+      // 1. 先补发上次关页前没有发成功的操作（Office 式离线队列）
+      await drainQueue();
+    } catch(e) { console.error('drainQueue error:', e); }
+
+    try {
+      // 2. 再拉取云端最新状态
+      await loadFromCloud(getTodayStr());
+    } catch(e) { console.error('loadFromCloud error:', e); }
+
+    try {
+      // 3. 拉取并同步全量云端客户数据
+      await syncAllClientsFromCloud();
+    } catch(e) { console.error('syncAllClients error:', e); }
+
+    // 跨天自动转移昨日「明日待办」到今日
+    const todayStr=getTodayStr();
+    const prevLastLoadDate=localStorage.getItem(LAST_LOAD_DATE_K);
+    if(prevLastLoadDate && prevLastLoadDate!==todayStr){
+      let transferred=false;
+      try{
+        // 优先从前一天云端记录拉取 tomorrowTodos
+        const yd=await cloudGet(prevLastLoadDate);
+        if(yd && yd.tomorrowTodos && yd.tomorrowTodos.length>0){
+          const cur=loadTodos(TODAY_TODO_K);
+          const transferred2=yd.tomorrowTodos.map(t=>({...(typeof t==='string'?{text:t}:t),date:todayStr}));
+          saveTodos(TODAY_TODO_K,[...transferred2,...cur]);
+          saveTodos(TOMORROW_TODO_K,[]);
+          transferred=true;
+          console.log('📅 已从云端转移昨日待办到今日');
+        }
+      }catch(e){}
+      if(!transferred){
+        try {
+          const tomorrow=loadTodos(TOMORROW_TODO_K);
+          if(tomorrow.length>0){
+            const cur=loadTodos(TODAY_TODO_K);
+            const transferred3=tomorrow.map(t=>({...(typeof t==='string'?{text:t}:t),date:todayStr}));
+            saveTodos(TODAY_TODO_K,[...transferred3,...cur]);
+            saveTodos(TOMORROW_TODO_K,[]);
+            console.log('📅 已转移本地昨日待办到今日');
+          }
+        } catch(e) {}
+      }
+    }
+    localStorage.setItem(LAST_LOAD_DATE_K,todayStr);
+    calendarMonth=getCurrentMonth();
+    
+    try {
+      await syncCalendarFromCloud();
+    } catch(e) { console.error('syncCalendar error:', e); }
+
+    try {
+      renderLockScripts();renderLockLearns();
+    } catch(e) { console.error('renderLock error:', e); }
+
+    refreshAll();
+    startSyncTimer();
+  })();
+
+  setInterval(()=>{if(!document.body.classList.contains('page-hidden')&&!document.hidden)refreshAll();},60000);
+
+  // 页面即将关闭时用 sendBeacon 兜底保存（keepalive 保证关闭后仍能发出）
+  // 注意：不在 visibilitychange 时调用 saveFullState，避免设备 B 切标签时
+  // 用陈旧的本地数据覆盖云端（设备 A 刚同步上去的数据）
+  window.addEventListener('beforeunload',()=>{
+    const today=getTodayStr();
+    const wm=loadMap(WECHAT_K);
+    const rm=loadMap(REVISIT_K);
+    const vm=loadMap(VISIT_K);
+    const pm=loadMap(PAYMENT_K);
+    const allClients=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
+    const todayClients=allClients.filter(c=>c.date===today);
+    const payload=JSON.stringify({
+      date:today,
+      wechatCount:wm[today]||0,
+      intentCount:todayClients.length,
+      revisitCount:rm[today]||0,
+      visitCount:vm[today]||0,
+      paymentCount:pm[today]||0,
+      clients:todayClients,
+      todayTodos:loadTodos(TODAY_TODO_K).filter(t=>(typeof t==='string'?today:(t.date||today))===today),
+      tomorrowTodos:loadTodos(TOMORROW_TODO_K).filter(t=>(typeof t==='string'?today:(t.date||today))===today),
+      tempClients:JSON.parse(localStorage.getItem(TEMP_CLIENTS_K)||'[]'),
+      scripts:loadScripts(),
+      learns:loadLearns(),
+      _ts:Date.now()
+    });
+    navigator.sendBeacon('/api/data',new Blob([payload],{type:'application/json'}));
+  });
+})();
+</script>
+<!-- 蜜罐陷阱 — 爬虫会跟随，正常用户不可见 -->
+<a href="/api/trap" style="display:none" aria-hidden="true" rel="nofollow"></a>
+</body>
+</html>`;
+
+    // ========== Bridge Config (KV持久化，云部署用) ==========
+
+    if (path === '/api/bridge/config' && request.method === 'GET') {
+      const raw = await env.DATA_KV.get('bridge:account');
+      const syncBuf = await env.DATA_KV.get('bridge:sync_buf');
+      return new Response(JSON.stringify({
+        account: raw ? JSON.parse(raw) : null,
+        syncBuf: syncBuf || ''
+      }), {
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+      });
+    }
+
+    if (path === '/api/bridge/config' && request.method === 'POST') {
+      const body = await request.json();
+      if (body.account) {
+        await env.DATA_KV.put('bridge:account', JSON.stringify(body.account));
+      }
+      if (body.syncBuf !== undefined) {
+        await env.DATA_KV.put('bridge:sync_buf', body.syncBuf);
+      }
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+      });
+    }
+
+    // ========== Bridge API (微信桥接 → Worker) ==========
+
+    if (path === '/api/bridge/chat' && request.method === 'POST') {
+      try {
+        const body = await request.json();
+        const { userId, message, history } = body;
+        if (!message) {
+          return new Response(JSON.stringify({ error: '缺少 message 参数' }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+
+        // Resolve API key from KV config
+        const apiKey = (await getKVCached(env, 'config:ai_api_key'))
+          || (await getKVCached(env, 'config:deepseek_api_key'))
+          || env.AI_API_KEY
+          || env.DEEPSEEK_API_KEY;
+
+        if (!apiKey) {
+          return new Response(JSON.stringify({ reply: '（未配置 AI API Key，请在 megz 导出设置中配置 DeepSeek 或 Gemini API Key）' }), {
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+
+        // Build messages array with system prompt
+        const messages = [{
+          role: 'system',
+          content:
+            '你是「每日工作」助手的微信机器人，通过微信为用户提供贷款销售相关的AI辅助。\n' +
+            '你的能力包括：回答贷款业务问题、查询客户信息、提炼学习知识、查询白名单企业、搜索话术库和知识库。\n' +
+            '你是专业的贷款销售助手，用中文回复。简洁直接，适合微信阅读。'
+        }];
+
+        // Include conversation history if provided
+        if (history && Array.isArray(history)) {
+          for (const h of history.slice(-20)) {
+            messages.push({ role: h.role, content: h.content });
+          }
+        }
+
+        // Add current message
+        messages.push({ role: 'user', content: message });
+
+        // Use tool-enabled chat for data-aware queries
+        const needsTools = /客户|白名单|企业|公司|查|搜索|知识|话术|学习|统计|数据/.test(message);
+        let reply;
+
+        if (needsTools) {
+          const supabase = createSupabaseClient(env);
+          const toolMessages = [{
+            role: 'system',
+            content:
+              '你是「每日工作」助手的微信机器人。\n' +
+              '可用工具：search_customers（查客户）、check_company_whitelist（查白名单）、' +
+              'search_knowledge_and_speech（查知识库/话术/贷款案例）、get_intent_clients（查今日工作数据）、' +
+              'add_learning_material（提炼学习材料）。\n' +
+              '用中文回复，简洁适合微信。'
+          }];
+          if (history && Array.isArray(history)) {
+            for (const h of history.slice(-20)) toolMessages.push({ role: h.role, content: h.content });
+          }
+          toolMessages.push({ role: 'user', content: message });
+
+          const aiResp = await callAIChatWithTools(env, toolMessages, 0.7, apiKey, supabase);
+          reply = aiResp?.choices?.[0]?.message?.content || '（AI 未返回有效回复）';
+        } else {
+          const aiResp = await callAIChat(env, messages, 0.7, apiKey);
+          reply = aiResp?.choices?.[0]?.message?.content || '（AI 未返回有效回复）';
+        }
+
+        return new Response(JSON.stringify({ reply }), {
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      } catch (err) {
+        console.error('Bridge chat error:', err.message);
+        return new Response(JSON.stringify({ error: err.message }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+    }
+
+    if (path === '/api/bridge/learning/save' && request.method === 'POST') {
+      try {
+        const body = await request.json();
+        const { conversationText, source_type } = body;
+        if (!conversationText) {
+          return new Response(JSON.stringify({ error: '缺少 conversationText 参数' }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+
+        const apiKey = (await getKVCached(env, 'config:ai_api_key'))
+          || (await getKVCached(env, 'config:deepseek_api_key'))
+          || env.AI_API_KEY
+          || env.DEEPSEEK_API_KEY;
+
+        if (!apiKey) {
+          const preview = conversationText.slice(0, 100).replace(/\n/g, ' ');
+          const mockResult = {
+            title: '微信对话提炼',
+            summary: preview.length > 50 ? preview.slice(0, 50) + '...' : preview,
+            content: '（模拟AI提炼）\n' + conversationText.slice(0, 500),
+            tags: ['微信', '学习', '对话提炼'],
+            source_type: source_type || '微信聊天',
+          };
+          return new Response(JSON.stringify({ success: true, data: mockResult, isMock: true }), {
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+
+        const messages = [
+          {
+            role: 'system',
+            content:
+              '你是一个智能贷款销售学习助手。根据用户提供的微信聊天记录，进行深度提炼。\n\n' +
+              '你必须只输出以下 JSON 格式（不要包裹 markdown 代码块）：\n' +
+              '{"title":"提炼的知识标题（15字以内）","summary":"一句话摘要（30字以内）","content":"提炼的核心话术/知识要点（150字以内）","tags":["标签1","标签2"]}'
+          },
+          { role: 'user', content: `来源类型：${source_type || '微信聊天'}\n\n内容：\n${conversationText}` }
+        ];
+
+        const aiResp = await callAIChat(env, messages, 0.3, apiKey);
+        let text = aiResp?.choices?.[0]?.message?.content || '';
+        text = text.trim();
+        if (text.startsWith('```')) {
+          text = text.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?```\s*$/, '');
+        }
+        const parsed = JSON.parse(text);
+
+        const result = {
+          title: parsed.title || '自主学习提炼',
+          summary: parsed.summary || '',
+          content: parsed.content || '',
+          tags: Array.isArray(parsed.tags) ? parsed.tags : ['学习'],
+          source_type: source_type || '微信聊天',
+        };
+
+        try {
+          const supabase = createSupabaseClient(env);
+          await supabase.saveKnowledge(result);
+        } catch (e) { /* non-critical */ }
+
+        return new Response(JSON.stringify({ success: true, data: result }), {
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      } catch (err) {
+        console.error('Bridge learning save error:', err.message);
+        return new Response(JSON.stringify({ error: err.message }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+    }
+
+    // ========== AI学习 API ==========
+
+    if (path === '/api/learning/save' && request.method === 'POST') {
+      try {
+        const body = await request.json();
+        const { source_type, content, apiKey } = body;
+        if (!source_type || !content) {
+          return new Response(JSON.stringify({ error: '缺少 source_type 或 content 参数' }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+
+        // Get key from body, or KV config, or env
+        let hasKey = apiKey || await env.DATA_KV.get('config:ai_api_key') || await env.DATA_KV.get('config:deepseek_api_key') || await env.DATA_KV.get('config:vision_api_key') || env.AI_API_KEY || env.DEEPSEEK_API_KEY;
+
+        if (!hasKey) {
+          const mockTitles = {
+            '微信聊天': '微信客情维护与意向跟进',
+            '电话录音': '电话触客异议处理技巧',
+            '客户案例': '建易贷成功批贷案例分析',
+            '企业资料': '企业准入白名单核心要点'
+          };
+          const mockTags = {
+            '微信聊天': ['微信话术', '客情跟进'],
+            '电话录音': ['电话开场', '异议处理'],
+            '客户案例': ['批贷案例', '建易贷'],
+            '企业资料': ['企业准入', '白名单']
+          };
+          const title = mockTitles[source_type] || '自主学习提炼';
+          const tags = mockTags[source_type] || ['学习', '业务知识'];
+          const summary = content.length > 30 ? content.slice(0, 27) + '...' : content;
+          
+          const mockResult = {
+            title: title,
+            summary: summary,
+            content: '（模拟AI提炼）\n' + content,
+            tags: tags,
+            source_type: source_type
+          };
+          
+          try {
+            await supabase.saveKnowledge(mockResult);
+          } catch(se) {
+            console.error('[supabase] saveKnowledge error:', se.message);
+          }
+
+          return new Response(JSON.stringify({ success: true, data: mockResult, isMock: true }), {
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+
+        const apiData = await callAIChat(env, [
+          {
+            role: 'system',
+            content: '你是一个智能贷款销售学习助手。根据用户提供的销售原始材料（微信聊天记录、电话录音文本、客户案例、或企业资料），进行深度提炼，总结出可以直接用于锁屏学习、话术背诵、业务记忆的核心知识。\n\n请必须只输出以下 JSON 格式的字符串（不要包裹 markdown 代码块，如 ```json，只需输出 JSON 本身）：\n{\n  "title": "提炼的知识标题 (15字以内)",\n  "summary": "一句话摘要 (30字以内)",\n  "content": "提炼的核心话术/知识要点 (150字以内)",\n  "tags": ["标签1", "标签2"]\n}'
+          },
+          {
+            role: 'user',
+            content: `来源类型: ${source_type}\n\n内容:\n${content}`
+          }
+        ], 0.3, apiKey);
+
+        let aiContent = apiData.choices[0].message.content.trim();
+        
+        if (aiContent.startsWith('```')) {
+          aiContent = aiContent.replace(/^```json\s*/i, '').replace(/```$/, '').trim();
+        }
+
+        const parsedResult = JSON.parse(aiContent);
+        parsedResult.source_type = source_type;
+
+        try {
+          await supabase.saveKnowledge(parsedResult);
+        } catch(se) {
+          console.error('[supabase] saveKnowledge error:', se.message);
+        }
+
+        return new Response(JSON.stringify({ success: true, data: parsedResult }), {
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ error: e.message }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+    }
+
+    // ========== 企业微信应用机器人回调 API ==========
+
+    // 调试日志接口：返回最新接收到的企业微信请求日志
+    if (path === '/api/wecom/log' && request.method === 'GET') {
+      const logVal = await env.DATA_KV.get('config:wecom_callback_log');
+      return new Response(logVal || JSON.stringify({ message: 'No callback request received yet.' }), {
+        headers: {
+          'Content-Type': 'application/json; charset=UTF-8',
+          'Access-Control-Allow-Origin': '*'
+        }
+      });
+    }
+
+    // 调试接口：检查 WeCom 配置是否已存入 KV
+    if (path === '/api/wecom/debug' && request.method === 'GET') {
+      const corpId = await env.DATA_KV.get('config:wecom_corp_id');
+      const token = await env.DATA_KV.get('config:wecom_token');
+      const aesKey = await env.DATA_KV.get('config:wecom_aes_key');
+      const agentId = await env.DATA_KV.get('config:wecom_agent_id');
+      const secret = await env.DATA_KV.get('config:wecom_secret');
+      const touser = await env.DATA_KV.get('config:wecom_touser');
+      const envCorpId = env.WECOM_CORP_ID;
+      const envToken = env.WECOM_TOKEN;
+      const envAesKey = env.WECOM_AES_KEY;
+
+      let connectionTest = { status: '未配置', message: '未配置 CorpID 或 Secret，无法执行接口连通性测试。' };
+      const testCorpId = corpId || envCorpId;
+      if (testCorpId && secret) {
+        try {
+          const proxyBase = await env.DATA_KV.get('config:wecom_api_proxy') || 'https://qyapi.weixin.qq.com';
+          const cleanProxy = proxyBase.endsWith('/') ? proxyBase.slice(0, -1) : proxyBase;
+          const testUrl = `${cleanProxy}/cgi-bin/gettoken?corpid=${testCorpId}&corpsecret=${secret}`;
+          const tResp = await fetch(testUrl);
+          if (tResp.ok) {
+            const tData = await tResp.json();
+            if (tData.errcode === 0) {
+              connectionTest = {
+                status: '✅ 连通成功',
+                message: '成功获取 access_token，且 API 服务连通正常！'
+              };
+            } else {
+              connectionTest = {
+                status: '❌ 连通失败',
+                message: `企业微信接口返回错误: [${tData.errcode}] ${tData.errmsg}`
+              };
+            }
+          } else {
+            connectionTest = {
+              status: '❌ 连通失败',
+              message: `请求企业微信 API 失败，HTTP 状态码: ${tResp.status}`
+            };
+          }
+        } catch (err) {
+          connectionTest = {
+            status: '❌ 连通失败',
+            message: `网络请求遇到错误: ${err.message}`
+          };
+        }
+      }
+
+      return new Response(JSON.stringify({
+        kv: {
+          wecom_corp_id: corpId ? '已配置 (' + corpId.substring(0, 6) + '...)' : '❌ 未配置',
+          wecom_token: token ? '已配置 (长度:' + token.length + ')' : '❌ 未配置',
+          wecom_aes_key: aesKey ? '已配置 (长度:' + aesKey.length + ')' : '❌ 未配置',
+          wecom_agent_id: agentId ? '已配置 (' + agentId + ')' : '❌ 未配置',
+          wecom_secret: secret ? '已配置 (' + secret.substring(0, 6) + '...)' : '❌ 未配置',
+          wecom_touser: touser ? '已配置 (' + touser + ')' : '未配置 (默认发送给 @all)',
+          wecom_api_proxy: (await env.DATA_KV.get('config:wecom_api_proxy')) || '未配置 (使用官方默认)',
+        },
+        env_fallback: {
+          WECOM_CORP_ID: envCorpId ? '已配置' : '❌ 未配置',
+          WECOM_TOKEN: envToken ? '已配置' : '❌ 未配置',
+          WECOM_AES_KEY: envAesKey ? '已配置' : '❌ 未配置',
+        },
+        effective: {
+          corpId: (corpId || envCorpId) ? '✅ 可用' : '❌ 缺失 — 回调将返回 500',
+          token: (token || envToken) ? '✅ 可用' : '❌ 缺失 — 回调将返回 500',
+          aesKey: (aesKey || envAesKey) ? '✅ 可用' : '❌ 缺失 — 回调将返回 500',
+        },
+        connection_test: connectionTest,
+        callback_url: url.origin + '/api/wecom/callback',
+        tip: '如果 effective 中有❌，请先在 megz 前端保存配置或调用 /api/wecom/set-config 写入配置后，再到企业微信后台验证回调URL。'
+      }, null, 2), {
+        headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
+      });
+    }
+
+    // 直接写入 WeCom 配置到 KV（用于解决鸡生蛋问题：先写配置再验证URL）
+    if (path === '/api/wecom/set-config' && request.method === 'POST') {
+      try {
+        const body = await request.json();
+        const { corpId, token, aesKey, agentId, secret } = body;
+        if (!corpId || !token || !aesKey) {
+          return new Response(JSON.stringify({ error: '请提供 corpId, token, aesKey 三个参数' }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+        // 校验 EncodingAESKey 长度（企业微信标准是 43 字符）
+        if (aesKey.length !== 43) {
+          return new Response(JSON.stringify({
+            error: 'EncodingAESKey 长度应为 43 个字符，当前长度: ' + aesKey.length,
+            tip: '请从企业微信后台 API 接收消息页面复制完整的 EncodingAESKey'
+          }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+        const promises = [
+          env.DATA_KV.put('config:wecom_corp_id', corpId),
+          env.DATA_KV.put('config:wecom_token', token),
+          env.DATA_KV.put('config:wecom_aes_key', aesKey),
+        ];
+        if (agentId !== undefined && agentId !== null) {
+          promises.push(env.DATA_KV.put('config:wecom_agent_id', String(agentId)));
+        }
+        if (secret !== undefined && secret !== null) {
+          promises.push(env.DATA_KV.put('config:wecom_secret', String(secret)));
+        }
+        await Promise.all(promises);
+        return new Response(JSON.stringify({
+          success: true,
+          message: '配置已成功写入 KV！现在可以去企业微信后台设置回调 URL 了。',
+          callback_url: url.origin + '/api/wecom/callback'
+        }), {
+          headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ error: e.message }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+    }
+
+    if (path === '/api/wecom/callback') {
+      // Log request to KV for diagnostics
+      try {
+        const queryParams = {};
+        for (const [k, v] of url.searchParams.entries()) {
+          queryParams[k] = v;
+        }
+        const logData = {
+          time: new Date(Date.now() + 8 * 3600000).toISOString().replace('T', ' ').substring(0, 19),
+          method: request.method,
+          url: request.url,
+          queryParams: queryParams,
+          headers: Object.fromEntries(request.headers.entries()),
+          ip: request.headers.get('cf-connecting-ip') || request.headers.get('x-real-ip') || 'unknown'
+        };
+        await env.DATA_KV.put('config:wecom_callback_log', JSON.stringify(logData));
+      } catch (logErr) {
+        console.error('[WeComCallbackLog] Failed to log request:', logErr);
+      }
+
+      const corpId = await env.DATA_KV.get('config:wecom_corp_id') || env.WECOM_CORP_ID;
+      const token = await env.DATA_KV.get('config:wecom_token') || env.WECOM_TOKEN;
+      const aesKey = await env.DATA_KV.get('config:wecom_aes_key') || env.WECOM_AES_KEY;
+
+      console.log('[WeComCallback] method=' + request.method + ' corpId=' + (corpId ? corpId.substring(0,6) + '...' : 'MISSING') + ' token=' + (token ? 'SET' : 'MISSING') + ' aesKey=' + (aesKey ? 'SET(' + aesKey.length + ')' : 'MISSING'));
+
+      if (!corpId || !token || !aesKey) {
+        console.error('[WeComCallback] Missing config! corpId=' + !!corpId + ' token=' + !!token + ' aesKey=' + !!aesKey);
+        return new Response('WeCom callback keys not configured', { status: 500 });
+      }
+
+      const crypt = new WeComCrypt(token, aesKey, corpId);
+
+      // GET: Callback verification (企业微信URL验证)
+      if (request.method === 'GET') {
+        const getRawParam = (name) => {
+          const reg = new RegExp('[?&]' + name + '=([^&]*)');
+          const m = url.search.match(reg);
+          return m ? decodeURIComponent(m[1]) : null;
+        };
+
+        const msg_signature = getRawParam('msg_signature') || url.searchParams.get('msg_signature');
+        const timestamp = getRawParam('timestamp') || url.searchParams.get('timestamp');
+        const nonce = getRawParam('nonce') || url.searchParams.get('nonce');
+        const echostr = getRawParam('echostr') || url.searchParams.get('echostr');
+
+        console.log('[WeComCallback GET] msg_signature=' + msg_signature + ' timestamp=' + timestamp + ' nonce=' + nonce + ' echostr=' + (echostr ? echostr.substring(0, 20) + '...' : 'MISSING'));
+
+        if (!msg_signature || !timestamp || !nonce || !echostr) {
+          return new Response('Missing parameters', { status: 400 });
+        }
+
+        // Use the raw parsed echostr to prevent '+' to space URL parsing bugs
+        const isValid = crypt.verifySignature(msg_signature, timestamp, nonce, echostr);
+        console.log('[WeComCallback GET] signature valid=' + isValid);
+        if (!isValid) {
+          return new Response('Invalid signature', { status: 401 });
+        }
+
+        try {
+          const { msg } = crypt.decrypt(echostr);
+          console.log('[WeComCallback GET] decrypt OK, echostr reply length=' + msg.length);
+          return new Response(msg, { headers: { 'Content-Type': 'text/plain; charset=UTF-8' } });
+        } catch (e) {
+          console.error('[WeComCallback GET] Decryption failed:', e.message, e.stack);
+          return new Response('Decryption failed: ' + e.message, { status: 500 });
+        }
+      }
+
+      // POST: Handle user messages
+      if (request.method === 'POST') {
+        const msg_signature = url.searchParams.get('msg_signature');
+        const timestamp = url.searchParams.get('timestamp');
+        const nonce = url.searchParams.get('nonce');
+
+        if (!msg_signature || !timestamp || !nonce) {
+          return new Response('Missing signature parameters', { status: 400 });
+        }
+
+        const bodyXml = await request.text();
+        
+        const encryptMatch = bodyXml.match(/<Encrypt><!\[CDATA\[([\s\S]*?)\]\]><\/Encrypt>/) || bodyXml.match(/<Encrypt>([\s\S]*?)<\/Encrypt>/);
+        if (!encryptMatch) {
+          return new Response('Missing Encrypt block', { status: 400 });
+        }
+        const encryptB64 = encryptMatch[1].trim();
+
+        const isValid = crypt.verifySignature(msg_signature, timestamp, nonce, encryptB64);
+        if (!isValid) {
+          return new Response('Invalid signature', { status: 401 });
+        }
+
+        try {
+          const { msg } = crypt.decrypt(encryptB64);
+          
+          const fromUserMatch = msg.match(/<FromUserName><!\[CDATA\[([\s\S]*?)\]\]><\/FromUserName>/) || msg.match(/<FromUserName>([\s\S]*?)<\/FromUserName>/);
+          const toUserMatch = msg.match(/<ToUserName><!\[CDATA\[([\s\S]*?)\]\]><\/ToUserName>/) || msg.match(/<ToUserName>([\s\S]*?)<\/ToUserName>/);
+          const msgTypeMatch = msg.match(/<MsgType><!\[CDATA\[([\s\S]*?)\]\]><\/MsgType>/) || msg.match(/<MsgType>([\s\S]*?)<\/MsgType>/);
+          const contentMatch = msg.match(/<Content><!\[CDATA\[([\s\S]*?)\]\]><\/Content>/) || msg.match(/<Content>([\s\S]*?)<\/Content>/);
+
+          const fromUser = fromUserMatch ? fromUserMatch[1].trim() : '';
+          const toUser = toUserMatch ? toUserMatch[1].trim() : '';
+          const msgType = msgTypeMatch ? msgTypeMatch[1].trim() : '';
+          const content = contentMatch ? contentMatch[1].trim() : '';
+
+          if (msgType !== 'text') {
+            return new Response('', { status: 200 });
+          }
+
+          const trimmedContent = content.trim();
+
+          // Read active send credentials from KV
+          const agentId = await env.DATA_KV.get('config:wecom_agent_id');
+          const secret = await env.DATA_KV.get('config:wecom_secret');
+
+          // If Agent ID or Secret is missing, we must fallback to synchronous reply (passive XML)
+          if (!agentId || !secret) {
+            console.log('[WeComCallback] Agent ID or Secret not configured. Falling back to sync reply.');
+            let replyContent = '';
+            if (trimmedContent.startsWith('/company')) {
+              const queryName = trimmedContent.replace('/company', '').trim();
+              if (!queryName) {
+                replyContent = '格式错误。用法举例：/company 腾讯科技';
+              } else {
+                try {
+                  const results = await supabase.checkCompanies([queryName]);
+                  const match = results[0];
+                  if (match && match.isMatch) {
+                    replyContent = `🔍 查询结果：\n单位名称：${match.matchedName}\n准入银行：${match.bank_name || '建行建易贷'}\n名单状态：${match.status || '正常'}`;
+                  } else {
+                    replyContent = `🔍 查询结果：\n未在白名单库中查到公司【${queryName}】。`;
+                  }
+                } catch (se) {
+                  replyContent = `数据库查询失败: ${se.message}`;
+                }
+              }
+            } else if (trimmedContent.startsWith('/customer')) {
+              const queryName = trimmedContent.replace('/customer', '').trim();
+              if (!queryName) {
+                replyContent = '格式错误。用法举例：/customer 张三';
+              } else {
+                try {
+                  const results = await supabase.searchCustomers(queryName);
+                  if (results.length === 0) {
+                    replyContent = `🔍 未在客户库中查到包含【${queryName}】的客户。`;
+                  } else {
+                    replyContent = `🔍 共查到 ${results.length} 位客户：\n` + 
+                      results.map(c => `👤 姓名：${c.name}\n📞 电话：${c.mobile || '—'}\n🏢 单位：${c.company_name || '—'}\n💵 社保/公积金：${c.social_security_base || '—'}/${c.fund_base || '—'}\n🏷️ 标签：${c.tags ? c.tags.join(',') : '无'}`).join('\n\n');
+                  }
+                } catch (se) {
+                  replyContent = `客户数据库查询失败: ${se.message}`;
+                }
+              }
+            } else if (trimmedContent.startsWith('/product') || trimmedContent.startsWith('/case')) {
+              const queryVal = trimmedContent.replace(/^\/(product|case)/, '').trim();
+              if (!queryVal) {
+                replyContent = '格式错误。用法举例：/case 建易贷';
+              } else {
+                try {
+                  const results = await supabase.searchLoanCases(queryVal);
+                  if (results.length === 0) {
+                    replyContent = `🔍 未在案例库中查到包含【${queryVal}】的记录。`;
+                  } else {
+                    replyContent = `🔍 查到以下案例记录：\n` +
+                      results.map(r => `🏢 公司：${r.company_name}\n🏦 贷款产品：${r.loan_product}\n💰 贷款金额：${r.loan_amount || '—'}\n📊 结果：${r.result || '—'}\n📝 总结：${r.summary || '—'}`).join('\n\n');
+                  }
+                } catch (se) {
+                  replyContent = `案例库查询失败: ${se.message}`;
+                }
+              }
+            } else if (trimmedContent.startsWith('/speech')) {
+              const queryVal = trimmedContent.replace('/speech', '').trim();
+              if (!queryVal) {
+                replyContent = '格式错误。用法举例：/speech 开场白';
+              } else {
+                try {
+                  const results = await supabase.searchSpeech(queryVal);
+                  if (results.length === 0) {
+                    replyContent = `🔍 未在话术库中查到包含【${queryVal}】的记录。`;
+                  } else {
+                    replyContent = `🔍 查到以下话术：\n` +
+                      results.map(r => `📌 分类/场景：${r.category} -> ${r.scenario}\n💬 内容：${r.content}`).join('\n\n');
+                  }
+                } catch (se) {
+                  replyContent = `话术库查询失败: ${se.message}`;
+                }
+              }
+            } else {
+              const hasKey = await env.DATA_KV.get('config:ai_api_key') || await env.DATA_KV.get('config:deepseek_api_key') || await env.DATA_KV.get('config:vision_api_key') || env.AI_API_KEY || env.DEEPSEEK_API_KEY;
+              if (!hasKey) {
+                replyContent = `🤖 每日智能助手：\n\n您说：“${trimmedContent}”。\n\n提示：系统管理员尚未配置 AI 大模型 API Key 且未配置企业微信自建应用，因此无法为您服务。`;
+              } else {
+                replyContent = `⚠️ 企业微信未配置自建应用（Agent ID/Secret），导致无法使用异步模式。由于大模型对话易超时，请在网页端配置自建应用以启用完整功能。`;
+              }
+            }
+
+            const replyTime = Math.floor(Date.now() / 1000);
+            const replyXml = `<xml>` +
+              `<ToUserName><![CDATA[${fromUser}]]></ToUserName>` +
+              `<FromUserName><![CDATA[${toUser}]]></FromUserName>` +
+              `<CreateTime>${replyTime}</CreateTime>` +
+              `<MsgType><![CDATA[text]]></MsgType>` +
+              `<Content><![CDATA[${replyContent}]]></Content>` +
+              `</xml>`;
+
+            const encryptedReply = crypt.encrypt(replyXml);
+            const replySignature = crypt.getSignature(replyTime, nonce, encryptedReply);
+
+            const responseXml = `<xml>` +
+              `<Encrypt><![CDATA[${encryptedReply}]]></Encrypt>` +
+              `<MsgSignature><![CDATA[${replySignature}]]></MsgSignature>` +
+              `<TimeStamp>${replyTime}</TimeStamp>` +
+              `<Nonce>${nonce}</Nonce>` +
+              `</xml>`;
+
+            return new Response(responseXml, { headers: { 'Content-Type': 'application/xml; charset=UTF-8' } });
+          }
+
+          // Otherwise, use ASYNC mode: immediately return empty response to avoid WeCom 5s timeout.
+          console.log('[WeComCallback] Async mode activated. Returning empty response.');
+
+          ctx.waitUntil((async () => {
+            try {
+              let replyContent = '';
+              if (trimmedContent.startsWith('/company')) {
+                const queryName = trimmedContent.replace('/company', '').trim();
+                if (!queryName) {
+                  replyContent = '格式错误。用法举例：/company 腾讯科技';
+                } else {
+                  const results = await supabase.checkCompanies([queryName]);
+                  const match = results[0];
+                  if (match && match.isMatch) {
+                    replyContent = `🔍 查询结果：\n单位名称：${match.matchedName}\n准入银行：${match.bank_name || '建行建易贷'}\n名单状态：${match.status || '正常'}`;
+                  } else {
+                    replyContent = `🔍 查询结果：\n未在白名单库中查到公司【${queryName}】。`;
+                  }
+                }
+              } else if (trimmedContent.startsWith('/customer')) {
+                const queryName = trimmedContent.replace('/customer', '').trim();
+                if (!queryName) {
+                  replyContent = '格式错误。用法举例：/customer 张三';
+                } else {
+                  const results = await supabase.searchCustomers(queryName);
+                  if (results.length === 0) {
+                    replyContent = `🔍 未在客户库中查到包含【${queryName}】的客户。`;
+                  } else {
+                    replyContent = `🔍 共查到 ${results.length} 位客户：\n` + 
+                      results.map(c => `👤 姓名：${c.name}\n📞 电话：${c.mobile || '—'}\n🏢 单位：${c.company_name || '—'}\n🏷️ 标签：${c.tags ? c.tags.join(',') : '无'}\n📝 备注/跟进：${c.note || '无'}`).join('\n\n');
+                  }
+                }
+              } else if (trimmedContent.startsWith('/product') || trimmedContent.startsWith('/case')) {
+                const queryVal = trimmedContent.replace(/^\/(product|case)/, '').trim();
+                if (!queryVal) {
+                  replyContent = '格式错误。用法举例：/case 建易贷';
+                } else {
+                  const results = await supabase.searchLoanCases(queryVal);
+                  if (results.length === 0) {
+                    replyContent = `🔍 未在案例库中查到包含【${queryVal}】的记录。`;
+                  } else {
+                    replyContent = `🔍 查到以下案例记录：\n` +
+                      results.map(r => `🏢 公司：${r.company_name}\n🏦 贷款产品：${r.loan_product}\n💰 贷款金额：${r.loan_amount || '—'}\n📊 结果：${r.result || '—'}\n📝 总结：${r.summary || '—'}`).join('\n\n');
+                  }
+                }
+              } else if (trimmedContent.startsWith('/speech')) {
+                const queryVal = trimmedContent.replace('/speech', '').trim();
+                if (!queryVal) {
+                  replyContent = '格式错误。用法举例：/speech 开场白';
+                } else {
+                  const results = await supabase.searchSpeech(queryVal);
+                  if (results.length === 0) {
+                    replyContent = `🔍 未在话术库中查到包含【${queryVal}】的记录。`;
+                  } else {
+                    replyContent = `🔍 查到以下话术：\n` +
+                      results.map(r => `📌 分类/场景：${r.category} -> ${r.scenario}\n💬 内容：${r.content}`).join('\n\n');
+                  }
+                }
+              } else {
+                // LLM AI dialogue
+                const hasKey = await env.DATA_KV.get('config:ai_api_key') || await env.DATA_KV.get('config:deepseek_api_key') || await env.DATA_KV.get('config:vision_api_key') || env.AI_API_KEY || env.DEEPSEEK_API_KEY;
+                if (!hasKey) {
+                  replyContent = `🤖 每日智能助手：\n\n您说：“${trimmedContent}”。\n\n提示：系统管理员尚未配置 AI 大模型 API Key，因此无法为您服务。`;
+                } else {
+                  let contextText = '';
+                  try {
+                    const lowerContent = trimmedContent.toLowerCase();
+                    // 1. 检索今日工作登记与意向客户
+                    if (lowerContent.includes('客户') || lowerContent.includes('意向') || lowerContent.includes('登记') || lowerContent.includes('今天') || lowerContent.includes('工作') || lowerContent.includes('汇报')) {
+                      const d = new Date(Date.now() + 8 * 3600000);
+                      const todayDate = d.toISOString().split('T')[0];
+                      const raw = await env.DATA_KV.get(`work:${todayDate}`);
+                      if (raw) {
+                        const parsed = JSON.parse(raw);
+                        contextText += `\n[今日工作登记与意向客户数据] (日期: ${todayDate}):\n` +
+                          `- 今日微信数: ${parsed.wechatCount || 0}\n` +
+                          `- 今日回访数: ${parsed.revisitCount || 0}\n` +
+                          `- 今日上门数: ${parsed.visitCount || 0}\n` +
+                          `- 今日回款数: ${parsed.paymentCount || 0}\n` +
+                          `- 登记的意向客户列表:\n` +
+                          (parsed.clients && parsed.clients.length > 0 ?
+                            parsed.clients.map((c, idx) => `  ${idx + 1}. 姓名: ${c.name} | 电话: ${c.phone} | 登记时间: ${c.time || ''} | 跟进/备注: ${c.note || '无'}`).join('\n') :
+                            '  (暂无意向客户)') + '\n';
+                      }
+                    }
+                    // 2. 检查公司白名单准入
+                    if (lowerContent.includes('白名单') || lowerContent.includes('公司') || lowerContent.includes('单位') || lowerContent.includes('白') || (trimmedContent.length >= 4 && !trimmedContent.includes('/'))) {
+                      const cleanQuery = trimmedContent.replace(/(查一下|查询|白名单|公司|是不是|在不在|白名单里有|有)/g, '').trim();
+                      if (cleanQuery.length >= 2) {
+                        const whitelistRes = await supabase.checkCompanies([cleanQuery]);
+                        if (whitelistRes && whitelistRes.length > 0) {
+                          contextText += `\n[企业白名单准入核对结果]:\n` +
+                            whitelistRes.map(r => `- 公司名: ${r.matchedName} | 状态: ${r.isMatch ? '✅ 已准入白名单' : '❌ 未准入'} | 准入银行: ${r.bank_name || '建行建易贷'} | 名单状态: ${r.status || '正常'}`).join('\n') + '\n';
+                        }
+                      }
+                    }
+                    // 3. 搜索客户档案
+                    if (lowerContent.includes('查客户') || lowerContent.includes('搜索客户') || lowerContent.includes('客户档案') || (trimmedContent.length >= 2 && trimmedContent.length <= 4 && !lowerContent.includes('今天') && !lowerContent.includes('昨天') && !lowerContent.includes('白名单'))) {
+                      const cleanQuery = trimmedContent.replace(/(查客户|搜索客户|查询客户|客户|档案|是)/g, '').trim();
+                      if (cleanQuery.length >= 1) {
+                        const customerRes = await supabase.searchCustomers(cleanQuery);
+                        if (customerRes && customerRes.length > 0) {
+                          contextText += `\n[客户档案检索结果]:\n` +
+                            customerRes.map(c => `- 姓名: ${c.name} | 电话: ${c.mobile || '—'} | 公司: ${c.company_name || '—'} | 标签: ${c.tags ? c.tags.join(',') : '无'} | 备注/跟进记录: ${c.note || '无'}`).join('\n') + '\n';
+                        }
+                      }
+                    }
+                  } catch (prefErr) {
+                    console.error('[PreFetchError] Failed to pre-fetch context:', prefErr);
+                  }
+
+                  const bjTime = new Date(Date.now() + 8 * 3600000).toISOString().replace('T', ' ').substring(0, 19);
+                  let systemPrompt = `你是一个专业的银行贷款智能助手。你拥有调用 Supabase 数据库和 Cloudflare KV 数据工作的权限。当前北京时间是 ${bjTime}。\n`;
+                  if (contextText) {
+                    systemPrompt += `\n系统已为您预先检索了与当前问题相关的实时数据库内容：\n${contextText}\n你可以直接使用以上数据回答用户。若以上检索到的信息足够回答，请结合它们给用户做出最详细 and 准确的解答。\n`;
+                  }
+                  systemPrompt += `如果你需要检索其它日期、更深入搜索客户档案、核对公司白名单、检索话术与知识库，请直接通过 tool_calls 调用相关函数。请使用清晰的换行 and 丰富的 emoji 符号（增强可读性）对结果进行整理回答。`;
+
+                  const apiData = await callAIChatWithTools(env, [
+                    {
+                      role: 'system',
+                      content: systemPrompt
+                    },
+                    {
+                      role: 'user',
+                      content: trimmedContent
+                    }
+                  ], 0.5, fromUser);
+
+                  replyContent = apiData.choices[0].message.content.trim();
+                }
+              }
+
+              // Send the reply message actively
+              await sendWeComAppMessage(env, corpId, secret, agentId, fromUser, replyContent);
+            } catch (err) {
+              console.error('[WeComCallback Async] Error processing message:', err);
+              try {
+                await sendWeComTextMessage(env, corpId, secret, agentId, fromUser, `❌ 助手处理消息时出错：${err.message}`);
+              } catch (sendErr) {
+                console.error('[WeComCallback Async] Failed to send error message:', sendErr);
+              }
+            }
+          })());
+
+          return new Response('', { status: 200 });
+        } catch (e) {
+          console.error('[WeComCallback POST] Processing failed:', e);
+          return new Response('Processing failed: ' + e.message, { status: 500 });
+        }
+      }
+
+      return new Response('Method not allowed', { status: 405 });
+    }
+
+    // ========== 白名单 API ==========
+
+    // 上传白名单企业（批量 upsert）
+    if (path === '/api/whitelist/upload' && request.method === 'POST') {
+      try {
+        const body = await request.json();
+        const companies = body.companies;
+        if (!Array.isArray(companies) || companies.length === 0) {
+          return new Response(JSON.stringify({ error: '请提供 companies 数组' }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+        if (companies.length > 50000) {
+          return new Response(JSON.stringify({ error: '单次最多上传 50000 家企业' }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+        const result = await supabase.upsertCompanies(companies);
+        return new Response(JSON.stringify({ success: true, count: result.count }), {
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ error: e.message }), {
+          status: 502,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+    }
+
+    // 获取所有白名单企业
+    if (path === '/api/whitelist/companies' && request.method === 'GET') {
+      try {
+        const companies = await supabase.getAllCompanies();
+        return new Response(JSON.stringify({ companies: companies }), {
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ error: e.message }), {
+          status: 502,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+    }
+    // 云端 AI 视觉 OCR 识别 (全图)
+    if (path === '/api/ocr' && request.method === 'POST') {
+      try {
+        const body = await request.json();
+        const base64 = body.image.replace(/^data:image\/\w+;base64,/, '');
+        
+        let imgArray;
+        try {
+          const { Buffer } = await import('node:buffer');
+          imgArray = Buffer.from(base64, 'base64');
+        } catch(e) {
+          const binaryString = atob(base64);
+          imgArray = new Uint8Array(binaryString.length);
+          for (let i = 0; i < binaryString.length; i++) {
+            imgArray[i] = binaryString.charCodeAt(i);
+          }
+        }
+
+        const visionKey = await env.DATA_KV.get('config:vision_api_key') || '';
+        let text = '';
+
+        const fullVisionPrompt = "请识别并提取这张表格截图中的所有文字内容，保持行对齐。\n" +
+          "特别注意：\n" +
+          "1. 表格第一列通常为单字姓氏或姓名，可能紧邻左上角蓝色三角标里的“新”字（或“新”）。该“新”字属于标记符号，并非姓名的一部分，请在识别提取姓名/姓氏时，务必自动清洗掉前置的“新”字（例如：将“新 蔡”或“新蔡”清洗并只保留姓氏“蔡”）。\n" +
+          "2. 必须精准识别并提取出原始中文字符（如温、朱、刘、严等），绝对不要将其转换为拼音或英文字母（例如：严禁将“温”提取为“Wen”），也不要进行翻译。\n" +
+          "请以结构化的文本列表输出（每一行代表一个客户，包含姓名、手机号、公司、公积金/备注等信息）。\n" +
+          "只输出提取到的文本内容，不要包含任何解释、分析或 markdown 代码块。";
+
+        if (visionKey) {
+          try {
+            const apiBase = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
+            const resp = await fetch(apiBase, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + visionKey
+              },
+              body: JSON.stringify({
+                model: 'gemini-2.5-flash',
+                messages: [
+                  {
+                    role: 'user',
+                    content: [
+                      {
+                        type: 'text',
+                        text: fullVisionPrompt
+                      },
+                      {
+                        type: 'image_url',
+                        image_url: {
+                          url: body.image
+                        }
+                      }
+                    ]
+                  }
+                ],
+                max_tokens: 1500,
+                temperature: 0.1
+              })
+            });
+            if (resp.ok) {
+              const data = await resp.json();
+              if (data.choices && data.choices[0] && data.choices[0].message) {
+                text = (data.choices[0].message.content || '').trim();
+              }
+            } else {
+              console.error('Gemini full vision API failed: ' + (await resp.text()));
+            }
+          } catch (geminiErr) {
+            console.error('Gemini full vision API call error:', geminiErr);
+          }
+        }
+
+        if (!text) {
+          try {
+            const response = await env.AI.run('@cf/meta/llama-3.2-11b-vision-instruct', {
+              image: imgArray,
+              prompt: fullVisionPrompt,
+              max_tokens: 1000
+            });
+            text = (response.response || '').trim();
+          } catch (llamaErr) {
+            const errStr = String(llamaErr.message || llamaErr);
+            if (errStr.includes('terms') || errStr.includes('license') || errStr.includes('agree')) {
+              try {
+                console.log('Workers AI terms agreement needed for full vision, trying to auto-agree...');
+                await env.AI.run('@cf/meta/llama-3.2-11b-vision-instruct', { prompt: 'agree' });
+                const response = await env.AI.run('@cf/meta/llama-3.2-11b-vision-instruct', {
+                  image: imgArray,
+                  prompt: fullVisionPrompt,
+                  max_tokens: 1000
+                });
+                text = (response.response || '').trim();
+              } catch (retryErr) {
+                throw new Error('Workers AI Llama Full Vision retry failed: ' + retryErr.message);
+              }
+            } else {
+              throw llamaErr;
+            }
+          }
+        }
+
+        return new Response(JSON.stringify({ text: text }), {
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ error: e.message }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+    }
+
+    // Workers AI 单细胞视觉模型识别 (Fallback)
+    if (path === '/api/ocr/vision_cell' && request.method === 'POST') {
+      try {
+        const body = await request.json();
+        const base64 = body.image.replace(/^data:image\/\w+;base64,/, '');
+        
+        let imgArray;
+        try {
+          const { Buffer } = await import('node:buffer');
+          imgArray = Buffer.from(base64, 'base64');
+        } catch(e) {
+          const binaryString = atob(base64);
+          imgArray = new Uint8Array(binaryString.length);
+          for (let i = 0; i < binaryString.length; i++) {
+            imgArray[i] = binaryString.charCodeAt(i);
+          }
+        }
+
+        const visionKey = await env.DATA_KV.get('config:vision_api_key') || '';
+        let text = '';
+
+        const visionPrompt = "Please extract the original Chinese character (usually a single surname, e.g., 温, 刘, 朱) from this image. You MUST output ONLY the original Chinese character itself. DO NOT translate to pinyin, DO NOT output English letters, and DO NOT write any explanation. If no Chinese character is found, output nothing. \n请提取图片中的中文字符（通常是单个姓氏，例如：温、刘、朱）。你必须**只输出原中文字符本身**。**严禁输出任何英文字母、拼音或解释说明**。如果没有中文字符，请输出空。";
+
+        if (visionKey) {
+          try {
+            const apiBase = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
+            const resp = await fetch(apiBase, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + visionKey
+              },
+              body: JSON.stringify({
+                model: 'gemini-2.5-flash',
+                messages: [
+                  {
+                    role: 'user',
+                    content: [
+                      {
+                        type: 'text',
+                        text: visionPrompt
+                      },
+                      {
+                        type: 'image_url',
+                        image_url: {
+                          url: body.image
+                        }
+                      }
+                    ]
+                  }
+                ],
+                max_tokens: 10,
+                temperature: 0.1
+              })
+            });
+            if (resp.ok) {
+              const data = await resp.json();
+              if (data.choices && data.choices[0] && data.choices[0].message) {
+                text = (data.choices[0].message.content || '').trim();
+              }
+            } else {
+              console.error('Gemini vision API failed: ' + (await resp.text()));
+            }
+          } catch (geminiErr) {
+            console.error('Gemini API call error:', geminiErr);
+          }
+        }
+
+        if (!text) {
+          try {
+            const response = await env.AI.run('@cf/meta/llama-3.2-11b-vision-instruct', {
+              image: [...imgArray],
+              prompt: visionPrompt,
+              max_tokens: 10
+            });
+            text = (response.response || '').trim();
+          } catch (llamaErr) {
+            const errStr = String(llamaErr.message || llamaErr);
+            if (errStr.includes('terms') || errStr.includes('license') || errStr.includes('agree')) {
+              try {
+                console.log('Workers AI terms agreement needed, trying to auto-agree...');
+                await env.AI.run('@cf/meta/llama-3.2-11b-vision-instruct', { prompt: 'agree' });
+                const response = await env.AI.run('@cf/meta/llama-3.2-11b-vision-instruct', {
+                  image: [...imgArray],
+                  prompt: visionPrompt,
+                  max_tokens: 10
+                });
+                text = (response.response || '').trim();
+              } catch (retryErr) {
+                throw new Error('Workers AI Llama Vision retry failed: ' + retryErr.message);
+              }
+            } else {
+              throw llamaErr;
+            }
+          }
+        }
+
+        // remove any AI conversational filler like "The text is:" or quotes
+        text = text.replace(/^["']|["']$/g, '').replace(/The text is:?\s*/i, '').trim();
+
+        return new Response(JSON.stringify({ text: text }), {
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ error: e.message }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+    }
+
+    // OCR 文本提取（粘贴文本直接解析）
+    if (path === '/api/ocr/text' && request.method === 'POST') {
+      try {
+        const body = await request.json();
+        const rawText = body.rawText || '';
+        if (!rawText.trim()) {
+          return new Response(JSON.stringify({ contacts: [] }), {
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+
+        // Server-side phone number extraction
+        var phoneRe = /1[3-9]\d{9}/g;
+        var seenPhones = {};
+        var extractedContacts = [];
+        var lines = rawText.split(/\r?\n/);
+
+        for (var i = 0; i < lines.length; i++) {
+          var line = lines[i].trim();
+          if (!line) continue;
+          var phones = line.match(phoneRe);
+          if (!phones) continue;
+          phones.forEach(function(phone) {
+            if (seenPhones[phone]) return;
+            seenPhones[phone] = true;
+
+            var name = '', company = '', note = '';
+            var cols = line.split(/\t/);
+
+            if (cols.length >= 3) {
+              // Tab-separated format
+              var phoneCol = -1;
+              for (var ci = 0; ci < cols.length; ci++) {
+                if (cols[ci].includes(phone)) { phoneCol = ci; break; }
+              }
+              if (phoneCol >= 0) {
+                if (phoneCol > 0) {
+                  var rawName = cols[phoneCol - 1].trim();
+                  var cleanedName = rawName.replace(/^[新旧]\s*/, '').trim();
+                  name = cleanedName.length === 0 ? rawName : cleanedName;
+                }
+                for (var ci2 = phoneCol + 1; ci2 < cols.length; ci2++) {
+                  var val = cols[ci2].trim();
+                  if (val && !/^[\d.]+$/.test(val) && val !== '新增跟进' && val !== '已拨') {
+                    company = val; break;
+                  }
+                }
+              }
+            } else {
+              // Space-separated or multi-line format
+              var before = line.substring(0, line.indexOf(phone));
+              var nm = before.match(/([一-龥]{1,4})\s*$/);
+              if (nm) {
+                var rawNm = nm[1];
+                var cleanedNm = rawNm.replace(/^[新旧]\s*/, '');
+                name = cleanedNm.length === 0 ? rawNm : cleanedNm;
+              } else {
+                // Look at previous lines for name (multi-line format)
+                for (var j = i - 1; j >= 0 && j >= i - 2; j--) {
+                  var prev = lines[j].trim();
+                  if (prev && /^[一-龥]{1,4}$/.test(prev)) { name = prev; break; }
+                }
+              }
+
+              var after = line.substring(line.indexOf(phone) + phone.length).trim();
+
+              if (after && /^\d+/.test(after)) {
+                // Phone line has trailing number → note/amount
+                note = after;
+                // Company on next line
+                for (var k = i + 1; k < lines.length && k <= i + 2; k++) {
+                  var nl = lines[k].trim();
+                  if (nl && !/^\d+$/.test(nl) && nl.length > 1) { company = nl; break; }
+                }
+              } else if (after) {
+                // Phone line has trailing text → company (possibly + status)
+                company = after.replace(/[\d.]+[\d\s]*$/g, '').replace(/\s*(新增跟进|已拨|正常号|空号|停机|无法接通).*$/, '').trim();
+              } else {
+                // Nothing after phone — scan next lines
+                for (var k2 = i + 1; k2 < lines.length && k2 <= i + 3; k2++) {
+                  var nl2 = lines[k2].trim();
+                  if (!nl2) continue;
+                  if (/^\d+$/.test(nl2)) {
+                    // Number → note/amount
+                    if (!note) note = nl2;
+                  } else if (nl2.length > 1 && !/^\d{11}$/.test(nl2)) {
+                    // Text → company
+                    company = nl2; break;
+                  }
+                }
+              }
+            }
+
+            extractedContacts.push({ name: name, phone: phone, company: company, note: note });
+          });
+        }
+
+        return new Response(JSON.stringify({ contacts: extractedContacts }), {
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ error: e.message }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+    }
+
+
+    // POST /api/ocr/test — Test Gemini/AI API connectivity
+    if (path === '/api/ocr/test' && request.method === 'POST') {
+      try {
+        const body = await request.json();
+        const { saveOnly, visionApiKey, visionApiBase } = body;
+        
+        if (visionApiKey !== undefined) {
+          await env.DATA_KV.put('config:vision_api_key', visionApiKey || '');
+        }
+        if (visionApiBase !== undefined) {
+          await env.DATA_KV.put('config:vision_api_base', visionApiBase || '');
+        }
+        
+        if (saveOnly) {
+          return new Response(JSON.stringify({ success: true }), {
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+        
+        // Connectivity test
+        const apiKey = visionApiKey || await env.DATA_KV.get('config:vision_api_key') || '';
+        if (!apiKey) {
+          return new Response(JSON.stringify({ success: false, error: 'API Key 不能为空' }), {
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+        
+        let apiBase = visionApiBase || await env.DATA_KV.get('config:vision_api_base') || 'https://generativelanguage.googleapis.com/v1beta/openai/';
+        if (!apiBase.endsWith('/')) apiBase += '/';
+        const url = apiBase + 'chat/completions';
+        
+        const testResp = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + apiKey
+          },
+          body: JSON.stringify({
+            model: 'gemini-2.5-flash',
+            messages: [{ role: 'user', content: 'Say OK' }],
+            max_tokens: 5
+          })
+        });
+        
+        if (!testResp.ok) {
+          const errText = await testResp.text();
+          return new Response(JSON.stringify({ success: false, error: `API 返回错误 (${testResp.status}): ${errText}` }), {
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+        
+        return new Response(JSON.stringify({ success: true }), {
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ success: false, error: e.message }), {
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+    }
+
+    // OCR 文本修正与数据融合：用文本 AI 修正本地 WASM OCR 的识别错误，或进行双通道（本地OCR与云端视觉）数据融合纠错
+    if (path === '/api/ocr/correct' && request.method === 'POST') {
+      try {
+        const body = await request.json();
+        const localContacts = body.localContacts || null;
+        const visionText = body.visionText || '';
+        const rawText = body.rawText || '';
+        const fileName = body.fileName || '';
+
+        // Get the regular AI config
+        let provider = await env.DATA_KV.get('config:ai_provider') || 'gemini';
+        const visionKey = await env.DATA_KV.get('config:vision_api_key') || '';
+        const aiKey = await env.DATA_KV.get('config:ai_api_key') || await env.DATA_KV.get('config:deepseek_api_key') || env.AI_API_KEY || env.DEEPSEEK_API_KEY || '';
+        
+        let apiKey = aiKey;
+        if (provider === 'gemini' || (visionKey && !aiKey)) {
+          provider = 'gemini';
+          apiKey = visionKey || aiKey;
+        }
+
+        let apiBase = await env.DATA_KV.get('config:ai_api_base') || env.AI_API_BASE;
+        let model = await env.DATA_KV.get('config:ai_model') || env.AI_API_MODEL;
+
+        if (provider === 'gemini') {
+          if (!apiBase) apiBase = 'https://generativelanguage.googleapis.com/v1beta/openai/';
+          if (!model) model = 'gemini-2.5-flash';
+        } else {
+          if (!apiBase) apiBase = 'https://api.deepseek.com/v1/';
+          if (!model) model = 'deepseek-chat';
+        }
+
+        if (!localContacts) {
+          // ==================== Case 1: 仅修正/解析文本 (原逻辑) ====================
+          if (!rawText.trim()) {
+            return new Response(JSON.stringify({ contacts: [] }), {
+              headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+            });
+          }
+
+          if (!apiKey) {
+            var fallbackContacts = extractContactsFromRawText(rawText);
+            return new Response(JSON.stringify({ contacts: fallbackContacts, rawText: rawText, engine: 'regex_fallback' }), {
+              headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+            });
+          }
+
+          let url = apiBase;
+          if (!url.endsWith('/')) url += '/';
+          url += 'chat/completions';
+
+          const systemPrompt = '你是一个 OCR 文本修正专家。下面的文本是从图片中通过 OCR 引擎识别出来的，典型错误包括：\n' +
+            '1. 数字识别错误：0和O/o混淆、1和l/I/|混淆、8和B混淆、3和8混淆、5和6混淆、7和1混淆\n' +
+            '2. 汉字识别错误：形近字混淆（如"张"误识别为"长"或"弓长"、"葛"识别错、"莫"识别错等）\n' +
+            '3. 手机号错误：数字混入字母（如138识别为I38）\n' +
+            '4. 换行和空格导致文本断裂或错位\n\n' +
+            '【文本排版特征与重要前置说明】：\n' +
+            '源图片是一个从左往右横向排版的表格。**每一行都代表且仅代表一个独立客户的所有关联信息，每一列都是特定的类别分类。**\n' +
+            '由于缺少框线或识别误差，数据可能会发生错位、换行或断裂。你需要根据“横向为一行”的视觉逻辑，以11位手机号为核心锚点，寻找并还原与其属于同一行的所有客户信息。\n' +
+            '每一行的典型字段排列顺序通常为：【姓/姓名】 【手机号】 【公积金/金额】 【公司/单位名称】 【备注】\n' +
+            '例如 OCR 识别出的文本行为：“青 13510625191 27501 苏州热工研究院有限公司深圳分公司”，请对应地提取出各字段。\n\n' +
+            '【你的任务】：\n' +
+            '1. 逐行修正 OCR 文本中的所有识别错误，恢复拼写及排版。\n' +
+            '2. 将手机号恢复为 11 位纯数字。\n' +
+            '3. 修正明显被拆分或错别的汉字。\n' +
+            '4. 按照规则提取所有联系人信息。\n\n' +
+            '【提取规则】：\n' +
+            '- name: 中文姓名（1-4个汉字）。注意：第一列通常为单字姓氏（如常见的单字姓氏），即使只有一个汉字，也是联系人的姓名/姓氏，请务必完整提取并填充到 name 字段，绝对不要忽略、丢弃或擅自补全为其他字。\n' +
+            '- phone: 11位纯数字手机号（1开头）\n' +
+            '- company: 公司/单位名称（包括：公司、企业、工厂、学校、幼儿园、小学、中学、大学、学院、研究院、研究所、实验室、医院、银行、政府机构、事业单位等所有组织机构）\n' +
+            '- fund: 对应的公积金数字或金额数字（通常在手机号之后、公司名称之前，例如 27501、9660、24100 等）\n' +
+            '- note: 必须映射到此处的真实备注信息（如果识别出其他不能归类为公司或资金的文本，请放入此处）。\n\n' +
+            '输出纯JSON（禁止markdown包裹）：\n' +
+            '{\n  "correctedText": "修正后的完整原文...",\n  "corrections": [{"original": "识别错的", "corrected": "正确的", "reason": "原因"}],\n' +
+            '  "contacts": [{"name": "", "phone": "", "company": "", "fund": "", "note": ""}]\n}';
+
+          let aiResp;
+          let maxRetries = 3;
+          let retryDelay = 2000;
+          
+          for (let i = 0; i < maxRetries; i++) {
+            aiResp = await fetch(url, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + apiKey
+              },
+              body: JSON.stringify({
+                model: model,
+                messages: [
+                  { role: 'system', content: systemPrompt },
+                  { role: 'user', content: '请修正以下 OCR 文本并提取联系人：\n\n' + rawText.substring(0, 8000) }
+                ],
+                temperature: 0,
+                max_tokens: 4096
+              })
+            });
+            
+            if (aiResp.ok) {
+              break;
+            }
+            
+            if (aiResp.status === 429 || aiResp.status >= 500) {
+              if (i < maxRetries - 1) {
+                console.log(`[OCR Correct] AI API rate limited or server error (${aiResp.status}), retrying in ${retryDelay}ms...`);
+                await new Promise(r => setTimeout(r, retryDelay));
+                retryDelay *= 2; // Exponential backoff
+                continue;
+              }
+            } else {
+              // Not a retryable error (e.g. 400, 401)
+              break;
+            }
+          }
+
+          if (!aiResp.ok) {
+            const errText = await aiResp.text();
+            console.error('[OCR Correct] AI API error:', aiResp.status, errText.substring(0, 200));
+            var fbContacts = extractContactsFromRawText(rawText);
+            return new Response(JSON.stringify({ contacts: fbContacts, rawText: rawText, engine: 'regex_fallback' }), {
+              headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+            });
+          }
+
+          const aiData = await aiResp.json();
+          let content = aiData.choices[0].message.content.trim();
+          if (content.startsWith('```')) {
+            content = content.replace(/^```json\s*/i, '').replace(/```$/, '').trim();
+          }
+
+          let parsed;
+          try {
+            parsed = JSON.parse(content);
+          } catch (e) {
+            const jsonMatch = content.match(/\{[\s\S]*\}/);
+            if (jsonMatch) { try { parsed = JSON.parse(jsonMatch[0]); } catch(e2) {} }
+          }
+
+          if (!parsed || !parsed.contacts || parsed.contacts.length === 0) {
+            var fbContacts2 = extractContactsFromRawText(rawText);
+            return new Response(JSON.stringify({ contacts: fbContacts2, rawText: rawText, engine: 'regex_fallback' }), {
+              headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+            });
+          }
+
+          var contacts = parsed.contacts.map(function(c) {
+            if (!c) return null;
+            var phone = (c.phone || '').replace(/[oOiIlLbB\s\-]/g, function(m) {
+              return {o:'0',O:'0',i:'1',I:'1',l:'1',L:'1',b:'6',B:'8'}[m] || '';
+            }).replace(/\D/g, '');
+            
+            // Clean name (strip leading "新", "旧", "听", "一" etc. badge characters)
+            var name = (c.name || '').trim();
+            name = name.replace(/^[新旧听一]+[\s\-\|]*/, '').replace(/[^\u4e00-\u9fa5a-zA-Z]/g, '').trim();
+            
+            return {
+              name: name,
+              phone: phone.length === 11 && phone[0] === '1' ? phone : '',
+              company: (c.company || '').trim(),
+              fund: (c.fund || '').trim(),
+              note: (c.note || '').trim()
+            };
+          }).filter(function(c) { return c && c.phone; });
+
+          console.log('[OCR Correct] AI corrected ' + contacts.length + ' contacts from raw text (' + rawText.length + ' chars)');
+
+          try {
+            const sb = createSupabaseClient(env);
+            await sb.saveCorrection({
+              rawText: rawText.substring(0, 1000),
+              originalContacts: extractContactsFromRawText(rawText),
+              correctedContacts: contacts,
+              sourceFile: fileName || 'ocr_correct',
+              ocrPipeline: 'text_ai_correct',
+              ocrMode: 'bulk',
+              editCount: parsed.corrections ? parsed.corrections.length : 1,
+              metadata: { correctedText: parsed.correctedText || '', corrections: parsed.corrections || [] }
+            });
+          } catch (saveErr) {
+            console.warn('[OCR Correct] Failed to save training data:', saveErr.message);
+          }
+
+          return new Response(JSON.stringify({
+            contacts: contacts,
+            rawText: rawText,
+            correctedText: parsed.correctedText || '',
+            corrections: parsed.corrections || [],
+            engine: 'text_ai_correct'
+          }), {
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+
+        // ==================== Case 2: 本地 OCR 与云端 Vision AI 结果融合 (混合管线) ====================
+        if (!apiKey) {
+          return new Response(JSON.stringify({ contacts: localContacts, engine: 'local_only_no_key' }), {
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+
+        let url = apiBase;
+        if (!url.endsWith('/')) url += '/';
+        url += 'chat/completions';
+
+        const mergeSystemPrompt = '你是一个 OCR 数据融合专家。下面有两份来自同一张客户登记表格截图的识别数据：\n' +
+          '1. 【本地 OCR 提取数据】：这是通过本地 Wasm Tesseract 切片提取的，它的特征是【手机号、公司名称和公积金/金额】识别极其精准，但由于表格左侧图标干扰，【姓名/姓氏】常被误识别（如将“温”识别为“严”）、遗漏或变为乱码字符。\n' +
+          '2. 【云端视觉 AI 文本】：这是多模态大模型对原图进行完整 OCR 识别得到的原始文本，它的特征是【姓名/姓氏】识别极其精准（特别是单字姓氏），但手机号偶有细微数字错乱。\n\n' +
+          '【你的任务】：\n' +
+          '请利用这两份数据进行智能对齐与纠错融合：\n' +
+          '- 以手机号为核心轴，将【本地 OCR 提取数据】的每一行与【云端视觉 AI 文本】对应的行进行匹配对齐。\n' +
+          '- 姓名（name）字段：必须优先采用【云端视觉 AI 文本】中识别出的正确姓氏或姓名，纠正本地数据中因图标干扰导致的错别字（如将“严”纠正为“温/朱/刘”等原始汉字）、遗漏或多余字符。第一列通常为单字姓氏，请务必完整保留，不要过滤掉单字姓氏。\n' +
+          '- 手机号（phone）字段：必须优先采用【本地 OCR 提取数据】中精准无误的 11 位数字手机号。\n' +
+          '- 公司名称（company）、公积金（fund）和备注（note）字段：结合两份数据进行合理补充与合并。\n\n' +
+          '输出纯 JSON（不要包含 markdown 代码块包裹，只输出 JSON 本身，格式必须符合）：\n' +
+          '{\n  "contacts": [{"name": "正确姓名", "phone": "11位纯数字手机", "company": "正确公司", "fund": "公积金金额", "note": "备注"}]\n}';
+
+        const userMessage = '请将以下本地 OCR 提取的列表与云端 AI 视觉提取的原始文本进行合并纠错：\n\n' +
+          '【本地 OCR 提取数据】：\n' + JSON.stringify(localContacts, null, 2) + '\n\n' +
+          '【云端视觉 AI 文本】：\n' + visionText;
+
+        const aiResp = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + apiKey
+          },
+          body: JSON.stringify({
+            model: model,
+            messages: [
+              { role: 'system', content: mergeSystemPrompt },
+              { role: 'user', content: userMessage }
+            ],
+            temperature: 0.1,
+            max_tokens: 4096
+          })
+        });
+
+        if (!aiResp.ok) {
+          const errText = await aiResp.text();
+          console.error('[OCR Merge] AI API error:', aiResp.status, errText.substring(0, 200));
+          return new Response(JSON.stringify({ contacts: localContacts, engine: 'local_only_api_error' }), {
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+
+        const aiData = await aiResp.json();
+        let content = aiData.choices[0].message.content.trim();
+        if (content.startsWith('```')) {
+          content = content.replace(/^```json\s*/i, '').replace(/```$/, '').trim();
+        }
+
+        let parsed;
+        try {
+          parsed = JSON.parse(content);
+        } catch (e) {
+          const jsonMatch = content.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            try { parsed = JSON.parse(jsonMatch[0]); } catch(e2) {}
+          }
+        }
+
+        if (parsed && parsed.contacts) {
+          const cleanedContacts = parsed.contacts.map(function(c) {
+            if (!c) return null;
+            var name = (c.name || '').trim();
+            name = name.replace(/^[新旧听一]+[\s\-\|]*/, '').replace(/[^\u4e00-\u9fa5a-zA-Z]/g, '').trim();
+            return {
+              name: name,
+              phone: (c.phone || '').trim(),
+              company: (c.company || '').trim(),
+              fund: (c.fund || '').trim(),
+              note: (c.note || '').trim()
+            };
+          }).filter(Boolean);
+
+          return new Response(JSON.stringify({ contacts: cleanedContacts, engine: 'hybrid_merge' }), {
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+
+        return new Response(JSON.stringify({ contacts: localContacts, engine: 'local_only_parse_failed' }), {
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      } catch (e) {
+        console.error('[OCR Correct] error:', e.message);
+        return new Response(JSON.stringify({ error: 'OCR 文本修正失败: ' + e.message }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+    }
+
+    // POST /api/ocr/categorize — Clean, correct, and re-classify contacts lists using text AI
+    if (path === '/api/ocr/categorize' && request.method === 'POST') {
+      let contactsList = [];
+      try {
+        const body = await request.json();
+        contactsList = body.contacts || [];
+        const fileName = body.fileName || '';
+        
+        if (contactsList.length === 0) {
+          return new Response(JSON.stringify({ contacts: [] }), {
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+
+        let provider = await env.DATA_KV.get('config:ai_provider') || 'gemini';
+        const visionKey = await env.DATA_KV.get('config:vision_api_key') || '';
+        const aiKey = await env.DATA_KV.get('config:ai_api_key') || await env.DATA_KV.get('config:deepseek_api_key') || env.AI_API_KEY || env.DEEPSEEK_API_KEY || '';
+        
+        let apiKey = aiKey;
+        if (provider === 'gemini' || (visionKey && !aiKey)) {
+          provider = 'gemini';
+          apiKey = visionKey || aiKey;
+        }
+
+        let apiBase = await env.DATA_KV.get('config:ai_api_base') || env.AI_API_BASE;
+        let model = await env.DATA_KV.get('config:ai_model') || env.AI_API_MODEL;
+
+        if (provider === 'gemini') {
+          if (!apiBase) apiBase = 'https://generativelanguage.googleapis.com/v1beta/openai/';
+          if (!model) model = 'gemini-2.5-flash';
+        } else {
+          if (!apiBase) apiBase = 'https://api.deepseek.com/v1/';
+          if (!model) model = 'deepseek-chat';
+        }
+
+        if (!apiKey) {
+          return new Response(JSON.stringify({ contacts: contactsList, engine: 'bypass' }), {
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+
+        let url = apiBase;
+        if (!url.endsWith('/')) url += '/';
+        url += 'chat/completions';
+
+        const systemPrompt = '你是一个通讯录数据清洗与智能分类专家。输入是一个包含从图片表格中通过本地 OCR 识别初步对齐的联系人 JSON 数组。\n' +
+          '【重要前置说明】：原始图片严格遵循“从左往右横向为一行（一个客户的所有信息），一列为一个特定类别”的结构。由于表格无框线、列间距小或识别误差，同一行的数据可能会发生错位，你需要根据“一行代表一个客户”的逻辑，对数据进行横向重新拼装与修正。\n\n' +
+          '【具体清洗与归类规则】：\n' +
+          '1. **姓名 (name)**：通常位于第一列，为1-4个汉字（允许单字姓氏，绝对不能漏掉）。如果“公司”等信息被误放入姓名列，请将其移出。姓名或公司若存在形近字识别错误，请结合语境修正。\n' +
+          '2. **电话 (phone)**：这是最关键的锚点信息，绝对正确且不可更改！你需要以电话号码为准基线，寻找与其属于同一行的“姓名”、“公司”和“备注”信息。\n' +
+          '3. **公司/单位 (company)**：如果原数据中公司名被错放在了姓名或备注列，请根据行对应关系，将其移动到此处；纠正错别字（如“腾城”->“鹏城”）。\n' +
+          '4. **备注 (note)**：必须映射到数据库的备注栏。真实的附加信息（如职称、日期、职位、跟进情况等）。如果备注里包含公司名，请将公司名抽离到 company 字段，剩下的留作 note。不要随意舍弃有用的备注信息。\n\n' +
+          '【输出格式】：\n' +
+          '请严格遵循下方纯 JSON 格式输出（不要输出 Markdown 格式的 ```json），确保每个对象都包含 name, phone, company, note 四个字段：\n' +
+          '{\n  "contacts": [\n    { "name": "正确的姓名", "phone": "13XXXXXXXXX", "company": "正确归类后的公司", "note": "提取的备注信息" }\n  ]\n}';
+
+        const aiResp = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + apiKey
+          },
+          body: JSON.stringify({
+            model: model,
+            messages: [
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: '请对以下初步提取的联系人列表进行清洗和重新分类归类：\n\n' + JSON.stringify(contactsList, null, 2) }
+            ],
+            temperature: 0,
+            max_tokens: 4096
+          })
+        });
+
+        if (!aiResp.ok) {
+          const errText = await aiResp.text();
+          console.error('[OCR Categorize] AI API error:', aiResp.status, errText.substring(0, 200));
+          return new Response(JSON.stringify({ contacts: contactsList, engine: 'bypass_api_error' }), {
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+
+        const aiData = await aiResp.json();
+        let content = aiData.choices[0].message.content.trim();
+        if (content.startsWith('```')) {
+          content = content.replace(/^```json\s*/i, '').replace(/```$/, '').trim();
+        }
+
+        let parsed;
+        try {
+          parsed = JSON.parse(content);
+        } catch (e) {
+          const jsonMatch = content.match(/\{[\s\S]*\}/);
+          if (jsonMatch) { try { parsed = JSON.parse(jsonMatch[0]); } catch(e2) {} }
+        }
+
+        if (!parsed || !parsed.contacts || parsed.contacts.length === 0) {
+          return new Response(JSON.stringify({ contacts: contactsList, engine: 'bypass_parse_error' }), {
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+
+        console.log('[OCR Categorize] AI processed ' + parsed.contacts.length + ' contacts');
+
+        return new Response(JSON.stringify({
+          contacts: parsed.contacts,
+          engine: 'text_ai_categorize'
+        }), {
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+
+      } catch (e) {
+        console.error('[OCR Categorize] error:', e.message);
+        return new Response(JSON.stringify({ contacts: contactsList, error: e.message, engine: 'bypass_exception' }), {
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+    }
+
+    // Helper: phone + contact extraction from raw text (regex fallback)
+    function extractContactsFromRawText(rawText) {
+      var phoneRe = /1[3-9]\d{9}/g;
+      var seenPhones = {};
+      var contacts = [];
+      var lines = rawText.split(/\r?\n/);
+      lines.forEach(function(line) {
+        line = line.trim();
+        if (!line) return;
+        var phones = line.match(phoneRe);
+        if (!phones) return;
+        phones.forEach(function(phone) {
+          if (seenPhones[phone]) return;
+          seenPhones[phone] = true;
+          var name = '', company = '';
+          var before = line.substring(0, line.indexOf(phone)).trim();
+          var nm = before.match(/(?:^|\s)([一-龥]{2,4})(?=\s|$)/);
+          if (!nm) nm = before.match(/^([一-龥]{2,4})/);
+          if (!nm) nm = before.match(/([一-龥]{1,4})\s*$/);
+          if (nm) name = nm[1].replace(/^[新旧听一]+[\s\-\|]*/, '');
+          var after = line.substring(line.indexOf(phone) + phone.length).trim();
+          company = after.replace(/[\d.]+[\d\s]*$/g, '').replace(/\s*(新增跟进|已拨|正常号|空号|停机|无法接通|挂断|意向|备注).*$/, '').trim();
+          contacts.push({ name: name, phone: phone, company: company, fund: '', note: '' });
+        });
+      });
+      return contacts;
+    }
+
+
+    // === OCR Correction Training Data APIs ===
+
+    // POST /api/ocr/correction — save a correction pair
+    if (path === '/api/ocr/correction' && request.method === 'POST') {
+      try {
+        const body = await request.json();
+        const { rawText, originalContacts, correctedContacts, sourceFile, ocrPipeline, ocrMode, metadata } = body;
+        if (!rawText && (!originalContacts || originalContacts.length === 0)) {
+          return new Response(JSON.stringify({ error: '缺少 rawText 或 originalContacts' }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+
+        // Compute edit_count by comparing original vs corrected
+        var editCount = 0;
+        if (originalContacts && correctedContacts) {
+          for (var i = 0; i < Math.max(originalContacts.length, correctedContacts.length); i++) {
+            var orig = originalContacts[i] || {};
+            var corr = correctedContacts[i] || {};
+            if (orig.name !== corr.name) editCount++;
+            if (orig.phone !== corr.phone) editCount++;
+            if (orig.company !== corr.company) editCount++;
+            if (orig.note !== corr.note) editCount++;
+          }
+        }
+
+        const sb = createSupabaseClient(env);
+        const saved = await sb.saveCorrection({
+          rawText: rawText || '',
+          originalContacts: originalContacts || [],
+          correctedContacts: correctedContacts || [],
+          sourceFile: sourceFile || '',
+          ocrPipeline: ocrPipeline || 'ai_vision',
+          ocrMode: ocrMode || 'bulk',
+          editCount: editCount,
+          metadata: metadata || {}
+        });
+
+        // Update KV caches
+        try {
+          var countStr = await env.DATA_KV.get('correction:count');
+          var count = parseInt(countStr || '0', 10) + 1;
+          await env.DATA_KV.put('correction:count', String(count), { expirationTtl: 3600 });
+          await env.DATA_KV.put('correction:last_sync', new Date().toISOString());
+
+          // Update few_shot_examples ring buffer if user made edits
+          if (editCount > 0 && originalContacts && correctedContacts) {
+            var examples = [];
+            try {
+              var cached = await env.DATA_KV.get('config:few_shot_examples');
+              if (cached) examples = JSON.parse(cached);
+            } catch(e) {}
+            examples.unshift({
+              rawText: (rawText || '').substring(0, 500),
+              originalContacts: originalContacts.map(function(c) {
+                return { name: c.name || '', phone: c.phone || '', company: c.company || '', note: c.note || '' };
+              }),
+              correctedContacts: correctedContacts.map(function(c) {
+                return { name: c.name || '', phone: c.phone || '', company: c.company || '', note: c.note || '' };
+              })
+            });
+            if (examples.length > 20) examples.length = 20;
+            await env.DATA_KV.put('config:few_shot_examples', JSON.stringify(examples), { expirationTtl: 86400 });
+          }
+        } catch (kvErr) {
+          console.error('[OCR correction] KV update failed:', kvErr.message);
+        }
+
+        return new Response(JSON.stringify({ success: true, id: saved ? saved.id : null }), {
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      } catch (e) {
+        console.error('[OCR correction] Save failed:', e.message);
+        return new Response(JSON.stringify({ error: '保存修正记录失败: ' + e.message }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+    }
+
+    // GET /api/ocr/corrections — list corrections
+    if (path === '/api/ocr/corrections' && request.method === 'GET') {
+      try {
+        const url = new URL(request.url);
+        const page = parseInt(url.searchParams.get('page') || '1', 10);
+        const pageSize = Math.min(parseInt(url.searchParams.get('pageSize') || '20', 10), 200);
+        const minEdits = parseInt(url.searchParams.get('minEdits') || '0', 10);
+        const sort = url.searchParams.get('sort') || 'newest';
+
+        const sb = createSupabaseClient(env);
+        const result = await sb.getCorrections(page, pageSize, minEdits, sort);
+
+        return new Response(JSON.stringify(result), {
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      } catch (e) {
+        console.error('[OCR corrections] List failed:', e.message);
+        return new Response(JSON.stringify({ error: '获取修正记录失败: ' + e.message }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+    }
+
+    // GET /api/ocr/corrections/export — export as JSONL for fine-tuning
+    if (path === '/api/ocr/corrections/export' && request.method === 'GET') {
+      try {
+        const url = new URL(request.url);
+        const limit = Math.min(parseInt(url.searchParams.get('limit') || '200', 10), 1000);
+
+        const sb = createSupabaseClient(env);
+        const rows = await sb.getCorrectionsForExport(limit);
+
+        var jsonlLines = [];
+        for (var i = 0; i < rows.length; i++) {
+          var row = rows[i];
+          jsonlLines.push(JSON.stringify({
+            input: {
+              rawText: row.raw_text || '',
+              contacts: row.original_json || []
+            },
+            output: {
+              contacts: row.corrected_json || []
+            }
+          }));
+        }
+
+        return new Response(jsonlLines.join('\n'), {
+          headers: {
+            'Content-Type': 'application/x-ndjson',
+            'Content-Disposition': 'attachment; filename="ocr_training_data.jsonl"',
+            'Access-Control-Allow-Origin': '*'
+          }
+        });
+      } catch (e) {
+        console.error('[OCR correction export] Failed:', e.message);
+        return new Response(JSON.stringify({ error: '导出失败: ' + e.message }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+    }
+
+    // GET /api/ocr/corrections/stats — quick stats
+    if (path === '/api/ocr/corrections/stats' && request.method === 'GET') {
+      try {
+        var count = 0;
+        var lastSync = '';
+        try {
+          var cachedCount = await env.DATA_KV.get('correction:count');
+          if (cachedCount) count = parseInt(cachedCount, 10) || 0;
+          lastSync = await env.DATA_KV.get('correction:last_sync') || '';
+        } catch (kvErr) {}
+
+        // Fallback: query Supabase directly if KV is empty
+        if (count === 0) {
+          const sb = createSupabaseClient(env);
+          count = await sb.getCorrectionsCount();
+        }
+
+        return new Response(JSON.stringify({ count: count, lastSync: lastSync }), {
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      } catch (e) {
+        console.error('[OCR stats] Failed:', e.message);
+        return new Response(JSON.stringify({ count: 0, lastSync: '' }), {
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+    }
+
+    // 检查客户单位是否在白名单
+    if (path === '/api/whitelist/check' && request.method === 'POST') {
+      try {
+        const body = await request.json();
+        const companies = body.companies;
+        if (!Array.isArray(companies)) {
+          return new Response(JSON.stringify({ error: '请提供 companies 数组' }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+        const results = await supabase.checkCompanies(companies);
+        return new Response(JSON.stringify({ results: results }), {
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ error: e.message }), {
+          status: 502,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+    }
+
+    // 手动触发朋友圈文案推送
+    if (path === '/api/moments-push' && request.method === 'POST') {
+      try {
+        const result = await doMomentsPush(env, '[API]');
+        return new Response(JSON.stringify(result), {
+          headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ success: false, message: e.message }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+    }
+
+    // 返回 HTML 页面
+    return new Response(HTML, {
+      headers: { 'Content-Type': 'text/html; charset=UTF-8' }
+    });
+  },
+
+  // Cron 定时任务：每天早上 8:00 (北京时间，UTC+8)
+  // 1. 自动生成朋友圈文案并推送到企业微信
+  // 2. 自动扫描 Supabase 客户数据，AI 修正公积金/单位/备注字段
+  async scheduled(event, env, ctx) {
+    await doMomentsPush(env, '[Cron]');
+
+    // AI 公积金自动修正（每天全量扫描）
+    try {
+      console.log('[Cron] 开始 AI 公积金自动修正...');
+      const result = await runAICorrectFund(env);
+      console.log('[Cron] AI 修正完成:', JSON.stringify({
+        total: result.total_scanned,
+        suspicious: result.suspicious_found,
+        corrected: result.ai_corrected,
+        errors: (result.errors || []).length
+      }));
+    } catch (e) {
+      console.error('[Cron] AI 修正异常:', e.message);
+    }
+  }
+};
+
+// 从新浪财经等接口抓取最新财经/股市快讯（财联社 API 已失效，改用新浪财经）
+// 返回 { items: [...], source: 'sina'|'search' } — source 标记数据来源
+async function fetchFinancialNews(env) {
+  // 新浪财经实时新闻 API（lid=2509 为股市频道，lid=2517 为财经要闻）
+  const sinaEndpoints = [
+    { url: 'https://feed.mix.sina.com.cn/api/roll/get?pageid=153&lid=2509&num=30&versionNumber=1.2.4', channel: '股市' },
+    { url: 'https://feed.mix.sina.com.cn/api/roll/get?pageid=153&lid=2517&num=30&versionNumber=1.2.4', channel: '财经' }
+  ];
+
+  const allItems = [];
+  const todayBeijing = new Date(Date.now() + 8 * 3600000);
+  const todayStr = todayBeijing.toISOString().split('T')[0]; // YYYY-MM-DD 北京时间
+  const yesterdayBeijing = new Date(todayBeijing.getTime() - 24 * 3600000);
+  const yesterdayStr = yesterdayBeijing.toISOString().split('T')[0];
+
+  for (const { url, channel } of sinaEndpoints) {
+    try {
+      const resp = await fetch(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36',
+          'Accept': 'application/json, text/plain, */*',
+          'Referer': 'https://finance.sina.com.cn/'
+        }
+      });
+
+      if (!resp.ok) {
+        console.log(`[FinNews] 新浪${channel} HTTP ${resp.status}`);
+        continue;
+      }
+
+      const data = await resp.json();
+      if (!data.result || !data.result.data || !Array.isArray(data.result.data)) {
+        console.log(`[FinNews] 新浪${channel} 返回数据格式异常`);
+        continue;
+      }
+
+      const rawItems = data.result.data;
+      console.log(`[FinNews] 新浪${channel} 获取到 ${rawItems.length} 条`);
+
+      for (const item of rawItems) {
+        // ctime 是 Unix 秒级时间戳，转换为北京时间日期过滤
+        const itemTime = new Date((item.ctime || 0) * 1000);
+        const itemDateStr = itemTime.toISOString().split('T')[0];
+        // 只保留今天的和昨天的（容错：北京时间早8点推送时可能还没多少当天新闻）
+        if (itemDateStr !== todayStr && itemDateStr !== yesterdayStr) {
+          continue; // 跳过超过 1 天的旧闻
+        }
+
+        const title = item.title || '';
+        const content = item.intro || item.summary || '';
+        // 分类：根据频道来源和标题关键词判断
+        let type = '财经电报';
+        if (channel === '股市' || /(?:股|A股|港股|涨停|跌停|大盘|指数|创业板|科创板|北交|ETF|板块|牛市|熊市|券商|ipo|分红|回购|涨幅|跌幅|市值)/i.test(title + content)) {
+          type = '股市热点';
+        }
+
+        allItems.push({
+          title: title,
+          content: content,
+          ctime: item.ctime || '',
+          dateStr: itemDateStr,
+          channel: channel,
+          type: type
+        });
+      }
+    } catch (e) {
+      console.log(`[FinNews] 新浪${channel} 请求失败:`, e.message);
+    }
+  }
+
+  if (allItems.length > 0) {
+    // 去重（按标题去重）
+    const seen = new Set();
+    const unique = allItems.filter(item => {
+      const key = item.title.substring(0, 30);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    console.log(`[FinNews] 去重后共 ${unique.length} 条（今天 ${unique.filter(i=>i.dateStr===todayStr).length} 条，昨天 ${unique.filter(i=>i.dateStr===yesterdayStr).length} 条）`);
+    return { items: unique, source: 'sina' };
+  }
+
+  console.log('[FinNews] 新浪财经接口未获取到数据，将依赖搜索引擎结果');
+  return { items: [], source: 'search' };
+}
+
+// 朋友圈文案推送核心逻辑（Cron 和手动 API 共用）
+async function doMomentsPush(env, logPrefix) {
+  const bjTime = new Date(Date.now() + 8 * 3600000);
+  const dateStr = bjTime.toISOString().split('T')[0];
+  const timeStr = bjTime.toISOString().replace('T', ' ').substring(0, 19);
+
+  console.log(`${logPrefix} 朋友圈推送触发 - 北京时间: ${timeStr}`);
+
+  // 检查是否启用朋友圈定时推送（手动调用跳过此检查）
+  if (logPrefix === '[Cron]') {
+    const momentsEnabled = await env.DATA_KV.get('config:moments_enabled');
+    if (momentsEnabled === 'false') {
+      console.log(`${logPrefix} 朋友圈定时推送已停用，跳过。`);
+      return { success: false, message: '朋友圈定时推送已停用' };
+    }
+  }
+
+  // 获取目标 Webhook URL
+  const momentsWebhookUrl = await env.DATA_KV.get('config:moments_webhook_url');
+  const fallbackUrl = await env.DATA_KV.get('config:webhook_url');
+  const targetUrl = (momentsWebhookUrl && momentsWebhookUrl.trim()) ? momentsWebhookUrl.trim() : (fallbackUrl || '').trim();
+  if (!targetUrl) {
+    console.log(`${logPrefix} 未配置 Webhook URL，跳过。`);
+    return { success: false, message: '未配置 Webhook URL，请先在设置中配置企业微信 Webhook 地址' };
+  }
+
+  // SSRF 防御：仅允许企业微信官方域名
+  if (!targetUrl.startsWith('https://qyapi.weixin.qq.com/')) {
+    console.log(`${logPrefix} 非企业微信官方域名，拒绝发送。`);
+    return { success: false, message: 'Webhook URL 非企业微信官方域名' };
+  }
+
+  // 检查 AI API Key
+  const apiKey = await env.DATA_KV.get('config:ai_api_key') || await env.DATA_KV.get('config:deepseek_api_key') || await env.DATA_KV.get('config:vision_api_key') || env.AI_API_KEY || env.DEEPSEEK_API_KEY;
+  if (!apiKey) {
+    console.log(`${logPrefix} 未配置 AI API Key，无法生成朋友圈文案。`);
+    if (logPrefix === '[Cron]') {
+      try {
+        await fetch(targetUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            msgtype: 'markdown',
+            markdown: { content: `## ⏰ 朋友圈定时推送提醒\n\n> 日期: <font color="info">${dateStr}</font>\n> 状态: <font color="warning">未配置 AI API Key</font>\n\n请登录 [Megz 管理后台](${env.WORKER_HOST || ''}) 配置 AI 大模型 API Key 以自动生成朋友圈文案。` }
+          })
+        });
+      } catch (e) {
+        console.error(`${logPrefix} 发送提醒失败:`, e.message);
+      }
+    }
+    return { success: false, message: '未配置 AI API Key，请在设置中配置 AI 大模型 API Key' };
+  }
+
+  try {
+    // 步骤 1: 联网搜索今日热点和生活资讯（动态生成当天日期，确保搜索结果最新）
+    let searchContext = '';
+    const bjYear = bjTime.getFullYear();
+    const bjMonth = bjTime.getMonth() + 1;
+    const bjDay = bjTime.getDate();
+    const dateStrCN = `${bjYear}年${bjMonth}月${bjDay}日`;
+    const dateStrShort = `${bjYear}年${bjMonth}月`;
+    const searchQueries = [
+      `${dateStrCN} 今日热点新闻 头条`,
+      `${dateStrCN} 热门话题 社会热点 民生`,
+      `${dateStrShort} 生活趋势 励志 成长 健康`,
+      `${dateStrCN} 财经新闻 经济数据 政策 行业动态`,
+      `${dateStrCN} 股市行情 A股 热点板块 涨停`,
+      `${dateStrShort} 投资理财 基金 市场趋势`
+    ];
+
+    for (const sq of searchQueries) {
+      try {
+        const results = await doWebSearch(env, sq);
+        if (results.length > 0) {
+          searchContext += `\n### 搜索主题: ${sq}\n`;
+          results.forEach((r, i) => {
+            searchContext += `${i + 1}. **${r.title}**\n   ${r.snippet}\n`;
+          });
+        }
+      } catch (e) {
+        console.error(`${logPrefix} WebSearch "${sq}" 失败:`, e.message);
+      }
+    }
+
+    // 步骤 1.5: 从新浪财经实时接口抓取今日真实财经/股市快讯（财联社 API 已失效，改用新浪财经）
+    let telegraphSource = 'search'; // 'sina' | 'search' — 用于标记数据来源
+    const finNews = await fetchFinancialNews(env);
+    if (finNews.items.length > 0) {
+      telegraphSource = finNews.source;
+      const financeItems = finNews.items.filter(t => t.type === '财经电报').slice(0, 8);
+      const stockItems = finNews.items.filter(t => t.type === '股市热点').slice(0, 8);
+      // 标记哪些是今天的数据
+      const todayCount = finNews.items.filter(i => i.dateStr === dateStr).length;
+      const yesterdayCount = finNews.items.filter(i => i.dateStr !== dateStr).length;
+      if (financeItems.length > 0 || stockItems.length > 0) {
+        searchContext += `\n### 新浪财经实时快讯（请优先使用以下真实资讯生成财经电报和股市热点；今日${todayCount}条，昨日${yesterdayCount}条）\n`;
+        financeItems.forEach((t, i) => { searchContext += `[财经${i+1}] ${t.title} ${t.content}\n`; });
+        stockItems.forEach((t, i) => { searchContext += `[股市${i+1}] ${t.title} ${t.content}\n`; });
+        console.log(`${logPrefix} 已注入 ${financeItems.length} 条财经 + ${stockItems.length} 条股市实时快讯（来源: 新浪财经）`);
+      }
+    } else {
+      console.log(`${logPrefix} 新浪财经未获取到今日数据，财经/股市文案将基于搜索引擎结果生成`);
+    }
+
+    // 步骤 2: 调用 AI 生成 30 条朋友圈文案（励志生活5+热点5+财经5+股市5+贷款回访5+日常招呼5）
+    const prompt = searchContext
+      ? `你是一位朋友圈文案创作高手，在金融行业工作。请根据今日热点和资讯，撰写 30 条适合发微信朋友圈的文案。
+
+## 今日热点参考
+${searchContext}
+
+## 文案要求（按类别输出 30 条）
+
+### 第1-5条 · 励志生活类
+- 分享积极向上的生活感悟、成长心得、自律习惯、运动健康等
+- 温暖治愈，给人力量和希望，展现正能量
+- 每条 40-60 字
+- **禁止出现"评论区见""点赞告诉你""私信我"等诱导互动话术**
+
+### 第6-10条 · 社会热点类
+- 结合当天热门事件/新闻发表观点或感悟
+- 展现独立思考和对时事的关注，有态度不偏激
+- 每条 40-60 字
+- **禁止出现"评论区见""点赞告诉你""私信我"等诱导互动话术**
+
+### 第11-15条 · 财经电报类
+- **优先使用上方"新浪财经实时快讯"中的真实资讯**，提炼成40-60字的朋友圈文案
+- 如果上方没有实时快讯数据，则根据搜索到的财经新闻自行编写
+- 像财经快讯风格，信息密度高，一句话讲清楚一件事
+
+### 第16-20条 · 股市热点类
+- **优先使用上方"新浪财经实时快讯"中的真实资讯**，提炼成40-60字的朋友圈文案
+- 如果上方没有实时快讯数据，则根据搜索到的股市行情自行编写
+- 像炒股群里的快讯风格，客观陈述带一句简短点评
+
+### 第21-25条 · 贷款回访类
+- 贷款客户微信回访的打招呼用语，用于微信上联系老客户
+- 语气亲切自然，像朋友问候，不要像推销
+- **每条不超过 25 个字**，简短精炼，适合微信开场白
+- 可以包含关怀问候、节日祝福、温馨提醒等元素
+- 不要直接问"要不要贷款""需要资金吗"等硬推销话术
+- 示例风格："最近生意怎么样，有需要随时微信我~"
+
+### 第26-30条 · 日常招呼类
+- 微信纯文字打招呼用语，用于在微信上和朋友/客户破冰聊天
+- **纯线上微信沟通，禁止出现任何线下见面相关内容**（如"出来喝茶""聚聚""约饭""见面聊""有空来坐坐"等）
+- 轻松随意，像熟人之间的问候
+- **每条不超过 25 个字**，简短口语化
+- 可以结合天气、节日、日常趣事、微信动态等话题
+- 示例风格："今天这天气太适合摸鱼了哈哈"
+
+## 通用要求
+- 第1-20条**字数严格控制在 40-60 字**，第21-30条**字数不超过 25 字**
+- 语气自然口语化，像真人发的而不是营销号
+- 适当使用 Emoji 增加活力（1-2个即可，不要过多）
+- **禁止使用"评论区见""评论区聊""点赞告诉你""私信""转发"等营销话术**
+- 不要硬推销产品，可以偶尔在热点类提及金融行业视角
+
+## 输出格式
+请严格按以下 JSON 格式输出（只输出 JSON，不要包裹代码块）：
+
+{
+  "date": "${dateStr}",
+  "posts": [
+    {"type": "励志生活", "content": "文案内容"},
+    {"type": "励志生活", "content": "文案内容"},
+    {"type": "励志生活", "content": "文案内容"},
+    {"type": "励志生活", "content": "文案内容"},
+    {"type": "励志生活", "content": "文案内容"},
+    {"type": "社会热点", "content": "文案内容"},
+    {"type": "社会热点", "content": "文案内容"},
+    {"type": "社会热点", "content": "文案内容"},
+    {"type": "社会热点", "content": "文案内容"},
+    {"type": "社会热点", "content": "文案内容"},
+    {"type": "财经电报", "content": "文案内容"},
+    {"type": "财经电报", "content": "文案内容"},
+    {"type": "财经电报", "content": "文案内容"},
+    {"type": "财经电报", "content": "文案内容"},
+    {"type": "财经电报", "content": "文案内容"},
+    {"type": "股市热点", "content": "文案内容"},
+    {"type": "股市热点", "content": "文案内容"},
+    {"type": "股市热点", "content": "文案内容"},
+    {"type": "股市热点", "content": "文案内容"},
+    {"type": "股市热点", "content": "文案内容"},
+    {"type": "贷款回访", "content": "文案内容"},
+    {"type": "贷款回访", "content": "文案内容"},
+    {"type": "贷款回访", "content": "文案内容"},
+    {"type": "贷款回访", "content": "文案内容"},
+    {"type": "贷款回访", "content": "文案内容"},
+    {"type": "日常招呼", "content": "文案内容"},
+    {"type": "日常招呼", "content": "文案内容"},
+    {"type": "日常招呼", "content": "文案内容"},
+    {"type": "日常招呼", "content": "文案内容"},
+    {"type": "日常招呼", "content": "文案内容"}
+  ]
+}`
+      : `你是一位朋友圈文案创作高手，在金融行业工作。请撰写 30 条适合发微信朋友圈的文案（今天是 ${dateStr}）。
+
+## 文案要求（按类别输出 30 条）
+
+### 第1-5条 · 励志生活类
+- 分享积极向上的生活感悟、成长心得、自律习惯、运动健康等
+- 温暖治愈，给人力量和希望，展现正能量
+- 每条 40-60 字
+- **禁止出现"评论区见""点赞告诉你""私信我"等诱导互动话术**
+
+### 第6-10条 · 社会热点类
+- 对社会现象或身边事的思考点评，展现独立思考
+- 有态度不偏激，能引发好友共鸣
+- 每条 40-60 字
+- **禁止出现"评论区见""点赞告诉你""私信我"等诱导互动话术**
+
+### 第11-15条 · 财经电报类
+- 简明扼要播报当日重要财经资讯（政策、数据、行业动态等）
+- 像财经快讯风格，信息密度高，一句话讲清楚一件事
+- 每条 40-60 字
+
+### 第16-20条 · 股市热点类
+- 聚焦当日市场热点板块、资金动向、投资心得等
+- 客观陈述，带一句简短点评
+- 每条 40-60 字，像炒股群里的快讯风格
+
+### 第21-25条 · 贷款回访类
+- 贷款客户微信回访的打招呼用语，用于微信上联系老客户
+- 语气亲切自然，像朋友问候，不要像推销
+- **每条不超过 25 个字**，简短精炼，适合微信开场白
+- 可以包含关怀问候、节日祝福、温馨提醒等元素
+- 不要直接问"要不要贷款""需要资金吗"等硬推销话术
+- 示例风格："最近生意怎么样，有需要随时微信我~"
+
+### 第26-30条 · 日常招呼类
+- 微信纯文字打招呼用语，用于在微信上和朋友/客户破冰聊天
+- **纯线上微信沟通，禁止出现任何线下见面相关内容**（如"出来喝茶""聚聚""约饭""见面聊""有空来坐坐"等）
+- 轻松随意，像熟人之间的问候
+- **每条不超过 25 个字**，简短口语化
+- 可以结合天气、节日、日常趣事、微信动态等话题
+- 示例风格："今天这天气太适合摸鱼了哈哈"
+
+## 通用要求
+- 第1-20条**字数严格控制在 40-60 字**，第21-30条**字数不超过 25 字**
+- 语气自然口语化，像真人发的而不是营销号
+- 适当使用 Emoji 增加活力（1-2个即可，不要过多）
+- **禁止使用"评论区见""评论区聊""点赞告诉你""私信""转发"等营销话术**
+- 不要硬推销产品，可以偶尔提及金融/贷款行业的工作日常，但以生活为主
+
+## 输出格式
+请严格按以下 JSON 格式输出（只输出 JSON，不要包裹代码块）：
+
+{
+  "date": "${dateStr}",
+  "posts": [
+    {"type": "励志生活", "content": "文案内容"},
+    {"type": "励志生活", "content": "文案内容"},
+    {"type": "励志生活", "content": "文案内容"},
+    {"type": "励志生活", "content": "文案内容"},
+    {"type": "励志生活", "content": "文案内容"},
+    {"type": "社会热点", "content": "文案内容"},
+    {"type": "社会热点", "content": "文案内容"},
+    {"type": "社会热点", "content": "文案内容"},
+    {"type": "社会热点", "content": "文案内容"},
+    {"type": "社会热点", "content": "文案内容"},
+    {"type": "财经电报", "content": "文案内容"},
+    {"type": "财经电报", "content": "文案内容"},
+    {"type": "财经电报", "content": "文案内容"},
+    {"type": "财经电报", "content": "文案内容"},
+    {"type": "财经电报", "content": "文案内容"},
+    {"type": "股市热点", "content": "文案内容"},
+    {"type": "股市热点", "content": "文案内容"},
+    {"type": "股市热点", "content": "文案内容"},
+    {"type": "股市热点", "content": "文案内容"},
+    {"type": "股市热点", "content": "文案内容"},
+    {"type": "贷款回访", "content": "文案内容"},
+    {"type": "贷款回访", "content": "文案内容"},
+    {"type": "贷款回访", "content": "文案内容"},
+    {"type": "贷款回访", "content": "文案内容"},
+    {"type": "贷款回访", "content": "文案内容"},
+    {"type": "日常招呼", "content": "文案内容"},
+    {"type": "日常招呼", "content": "文案内容"},
+    {"type": "日常招呼", "content": "文案内容"},
+    {"type": "日常招呼", "content": "文案内容"},
+    {"type": "日常招呼", "content": "文案内容"}
+  ]
+}`;
+
+    const aiResp = await callAIChat(env, [
+      { role: 'system', content: '你是一个专业的朋友圈文案创作助手，擅长励志生活感悟、热点评论、财经快讯、股市解读、客户回访和日常招呼。请只输出 JSON 格式的结果，不要包裹 markdown 代码块，不要多余的解释。第1-20条40-60字，第21-30条不超过25字，禁止使用"评论区见"等营销话术。' },
+      { role: 'user', content: prompt }
+    ], 0.8);
+
+    let aiContent = aiResp.choices[0].message.content.trim();
+    if (aiContent.startsWith('```')) {
+      aiContent = aiContent.replace(/^```json\s*/i, '').replace(/```$/, '').trim();
+    }
+
+    let parsed;
+    try {
+      parsed = JSON.parse(aiContent);
+    } catch (parseErr) {
+      const jsonMatch = aiContent.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        parsed = JSON.parse(jsonMatch[0]);
+      } else {
+        throw new Error('无法解析 AI 返回的 JSON: ' + aiContent.substring(0, 200));
+      }
+    }
+
+    const posts = parsed.posts || [];
+    if (posts.length === 0) {
+      throw new Error('AI 未生成任何朋友圈文案');
+    }
+
+    // 步骤 3: 拼接 Markdown 按类型分组，取消序号，虚线分割
+    const typeGroups = [
+      { type: '励志生活', emoji: '🌱' },
+      { type: '社会热点', emoji: '🔥' },
+      { type: '财经电报', emoji: '📊' },
+      { type: '股市热点', emoji: '📈' },
+      { type: '贷款回访', emoji: '🤝' },
+      { type: '日常招呼', emoji: '👋' }
+    ];
+
+    let markdown = `## 📱 今日朋友圈文案精选\n`;
+    markdown += `> 日期: <font color="info">${dateStr}</font>\n`;
+    markdown += `> 生成时间: <font color="comment">${timeStr.substring(11, 16)}</font>\n`;
+    markdown += `> 共 <font color="warning">${posts.length} 条</font>文案\n`;
+    markdown += `> 数据源: <font color="comment">${telegraphSource === 'sina' ? '新浪财经实时快讯 + 搜索引擎' : '搜索引擎'}</font>\n`;
+    if (telegraphSource === 'search') {
+      markdown += `> <font color="warning">⚠️ 今日未获取到实时财经快讯数据，财经/股市文案基于搜索引擎结果生成，请核实</font>\n`;
+    }
+    markdown += `\n`;
+
+    typeGroups.forEach(group => {
+      const groupPosts = posts.filter(p => p.type === group.type);
+      if (groupPosts.length > 0) {
+        markdown += `## ${group.emoji} ${group.type}\n\n`;
+        groupPosts.forEach((post, j) => {
+          markdown += `${post.content}\n`;
+          if (j < groupPosts.length - 1) {
+            markdown += `\n---\n\n`;
+          }
+        });
+        markdown += `\n\n`;
+      }
+    });
+
+    const tagLine = logPrefix === '[Cron]' ? '\n> 🤖 由 AI 自动生成 · 每日 8:00 定时推送' : '\n> 🚀 手动触发 · AI 自动生成';
+    markdown += tagLine;
+
+    // 企业微信 Markdown 消息有 4096 字节限制，分条发送
+    const encoder = new TextEncoder();
+    const MAX_BYTES = 4000;
+
+    if (encoder.encode(markdown).length <= MAX_BYTES) {
+      const resp = await fetch(targetUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ msgtype: 'markdown', markdown: { content: markdown } })
+      });
+      if (!resp.ok) throw new Error('Webhook 发送失败 HTTP ' + resp.status);
+      const respBody = await resp.json();
+      if (respBody.errcode !== 0) throw new Error(`企业微信错误 [${respBody.errcode}]: ${respBody.errmsg || '未知'}`);
+      console.log(`${logPrefix} 朋友圈文案已成功发送 (单条, ${encoder.encode(markdown).length} 字节)`);
+    } else {
+      let part = 1;
+      let currentText = `## 📱 今日朋友圈文案精选 (${part})\n> 日期: ${dateStr}\n\n`;
+      let currentBytes = encoder.encode(currentText).length;
+      let lastType = '';
+
+      for (let i = 0; i < posts.length; i++) {
+        const post = posts[i];
+        const typeEmoji = post.type.includes('励志') ? '🌱' :
+                         post.type.includes('热点') ? '🔥' :
+                         post.type.includes('财经') || post.type.includes('电报') ? '📊' :
+                         post.type.includes('股市') ? '📈' :
+                         post.type.includes('回访') ? '🤝' :
+                         post.type.includes('招呼') ? '👋' : '📝';
+
+        // 类型切换时加上类型标题
+        let postText = '';
+        if (post.type !== lastType) {
+          postText += `## ${typeEmoji} ${post.type}\n\n`;
+          lastType = post.type;
+        }
+        postText += `${post.content}\n`;
+        // 同类型内用虚线分割
+        const nextPost = (i + 1 < posts.length) ? posts[i + 1] : null;
+        if (nextPost && nextPost.type === post.type) {
+          postText += `\n---\n\n`;
+        } else if (nextPost) {
+          postText += `\n\n`;
+        }
+
+        const postBytes = encoder.encode(postText).length;
+
+        if (currentBytes + postBytes > MAX_BYTES) {
+          const resp = await fetch(targetUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ msgtype: 'markdown', markdown: { content: currentText } })
+          });
+          if (!resp.ok) throw new Error(`Webhook 分条 ${part} 发送失败 HTTP ${resp.status}`);
+          part++;
+          currentText = `## 📱 今日朋友圈文案精选 (续${part})\n\n`;
+          currentBytes = encoder.encode(currentText).length;
+          // 续条需要重新加类型标题
+          postText = `## ${typeEmoji} ${post.type}\n\n${post.content}\n`;
+        }
+        currentText += postText;
+        currentBytes += postBytes;
+      }
+
+      if (currentText.trim().length > 0) {
+        currentText += tagLine;
+        const resp = await fetch(targetUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ msgtype: 'markdown', markdown: { content: currentText } })
+        });
+        if (!resp.ok) throw new Error(`Webhook 末条发送失败 HTTP ${resp.status}`);
+      }
+      console.log(`${logPrefix} 朋友圈文案已分 ${part} 条发送完成`);
+    }
+
+    return { success: true, posts, message: `已成功生成并发送 ${posts.length} 条文案` };
+  } catch (err) {
+    console.error(`${logPrefix} 朋友圈推送失败:`, err.message);
+    try {
+      await fetch(targetUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          msgtype: 'text',
+          text: { content: `⚠️ 朋友圈推送失败\n日期: ${dateStr}\n错误: ${err.message}\n请检查 AI 配置和 Webhook 连接。` }
+        })
+      });
+    } catch (e) {
+      console.error(`${logPrefix} 连错误通知都发不出:`, e.message);
+    }
+    return { success: false, message: err.message };
+  }
+}
