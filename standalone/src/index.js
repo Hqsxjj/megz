@@ -1,7 +1,26 @@
 // 每日工作 - Cloudflare Worker 版本
 // 部署后绑定 DATA_KV 即可使用
+// 独立版：仅 KV 存储，不依赖 Supabase
 
-import { createSupabaseClient } from './supabase.js';
+// Supabase no-op stub（独立版不需要数据库）
+function createSupabaseClient(env) {
+  const noop = { then: function(fn) { return fn ? fn(null) : null; } };
+  return {
+    checkCompanies: async function() { return []; },
+    searchCustomers: async function() { return []; },
+    searchLoanCases: async function() { return []; },
+    searchSpeech: async function() { return []; },
+    saveKnowledge: async function() { return null; },
+    upsertCustomers: async function() { return { count: 0 }; },
+    getAllCustomers: async function() { return { data: [], total: 0, page: 1, pageSize: 50 }; },
+    getCustomersForDialer: async function() { return { data: [], total: 0 }; },
+    batchSetPulledAt: async function() {},
+    batchUpdateCategory: async function() { return { count: 0 }; },
+    updateCustomer: async function() { return null; },
+    deleteCustomer: async function() { return true; },
+    deleteCustomers: async function() { return true; },
+  };
+}
 
 // === Stubs for standalone (not included in package) ===
 const DIALER_HTML = '<html><body><h1>Dialer not available in standalone version</h1></body></html>';

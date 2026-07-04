@@ -6,10 +6,3 @@ compatibility_flags = [ "nodejs_compat" ]
 [[kv_namespaces]]
 binding = "DATA_KV"
 id = "YOUR_KV_NAMESPACE_ID"
-
-[vars]
-SUPABASE_URL = ""
-SUPABASE_KEY = ""
-
-[triggers]
-crons = ["0 0 * * *"]
