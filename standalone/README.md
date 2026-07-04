@@ -4,7 +4,36 @@
 
 ---
 
-## 方式一：网页端手动部署（无需安装任何软件）
+## 方式一：让 Claude 帮你部署（推荐）
+
+**对我说**：「帮我部署 megz 独立版，密码设成 xxxxxx」
+
+然后我会自动执行下面的流程：
+
+```bash
+# 1. 进入目录
+cd C:\Users\Administrator\megz\standalone
+
+# 2. 登录 Cloudflare（如果还没登过）
+npx wrangler login
+
+# 3. 创建 KV 命名空间
+npx wrangler kv:namespace create DATA_KV
+
+# 4. 把上面输出的 id 写入 wrangler.toml（替换 YOUR_KV_NAMESPACE_ID）
+
+# 5. 设置 PIN 密码
+npx wrangler kv:key put --binding=DATA_KV "config:pin_code" "你的密码"
+
+# 6. 部署
+npx wrangler deploy
+```
+
+**如果已有 KV 命名空间**，可以跳过第 3 步，直接用现有的 KV id 更新 wrangler.toml 就行。
+
+---
+
+## 方式二：网页端手动部署（无需安装任何软件）
 
 ### 第 1 步：打开 Workers 控制台
 
