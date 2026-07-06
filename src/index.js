@@ -1771,6 +1771,16 @@ export default {
         });
       }
       _dialerAccountId = _session.account_id;
+      // Master can view sub-account data via X-View-Account-Id header
+      var _viewId = request.headers.get('X-View-Account-Id') || '';
+      if (_viewId) {
+        var _accts = await dialerGetAccounts(env);
+        var _isMaster = false;
+        for (var _ai = 0; _ai < _accts.length; _ai++) {
+          if (_accts[_ai].account_id === _session.account_id && _accts[_ai].is_master !== false) { _isMaster = true; break; }
+        }
+        if (_isMaster) { _dialerAccountId = _viewId; }
+      }
     }
 
     // 1. 获取拨号器数据

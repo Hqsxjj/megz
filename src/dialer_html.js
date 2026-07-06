@@ -1763,6 +1763,12 @@ export const DIALER_HTML = `<!DOCTYPE html>
     <div id="dbAccountStats" style="display:none; padding:6px 16px; border-bottom:1px solid var(--card-border); background:var(--btn-bg); align-items:center; gap:10px; flex-wrap:wrap; font-size:0.7rem; font-weight:700; color:var(--text-soft);">
       <span style="color:var(--text-main);">各账户上传统计：</span>
       <span id="dbAccountStatsList"></span>
+      <span style="margin-left:auto; display:flex; align-items:center; gap:6px;">
+        <span>查看：</span>
+        <select id="dbViewAccountSel" style="height:26px; padding:0 6px; font-size:0.68rem; border:1px solid var(--card-border); border-radius:3px; font-weight:700; background:var(--card-bg); color:var(--text-main); cursor:pointer;">
+          <option value="">我的数据</option>
+        </select>
+      </span>
     </div>
 
     <!-- CRM Shortcut Filters -->
@@ -1971,6 +1977,9 @@ export const DIALER_HTML = `<!DOCTYPE html>
           opts = opts || {};
           opts.headers = opts.headers || {};
           opts.headers['Authorization'] = 'Bearer ' + token;
+          if (_viewAccountId && url.indexOf('/api/dialer/auth/') === -1) {
+            opts.headers['X-View-Account-Id'] = _viewAccountId;
+          }
         }
         return _origFetch.call(window, url, opts);
       };
@@ -7431,12 +7440,15 @@ export const DIALER_HTML = `<!DOCTYPE html>
       });
     }
 
+    var _viewAccountId = '';
+
     function loadAccountStats() {
       var bar = document.getElementById('dbAccountStats');
       if (!bar) return;
       if (!isSessionMaster()) { bar.style.display = 'none'; return; }
       bar.style.display = 'flex';
       var list = document.getElementById('dbAccountStatsList');
+      var sel = document.getElementById('dbViewAccountSel');
       if (!list) return;
       list.textContent = '加载中...';
       fetch('/api/dialer/stats/accounts')
@@ -7455,6 +7467,28 @@ export const DIALER_HTML = `<!DOCTYPE html>
               + ' <strong style="color:var(--accent-wechat);">' + s.upload_count + '</strong>'
               + '</span>';
           }).join(' ');
+          // Populate view selector
+          if (sel) {
+            var curVal = sel.value;
+            sel.innerHTML = '<option value="">我的数据</option>';
+            res.stats.forEach(function(s) {
+              if (!s.is_master) {
+                var name = s.account_name || s.label || s.account_id.slice(0, 10);
+                sel.innerHTML += '<option value="' + s.account_id + '">' + name + '</option>';
+              }
+            });
+            sel.value = curVal;
+            // Wire change handler (only once)
+            if (!sel._wired) {
+              sel._wired = true;
+              sel.addEventListener('change', function() {
+                _viewAccountId = this.value;
+                DB.page = 1;
+                DB.selectedIds = {};
+                dbFetch();
+              });
+            }
+          }
         })
         .catch(function() {
           list.textContent = '加载失败';
