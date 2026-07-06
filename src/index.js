@@ -2161,28 +2161,35 @@ export default {
         const supabaseKey = env.SUPABASE_KEY;
         if (!supabaseUrl || !supabaseKey) throw new Error('Supabase 未配置');
 
-        // First SELECT to verify which mobiles actually exist
-        var allInFilter = mobiles.map(function(m) { return encodeURIComponent(m); }).join(',');
-        var checkUrl = supabaseUrl + '/rest/v1/customers?select=mobile&mobile=in.(' + allInFilter + ')&limit=' + mobiles.length;
-        var checkResp = await fetch(checkUrl, {
-          headers: {
-            'apikey': supabaseKey,
-            'Authorization': 'Bearer ' + supabaseKey
+        // Batch SELECT + PATCH to handle large selections reliably
+        var selBatchSize = 100;
+        var existingMobiles = [];
+        for (var _sb = 0; _sb < mobiles.length; _sb += selBatchSize) {
+          var selChunk = mobiles.slice(_sb, _sb + selBatchSize);
+          var selInFilter = selChunk.map(function(m) { return encodeURIComponent(m); }).join(',');
+          var checkUrl = supabaseUrl + '/rest/v1/customers?select=mobile&mobile=in.(' + selInFilter + ')&limit=' + selBatchSize;
+          var checkResp = await fetch(checkUrl, {
+            headers: { 'apikey': supabaseKey, 'Authorization': 'Bearer ' + supabaseKey }
+          });
+          if (checkResp.ok) {
+            var rows = await checkResp.json();
+            if (Array.isArray(rows)) {
+              for (var _ri = 0; _ri < rows.length; _ri++) {
+                existingMobiles.push(rows[_ri].mobile);
+              }
+            }
           }
-        });
-        if (!checkResp.ok) throw new Error('查询客户失败');
-        var existingRows = await checkResp.json();
-        var existingMobiles = existingRows.map(function(r) { return r.mobile; });
+        }
 
         if (existingMobiles.length === 0) throw new Error('所选客户在数据库中不存在');
 
-        // Batch PATCH only existing mobiles
-        var batchSize = 200;
+        // Batch PATCH
+        var patchBatchSize = 200;
         var updatedTotal = 0;
-        for (var _bi = 0; _bi < existingMobiles.length; _bi += batchSize) {
-          var chunk = existingMobiles.slice(_bi, _bi + batchSize);
-          var inFilter = chunk.map(function(m) { return encodeURIComponent(m); }).join(',');
-          var patchUrl = supabaseUrl + '/rest/v1/customers?mobile=in.(' + inFilter + ')';
+        for (var _bi = 0; _bi < existingMobiles.length; _bi += patchBatchSize) {
+          var patchChunk = existingMobiles.slice(_bi, _bi + patchBatchSize);
+          var patchInFilter = patchChunk.map(function(m) { return encodeURIComponent(m); }).join(',');
+          var patchUrl = supabaseUrl + '/rest/v1/customers?mobile=in.(' + patchInFilter + ')';
           var patchResp = await fetch(patchUrl, {
             method: 'PATCH',
             headers: {
@@ -2193,10 +2200,15 @@ export default {
             },
             body: JSON.stringify({ account_id: target_account_id, pulled_at: null })
           });
-          if (patchResp.ok) updatedTotal += chunk.length;
+          if (patchResp.ok) updatedTotal += patchChunk.length;
         }
 
-        return new Response(JSON.stringify({ success: true, updated: updatedTotal }), {
+        return new Response(JSON.stringify({
+          success: true,
+          updated: updatedTotal,
+          selected: mobiles.length,
+          found: existingMobiles.length
+        }), {
           headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
         });
       } catch (e) {

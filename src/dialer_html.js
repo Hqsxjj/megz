@@ -8488,7 +8488,11 @@ export const DIALER_HTML = `<!DOCTYPE html>
           .then(function(r) { return r.json(); })
           .then(function(res) {
             if (res.success) {
-              alert('已成功分配 ' + res.updated + ' 条客户');
+              var msg = '已分配 ' + res.updated + ' 条客户';
+              if (res.selected !== undefined && res.found !== undefined) {
+                msg = '勾选 ' + res.selected + ' 条，找到 ' + res.found + ' 条，成功分配 ' + res.updated + ' 条';
+              }
+              alert(msg);
               DB.selectedIds = {};
               dbFetch();
               loadAccountStats();
