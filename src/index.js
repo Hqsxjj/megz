@@ -2191,7 +2191,7 @@ export default {
               'Authorization': 'Bearer ' + supabaseKey,
               'Prefer': 'return=minimal'
             },
-            body: JSON.stringify({ account_id: target_account_id })
+            body: JSON.stringify({ account_id: target_account_id, pulled_at: null })
           });
           if (patchResp.ok) updatedTotal += chunk.length;
         }
