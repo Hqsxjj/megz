@@ -1277,6 +1277,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
       <div id="authLoginError" class="auth-error"></div>
       <button id="authLoginBtn" class="auth-btn">登录</button>
       <span id="authShowSetupLink" class="auth-link">首次使用？创建新账户</span>
+      <span id="authResetLink" class="auth-link" style="color:#e74c3c; margin-top:8px;">重置所有账户数据</span>
     </div>
   </div>
 
@@ -8653,6 +8654,25 @@ export const DIALER_HTML = `<!DOCTYPE html>
       document.getElementById('authShowSetupLink').onclick = function() {
         overlay.classList.add('auth-hidden');
         showSetupOverlay();
+      };
+
+      document.getElementById('authResetLink').onclick = function() {
+        if (!confirm('确定要删除所有账户数据吗？此操作不可撤销，所有账户和 PIN 将被清除。')) return;
+        var resetBtn = document.getElementById('authResetLink');
+        resetBtn.textContent = '重置中...';
+        resetBtn.style.pointerEvents = 'none';
+        fetch('/api/dialer/auth/reset', { method: 'POST' })
+          .then(function(r) { return r.json(); })
+          .then(function() {
+            clearSession();
+            overlay.classList.add('auth-hidden');
+            showSetupOverlay();
+          })
+          .catch(function() { alert('重置失败，请重试'); })
+          .finally(function() {
+            resetBtn.textContent = '重置所有账户数据';
+            resetBtn.style.pointerEvents = '';
+          });
       };
     }
 

@@ -1405,6 +1405,24 @@ export default {
       }
     }
 
+    // Auth: reset all accounts (clear everything, start fresh)
+    if (path === '/api/dialer/auth/reset' && request.method === 'POST') {
+      try {
+        var accounts = await dialerGetAccounts(env);
+        var count = accounts.length;
+        // Clear all accounts
+        await env.DATA_KV.put('dialer:accounts', JSON.stringify([]));
+        // Clear all sessions (list and delete pattern not available, just overwrite accounts)
+        return new Response(JSON.stringify({ success: true, cleared: count }), {
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ error: e.message }), {
+          status: 500, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+    }
+
     // Auth: first-time setup (create master account)
     if (path === '/api/dialer/auth/setup' && request.method === 'POST') {
       try {
