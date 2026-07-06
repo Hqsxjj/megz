@@ -1271,11 +1271,11 @@ export const DIALER_HTML = `<!DOCTYPE html>
   <div id="authLoginOverlay" class="auth-overlay auth-hidden">
     <div class="auth-card">
       <div class="auth-title">智能快捷拨号</div>
-      <div class="auth-subtitle">选择账户并输入 PIN 码登录</div>
-      <div id="authAccountList" class="auth-account-list"></div>
+      <div class="auth-subtitle">输入账户 ID 和 PIN 码登录</div>
+      <input type="text" id="authLoginAccountId" class="auth-input" placeholder="账户 ID" autocomplete="off" style="font-family:monospace; font-size:0.78rem;">
       <input type="password" id="authLoginPin" class="auth-input auth-pin-input" maxlength="6" inputmode="numeric" placeholder="PIN 码" autocomplete="off">
       <div id="authLoginError" class="auth-error"></div>
-      <button id="authLoginBtn" class="auth-btn" disabled>登录</button>
+      <button id="authLoginBtn" class="auth-btn">登录</button>
       <span id="authShowSetupLink" class="auth-link">首次使用？创建新账户</span>
     </div>
   </div>
@@ -8579,8 +8579,6 @@ export const DIALER_HTML = `<!DOCTYPE html>
 
     // ========== Auth Flow ==========
 
-    var _authSelectedAccount = null;
-
     function initAuth() {
       var token = getSessionToken();
       var aid = getSessionAccountId();
@@ -8618,55 +8616,38 @@ export const DIALER_HTML = `<!DOCTYPE html>
 
     function showAuthScreen() {
       document.querySelector('.app-shell').style.display = 'none';
-      fetch('/api/dialer/auth/accounts')
+      fetch('/api/dialer/auth/status', { method: 'POST' })
         .then(function(r) { return r.json(); })
         .then(function(res) {
-          if (res.accounts && res.accounts.length > 0) {
-            showLoginOverlay(res.accounts);
+          if (res.has_accounts) {
+            showLoginOverlay();
           } else {
             showSetupOverlay();
           }
         })
         .catch(function() {
-          showSetupOverlay();
+          showLoginOverlay();
         });
     }
 
-    function showLoginOverlay(accounts) {
+    function showLoginOverlay() {
       document.getElementById('authSetupOverlay').classList.add('auth-hidden');
       var overlay = document.getElementById('authLoginOverlay');
       overlay.classList.remove('auth-hidden');
 
-      var list = document.getElementById('authAccountList');
+      var accountInput = document.getElementById('authLoginAccountId');
       var pinInput = document.getElementById('authLoginPin');
       var error = document.getElementById('authLoginError');
       var loginBtn = document.getElementById('authLoginBtn');
 
-      _authSelectedAccount = null;
+      accountInput.value = '';
       pinInput.value = '';
       error.textContent = '';
-      loginBtn.disabled = true;
-
-      list.innerHTML = accounts.map(function(a) {
-        var typeBadge = a.is_master ? ' [主账户]' : '';
-        var statusBadge = a.active ? '' : ' [已禁用]';
-        return '<div class="auth-account-item" data-id="' + a.account_id + '" style="' + (a.active ? '' : 'opacity:0.4;') + '">'
-          + (a.label || a.account_id.slice(0, 12)) + typeBadge + statusBadge
-          + '</div>';
-      }).join('');
-
-      list.querySelectorAll('.auth-account-item').forEach(function(el) {
-        el.addEventListener('click', function() {
-          list.querySelectorAll('.auth-account-item').forEach(function(e) { e.classList.remove('selected'); });
-          el.classList.add('selected');
-          _authSelectedAccount = { id: el.dataset.id };
-          loginBtn.disabled = false;
-          pinInput.focus();
-        });
-      });
+      loginBtn.disabled = false;
 
       loginBtn.onclick = doLogin;
-      pinInput.onkeypress = function(e) { if (e.key === 'Enter' && _authSelectedAccount) doLogin(); };
+      pinInput.onkeypress = function(e) { if (e.key === 'Enter') doLogin(); };
+      accountInput.onkeypress = function(e) { if (e.key === 'Enter') { pinInput.focus(); } };
 
       document.getElementById('authShowSetupLink').onclick = function() {
         overlay.classList.add('auth-hidden');
@@ -8675,12 +8656,14 @@ export const DIALER_HTML = `<!DOCTYPE html>
     }
 
     function doLogin() {
+      var accountInput = document.getElementById('authLoginAccountId');
       var pinInput = document.getElementById('authLoginPin');
       var error = document.getElementById('authLoginError');
       var loginBtn = document.getElementById('authLoginBtn');
+      var accountId = accountInput.value.trim();
       var pin = pinInput.value.trim();
 
-      if (!_authSelectedAccount) { error.textContent = '请选择账户'; return; }
+      if (!accountId) { error.textContent = '请输入账户 ID'; return; }
       if (pin.length < 4) { error.textContent = '请输入完整 PIN 码'; return; }
 
       loginBtn.disabled = true;
@@ -8689,7 +8672,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
       fetch('/api/dialer/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ account_id: _authSelectedAccount.id, pin: pin })
+        body: JSON.stringify({ account_id: accountId, pin: pin })
       })
       .then(function(r) { return r.json(); })
       .then(function(res) {
@@ -8707,7 +8690,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
         error.textContent = '网络错误，请重试';
       })
       .finally(function() {
-        loginBtn.disabled = !_authSelectedAccount;
+        loginBtn.disabled = false;
         loginBtn.textContent = '登录';
       });
     }
