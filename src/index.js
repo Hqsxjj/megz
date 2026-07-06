@@ -971,6 +971,36 @@ async function callAIChatWithTools(env, messages, temperature = 0.5, fromUser = 
   return { choices: [{ message: chatMessages[chatMessages.length - 1] }] };
 }
 
+// ========== Dialer Auth Helpers ==========
+
+function dialerHashPin(str) {
+  var hash = 5381;
+  for (var i = 0; i < str.length; i++) {
+    hash = ((hash << 5) + hash) + str.charCodeAt(i);
+  }
+  return (hash >>> 0).toString(16);
+}
+
+function dialerGenToken() {
+  return Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 12);
+}
+
+async function dialerGetAccounts(env) {
+  var raw = await env.DATA_KV.get('dialer:accounts');
+  return raw ? JSON.parse(raw) : [];
+}
+
+async function dialerSaveAccounts(env, accounts) {
+  await env.DATA_KV.put('dialer:accounts', JSON.stringify(accounts));
+}
+
+async function dialerValidateSession(env, token) {
+  if (!token) return null;
+  var raw = await env.DATA_KV.get('dialer:session:' + token);
+  if (!raw) return null;
+  return JSON.parse(raw);
+}
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
@@ -1359,8 +1389,282 @@ export default {
       }
     }
 
+    // ==================== 拨号器账户认证 ====================
+
+    // Auth: check if any accounts exist
+    if (path === '/api/dialer/auth/status' && request.method === 'POST') {
+      try {
+        var accounts = await dialerGetAccounts(env);
+        return new Response(JSON.stringify({ has_accounts: accounts.length > 0, count: accounts.length }), {
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ error: e.message }), {
+          status: 500, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+    }
+
+    // Auth: first-time setup (create master account)
+    if (path === '/api/dialer/auth/setup' && request.method === 'POST') {
+      try {
+        var body = await request.json();
+        var pin = (body.pin || '').trim();
+        var label = (body.label || '').trim();
+        if (pin.length < 4) throw new Error('PIN 至少需要 4 位数字');
+
+        var accounts = await dialerGetAccounts(env);
+        if (accounts.length > 0) throw new Error('已有账户存在，无法重复初始化');
+
+        var accountId = 'acct_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 6);
+        var pinHash = dialerHashPin(pin);
+        var account = {
+          account_id: accountId, pin_hash: pinHash, label: label,
+          is_master: true, active: true, created_at: new Date().toISOString()
+        };
+        accounts.push(account);
+        await dialerSaveAccounts(env, accounts);
+
+        // Create session
+        var token = dialerGenToken();
+        await env.DATA_KV.put('dialer:session:' + token, JSON.stringify({ account_id: accountId, created_at: new Date().toISOString() }));
+
+        return new Response(JSON.stringify({ success: true, account_id: accountId, is_master: true, label: label, session_token: token }), {
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ success: false, error: e.message }), {
+          status: 400, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+    }
+
+    // Auth: login
+    if (path === '/api/dialer/auth/login' && request.method === 'POST') {
+      try {
+        var body = await request.json();
+        var accountId = (body.account_id || '').trim();
+        var pin = (body.pin || '').trim();
+        if (!accountId || pin.length < 4) throw new Error('请输入账户和 PIN 码');
+
+        var accounts = await dialerGetAccounts(env);
+        var account = null;
+        for (var ai = 0; ai < accounts.length; ai++) {
+          if (accounts[ai].account_id === accountId) { account = accounts[ai]; break; }
+        }
+        if (!account) throw new Error('账户不存在');
+        if (!account.active) throw new Error('该账户已被禁用');
+        if (account.pin_hash !== dialerHashPin(pin)) throw new Error('PIN 码错误');
+
+        // Create session
+        var token = dialerGenToken();
+        await env.DATA_KV.put('dialer:session:' + token, JSON.stringify({ account_id: accountId, created_at: new Date().toISOString() }));
+
+        return new Response(JSON.stringify({
+          success: true, account_id: accountId, is_master: account.is_master || false,
+          label: account.label || '', session_token: token
+        }), {
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ success: false, error: e.message }), {
+          status: 401, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+    }
+
+    // Auth: list accounts (for login screen — returns id+label only, no pin_hash)
+    if (path === '/api/dialer/auth/accounts' && request.method === 'GET') {
+      try {
+        var accounts = await dialerGetAccounts(env);
+        var safe = accounts.map(function(a) {
+          return { account_id: a.account_id, label: a.label || '', is_master: a.is_master || false, active: a.active, created_at: a.created_at };
+        });
+        return new Response(JSON.stringify({ accounts: safe }), {
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ error: e.message }), {
+          status: 500, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+    }
+
+    // Auth: create sub-account (master only, requires session)
+    if (path === '/api/dialer/auth/accounts' && request.method === 'POST') {
+      try {
+        var authHeader = request.headers.get('Authorization') || '';
+        var sessionToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
+        var session = await dialerValidateSession(env, sessionToken);
+        if (!session) throw new Error('未登录');
+
+        var accounts = await dialerGetAccounts(env);
+        var master = null;
+        for (var ai2 = 0; ai2 < accounts.length; ai2++) {
+          if (accounts[ai2].account_id === session.account_id) { master = accounts[ai2]; break; }
+        }
+        if (!master || !master.is_master) throw new Error('仅主账户可创建子账户');
+
+        var body = await request.json();
+        var pin = (body.pin || '').trim();
+        var label = (body.label || '').trim();
+        if (pin.length < 4) throw new Error('PIN 至少需要 4 位数字');
+
+        var subId = 'sub_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 6);
+        var subAccount = {
+          account_id: subId, pin_hash: dialerHashPin(pin), label: label,
+          is_master: false, active: true, created_at: new Date().toISOString()
+        };
+        accounts.push(subAccount);
+        await dialerSaveAccounts(env, accounts);
+
+        return new Response(JSON.stringify({ success: true, account_id: subId, label: label }), {
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ success: false, error: e.message }), {
+          status: e.message === '未登录' ? 401 : 400,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+    }
+
+    // Auth: update sub-account (toggle active/label, master only)
+    if (path === '/api/dialer/auth/accounts' && request.method === 'PATCH') {
+      try {
+        var authHeader = request.headers.get('Authorization') || '';
+        var sessionToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
+        var session = await dialerValidateSession(env, sessionToken);
+        if (!session) throw new Error('未登录');
+
+        var accounts = await dialerGetAccounts(env);
+        var master = null;
+        for (var ai3 = 0; ai3 < accounts.length; ai3++) {
+          if (accounts[ai3].account_id === session.account_id) { master = accounts[ai3]; break; }
+        }
+        if (!master || !master.is_master) throw new Error('仅主账户可管理子账户');
+
+        var body = await request.json();
+        var targetId = (body.target_account_id || '').trim();
+        if (!targetId) throw new Error('缺少目标账户 ID');
+        if (targetId === master.account_id) throw new Error('不能修改主账户');
+
+        var found = false;
+        for (var ai4 = 0; ai4 < accounts.length; ai4++) {
+          if (accounts[ai4].account_id === targetId) {
+            if (body.active !== undefined) accounts[ai4].active = !!body.active;
+            if (body.label !== undefined) accounts[ai4].label = String(body.label).trim();
+            found = true;
+            break;
+          }
+        }
+        if (!found) throw new Error('子账户不存在');
+        await dialerSaveAccounts(env, accounts);
+
+        return new Response(JSON.stringify({ success: true }), {
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ success: false, error: e.message }), {
+          status: e.message === '未登录' ? 401 : 400,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+    }
+
+    // Auth: delete sub-account (master only)
+    if (path === '/api/dialer/auth/accounts' && request.method === 'DELETE') {
+      try {
+        var authHeader = request.headers.get('Authorization') || '';
+        var sessionToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
+        var session = await dialerValidateSession(env, sessionToken);
+        if (!session) throw new Error('未登录');
+
+        var accounts = await dialerGetAccounts(env);
+        var master = null;
+        for (var ai5 = 0; ai5 < accounts.length; ai5++) {
+          if (accounts[ai5].account_id === session.account_id) { master = accounts[ai5]; break; }
+        }
+        if (!master || !master.is_master) throw new Error('仅主账户可删除子账户');
+
+        var body = await request.json();
+        var targetId = (body.target_account_id || '').trim();
+        if (!targetId) throw new Error('缺少目标账户 ID');
+        if (targetId === master.account_id) throw new Error('不能删除主账户');
+
+        var newList = [];
+        for (var ai6 = 0; ai6 < accounts.length; ai6++) {
+          if (accounts[ai6].account_id !== targetId) newList.push(accounts[ai6]);
+        }
+        if (newList.length === accounts.length) throw new Error('子账户不存在');
+        await dialerSaveAccounts(env, newList);
+
+        return new Response(JSON.stringify({ success: true }), {
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ success: false, error: e.message }), {
+          status: e.message === '未登录' ? 401 : 400,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+    }
+
+    // Auth: change own PIN (any logged-in account)
+    if (path === '/api/dialer/auth/change-pin' && request.method === 'POST') {
+      try {
+        var authHeader = request.headers.get('Authorization') || '';
+        var sessionToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
+        var session = await dialerValidateSession(env, sessionToken);
+        if (!session) throw new Error('未登录');
+
+        var body = await request.json();
+        var oldPin = (body.old_pin || '').trim();
+        var newPin = (body.new_pin || '').trim();
+        if (oldPin.length < 4) throw new Error('请输入当前 PIN');
+        if (newPin.length < 4) throw new Error('新 PIN 至少需要 4 位');
+
+        var accounts = await dialerGetAccounts(env);
+        var found = false;
+        for (var ai7 = 0; ai7 < accounts.length; ai7++) {
+          if (accounts[ai7].account_id === session.account_id) {
+            if (accounts[ai7].pin_hash !== dialerHashPin(oldPin)) throw new Error('当前 PIN 码错误');
+            accounts[ai7].pin_hash = dialerHashPin(newPin);
+            found = true;
+            break;
+          }
+        }
+        if (!found) throw new Error('账户不存在');
+        await dialerSaveAccounts(env, accounts);
+
+        return new Response(JSON.stringify({ success: true }), {
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ success: false, error: e.message }), {
+          status: e.message === '未登录' ? 401 : 400,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+    }
+
     // ==================== BHP 拨号器接口与页面并入 ====================
-    
+
+    // Central auth gate: all /api/dialer/ data routes require valid session
+    var _dialerAccountId = '';
+    if (path.startsWith('/api/dialer/') && !path.startsWith('/api/dialer/auth/') && path !== '/api/dialer/data') {
+      var _authHeader = request.headers.get('Authorization') || '';
+      var _sessionToken = _authHeader.startsWith('Bearer ') ? _authHeader.slice(7) : '';
+      var _session = await dialerValidateSession(env, _sessionToken);
+      if (!_session) {
+        return new Response(JSON.stringify({ error: 'Authentication required' }), {
+          status: 401,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+      _dialerAccountId = _session.account_id;
+    }
+
     // 1. 获取拨号器数据
     if (path === '/api/dialer/data' && request.method === 'GET') {
       const data = await env.DATA_KV.get('dialer:data');
@@ -1400,7 +1704,7 @@ export default {
         const body = await request.json();
         const customers = body.customers || [];
         const batchLabel = body.batch_label || '';
-        const accountId = body.account_id || '';
+        const accountId = _dialerAccountId;
         // Add batch_label and account_id to each customer
         const tagged = customers.map(function(c) {
           return Object.assign({}, c, { batch_label: batchLabel, account_id: c.account_id || accountId });
@@ -1437,7 +1741,7 @@ export default {
         const batchLabel = url.searchParams.get('batch_label') || '';
         const exclude = url.searchParams.get('exclude') || '';
         const excludeMobiles = exclude ? exclude.split(',').filter(Boolean) : [];
-        const accountId = url.searchParams.get('account_id') || '';
+        const accountId = _dialerAccountId;
         const sb = createSupabaseClient(env);
         const result = await sb.getAllCustomers(page, pageSize, search, sortBy, sortDir, category, batchLabel, excludeMobiles, accountId);
         return new Response(JSON.stringify(result), {
@@ -1463,7 +1767,7 @@ export default {
         let limit = 50;
         let excludeMobiles = null;
 
-        var accountId = '';
+        var accountId = _dialerAccountId;
 
         if (request.method === 'POST') {
           try {
@@ -1472,12 +1776,10 @@ export default {
             if (Array.isArray(body.exclude) && body.exclude.length > 0) {
               excludeMobiles = body.exclude;
             }
-            accountId = body.account_id || '';
           } catch (parseErr) { /* use defaults */ }
         } else {
           const url = new URL(request.url);
           limit = Math.min(parseInt(url.searchParams.get('limit') || '50'), 200);
-          accountId = url.searchParams.get('account_id') || '';
         }
 
         // Merge KV-tracked cooldown mobiles into exclude set
@@ -1545,7 +1847,7 @@ export default {
       try {
         const body = await request.json();
         const { batch_label, category } = body;
-        const accountId = body.account_id || '';
+        const accountId = _dialerAccountId;
         if (!batch_label || !category) {
           return new Response(JSON.stringify({ success: false, error: '缺少 batch_label 或 category' }), {
             status: 400,
@@ -1571,7 +1873,7 @@ export default {
       try {
         const body = await request.json();
         const { mobile, entry } = body;
-        const accountId = body.account_id || '';
+        const accountId = _dialerAccountId;
         if (!mobile || !entry || !entry.type) {
           return new Response(JSON.stringify({ success: false, error: '缺少 mobile 或 entry.type' }), {
             status: 400,
@@ -1602,7 +1904,7 @@ export default {
       try {
         const body = await request.json();
         const { mobile, fields } = body;
-        const accountId = body.account_id || '';
+        const accountId = _dialerAccountId;
         const sb = createSupabaseClient(env);
         const updated = await sb.updateCustomer(mobile, fields, accountId);
         return new Response(JSON.stringify({ success: true, data: updated }), {
@@ -1627,7 +1929,7 @@ export default {
       try {
         const body = await request.json();
         const { mobile, mobiles } = body;
-        const accountId = body.account_id || '';
+        const accountId = _dialerAccountId;
         const sb = createSupabaseClient(env);
         if (mobiles && Array.isArray(mobiles)) {
           await sb.deleteCustomers(mobiles, accountId);

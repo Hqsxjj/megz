@@ -609,7 +609,152 @@ export const DIALER_HTML = `<!DOCTYPE html>
     .modal-overlay.active .modal-card {
       transform: translateY(0);
     }
-    
+
+    /* Auth overlays — full-screen login/setup */
+    .auth-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: var(--bg-app);
+      z-index: 999999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: opacity 0.3s ease;
+      padding: 16px;
+    }
+    .auth-overlay.auth-hidden {
+      display: none;
+    }
+    .auth-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 14px;
+      box-shadow: var(--shadow-card);
+      max-width: 380px;
+      width: 90vw;
+      padding: 28px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .auth-title {
+      font-size: 1rem;
+      font-weight: 900;
+      color: var(--text-main);
+      text-align: center;
+    }
+    .auth-subtitle {
+      font-size: 0.72rem;
+      color: var(--text-soft);
+      text-align: center;
+      font-weight: 700;
+    }
+    .auth-input {
+      width: 100%;
+      height: 40px;
+      padding: 0 12px;
+      font-size: 0.85rem;
+      border: 1.5px solid var(--card-border);
+      border-radius: var(--radius-xs);
+      font-weight: 700;
+      outline: none;
+      background: var(--card-bg);
+      color: var(--text-main);
+      box-sizing: border-box;
+      transition: border-color 0.2s;
+    }
+    .auth-input:focus {
+      border-color: var(--accent-wechat);
+    }
+    .auth-pin-input {
+      font-size: 1.2rem;
+      letter-spacing: 6px;
+      text-align: center;
+      font-family: monospace;
+    }
+    .auth-select {
+      width: 100%;
+      height: 40px;
+      padding: 0 10px;
+      font-size: 0.82rem;
+      border: 1.5px solid var(--card-border);
+      border-radius: var(--radius-xs);
+      font-weight: 700;
+      outline: none;
+      background: var(--card-bg);
+      color: var(--text-main);
+      cursor: pointer;
+      font-family: monospace;
+    }
+    .auth-error {
+      font-size: 0.65rem;
+      color: #e74c3c;
+      min-height: 18px;
+      text-align: center;
+      font-weight: 700;
+    }
+    .auth-btn {
+      width: 100%;
+      height: 42px;
+      background: var(--accent-wechat);
+      color: white;
+      border: none;
+      border-radius: var(--radius-xs);
+      font-size: 0.9rem;
+      font-weight: 800;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(7,193,96,0.2);
+      transition: all 0.2s;
+    }
+    .auth-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 16px rgba(7,193,96,0.3);
+    }
+    .auth-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+    .auth-link {
+      font-size: 0.7rem;
+      color: var(--text-light);
+      text-align: center;
+      cursor: pointer;
+      font-weight: 700;
+      text-decoration: underline;
+      transition: color 0.2s;
+    }
+    .auth-link:hover {
+      color: var(--accent-wechat);
+    }
+    .auth-account-list {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      max-height: 180px;
+      overflow-y: auto;
+    }
+    .auth-account-item {
+      padding: 10px 12px;
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius-xs);
+      cursor: pointer;
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--text-main);
+      background: var(--btn-bg);
+      transition: all 0.15s;
+      text-align: left;
+    }
+    .auth-account-item:hover {
+      border-color: var(--accent-wechat);
+      background: var(--accent-wechat-bg);
+    }
+    .auth-account-item.selected {
+      border-color: var(--accent-wechat);
+      background: var(--accent-wechat-bg);
+    }
+
     /* Dialer Assist */
     .call-pulse {
       width: 64px;
@@ -1121,6 +1266,34 @@ export const DIALER_HTML = `<!DOCTYPE html>
 </head>
 <body>
   <div class="copy-limit-toast" id="copyLimitToast"></div>
+
+  <!-- Auth: Login Overlay -->
+  <div id="authLoginOverlay" class="auth-overlay auth-hidden">
+    <div class="auth-card">
+      <div class="auth-title">智能快捷拨号</div>
+      <div class="auth-subtitle">选择账户并输入 PIN 码登录</div>
+      <div id="authAccountList" class="auth-account-list"></div>
+      <input type="password" id="authLoginPin" class="auth-input auth-pin-input" maxlength="6" inputmode="numeric" placeholder="PIN 码" autocomplete="off">
+      <div id="authLoginError" class="auth-error"></div>
+      <button id="authLoginBtn" class="auth-btn" disabled>登录</button>
+      <span id="authShowSetupLink" class="auth-link">首次使用？创建新账户</span>
+    </div>
+  </div>
+
+  <!-- Auth: Setup Overlay (first time) -->
+  <div id="authSetupOverlay" class="auth-overlay auth-hidden">
+    <div class="auth-card">
+      <div class="auth-title">首次设置</div>
+      <div class="auth-subtitle">创建主账户以保护您的客户数据</div>
+      <input type="text" id="authSetupLabel" class="auth-input" maxlength="20" placeholder="账户标签（可选）" autocomplete="off">
+      <input type="password" id="authSetupPin" class="auth-input auth-pin-input" maxlength="6" inputmode="numeric" placeholder="设置 4-6 位 PIN 码" autocomplete="new-password">
+      <input type="password" id="authSetupPinConfirm" class="auth-input auth-pin-input" maxlength="6" inputmode="numeric" placeholder="再次输入 PIN 码" autocomplete="new-password">
+      <div id="authSetupError" class="auth-error"></div>
+      <button id="authSetupBtn" class="auth-btn">创建主账户</button>
+      <span id="authShowLoginLink" class="auth-link">已有账户？返回登录</span>
+    </div>
+  </div>
+
   <div class="app-shell">
     <div class="container">
       <!-- Header -->
@@ -1477,21 +1650,45 @@ export const DIALER_HTML = `<!DOCTYPE html>
 
   <!-- Account Settings Modal -->
   <div id="accountSettingsModal" class="modal-overlay" style="z-index:100006;">
-    <div class="modal-card" style="max-width: 380px; gap: 12px; text-align: left;">
-      <div style="font-size:0.95rem; font-weight:900; color:var(--text-main); display:flex; justify-content:space-between; align-items:center;">
+    <div class="modal-card" style="max-width: 420px; gap: 12px; text-align: left; max-height: 80vh; overflow-y: auto;">
+      <div style="font-size:0.95rem; font-weight:900; color:var(--text-main); display:flex; justify-content:space-between; align-items:center; position:sticky; top:0; background:var(--modal-card); padding-bottom: 4px;">
         <span>账户设置</span>
         <button id="closeAccountSettingsBtn" style="background:none; border:none; font-size:1.2rem; cursor:pointer; color:var(--text-soft); padding:0;">关闭</button>
       </div>
       <div style="font-size:0.7rem; color:var(--text-light); font-weight:700;">
-        当前账户标识（自动生成，用于区分不同设备的客户数据）：
+        当前账户标识：
       </div>
       <div id="accountIdDisplay" style="font-size:0.8rem; font-weight:700; color:var(--accent-wechat); background:var(--btn-bg); padding:8px 12px; border-radius:4px; word-break:break-all; font-family:monospace;"></div>
       <div style="font-size:0.7rem; color:var(--text-light); font-weight:700; margin-top:4px;">
-        账户标签（给自己看的名字，可选）：
+        账户标签：
       </div>
       <input type="text" id="accountLabelInput" placeholder="例如：办公室电脑" style="width:100%; height:34px; padding:0 10px; font-size:0.8rem; border:1px solid var(--card-border); border-radius:4px; font-weight:700; outline:none; background:var(--card-bg); color:var(--text-main); box-sizing:border-box;">
       <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:4px;">
+        <button id="logoutBtn" class="btn-secondary" style="padding:8px 16px; font-size:0.72rem;">退出登录</button>
         <button id="saveAccountSettingsBtn" class="btn-primary" style="padding:8px 20px; font-size:0.8rem;">保存</button>
+      </div>
+
+      <!-- Master-only: sub-account management -->
+      <div id="accountMasterSection" style="display:none; border-top:1px solid var(--card-border); padding-top:12px;">
+        <div style="font-size:0.8rem; font-weight:900; color:var(--text-main); margin-bottom:8px;">子账户管理</div>
+        <div id="subAccountList" style="display:flex; flex-direction:column; gap:4px; max-height:140px; overflow-y:auto; margin-bottom:8px;"></div>
+        <div style="display:flex; gap:6px;">
+          <input type="text" id="subAccountLabelInput" maxlength="20" placeholder="子账户名称" style="flex:1; height:30px; padding:0 8px; font-size:0.72rem; border:1px solid var(--card-border); border-radius:4px; font-weight:700; outline:none; background:var(--card-bg); color:var(--text-main);">
+          <input type="password" id="subAccountPinInput" maxlength="6" placeholder="PIN码" style="width:70px; height:30px; padding:0 6px; font-size:0.72rem; border:1px solid var(--card-border); border-radius:4px; font-weight:700; outline:none; background:var(--card-bg); color:var(--text-main); text-align:center; font-family:monospace;">
+          <button id="createSubAccountBtn" class="btn-primary" style="padding:0 10px; height:30px; font-size:0.7rem;">创建</button>
+        </div>
+        <div id="subAccountError" style="font-size:0.6rem; color:#e74c3c; min-height:16px; margin-top:4px;"></div>
+      </div>
+
+      <!-- PIN change -->
+      <div style="border-top:1px solid var(--card-border); padding-top:12px;">
+        <div style="font-size:0.8rem; font-weight:900; color:var(--text-main); margin-bottom:8px;">修改 PIN 码</div>
+        <div style="display:flex; gap:6px; flex-wrap:wrap;">
+          <input type="password" id="changePinOld" maxlength="6" placeholder="当前PIN" style="flex:1; min-width:70px; height:30px; padding:0 8px; font-size:0.72rem; border:1px solid var(--card-border); border-radius:4px; font-weight:700; outline:none; background:var(--card-bg); color:var(--text-main); text-align:center; font-family:monospace;">
+          <input type="password" id="changePinNew" maxlength="6" placeholder="新PIN" style="flex:1; min-width:70px; height:30px; padding:0 8px; font-size:0.72rem; border:1px solid var(--card-border); border-radius:4px; font-weight:700; outline:none; background:var(--card-bg); color:var(--text-main); text-align:center; font-family:monospace;">
+          <button id="changePinBtn" class="btn-secondary" style="padding:0 10px; height:30px; font-size:0.7rem;">修改</button>
+        </div>
+        <div id="changePinError" style="font-size:0.6rem; min-height:16px; margin-top:4px;"></div>
       </div>
     </div>
   </div>
@@ -1699,7 +1896,35 @@ export const DIALER_HTML = `<!DOCTYPE html>
     var ACCOUNT_ID_K = 'standalone_dialer_account_id';
     var ACCOUNT_LABEL_K = 'standalone_dialer_account_label';
 
+    // Session keys (sessionStorage — cleared on tab close)
+    var SESS_TOKEN_K = 'dialer_sess_token';
+    var SESS_AID_K = 'dialer_sess_aid';
+    var SESS_MASTER_K = 'dialer_sess_master';
+    var SESS_LABEL_K = 'dialer_sess_label';
+
+    function getSessionToken() { return sessionStorage.getItem(SESS_TOKEN_K) || ''; }
+    function getSessionAccountId() { return sessionStorage.getItem(SESS_AID_K) || ''; }
+    function isSessionMaster() { return sessionStorage.getItem(SESS_MASTER_K) === '1'; }
+    function getSessionLabel() { return sessionStorage.getItem(SESS_LABEL_K) || ''; }
+
+    function saveSession(acct) {
+      sessionStorage.setItem(SESS_TOKEN_K, acct.session_token || '');
+      sessionStorage.setItem(SESS_AID_K, acct.account_id || '');
+      sessionStorage.setItem(SESS_MASTER_K, acct.is_master ? '1' : '0');
+      sessionStorage.setItem(SESS_LABEL_K, acct.label || '');
+    }
+
+    function clearSession() {
+      sessionStorage.removeItem(SESS_TOKEN_K);
+      sessionStorage.removeItem(SESS_AID_K);
+      sessionStorage.removeItem(SESS_MASTER_K);
+      sessionStorage.removeItem(SESS_LABEL_K);
+    }
+
+    // getOrCreateAccountId: priority: sessionStorage > localStorage > new
     function getOrCreateAccountId() {
+      var sid = getSessionAccountId();
+      if (sid) return sid;
       var id = localStorage.getItem(ACCOUNT_ID_K);
       if (!id) {
         id = 'acct_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 6);
@@ -1707,7 +1932,11 @@ export const DIALER_HTML = `<!DOCTYPE html>
       }
       return id;
     }
-    function getAccountLabel() { return localStorage.getItem(ACCOUNT_LABEL_K) || ''; }
+    function getAccountLabel() {
+      var sl = getSessionLabel();
+      if (sl) return sl;
+      return localStorage.getItem(ACCOUNT_LABEL_K) || '';
+    }
     function setAccountLabel(l) { localStorage.setItem(ACCOUNT_LABEL_K, l); }
 
     function updateAccountDisplay() {
@@ -1716,8 +1945,23 @@ export const DIALER_HTML = `<!DOCTYPE html>
       var id = getOrCreateAccountId();
       var label = getAccountLabel();
       d.textContent = label ? '[' + label + ']' : '[' + id.slice(0, 10) + ']';
-      d.title = '账户: ' + id + (label ? ' (' + label + ')' : '');
+      var typeTag = isSessionMaster() ? ' [主账户]' : (getSessionAccountId() ? ' [子账户]' : '');
+      d.title = '账户: ' + id + (label ? ' (' + label + ')' : '') + typeTag;
     }
+
+    // Monkey-patch fetch to inject Authorization header
+    (function() {
+      var _origFetch = window.fetch;
+      window.fetch = function(url, opts) {
+        var token = getSessionToken();
+        if (token && typeof url === 'string' && url.indexOf('/api/dialer/') !== -1) {
+          opts = opts || {};
+          opts.headers = opts.headers || {};
+          opts.headers['Authorization'] = 'Bearer ' + token;
+        }
+        return _origFetch.call(window, url, opts);
+      };
+    })();
 
     // State Variables
     var importedClients = [];
@@ -8141,37 +8385,176 @@ export const DIALER_HTML = `<!DOCTYPE html>
 
     function initAccountSettings() {
       updateAccountDisplay();
-      // Wire up dropdown menu button
       var accBtn = document.getElementById('accountSettingsBtn');
       if (accBtn) {
         accBtn.addEventListener('click', function() {
           if (window.showAccountSettings) window.showAccountSettings();
         });
       }
-      // Wire up modal close
       var modal = document.getElementById('accountSettingsModal');
       if (!modal) return;
       var closeBtn = document.getElementById('closeAccountSettingsBtn');
       if (closeBtn) {
-        closeBtn.addEventListener('click', function() {
-          modal.classList.remove('active');
-        });
+        closeBtn.addEventListener('click', function() { modal.classList.remove('active'); });
       }
       modal.addEventListener('click', function(e) {
-        if (e.target === modal) {
-          modal.classList.remove('active');
-        }
+        if (e.target === modal) modal.classList.remove('active');
       });
-      // Wire up save
+
+      // Save label
       var saveBtn = document.getElementById('saveAccountSettingsBtn');
       if (saveBtn) {
         saveBtn.addEventListener('click', function() {
           var labelInput = document.getElementById('accountLabelInput');
-          if (labelInput) setAccountLabel(labelInput.value.trim());
+          if (labelInput) {
+            var label = labelInput.value.trim();
+            setAccountLabel(label);
+            sessionStorage.setItem(SESS_LABEL_K, label);
+          }
           updateAccountDisplay();
           modal.classList.remove('active');
         });
       }
+
+      // Logout
+      var logoutBtn = document.getElementById('logoutBtn');
+      if (logoutBtn) {
+        logoutBtn.addEventListener('click', function() {
+          clearSession();
+          modal.classList.remove('active');
+          location.reload();
+        });
+      }
+
+      // Create sub-account
+      var createSubBtn = document.getElementById('createSubAccountBtn');
+      if (createSubBtn) {
+        createSubBtn.addEventListener('click', function() {
+          var label = document.getElementById('subAccountLabelInput').value.trim();
+          var pin = document.getElementById('subAccountPinInput').value.trim();
+          var error = document.getElementById('subAccountError');
+          if (!label) { error.textContent = '请输入子账户名称'; return; }
+          if (pin.length < 4) { error.textContent = 'PIN 至少 4 位'; return; }
+
+          createSubBtn.disabled = true;
+          createSubBtn.textContent = '创建中...';
+          fetch('/api/dialer/auth/accounts', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ pin: pin, label: label })
+          })
+          .then(function(r) { return r.json(); })
+          .then(function(res) {
+            if (res.success) {
+              document.getElementById('subAccountLabelInput').value = '';
+              document.getElementById('subAccountPinInput').value = '';
+              error.textContent = '';
+              loadSubAccounts();
+            } else {
+              error.textContent = res.error || '创建失败';
+            }
+          })
+          .catch(function() { error.textContent = '网络错误'; })
+          .finally(function() { createSubBtn.disabled = false; createSubBtn.textContent = '创建'; });
+        });
+      }
+
+      // Change PIN
+      var changePinBtn = document.getElementById('changePinBtn');
+      if (changePinBtn) {
+        changePinBtn.addEventListener('click', function() {
+          var oldPin = document.getElementById('changePinOld').value.trim();
+          var newPin = document.getElementById('changePinNew').value.trim();
+          var error = document.getElementById('changePinError');
+          error.style.color = '#e74c3c';
+          if (!oldPin) { error.textContent = '请输入当前 PIN'; return; }
+          if (newPin.length < 4) { error.textContent = '新 PIN 至少 4 位'; return; }
+
+          changePinBtn.disabled = true;
+          changePinBtn.textContent = '修改中...';
+
+          fetch('/api/dialer/auth/change-pin', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ old_pin: oldPin, new_pin: newPin })
+          })
+          .then(function(r) { return r.json(); })
+          .then(function(res) {
+            if (res.success) {
+              error.style.color = '#07c160';
+              error.textContent = 'PIN 修改成功';
+              document.getElementById('changePinOld').value = '';
+              document.getElementById('changePinNew').value = '';
+              setTimeout(function() { error.textContent = ''; error.style.color = '#e74c3c'; }, 3000);
+            } else {
+              error.textContent = res.error || '修改失败';
+            }
+          })
+          .catch(function() { error.textContent = '网络错误'; })
+          .finally(function() { changePinBtn.disabled = false; changePinBtn.textContent = '修改'; });
+        });
+      }
+    }
+
+    function loadSubAccounts() {
+      var list = document.getElementById('subAccountList');
+      if (!list) return;
+      fetch('/api/dialer/auth/accounts')
+        .then(function(r) { return r.json(); })
+        .then(function(res) {
+          var myId = getSessionAccountId();
+          var subs = (res.accounts || []).filter(function(a) { return !a.is_master; });
+          if (subs.length === 0) {
+            list.innerHTML = '<div style="font-size:0.68rem; color:var(--text-light); text-align:center; padding:8px;">暂无子账户</div>';
+          } else {
+            list.innerHTML = subs.map(function(s) {
+              var activeTag = s.active ? '' : ' [已禁用]';
+              return '<div style="display:flex; justify-content:space-between; align-items:center; padding:6px 8px; background:var(--btn-bg); border-radius:4px;' + (s.active ? '' : 'opacity:0.5;') + '">'
+                + '<span style="font-size:0.72rem; font-weight:700; color:var(--text-main);">' + (s.label || s.account_id.slice(0,12)) + activeTag + '</span>'
+                + '<div style="display:flex; gap:3px;">'
+                + '<button class="sub-toggle-btn" data-id="' + s.account_id + '" data-active="' + (s.active ? '1' : '0') + '" style="font-size:0.58rem; padding:2px 6px; border:1px solid var(--card-border); border-radius:3px; background:var(--card-bg); color:' + (s.active ? '#e74c3c' : '#07c160') + '; cursor:pointer; font-weight:700;">' + (s.active ? '禁用' : '启用') + '</button>'
+                + '<button class="sub-delete-btn" data-id="' + s.account_id + '" style="font-size:0.58rem; padding:2px 6px; border:1px solid var(--card-border); border-radius:3px; background:var(--card-bg); color:#e74c3c; cursor:pointer; font-weight:700;">删除</button>'
+                + '</div>'
+                + '</div>';
+            }).join('');
+
+            // Wire up toggle buttons
+            list.querySelectorAll('.sub-toggle-btn').forEach(function(btn) {
+              btn.addEventListener('click', function() {
+                var id = btn.dataset.id;
+                var active = btn.dataset.active === '1';
+                btn.disabled = true;
+                btn.textContent = '...';
+                fetch('/api/dialer/auth/accounts', {
+                  method: 'PATCH',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ target_account_id: id, active: !active })
+                })
+                .then(function(r) { return r.json(); })
+                .then(function() { loadSubAccounts(); })
+                .catch(function() { btn.disabled = false; btn.textContent = active ? '禁用' : '启用'; });
+              });
+            });
+
+            // Wire up delete buttons
+            list.querySelectorAll('.sub-delete-btn').forEach(function(btn) {
+              btn.addEventListener('click', function() {
+                var id = btn.dataset.id;
+                if (!confirm('确定删除子账户 ' + id.slice(0, 12) + ' 吗？该操作不可撤销。')) return;
+                btn.disabled = true;
+                btn.textContent = '...';
+                fetch('/api/dialer/auth/accounts', {
+                  method: 'DELETE',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ target_account_id: id })
+                })
+                .then(function(r) { return r.json(); })
+                .then(function() { loadSubAccounts(); })
+                .catch(function() { btn.disabled = false; btn.textContent = '删除'; });
+              });
+            });
+          }
+        });
     }
 
     window.showAccountSettings = function() {
@@ -8179,12 +8562,224 @@ export const DIALER_HTML = `<!DOCTYPE html>
       if (!modal) return;
       document.getElementById('accountIdDisplay').textContent = getOrCreateAccountId();
       document.getElementById('accountLabelInput').value = getAccountLabel();
+
+      // Show/hide master section
+      var masterSection = document.getElementById('accountMasterSection');
+      if (masterSection) {
+        if (isSessionMaster()) {
+          masterSection.style.display = 'block';
+          loadSubAccounts();
+        } else {
+          masterSection.style.display = 'none';
+        }
+      }
+
       modal.classList.add('active');
     };
+
+    // ========== Auth Flow ==========
+
+    var _authSelectedAccount = null;
+
+    function initAuth() {
+      var token = getSessionToken();
+      var aid = getSessionAccountId();
+      if (token && aid) {
+        // Have session — silently verify, proceed either way
+        fetch('/api/dialer/auth/accounts')
+          .then(function(r) { return r.json(); })
+          .then(function(res) {
+            if (res.accounts) {
+              // Valid — proceed
+              showAppShell();
+              updateAccountDisplay();
+            } else {
+              // Invalid — clear and show login
+              clearSession();
+              showAuthScreen();
+            }
+          })
+          .catch(function() {
+            // Network error — proceed with cached session
+            showAppShell();
+            updateAccountDisplay();
+          });
+      } else {
+        showAuthScreen();
+      }
+    }
+
+    function showAppShell() {
+      var appShell = document.querySelector('.app-shell');
+      if (appShell) appShell.style.display = '';
+      document.getElementById('authLoginOverlay').classList.add('auth-hidden');
+      document.getElementById('authSetupOverlay').classList.add('auth-hidden');
+    }
+
+    function showAuthScreen() {
+      document.querySelector('.app-shell').style.display = 'none';
+      fetch('/api/dialer/auth/accounts')
+        .then(function(r) { return r.json(); })
+        .then(function(res) {
+          if (res.accounts && res.accounts.length > 0) {
+            showLoginOverlay(res.accounts);
+          } else {
+            showSetupOverlay();
+          }
+        })
+        .catch(function() {
+          showSetupOverlay();
+        });
+    }
+
+    function showLoginOverlay(accounts) {
+      document.getElementById('authSetupOverlay').classList.add('auth-hidden');
+      var overlay = document.getElementById('authLoginOverlay');
+      overlay.classList.remove('auth-hidden');
+
+      var list = document.getElementById('authAccountList');
+      var pinInput = document.getElementById('authLoginPin');
+      var error = document.getElementById('authLoginError');
+      var loginBtn = document.getElementById('authLoginBtn');
+
+      _authSelectedAccount = null;
+      pinInput.value = '';
+      error.textContent = '';
+      loginBtn.disabled = true;
+
+      list.innerHTML = accounts.map(function(a) {
+        var typeBadge = a.is_master ? ' [主账户]' : '';
+        var statusBadge = a.active ? '' : ' [已禁用]';
+        return '<div class="auth-account-item" data-id="' + a.account_id + '" style="' + (a.active ? '' : 'opacity:0.4;') + '">'
+          + (a.label || a.account_id.slice(0, 12)) + typeBadge + statusBadge
+          + '</div>';
+      }).join('');
+
+      list.querySelectorAll('.auth-account-item').forEach(function(el) {
+        el.addEventListener('click', function() {
+          list.querySelectorAll('.auth-account-item').forEach(function(e) { e.classList.remove('selected'); });
+          el.classList.add('selected');
+          _authSelectedAccount = { id: el.dataset.id };
+          loginBtn.disabled = false;
+          pinInput.focus();
+        });
+      });
+
+      loginBtn.onclick = doLogin;
+      pinInput.onkeypress = function(e) { if (e.key === 'Enter' && _authSelectedAccount) doLogin(); };
+
+      document.getElementById('authShowSetupLink').onclick = function() {
+        overlay.classList.add('auth-hidden');
+        showSetupOverlay();
+      };
+    }
+
+    function doLogin() {
+      var pinInput = document.getElementById('authLoginPin');
+      var error = document.getElementById('authLoginError');
+      var loginBtn = document.getElementById('authLoginBtn');
+      var pin = pinInput.value.trim();
+
+      if (!_authSelectedAccount) { error.textContent = '请选择账户'; return; }
+      if (pin.length < 4) { error.textContent = '请输入完整 PIN 码'; return; }
+
+      loginBtn.disabled = true;
+      loginBtn.textContent = '登录中...';
+
+      fetch('/api/dialer/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ account_id: _authSelectedAccount.id, pin: pin })
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(res) {
+        if (res.success) {
+          saveSession(res);
+          showAppShell();
+          updateAccountDisplay();
+        } else {
+          error.textContent = res.error || '登录失败';
+          pinInput.value = '';
+          pinInput.focus();
+        }
+      })
+      .catch(function() {
+        error.textContent = '网络错误，请重试';
+      })
+      .finally(function() {
+        loginBtn.disabled = !_authSelectedAccount;
+        loginBtn.textContent = '登录';
+      });
+    }
+
+    function showSetupOverlay() {
+      document.getElementById('authLoginOverlay').classList.add('auth-hidden');
+      var overlay = document.getElementById('authSetupOverlay');
+      overlay.classList.remove('auth-hidden');
+
+      document.getElementById('authSetupLabel').value = '';
+      document.getElementById('authSetupPin').value = '';
+      document.getElementById('authSetupPinConfirm').value = '';
+      document.getElementById('authSetupError').textContent = '';
+
+      document.getElementById('authSetupBtn').onclick = doSetup;
+      document.getElementById('authSetupPinConfirm').onkeypress = function(e) {
+        if (e.key === 'Enter') doSetup();
+      };
+
+      document.getElementById('authShowLoginLink').onclick = function() {
+        overlay.classList.add('auth-hidden');
+        showAuthScreen();
+      };
+    }
+
+    function doSetup() {
+      var label = document.getElementById('authSetupLabel').value.trim();
+      var pin = document.getElementById('authSetupPin').value.trim();
+      var pinConfirm = document.getElementById('authSetupPinConfirm').value.trim();
+      var error = document.getElementById('authSetupError');
+      var btn = document.getElementById('authSetupBtn');
+
+      if (pin.length < 4) { error.textContent = 'PIN 码至少需要 4 位'; return; }
+      if (pin !== pinConfirm) { error.textContent = '两次输入不一致'; return; }
+
+      btn.disabled = true;
+      btn.textContent = '创建中...';
+
+      fetch('/api/dialer/auth/setup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pin: pin, label: label })
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(res) {
+        if (res.success) {
+          saveSession(res);
+          showAppShell();
+          updateAccountDisplay();
+        } else {
+          error.textContent = res.error || '创建失败';
+        }
+      })
+      .catch(function() {
+        error.textContent = '网络错误，请重试';
+      })
+      .finally(function() {
+        btn.disabled = false;
+        btn.textContent = '创建主账户';
+      });
+    }
+
+    // Hide app shell on load (auth will show it after login)
+    (function() {
+      var appShell = document.querySelector('.app-shell');
+      if (appShell) appShell.style.display = 'none';
+    })();
 
     function safeInit(name, fn) {
       try { fn(); } catch (e) { console.error('Init error: ' + name, e); }
     }
+    safeInit('initAuth', initAuth);
     safeInit('initDark', initDark);
     safeInit('initFileInputs', initFileInputs);
     safeInit('initCallControls', initCallControls);
