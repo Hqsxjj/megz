@@ -2134,7 +2134,64 @@ export default {
       }
     }
 
-    // 2g. 存量客户一键迁移至公海客户
+    // 2g. 主账户分配客户给子账户
+    if (path === '/api/dialer/customers/reassign' && request.method === 'POST') {
+      try {
+        const body = await request.json();
+        const { mobiles, target_account_id } = body;
+        if (!mobiles || !Array.isArray(mobiles) || mobiles.length === 0) throw new Error('请选择要分配的客户');
+        if (!target_account_id) throw new Error('请选择目标子账户');
+
+        // Verify master
+        var _accounts = await dialerGetAccounts(env);
+        var _masterFound = false;
+        for (var _aj = 0; _aj < _accounts.length; _aj++) {
+          if (_accounts[_aj].account_id === _dialerAccountId && _accounts[_aj].is_master !== false) { _masterFound = true; break; }
+        }
+        if (!_masterFound) throw new Error('仅主账户可分配客户');
+
+        // Verify target exists
+        var _targetFound = false;
+        for (var _ak = 0; _ak < _accounts.length; _ak++) {
+          if (_accounts[_ak].account_id === target_account_id) { _targetFound = true; break; }
+        }
+        if (!_targetFound) throw new Error('目标子账户不存在');
+
+        const supabaseUrl = env.SUPABASE_URL;
+        const supabaseKey = env.SUPABASE_KEY;
+        if (!supabaseUrl || !supabaseKey) throw new Error('Supabase 未配置');
+
+        const hdrs = {
+          'Content-Type': 'application/json',
+          'apikey': supabaseKey,
+          'Authorization': 'Bearer ' + supabaseKey,
+          'Prefer': 'return=minimal'
+        };
+
+        // Update in batches
+        var doneCount = 0;
+        for (var _mi = 0; _mi < mobiles.length; _mi++) {
+          var patchUrl = supabaseUrl + '/rest/v1/customers?mobile=eq.' + encodeURIComponent(mobiles[_mi]);
+          var patchResp = await fetch(patchUrl, {
+            method: 'PATCH',
+            headers: hdrs,
+            body: JSON.stringify({ account_id: target_account_id })
+          });
+          if (patchResp.ok) doneCount++;
+        }
+
+        return new Response(JSON.stringify({ success: true, updated: doneCount }), {
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ success: false, error: e.message }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+    }
+
+    // 2h. 存量客户一键迁移至公海客户
     if (path === '/api/dialer/customers/migrate-to-public' && request.method === 'POST') {
       try {
         const supabaseUrl = env.SUPABASE_URL;

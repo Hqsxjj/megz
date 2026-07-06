@@ -1831,6 +1831,11 @@ export const DIALER_HTML = `<!DOCTYPE html>
       <button class="crm-tool-btn" id="dbBatchCatBtn" title="更多批量分类">批量分类</button>
       <button class="crm-tool-btn blue" id="dbAiCorrectFundBtn" title="AI 扫描公积金字段，自动识别并修正存错位置的数据">AI修正公积金</button>
       <button class="crm-tool-btn blue" id="crmManageColsBtn" title="管理自定义列">自定义列</button>
+      <span id="crmReassignGroup" style="display:none; align-items:center; gap:4px;">
+        <span style="font-size:0.7rem; font-weight:700; color:var(--text-soft);">分配给</span>
+        <select id="crmReassignSel" style="height:28px; padding:0 6px; font-size:0.68rem; border:1px solid var(--card-border); border-radius:3px; font-weight:700; background:var(--card-bg); color:var(--text-main); cursor:pointer;"></select>
+        <button class="crm-tool-btn" id="crmReassignBtn" style="background:#e67e22; color:#fff; border-color:#e67e22;">分配</button>
+      </span>
     </div>
 
     <!-- Batch category mini-panel -->
@@ -7514,8 +7519,24 @@ export const DIALER_HTML = `<!DOCTYPE html>
                 DB.page = 1;
                 DB.selectedIds = {};
                 dbFetch();
+                // Show reassign only when viewing own data
+                var reassignGroup = document.getElementById('crmReassignGroup');
+                if (reassignGroup) reassignGroup.style.display = _viewAccountId ? 'none' : 'flex';
               });
             }
+          }
+          // Populate reassign dropdown
+          var reassignSel = document.getElementById('crmReassignSel');
+          var reassignGroup = document.getElementById('crmReassignGroup');
+          if (reassignSel && reassignGroup) {
+            reassignSel.innerHTML = '<option value="">选择子账户</option>';
+            res.stats.forEach(function(s) {
+              if (!s.is_master && s.active) {
+                var name = s.account_name || s.label || s.account_id.slice(0, 10);
+                reassignSel.innerHTML += '<option value="' + s.account_id + '">' + name + '</option>';
+              }
+            });
+            reassignGroup.style.display = _viewAccountId ? 'none' : 'flex';
           }
         })
         .catch(function() {
@@ -8442,6 +8463,41 @@ export const DIALER_HTML = `<!DOCTYPE html>
               btn.disabled = false;
               alert('网络错误: ' + err.message);
             });
+        });
+      }
+
+      // Reassign selected customers to sub-account (master only)
+      var reassignBtn = document.getElementById('crmReassignBtn');
+      if (reassignBtn) {
+        reassignBtn.addEventListener('click', function() {
+          var selectedMobiles = Object.keys(DB.selectedIds);
+          if (selectedMobiles.length === 0) { alert('请先勾选要分配的客户'); return; }
+          var targetSel = document.getElementById('crmReassignSel');
+          var targetId = targetSel ? targetSel.value : '';
+          if (!targetId) { alert('请选择目标子账户'); return; }
+          var targetName = targetSel.options[targetSel.selectedIndex].text;
+          if (!confirm('将 ' + selectedMobiles.length + ' 条客户分配给「' + targetName + '」？')) return;
+
+          reassignBtn.disabled = true;
+          reassignBtn.textContent = '分配中...';
+          fetch('/api/dialer/customers/reassign', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ mobiles: selectedMobiles, target_account_id: targetId })
+          })
+          .then(function(r) { return r.json(); })
+          .then(function(res) {
+            if (res.success) {
+              alert('已成功分配 ' + res.updated + ' 条客户');
+              DB.selectedIds = {};
+              dbFetch();
+              loadAccountStats();
+            } else {
+              alert('分配失败: ' + (res.error || '未知错误'));
+            }
+          })
+          .catch(function(err) { alert('网络错误: ' + err.message); })
+          .finally(function() { reassignBtn.disabled = false; reassignBtn.textContent = '分配'; });
         });
       }
     }
