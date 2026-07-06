@@ -1903,32 +1903,32 @@ export const DIALER_HTML = `<!DOCTYPE html>
     var ACCOUNT_ID_K = 'standalone_dialer_account_id';
     var ACCOUNT_LABEL_K = 'standalone_dialer_account_label';
 
-    // Session keys (sessionStorage — cleared on tab close)
+    // Session keys (localStorage — persists across browser restarts)
     var SESS_TOKEN_K = 'dialer_sess_token';
     var SESS_AID_K = 'dialer_sess_aid';
     var SESS_MASTER_K = 'dialer_sess_master';
     var SESS_LABEL_K = 'dialer_sess_label';
 
-    function getSessionToken() { return sessionStorage.getItem(SESS_TOKEN_K) || ''; }
-    function getSessionAccountId() { return sessionStorage.getItem(SESS_AID_K) || ''; }
-    function isSessionMaster() { return sessionStorage.getItem(SESS_MASTER_K) === '1'; }
-    function getSessionLabel() { return sessionStorage.getItem(SESS_LABEL_K) || ''; }
+    function getSessionToken() { return localStorage.getItem(SESS_TOKEN_K) || ''; }
+    function getSessionAccountId() { return localStorage.getItem(SESS_AID_K) || ''; }
+    function isSessionMaster() { return localStorage.getItem(SESS_MASTER_K) === '1'; }
+    function getSessionLabel() { return localStorage.getItem(SESS_LABEL_K) || ''; }
 
     function saveSession(acct) {
-      sessionStorage.setItem(SESS_TOKEN_K, acct.session_token || '');
-      sessionStorage.setItem(SESS_AID_K, acct.account_id || '');
-      sessionStorage.setItem(SESS_MASTER_K, acct.is_master ? '1' : '0');
-      sessionStorage.setItem(SESS_LABEL_K, acct.label || '');
+      localStorage.setItem(SESS_TOKEN_K, acct.session_token || '');
+      localStorage.setItem(SESS_AID_K, acct.account_id || '');
+      localStorage.setItem(SESS_MASTER_K, acct.is_master ? '1' : '0');
+      localStorage.setItem(SESS_LABEL_K, acct.label || '');
     }
 
     function clearSession() {
-      sessionStorage.removeItem(SESS_TOKEN_K);
-      sessionStorage.removeItem(SESS_AID_K);
-      sessionStorage.removeItem(SESS_MASTER_K);
-      sessionStorage.removeItem(SESS_LABEL_K);
+      localStorage.removeItem(SESS_TOKEN_K);
+      localStorage.removeItem(SESS_AID_K);
+      localStorage.removeItem(SESS_MASTER_K);
+      localStorage.removeItem(SESS_LABEL_K);
     }
 
-    // getOrCreateAccountId: priority: sessionStorage > localStorage > new
+    // getOrCreateAccountId: priority: localStorage > localStorage > new
     function getOrCreateAccountId() {
       var sid = getSessionAccountId();
       if (sid) return sid;
@@ -8416,7 +8416,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
           if (labelInput) {
             var label = labelInput.value.trim();
             setAccountLabel(label);
-            sessionStorage.setItem(SESS_LABEL_K, label);
+            localStorage.setItem(SESS_LABEL_K, label);
           }
           updateAccountDisplay();
           modal.classList.remove('active');
