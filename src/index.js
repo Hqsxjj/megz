@@ -1480,6 +1480,8 @@ export default {
         if (!account.active) throw new Error('该账户已被禁用');
         if (account.pin_hash !== dialerHashPin(pin)) throw new Error('PIN 码错误');
 
+        var accountId = account.account_id;
+
         // Create session
         var token = dialerGenToken();
         await env.DATA_KV.put('dialer:session:' + token, JSON.stringify({ account_id: accountId, created_at: new Date().toISOString() }));
