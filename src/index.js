@@ -1485,7 +1485,7 @@ export default {
         await env.DATA_KV.put('dialer:session:' + token, JSON.stringify({ account_id: accountId, created_at: new Date().toISOString() }));
 
         return new Response(JSON.stringify({
-          success: true, account_id: accountId, is_master: account.is_master || false,
+          success: true, account_id: accountId, is_master: account.is_master !== false,
           label: account.label || '', session_token: token
         }), {
           headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
@@ -1502,7 +1502,7 @@ export default {
       try {
         var accounts = await dialerGetAccounts(env);
         var safe = accounts.map(function(a) {
-          return { account_id: a.account_id, account_name: a.account_name || '', label: a.label || '', is_master: a.is_master || false, active: a.active, created_at: a.created_at };
+          return { account_id: a.account_id, account_name: a.account_name || '', label: a.label || '', is_master: a.is_master !== false, active: a.active, created_at: a.created_at };
         });
         return new Response(JSON.stringify({ accounts: safe }), {
           headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
