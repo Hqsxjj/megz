@@ -1271,8 +1271,8 @@ export const DIALER_HTML = `<!DOCTYPE html>
   <div id="authLoginOverlay" class="auth-overlay auth-hidden">
     <div class="auth-card">
       <div class="auth-title">智能快捷拨号</div>
-      <div class="auth-subtitle">输入账户 ID 和 PIN 码登录</div>
-      <input type="text" id="authLoginAccountId" class="auth-input" placeholder="账户 ID" autocomplete="off" style="font-family:monospace; font-size:0.78rem;">
+      <div class="auth-subtitle">输入账户名和 PIN 码登录</div>
+      <input type="text" id="authLoginAccountName" class="auth-input" placeholder="账户名" autocomplete="off">
       <input type="password" id="authLoginPin" class="auth-input auth-pin-input" maxlength="6" inputmode="numeric" placeholder="PIN 码" autocomplete="off">
       <div id="authLoginError" class="auth-error"></div>
       <button id="authLoginBtn" class="auth-btn">登录</button>
@@ -1285,7 +1285,8 @@ export const DIALER_HTML = `<!DOCTYPE html>
     <div class="auth-card">
       <div class="auth-title">首次设置</div>
       <div class="auth-subtitle">创建主账户以保护您的客户数据</div>
-      <input type="text" id="authSetupLabel" class="auth-input" maxlength="20" placeholder="账户标签（可选）" autocomplete="off">
+      <input type="text" id="authSetupName" class="auth-input" maxlength="20" placeholder="账户名（登录用，如：办公室）" autocomplete="off">
+      <input type="text" id="authSetupLabel" class="auth-input" maxlength="20" placeholder="显示标签（可选）" autocomplete="off">
       <input type="password" id="authSetupPin" class="auth-input auth-pin-input" maxlength="6" inputmode="numeric" placeholder="设置 4-6 位 PIN 码" autocomplete="new-password">
       <input type="password" id="authSetupPinConfirm" class="auth-input auth-pin-input" maxlength="6" inputmode="numeric" placeholder="再次输入 PIN 码" autocomplete="new-password">
       <div id="authSetupError" class="auth-error"></div>
@@ -1673,7 +1674,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
         <div style="font-size:0.8rem; font-weight:900; color:var(--text-main); margin-bottom:8px;">子账户管理</div>
         <div id="subAccountList" style="display:flex; flex-direction:column; gap:4px; max-height:140px; overflow-y:auto; margin-bottom:8px;"></div>
         <div style="display:flex; gap:6px;">
-          <input type="text" id="subAccountLabelInput" maxlength="20" placeholder="子账户名称" style="flex:1; height:30px; padding:0 8px; font-size:0.72rem; border:1px solid var(--card-border); border-radius:4px; font-weight:700; outline:none; background:var(--card-bg); color:var(--text-main);">
+          <input type="text" id="subAccountNameInput" maxlength="20" placeholder="账户名" style="flex:1; height:30px; padding:0 8px; font-size:0.72rem; border:1px solid var(--card-border); border-radius:4px; font-weight:700; outline:none; background:var(--card-bg); color:var(--text-main);">
           <input type="password" id="subAccountPinInput" maxlength="6" placeholder="PIN码" style="width:70px; height:30px; padding:0 6px; font-size:0.72rem; border:1px solid var(--card-border); border-radius:4px; font-weight:700; outline:none; background:var(--card-bg); color:var(--text-main); text-align:center; font-family:monospace;">
           <button id="createSubAccountBtn" class="btn-primary" style="padding:0 10px; height:30px; font-size:0.7rem;">创建</button>
         </div>
@@ -8430,10 +8431,10 @@ export const DIALER_HTML = `<!DOCTYPE html>
       var createSubBtn = document.getElementById('createSubAccountBtn');
       if (createSubBtn) {
         createSubBtn.addEventListener('click', function() {
-          var label = document.getElementById('subAccountLabelInput').value.trim();
+          var accountName = document.getElementById('subAccountNameInput').value.trim();
           var pin = document.getElementById('subAccountPinInput').value.trim();
           var error = document.getElementById('subAccountError');
-          if (!label) { error.textContent = '请输入子账户名称'; return; }
+          if (!accountName) { error.textContent = '请输入账户名'; return; }
           if (pin.length < 4) { error.textContent = 'PIN 至少 4 位'; return; }
 
           createSubBtn.disabled = true;
@@ -8441,12 +8442,12 @@ export const DIALER_HTML = `<!DOCTYPE html>
           fetch('/api/dialer/auth/accounts', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ pin: pin, label: label })
+            body: JSON.stringify({ account_name: accountName, pin: pin, label: accountName })
           })
           .then(function(r) { return r.json(); })
           .then(function(res) {
             if (res.success) {
-              document.getElementById('subAccountLabelInput').value = '';
+              document.getElementById('subAccountNameInput').value = '';
               document.getElementById('subAccountPinInput').value = '';
               error.textContent = '';
               loadSubAccounts();
@@ -8510,7 +8511,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
             list.innerHTML = subs.map(function(s) {
               var activeTag = s.active ? '' : ' [已禁用]';
               return '<div style="display:flex; justify-content:space-between; align-items:center; padding:6px 8px; background:var(--btn-bg); border-radius:4px;' + (s.active ? '' : 'opacity:0.5;') + '">'
-                + '<span style="font-size:0.72rem; font-weight:700; color:var(--text-main);">' + (s.label || s.account_id.slice(0,12)) + activeTag + '</span>'
+                + '<span style="font-size:0.72rem; font-weight:700; color:var(--text-main);">' + (s.account_name || s.label || s.account_id.slice(0,12)) + activeTag + '</span>'
                 + '<div style="display:flex; gap:3px;">'
                 + '<button class="sub-toggle-btn" data-id="' + s.account_id + '" data-active="' + (s.active ? '1' : '0') + '" style="font-size:0.58rem; padding:2px 6px; border:1px solid var(--card-border); border-radius:3px; background:var(--card-bg); color:' + (s.active ? '#e74c3c' : '#07c160') + '; cursor:pointer; font-weight:700;">' + (s.active ? '禁用' : '启用') + '</button>'
                 + '<button class="sub-delete-btn" data-id="' + s.account_id + '" style="font-size:0.58rem; padding:2px 6px; border:1px solid var(--card-border); border-radius:3px; background:var(--card-bg); color:#e74c3c; cursor:pointer; font-weight:700;">删除</button>'
@@ -8635,7 +8636,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
       var overlay = document.getElementById('authLoginOverlay');
       overlay.classList.remove('auth-hidden');
 
-      var accountInput = document.getElementById('authLoginAccountId');
+      var accountInput = document.getElementById('authLoginAccountName');
       var pinInput = document.getElementById('authLoginPin');
       var error = document.getElementById('authLoginError');
       var loginBtn = document.getElementById('authLoginBtn');
@@ -8656,14 +8657,14 @@ export const DIALER_HTML = `<!DOCTYPE html>
     }
 
     function doLogin() {
-      var accountInput = document.getElementById('authLoginAccountId');
+      var accountInput = document.getElementById('authLoginAccountName');
       var pinInput = document.getElementById('authLoginPin');
       var error = document.getElementById('authLoginError');
       var loginBtn = document.getElementById('authLoginBtn');
-      var accountId = accountInput.value.trim();
+      var accountName = accountInput.value.trim();
       var pin = pinInput.value.trim();
 
-      if (!accountId) { error.textContent = '请输入账户 ID'; return; }
+      if (!accountName) { error.textContent = '请输入账户名'; return; }
       if (pin.length < 4) { error.textContent = '请输入完整 PIN 码'; return; }
 
       loginBtn.disabled = true;
@@ -8672,7 +8673,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
       fetch('/api/dialer/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ account_id: accountId, pin: pin })
+        body: JSON.stringify({ account_name: accountName, pin: pin })
       })
       .then(function(r) { return r.json(); })
       .then(function(res) {
@@ -8700,6 +8701,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
       var overlay = document.getElementById('authSetupOverlay');
       overlay.classList.remove('auth-hidden');
 
+      document.getElementById('authSetupName').value = '';
       document.getElementById('authSetupLabel').value = '';
       document.getElementById('authSetupPin').value = '';
       document.getElementById('authSetupPinConfirm').value = '';
@@ -8717,12 +8719,14 @@ export const DIALER_HTML = `<!DOCTYPE html>
     }
 
     function doSetup() {
+      var accountName = document.getElementById('authSetupName').value.trim();
       var label = document.getElementById('authSetupLabel').value.trim();
       var pin = document.getElementById('authSetupPin').value.trim();
       var pinConfirm = document.getElementById('authSetupPinConfirm').value.trim();
       var error = document.getElementById('authSetupError');
       var btn = document.getElementById('authSetupBtn');
 
+      if (!accountName) { error.textContent = '请输入账户名'; return; }
       if (pin.length < 4) { error.textContent = 'PIN 码至少需要 4 位'; return; }
       if (pin !== pinConfirm) { error.textContent = '两次输入不一致'; return; }
 
@@ -8732,7 +8736,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
       fetch('/api/dialer/auth/setup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pin: pin, label: label })
+        body: JSON.stringify({ account_name: accountName, pin: pin, label: label })
       })
       .then(function(r) { return r.json(); })
       .then(function(res) {

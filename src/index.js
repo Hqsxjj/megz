@@ -1409,17 +1409,23 @@ export default {
     if (path === '/api/dialer/auth/setup' && request.method === 'POST') {
       try {
         var body = await request.json();
+        var accountName = (body.account_name || '').trim();
         var pin = (body.pin || '').trim();
-        var label = (body.label || '').trim();
+        var label = (body.label || accountName || '').trim();
+        if (!accountName) throw new Error('请输入账户名');
         if (pin.length < 4) throw new Error('PIN 至少需要 4 位数字');
 
         var accounts = await dialerGetAccounts(env);
         if (accounts.length > 0) throw new Error('已有账户存在，无法重复初始化');
+        // Check name uniqueness
+        for (var an = 0; an < accounts.length; an++) {
+          if (accounts[an].account_name === accountName) throw new Error('账户名已存在');
+        }
 
         var accountId = 'acct_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 6);
         var pinHash = dialerHashPin(pin);
         var account = {
-          account_id: accountId, pin_hash: pinHash, label: label,
+          account_id: accountId, account_name: accountName, pin_hash: pinHash, label: label,
           is_master: true, active: true, created_at: new Date().toISOString()
         };
         accounts.push(account);
@@ -1443,14 +1449,14 @@ export default {
     if (path === '/api/dialer/auth/login' && request.method === 'POST') {
       try {
         var body = await request.json();
-        var accountId = (body.account_id || '').trim();
+        var accountName = (body.account_name || '').trim();
         var pin = (body.pin || '').trim();
-        if (!accountId || pin.length < 4) throw new Error('请输入账户和 PIN 码');
+        if (!accountName || pin.length < 4) throw new Error('请输入账户名和 PIN 码');
 
         var accounts = await dialerGetAccounts(env);
         var account = null;
         for (var ai = 0; ai < accounts.length; ai++) {
-          if (accounts[ai].account_id === accountId) { account = accounts[ai]; break; }
+          if (accounts[ai].account_name === accountName) { account = accounts[ai]; break; }
         }
         if (!account) throw new Error('账户不存在');
         if (!account.active) throw new Error('该账户已被禁用');
@@ -1478,7 +1484,7 @@ export default {
       try {
         var accounts = await dialerGetAccounts(env);
         var safe = accounts.map(function(a) {
-          return { account_id: a.account_id, label: a.label || '', is_master: a.is_master || false, active: a.active, created_at: a.created_at };
+          return { account_id: a.account_id, account_name: a.account_name || '', label: a.label || '', is_master: a.is_master || false, active: a.active, created_at: a.created_at };
         });
         return new Response(JSON.stringify({ accounts: safe }), {
           headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
@@ -1506,13 +1512,19 @@ export default {
         if (!master || !master.is_master) throw new Error('仅主账户可创建子账户');
 
         var body = await request.json();
+        var accountName = (body.account_name || '').trim();
         var pin = (body.pin || '').trim();
-        var label = (body.label || '').trim();
+        var label = (body.label || accountName || '').trim();
+        if (!accountName) throw new Error('请输入账户名');
         if (pin.length < 4) throw new Error('PIN 至少需要 4 位数字');
+        // Check name uniqueness
+        for (var sn = 0; sn < accounts.length; sn++) {
+          if (accounts[sn].account_name === accountName) throw new Error('账户名已存在');
+        }
 
         var subId = 'sub_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 6);
         var subAccount = {
-          account_id: subId, pin_hash: dialerHashPin(pin), label: label,
+          account_id: subId, account_name: accountName, pin_hash: dialerHashPin(pin), label: label,
           is_master: false, active: true, created_at: new Date().toISOString()
         };
         accounts.push(subAccount);
