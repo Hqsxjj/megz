@@ -1277,7 +1277,6 @@ export const DIALER_HTML = `<!DOCTYPE html>
       <div id="authLoginError" class="auth-error"></div>
       <button id="authLoginBtn" class="auth-btn">登录</button>
       <span id="authShowSetupLink" class="auth-link">首次使用？创建新账户</span>
-      <span id="authResetLink" class="auth-link" style="color:#e74c3c; margin-top:8px;">重置所有账户数据</span>
     </div>
   </div>
 
@@ -1691,6 +1690,12 @@ export const DIALER_HTML = `<!DOCTYPE html>
           <button id="changePinBtn" class="btn-secondary" style="padding:0 10px; height:30px; font-size:0.7rem;">修改</button>
         </div>
         <div id="changePinError" style="font-size:0.6rem; min-height:16px; margin-top:4px;"></div>
+      </div>
+
+      <!-- Reset (master only) -->
+      <div id="accountResetSection" style="display:none; border-top:1px solid var(--card-border); padding-top:12px;">
+        <button id="resetAccountsBtn" style="width:100%; height:34px; background:transparent; border:1px solid #e74c3c; color:#e74c3c; border-radius:var(--radius-xs); font-size:0.72rem; font-weight:700; cursor:pointer;">重置所有账户数据</button>
+        <div id="resetAccountsError" style="font-size:0.6rem; min-height:16px; margin-top:4px; text-align:center;"></div>
       </div>
     </div>
   </div>
@@ -8496,6 +8501,30 @@ export const DIALER_HTML = `<!DOCTYPE html>
           .finally(function() { changePinBtn.disabled = false; changePinBtn.textContent = '修改'; });
         });
       }
+
+      // Reset all accounts
+      var resetBtn = document.getElementById('resetAccountsBtn');
+      if (resetBtn) {
+        resetBtn.addEventListener('click', function() {
+          if (!confirm('确定要删除所有账户数据吗？\n\n此操作不可撤销，所有账户、PIN 码和子账户将被清除。')) return;
+          resetBtn.disabled = true;
+          resetBtn.textContent = '重置中...';
+          fetch('/api/dialer/auth/reset', { method: 'POST' })
+            .then(function(r) { return r.json(); })
+            .then(function() {
+              clearSession();
+              modal.classList.remove('active');
+              location.reload();
+            })
+            .catch(function() {
+              document.getElementById('resetAccountsError').textContent = '重置失败，请重试';
+            })
+            .finally(function() {
+              resetBtn.disabled = false;
+              resetBtn.textContent = '重置所有账户数据';
+            });
+        });
+      }
     }
 
     function loadSubAccounts() {
@@ -8574,6 +8603,10 @@ export const DIALER_HTML = `<!DOCTYPE html>
         } else {
           masterSection.style.display = 'none';
         }
+      }
+      var resetSection = document.getElementById('accountResetSection');
+      if (resetSection) {
+        resetSection.style.display = isSessionMaster() ? 'block' : 'none';
       }
 
       modal.classList.add('active');
@@ -8654,25 +8687,6 @@ export const DIALER_HTML = `<!DOCTYPE html>
       document.getElementById('authShowSetupLink').onclick = function() {
         overlay.classList.add('auth-hidden');
         showSetupOverlay();
-      };
-
-      document.getElementById('authResetLink').onclick = function() {
-        if (!confirm('确定要删除所有账户数据吗？此操作不可撤销，所有账户和 PIN 将被清除。')) return;
-        var resetBtn = document.getElementById('authResetLink');
-        resetBtn.textContent = '重置中...';
-        resetBtn.style.pointerEvents = 'none';
-        fetch('/api/dialer/auth/reset', { method: 'POST' })
-          .then(function(r) { return r.json(); })
-          .then(function() {
-            clearSession();
-            overlay.classList.add('auth-hidden');
-            showSetupOverlay();
-          })
-          .catch(function() { alert('重置失败，请重试'); })
-          .finally(function() {
-            resetBtn.textContent = '重置所有账户数据';
-            resetBtn.style.pointerEvents = '';
-          });
       };
     }
 
