@@ -1759,6 +1759,12 @@ export const DIALER_HTML = `<!DOCTYPE html>
       </div>
     </div>
 
+    <!-- Account Stats Bar (master only) -->
+    <div id="dbAccountStats" style="display:none; padding:6px 16px; border-bottom:1px solid var(--card-border); background:var(--btn-bg); align-items:center; gap:10px; flex-wrap:wrap; font-size:0.7rem; font-weight:700; color:var(--text-soft);">
+      <span style="color:var(--text-main);">各账户上传统计：</span>
+      <span id="dbAccountStatsList"></span>
+    </div>
+
     <!-- CRM Shortcut Filters -->
     <div class="crm-shortcut-bar">
       <button class="crm-shortcut-btn active" data-shortcut="all">全部</button>
@@ -7425,9 +7431,41 @@ export const DIALER_HTML = `<!DOCTYPE html>
       });
     }
 
+    function loadAccountStats() {
+      var bar = document.getElementById('dbAccountStats');
+      if (!bar) return;
+      if (!isSessionMaster()) { bar.style.display = 'none'; return; }
+      bar.style.display = 'flex';
+      var list = document.getElementById('dbAccountStatsList');
+      if (!list) return;
+      list.textContent = '加载中...';
+      fetch('/api/dialer/stats/accounts')
+        .then(function(r) { return r.json(); })
+        .then(function(res) {
+          if (!res.stats || res.stats.length === 0) {
+            list.textContent = '暂无数据';
+            return;
+          }
+          list.innerHTML = res.stats.map(function(s) {
+            var name = s.account_name || s.label || s.account_id.slice(0, 10);
+            var badge = s.is_master ? ' [主]' : '';
+            var inactive = !s.active ? ' [禁用]' : '';
+            return '<span style="background:var(--card-bg); padding:2px 8px; border-radius:3px; white-space:nowrap;">'
+              + name + badge + inactive
+              + ' <strong style="color:var(--accent-wechat);">' + s.upload_count + '</strong>'
+              + '</span>';
+          }).join(' ');
+        })
+        .catch(function() {
+          list.textContent = '加载失败';
+        });
+    }
+
     function _openDBDashboardInner() {
       var ov=document.getElementById('dbOverlay'); if(!ov)return;
       ov.classList.add('active'); DB.page=1;
+      // Load account stats for master
+      loadAccountStats();
       var si=document.getElementById('dbSearch'); if(si)si.value='';
       var cf=document.getElementById('dbCatFilter'); if(cf)cf.value='';
       var bf=document.getElementById('dbBatchFilter'); if(bf)bf.value='';

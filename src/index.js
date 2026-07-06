@@ -1680,6 +1680,82 @@ export default {
       }
     }
 
+    // Auth: account upload stats (master only, for dashboard)
+    if (path === '/api/dialer/stats/accounts' && request.method === 'GET') {
+      try {
+        var authHeader = request.headers.get('Authorization') || '';
+        var sessionToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
+        var session = await dialerValidateSession(env, sessionToken);
+        if (!session) throw new Error('未登录');
+
+        var accounts = await dialerGetAccounts(env);
+        var master = null;
+        for (var ak = 0; ak < accounts.length; ak++) {
+          if (accounts[ak].account_id === session.account_id) { master = accounts[ak]; break; }
+        }
+        if (!master || !master.is_master) throw new Error('仅主账户可查看');
+
+        // Query Supabase for customer counts per account_id
+        var supabaseUrl = env.SUPABASE_URL;
+        var supabaseKey = env.SUPABASE_KEY;
+        var stats = [];
+
+        if (supabaseUrl && supabaseKey) {
+          var hdrs = {
+            'apikey': supabaseKey,
+            'Authorization': 'Bearer ' + supabaseKey
+          };
+          // Fetch all customer account_ids (limited)
+          var resp = await fetch(
+            supabaseUrl + '/rest/v1/customers?select=account_id&limit=10000',
+            { headers: Object.assign({}, hdrs, { 'Accept': 'application/json' }) }
+          );
+          if (resp.ok) {
+            var rows = await resp.json();
+            // Count by account_id
+            var countMap = {};
+            for (var ri = 0; ri < rows.length; ri++) {
+              var aid = rows[ri].account_id || '_unknown';
+              countMap[aid] = (countMap[aid] || 0) + 1;
+            }
+            // Merge with account names
+            for (var ak2 = 0; ak2 < accounts.length; ak2++) {
+              var a = accounts[ak2];
+              stats.push({
+                account_id: a.account_id,
+                account_name: a.account_name || a.label || a.account_id.slice(0, 12),
+                label: a.label || '',
+                is_master: a.is_master !== false,
+                active: a.active,
+                upload_count: countMap[a.account_id] || 0
+              });
+            }
+            // Add unknown accounts (data without matching account)
+            for (var ck in countMap) {
+              if (ck !== '_unknown' && !accounts.some(function(a) { return a.account_id === ck; })) {
+                stats.push({
+                  account_id: ck,
+                  account_name: ck.slice(0, 12),
+                  label: '',
+                  is_master: false,
+                  active: true,
+                  upload_count: countMap[ck]
+                });
+              }
+            }
+          }
+        }
+
+        return new Response(JSON.stringify({ stats: stats }), {
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ error: e.message }), {
+          status: 500, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+    }
+
     // ==================== BHP 拨号器接口与页面并入 ====================
 
     // Central auth gate: all /api/dialer/ data routes require valid session
