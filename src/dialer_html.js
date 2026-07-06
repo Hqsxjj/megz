@@ -1764,6 +1764,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
       <span style="color:var(--text-main);">各账户上传统计：</span>
       <span id="dbAccountStatsList"></span>
       <span style="margin-left:auto; display:flex; align-items:center; gap:6px;">
+        <button id="dbMigrateBtn" style="display:none; height:26px; padding:0 10px; font-size:0.65rem; border:1px solid #e67e22; background:rgba(230,126,34,0.08); color:#e67e22; border-radius:3px; font-weight:700; cursor:pointer;">归属主账户</button>
         <span>查看：</span>
         <select id="dbViewAccountSel" style="height:26px; padding:0 6px; font-size:0.68rem; border:1px solid var(--card-border); border-radius:3px; font-weight:700; background:var(--card-bg); color:var(--text-main); cursor:pointer;">
           <option value="">我的数据</option>
@@ -7467,6 +7468,34 @@ export const DIALER_HTML = `<!DOCTYPE html>
               + ' <strong style="color:var(--accent-wechat);">' + s.upload_count + '</strong>'
               + '</span>';
           }).join(' ');
+          // Show migrate button if orphan records exist
+          var migrateBtn = document.getElementById('dbMigrateBtn');
+          if (migrateBtn) {
+            if (res.unknown_count > 0) {
+              migrateBtn.style.display = 'inline-block';
+              migrateBtn.textContent = '归属主账户 (' + res.unknown_count + ')';
+              migrateBtn.onclick = function() {
+                if (!confirm('将 ' + res.unknown_count + ' 条无归属客户数据归属到主账户？')) return;
+                migrateBtn.disabled = true;
+                migrateBtn.textContent = '迁移中...';
+                fetch('/api/dialer/stats/migrate', { method: 'POST' })
+                  .then(function(r) { return r.json(); })
+                  .then(function(r2) {
+                    if (r2.success) {
+                      migrateBtn.style.display = 'none';
+                      loadAccountStats();
+                      dbFetch();
+                    } else {
+                      alert('迁移失败: ' + (r2.error || '未知错误'));
+                    }
+                  })
+                  .catch(function() { alert('网络错误'); })
+                  .finally(function() { migrateBtn.disabled = false; });
+              };
+            } else {
+              migrateBtn.style.display = 'none';
+            }
+          }
           // Populate view selector
           if (sel) {
             sel.value = '';

@@ -1746,12 +1746,61 @@ export default {
           }
         }
 
-        return new Response(JSON.stringify({ stats: stats }), {
+        return new Response(JSON.stringify({ stats: stats, unknown_count: countMap ? (countMap['_unknown'] || 0) : 0 }), {
           headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
         });
       } catch (e) {
         return new Response(JSON.stringify({ error: e.message }), {
           status: 500, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+    }
+
+    // Auth: migrate unowned customers to master (one-click)
+    if (path === '/api/dialer/stats/migrate' && request.method === 'POST') {
+      try {
+        var authHeader = request.headers.get('Authorization') || '';
+        var sessionToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
+        var session = await dialerValidateSession(env, sessionToken);
+        if (!session) throw new Error('未登录');
+
+        var accounts = await dialerGetAccounts(env);
+        var master = null;
+        for (var ak3 = 0; ak3 < accounts.length; ak3++) {
+          if (accounts[ak3].account_id === session.account_id && accounts[ak3].is_master !== false) { master = accounts[ak3]; break; }
+        }
+        if (!master) throw new Error('仅主账户可操作');
+
+        var supabaseUrl = env.SUPABASE_URL;
+        var supabaseKey = env.SUPABASE_KEY;
+        if (!supabaseUrl || !supabaseKey) throw new Error('Supabase 未配置');
+
+        var hdrs = {
+          'Content-Type': 'application/json',
+          'apikey': supabaseKey,
+          'Authorization': 'Bearer ' + supabaseKey,
+          'Prefer': 'return=minimal'
+        };
+        // Update all customers with null/empty account_id to master's account_id
+        var patchResp = await fetch(
+          supabaseUrl + '/rest/v1/customers?account_id=is.null',
+          { method: 'PATCH', headers: hdrs, body: JSON.stringify({ account_id: master.account_id }) }
+        );
+        var count1 = 0;
+        if (patchResp.ok) { count1 = 1; } // best-effort
+
+        // Also handle empty string
+        var patchResp2 = await fetch(
+          supabaseUrl + '/rest/v1/customers?account_id=eq.',
+          { method: 'PATCH', headers: hdrs, body: JSON.stringify({ account_id: master.account_id }) }
+        );
+
+        return new Response(JSON.stringify({ success: true }), {
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ success: false, error: e.message }), {
+          status: 400, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
         });
       }
     }
