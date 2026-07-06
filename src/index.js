@@ -1456,7 +1456,7 @@ export default {
         var accounts = await dialerGetAccounts(env);
         var account = null;
         for (var ai = 0; ai < accounts.length; ai++) {
-          if (accounts[ai].account_name === accountName) { account = accounts[ai]; break; }
+          if (accounts[ai].account_name === accountName || accounts[ai].account_id === accountName) { account = accounts[ai]; break; }
         }
         if (!account) throw new Error('账户不存在');
         if (!account.active) throw new Error('该账户已被禁用');
