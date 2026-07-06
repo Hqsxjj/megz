@@ -1,7 +1,6 @@
 // 每日工作 - Cloudflare Worker 版本
 // 部署后绑定 DATA_KV 即可使用
 
-import { DIALER_HTML } from './dialer_html.js';
 import { createSupabaseClient } from './supabase.js';
 import { WeComCrypt } from './wecom_crypt.js';
 import { getClientIP, isBadBot, checkSecFetch, checkRateLimit, getRateLimitTier, maybeCleanup, isBlocked, blockIP, unblockIP, listBlockedIPs } from './anti-bot.js';
@@ -2867,18 +2866,6 @@ export default {
       const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><defs><linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#4a6cf7"/><stop offset="50%" stop-color="#6b8dff"/><stop offset="100%" stop-color="#07c160"/></linearGradient></defs><rect width="512" height="512" rx="110" fill="url(#bg)"/><rect x="72" y="96" width="368" height="344" rx="50" fill="none" stroke="white" stroke-width="22"/><line x1="72" y1="196" x2="440" y2="196" stroke="white" stroke-width="22"/><rect x="140" y="48" width="44" height="88" rx="22" fill="white"/><rect x="328" y="48" width="44" height="88" rx="22" fill="white"/><circle cx="180" cy="290" r="28" fill="white"/><circle cx="256" cy="290" r="28" fill="white"/><circle cx="332" cy="290" r="28" fill="white"/><circle cx="180" cy="380" r="28" fill="white"/><circle cx="256" cy="380" r="28" fill="white"/></svg>`;
       return new Response(svg, {
         headers: { 'Content-Type': 'image/svg+xml', 'Cache-Control': 'public, max-age=86400', 'Access-Control-Allow-Origin': '*' }
-      });
-    }
-
-    // 6. 服务拨号器单页 HTML
-    if (path === '/dialer' || path === '/dialer/') {
-      return new Response(DIALER_HTML, {
-        headers: {
-          'Content-Type': 'text/html; charset=UTF-8',
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache',
-          'Expires': '0'
-        }
       });
     }
 
