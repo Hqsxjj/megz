@@ -7469,7 +7469,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
           }).join(' ');
           // Populate view selector
           if (sel) {
-            var curVal = sel.value;
+            sel.value = '';
             sel.innerHTML = '<option value="">我的数据</option>';
             res.stats.forEach(function(s) {
               if (!s.is_master) {
@@ -7477,7 +7477,6 @@ export const DIALER_HTML = `<!DOCTYPE html>
                 sel.innerHTML += '<option value="' + s.account_id + '">' + name + '</option>';
               }
             });
-            sel.value = curVal;
             // Wire change handler (only once)
             if (!sel._wired) {
               sel._wired = true;
@@ -7498,7 +7497,8 @@ export const DIALER_HTML = `<!DOCTYPE html>
     function _openDBDashboardInner() {
       var ov=document.getElementById('dbOverlay'); if(!ov)return;
       ov.classList.add('active'); DB.page=1;
-      // Load account stats for master
+      // Reset view account and load stats for master
+      _viewAccountId = '';
       loadAccountStats();
       var si=document.getElementById('dbSearch'); if(si)si.value='';
       var cf=document.getElementById('dbCatFilter'); if(cf)cf.value='';
