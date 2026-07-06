@@ -440,6 +440,53 @@ export function createSupabaseClient(env) {
 
     if (uniqueRows.length === 0) return { count: 0 };
 
+    // 跨账户保护：查询已存在的手机号归属，排除属于其他账户的记录
+    // 防止 merge-duplicates 覆盖其他账户的 account_id
+    var skippedForeignCount = 0;
+    if (acctId) {
+      try {
+        var existingMobiles = {};
+        // Query in chunks (Supabase in filter max ~100 items)
+        var allMobiles = Object.keys(uniqueMap);
+        for (var mi = 0; mi < allMobiles.length; mi += 100) {
+          var mobileChunk = allMobiles.slice(mi, mi + 100);
+          var inFilter = 'mobile=in.(' + mobileChunk.map(function(m) { return encodeURIComponent(m); }).join(',') + ')';
+          var checkUrl = baseUrl + '/rest/v1/customers?select=mobile,account_id&' + inFilter;
+          var checkResp = await fetch(checkUrl, { headers: headers() });
+          if (checkResp.ok) {
+            var checkData = await checkResp.json();
+            if (Array.isArray(checkData)) {
+              for (var ci = 0; ci < checkData.length; ci++) {
+                existingMobiles[checkData[ci].mobile] = checkData[ci].account_id;
+              }
+            }
+          }
+        }
+        // 过滤掉属于其他账户的记录
+        var safeRows = [];
+        for (var ri = 0; ri < uniqueRows.length; ri++) {
+          var rowMobile = uniqueRows[ri].mobile;
+          var existingOwner = existingMobiles[rowMobile];
+          if (existingOwner && existingOwner !== acctId) {
+            // 此手机号属于其他账户，跳过不覆盖
+            skippedForeignCount++;
+            console.warn('[supabase] Skipping mobile ' + rowMobile.slice(0, 3) + '**** — owned by ' + existingOwner);
+          } else {
+            safeRows.push(uniqueRows[ri]);
+          }
+        }
+        uniqueRows = safeRows;
+      } catch (preCheckErr) {
+        // 预检失败不影响上传，继续（保守策略：允许上传）
+        console.warn('[supabase] Pre-check for cross-account owners failed:', preCheckErr.message);
+      }
+    }
+
+    if (uniqueRows.length === 0) {
+      console.warn('[supabase] All ' + skippedForeignCount + ' mobiles owned by other accounts — nothing to upsert');
+      return { count: 0, skipped: skippedForeignCount };
+    }
+
     let count = 0;
     const batchSize = 500;
     for (let i = 0; i < uniqueRows.length; i += batchSize) {
@@ -497,7 +544,7 @@ export function createSupabaseClient(env) {
       count += chunk.length;
     }
 
-    return { count: count };
+    return { count: count, skipped: skippedForeignCount || 0 };
   }
 
   /**

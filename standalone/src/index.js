@@ -1520,10 +1520,11 @@ export default {
         // Each entry auto-expires after 10 days via expirationTtl
         var mergedExclude = (excludeMobiles || []).slice();
         try {
-          var cooldownList = await env.DATA_KV.list({ prefix: 'dialer:cooldown:' });
+          var cooldownPrefix = 'dialer:cooldown:' + (accountId || '') + ':';
+          var cooldownList = await env.DATA_KV.list({ prefix: cooldownPrefix });
           if (cooldownList && cooldownList.keys) {
             for (var ci = 0; ci < cooldownList.keys.length; ci++) {
-              var cm = cooldownList.keys[ci].name.replace('dialer:cooldown:', '');
+              var cm = cooldownList.keys[ci].name.replace(cooldownPrefix, '');
               if (cm && mergedExclude.indexOf(cm) === -1) {
                 mergedExclude.push(cm);
               }
@@ -1550,7 +1551,7 @@ export default {
           // 2. KV cooldown (RELIABLE guard — always works, auto-expires in 10 days)
           //    This prevents the same batch from cycling back even if PATCH fails.
           for (var mi = 0; mi < mobiles.length; mi++) {
-            var ck = 'dialer:cooldown:' + mobiles[mi];
+            var ck = 'dialer:cooldown:' + (accountId || '') + ':' + mobiles[mi];
             env.DATA_KV.put(ck, new Date().toISOString(), { expirationTtl: 10 * 24 * 3600 })
               .catch(function() { /* best-effort */ });
           }

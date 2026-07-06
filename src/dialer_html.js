@@ -2136,6 +2136,8 @@ export const DIALER_HTML = `<!DOCTYPE html>
       .then(function(data) {
         if (!data.success) {
           console.error("Supabase upload failed:", data.error || "未知错误");
+        } else if (data.skipped > 0) {
+          console.warn("Supabase upload: " + data.count + " 条成功，" + data.skipped + " 条因归属其他账户而跳过");
         }
       })
       .catch(function(err) {
