@@ -8506,7 +8506,7 @@ export const DIALER_HTML = `<!DOCTYPE html>
       var resetBtn = document.getElementById('resetAccountsBtn');
       if (resetBtn) {
         resetBtn.addEventListener('click', function() {
-          if (!confirm('确定要删除所有账户数据吗？\n\n此操作不可撤销，所有账户、PIN 码和子账户将被清除。')) return;
+          if (!confirm('确定要删除所有账户数据吗？此操作不可撤销，所有账户、PIN 码和子账户将被清除。')) return;
           resetBtn.disabled = true;
           resetBtn.textContent = '重置中...';
           fetch('/api/dialer/auth/reset', { method: 'POST' })
