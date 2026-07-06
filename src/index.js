@@ -2168,19 +2168,22 @@ export default {
           'Prefer': 'return=minimal'
         };
 
-        // Update in batches
-        var doneCount = 0;
-        for (var _mi = 0; _mi < mobiles.length; _mi++) {
-          var patchUrl = supabaseUrl + '/rest/v1/customers?mobile=eq.' + encodeURIComponent(mobiles[_mi]);
+        // Batch update: up to 200 per request using in() filter
+        var batchSize = 200;
+        var updatedTotal = 0;
+        for (var _bi = 0; _bi < mobiles.length; _bi += batchSize) {
+          var chunk = mobiles.slice(_bi, _bi + batchSize);
+          var inFilter = chunk.map(function(m) { return encodeURIComponent(m); }).join(',');
+          var patchUrl = supabaseUrl + '/rest/v1/customers?mobile=in.(' + inFilter + ')';
           var patchResp = await fetch(patchUrl, {
             method: 'PATCH',
             headers: hdrs,
             body: JSON.stringify({ account_id: target_account_id })
           });
-          if (patchResp.ok) doneCount++;
+          if (patchResp.ok) updatedTotal += chunk.length;
         }
 
-        return new Response(JSON.stringify({ success: true, updated: doneCount }), {
+        return new Response(JSON.stringify({ success: true, updated: updatedTotal }), {
           headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
         });
       } catch (e) {
