@@ -2161,23 +2161,36 @@ export default {
         const supabaseKey = env.SUPABASE_KEY;
         if (!supabaseUrl || !supabaseKey) throw new Error('Supabase 未配置');
 
-        const hdrs = {
-          'Content-Type': 'application/json',
-          'apikey': supabaseKey,
-          'Authorization': 'Bearer ' + supabaseKey,
-          'Prefer': 'return=minimal'
-        };
+        // First SELECT to verify which mobiles actually exist
+        var allInFilter = mobiles.map(function(m) { return encodeURIComponent(m); }).join(',');
+        var checkUrl = supabaseUrl + '/rest/v1/customers?select=mobile&mobile=in.(' + allInFilter + ')&limit=' + mobiles.length;
+        var checkResp = await fetch(checkUrl, {
+          headers: {
+            'apikey': supabaseKey,
+            'Authorization': 'Bearer ' + supabaseKey
+          }
+        });
+        if (!checkResp.ok) throw new Error('查询客户失败');
+        var existingRows = await checkResp.json();
+        var existingMobiles = existingRows.map(function(r) { return r.mobile; });
 
-        // Batch update: up to 200 per request using in() filter
+        if (existingMobiles.length === 0) throw new Error('所选客户在数据库中不存在');
+
+        // Batch PATCH only existing mobiles
         var batchSize = 200;
         var updatedTotal = 0;
-        for (var _bi = 0; _bi < mobiles.length; _bi += batchSize) {
-          var chunk = mobiles.slice(_bi, _bi + batchSize);
+        for (var _bi = 0; _bi < existingMobiles.length; _bi += batchSize) {
+          var chunk = existingMobiles.slice(_bi, _bi + batchSize);
           var inFilter = chunk.map(function(m) { return encodeURIComponent(m); }).join(',');
           var patchUrl = supabaseUrl + '/rest/v1/customers?mobile=in.(' + inFilter + ')';
           var patchResp = await fetch(patchUrl, {
             method: 'PATCH',
-            headers: hdrs,
+            headers: {
+              'Content-Type': 'application/json',
+              'apikey': supabaseKey,
+              'Authorization': 'Bearer ' + supabaseKey,
+              'Prefer': 'return=minimal'
+            },
             body: JSON.stringify({ account_id: target_account_id })
           });
           if (patchResp.ok) updatedTotal += chunk.length;
