@@ -3236,7 +3236,8 @@ export default {
               i: d.intentCount || 0,
               r: d.revisitCount || 0,
               v: d.visitCount || 0,
-              p: d.paymentCount || 0
+              p: d.paymentCount || 0,
+              t: (d.tempClients && d.tempClients.filter(function(tc){return tc.date===dateKey;}).length) || 0
             };
           } catch(e) {}
         }
@@ -5124,6 +5125,7 @@ export default {
   const DARK_K='dark_mode', LOCK_K='locked', TODAY_TODO_K='today_todo_v2', TOMORROW_TODO_K='tomorrow_todo_v2';
   const LAST_LOAD_DATE_K='last_load_date_v1', WALLPAPER_K='wp_cache', SCRIPTS_K='scripts_v1', LEARN_K='learn_v1', LOCAL_TS_K='local_ts_v1';
   const TEMP_CLIENTS_K='temp_clients_v1';
+  const TEMP_CLIENTS_MAP_K='temp_clients_map_v1';
   const OP_QUEUE_K='op_queue_v1'; // 操作队列：持久化到 localStorage，页面关闭后下次打开继续补发
   const DEFAULT_PIN='8520';
   const PULL_INTERVAL=15000; // 15秒拉一次，加快跨设备更新
@@ -6196,8 +6198,8 @@ export default {
       var dRb=document.getElementById('custRejectedBank'); if(dRb)dRb.value=c.rejectedBank||'';
       var dRr=document.getElementById('custRejectReason'); if(dRr)dRr.value=c.rejectReason||'';
       showStatusConditionalFields(c.status||'');
-      // Auto-expand detail panel if any new field has a value
-      var hasDetail = c.age||c.maritalStatus||c.isShenzhenHukou||c.socialSecurity||c.avgSalary||c.tax2yr||c.salaryBank||c.education||c.property||c.bankDebt||c.creditCardDebt||c.query3m||c.onlineLoanCount||c.demand||c.fundUsage||c.visitTime;
+      // Auto-expand detail panel if any new field has a value (including note/followUp now inside panel)
+      var hasDetail = c.age||c.maritalStatus||c.isShenzhenHukou||c.socialSecurity||c.avgSalary||c.tax2yr||c.salaryBank||c.education||c.property||c.bankDebt||c.creditCardDebt||c.query3m||c.onlineLoanCount||c.demand||c.fundUsage||c.visitTime||c.note||c.followUp;
       var panel = document.getElementById('detailPanel');
       var toggleBtn = document.getElementById('detailToggleBtn');
       if (hasDetail && panel && panel.style.display === 'none') {
@@ -6285,6 +6287,10 @@ export default {
     const dim=new Date(y,m,0).getDate(),ts=getTodayStr();
     const clients=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
     const ccMap={};clients.forEach(c=>{if(c.date)ccMap[c.date]=(ccMap[c.date]||0)+1;});
+    const tempClients=JSON.parse(localStorage.getItem(TEMP_CLIENTS_K)||'[]');
+    const tcMap={};tempClients.forEach(c=>{if(c.date)tcMap[c.date]=(tcMap[c.date]||0)+1;});
+    const tcm=loadMap(TEMP_CLIENTS_MAP_K);
+    for(const [ds,c] of Object.entries(tcm)){tcMap[ds]=Math.max(tcMap[ds]||0,c);}
     const mn=['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
     document.getElementById('calMonthTitle').innerHTML=y+'年 '+mn[m-1];
     let g='';const wd=['一','二','三','四','五','六','日'];
@@ -6292,15 +6298,15 @@ export default {
     for(let i=0;i<si;i++)g+='<div class="cal-day"></div>';
     for(let d=1;d<=dim;d++){
       const ds=y+'-'+String(m).padStart(2,'0')+'-'+String(d).padStart(2,'0');
-      const wv=wm[ds]||0,iv=im[ds]||0,cv=ccMap[ds]||0;
-      let bh='';if(wv>0||iv>0||cv>0)bh='<div class="day-badge">'+(wv>0?'<span>微'+wv+'</span>':'')+(iv>0?'<span>意'+iv+'</span>':'')+(cv>0?'<span>客'+cv+'</span>':'')+'</div>';
+      const wv=wm[ds]||0,iv=im[ds]||0,cv=ccMap[ds]||0,tv=tcMap[ds]||0;
+      let bh='';if(wv>0||iv>0||cv>0||tv>0)bh='<div class="day-badge">'+(wv>0?'<span>微'+wv+'</span>':'')+(iv>0?'<span>意'+iv+'</span>':'')+(cv>0?'<span>客'+cv+'</span>':'')+(tv>0?'<span>临'+tv+'</span>':'')+'</div>';
       const it=ds===ts, pt=ds<ts;
-      g+='<div class="cal-day'+(it?' today':pt?' past':'')+'" data-date="'+ds+'" data-w="'+wv+'" data-i="'+iv+'"><div class="day-number">'+d+'</div>'+bh+'</div>';
+      g+='<div class="cal-day'+(it?' today':pt?' past':'')+'" data-date="'+ds+'" data-w="'+wv+'" data-i="'+iv+'" data-t="'+tv+'"><div class="day-number">'+d+'</div>'+bh+'</div>';
     }
     document.getElementById('calGrid').innerHTML=g;
     const tip=document.getElementById('globalTooltip');
     document.querySelectorAll('.cal-day[data-date]').forEach(c=>{
-      c.addEventListener('mouseenter',e=>{tip.innerHTML='<strong>'+c.dataset.date+'</strong> 微'+(c.dataset.w||0)+' 意'+(c.dataset.i||0);tip.classList.add('show');});
+      c.addEventListener('mouseenter',e=>{tip.innerHTML='<strong>'+c.dataset.date+'</strong> 微'+(c.dataset.w||0)+' 意'+(c.dataset.i||0)+' 临'+(c.dataset.t||0);tip.classList.add('show');});
       c.addEventListener('mouseleave',()=>tip.classList.remove('show'));
       c.addEventListener('mousemove',e=>{tip.style.left=(e.clientX+12)+'px';tip.style.top=(e.clientY-28)+'px';});
       c.addEventListener('click',e=>{e.stopPropagation();if(c.dataset.date)showTimelineForDate(c.dataset.date);});
@@ -6328,6 +6334,17 @@ export default {
       if(exist>=0){clients[exist]=lc;}else{clients.push(lc);}
     });
     if(todos.length===0&&ds===getTodayStr())todos=loadTodos(TODAY_TODO_K);
+    // 合并临时登记客户
+    let tempClients=[];
+    if(cloudData&&cloudData.tempClients&&cloudData.tempClients.length>0){
+      tempClients=cloudData.tempClients.filter(function(tc){return tc.date===ds;});
+    }
+    const localTempAll=JSON.parse(localStorage.getItem(TEMP_CLIENTS_K)||'[]');
+    const localTempDay=localTempAll.filter(c=>c.date===ds);
+    localTempDay.forEach(ltc=>{
+      const exist=tempClients.findIndex(tc=>tc.name===ltc.name&&tc.phone===ltc.phone&&tc.time===ltc.time);
+      if(exist>=0){tempClients[exist]=ltc;}else{tempClients.push(ltc);}
+    });
     // 同时获取该日期的 todoLog（永久待办记录）
     let todoLog=[];
     if(cloudData&&cloudData.todoLog)todoLog=cloudData.todoLog;
@@ -6341,11 +6358,13 @@ export default {
       followUp:c.followUp||'',followUpTime:c.followUpTime||'',followUpDate:c.followUpDate||'',
       visitTime:c.visitTime||'',approvedBank:c.approvedBank||'',approvedAmount:c.approvedAmount||'',
       rateTerm:c.rateTerm||'',rejectedBank:c.rejectedBank||'',rejectReason:c.rejectReason||''});});
+    tempClients.forEach((c,i)=>{timeline.push({type:'tempClient',time:c.time||'',name:c.name,phone:c.phone,note:c.note,idx:i});});
     todos.forEach(t=>{const txt=typeof t==='string'?t:t.text;const tm=t&&t.time?t.time:'';if(txt)timeline.push({type:'todo',time:tm,text:txt});});
     todoLog.forEach(t=>{const txt=typeof t==='string'?t:t.text;const tm=t&&t.time?t.time:'';const tp=t.type==='tomorrow'?' (明日)':'';if(txt)timeline.push({type:'todo',time:tm,text:txt+tp});});
     timeline.sort((a,b)=>(a.time||'').localeCompare(b.time||''));
     function renderTl(){
       const clients_in_tl = timeline.filter(e=>e.type==='client');
+      const temp_in_tl    = timeline.filter(e=>e.type==='tempClient');
       const todos_in_tl   = timeline.filter(e=>e.type==='todo');
 
       if(timeline.length===0){
@@ -6424,9 +6443,29 @@ export default {
         html += '</div></div>';
       }
 
+      // ===== 临时登记区 =====
+      if(temp_in_tl.length>0){
+        html += '<div style="margin-top:'+(clients_in_tl.length>0?'12px':'0')+'">';
+        html += '<div class="modal-section-title">临时登记 <span style="font-size:0.7rem;color:var(--accent-wechat);margin-left:4px;font-weight:800;">'+temp_in_tl.length+'人</span></div>';
+        html += '<div style="display:flex;flex-direction:column;gap:8px;">';
+        temp_in_tl.forEach(e=>{
+          html += '<div class="client-card-item" style="border-left: 3px solid var(--accent-wechat);">'+
+            '<div class="client-card-top">'+
+              '<span class="client-card-name">'+esc(e.name)+'</span>'+
+              '<span class="client-card-time">'+esc(e.time||'')+'</span>'+
+            '</div>'+
+            '<div class="client-card-tags">'+
+              '<span class="client-card-tag" style="background:rgba(7,193,96,0.1);color:var(--accent-wechat);">电话: '+esc(e.phone)+'</span>'+
+            '</div>'+
+            (e.note ? '<div class="client-card-body"><div class="client-card-content-block"><span class="client-card-label">回访备注</span><span class="client-card-text">'+esc(e.note)+'</span></div></div>' : '')+
+          '</div>';
+        });
+        html += '</div></div>';
+      }
+
       // ===== 待办事项区 =====
       if(todos_in_tl.length>0){
-        html += '<div style="margin-top:'+(clients_in_tl.length>0?'4px':'0')+'">';
+        html += '<div style="margin-top:'+(clients_in_tl.length>0||temp_in_tl.length>0?'4px':'0')+'">';
         html += '<div class="modal-section-title">待办事项 <span style="font-size:0.7rem;color:var(--accent-wechat);margin-left:4px;font-weight:800;">'+todos_in_tl.length+'条</span></div>';
         html += '<div style="display:flex;flex-direction:column;gap:6px;">';
         todos_in_tl.forEach(e=>{
@@ -6718,7 +6757,7 @@ export default {
     const month=calendarMonth;
     const cal=await cloudCalendar(month);
     if(cal){
-      const wm=loadMap(WECHAT_K), im=loadMap(INTENT_K), rm=loadMap(REVISIT_K), vm=loadMap(VISIT_K), pm=loadMap(PAYMENT_K);
+      const wm=loadMap(WECHAT_K), im=loadMap(INTENT_K), rm=loadMap(REVISIT_K), vm=loadMap(VISIT_K), pm=loadMap(PAYMENT_K), tm=loadMap(TEMP_CLIENTS_MAP_K);
       let changed=false;
       for(const [date, d] of Object.entries(cal)){
         const nw = Math.max(wm[date]||0, d.w||0);
@@ -6731,8 +6770,10 @@ export default {
         if(nv !== (vm[date]||0)){ vm[date]=nv; changed=true; }
         const np = Math.max(pm[date]||0, d.p||0);
         if(np !== (pm[date]||0)){ pm[date]=np; changed=true; }
+        const nt = Math.max(tm[date]||0, d.t||0);
+        if(nt !== (tm[date]||0)){ tm[date]=nt; changed=true; }
       }
-      if(changed){saveMap(WECHAT_K,wm);saveMap(INTENT_K,im);saveMap(REVISIT_K,rm);saveMap(VISIT_K,vm);saveMap(PAYMENT_K,pm);}
+      if(changed){saveMap(WECHAT_K,wm);saveMap(INTENT_K,im);saveMap(REVISIT_K,rm);saveMap(VISIT_K,vm);saveMap(PAYMENT_K,pm);saveMap(TEMP_CLIENTS_MAP_K,tm);}
       addSyncLog('✅ 拉取云端历史日历完成');
     }
   }
