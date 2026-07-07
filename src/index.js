@@ -3197,6 +3197,23 @@ export default {
         case 'setGoals':
           await env.DATA_KV.put('config:goals', JSON.stringify(body.goals || {}));
           break;
+        case 'setMap':
+          // 更新指定日期的计数（从目标 chip 编辑触发）
+          var countFields = {
+            'wechat_v1': 'wechatCount',
+            'intent_v1': 'intentCount',
+            'visit_v1': 'visitCount',
+            'payment_v1': 'paymentCount'
+          };
+          var field = countFields[body.mapKey];
+          if (field && body.date) {
+            var raw = await env.DATA_KV.get('work:' + body.date);
+            var dayData = raw ? JSON.parse(raw) : { date: body.date, wechatCount: 0, intentCount: 0, revisitCount: 0, visitCount: 0, paymentCount: 0, clients: [], todayTodos: [], tomorrowTodos: [], tempClients: [], scripts: [], learns: [], todoLog: [] };
+            dayData[field] = Math.max(0, body.value || 0);
+            dayData._ts = Date.now();
+            await env.DATA_KV.put('work:' + body.date, JSON.stringify(dayData));
+          }
+          break;
         case 'setSiriKey':
           await env.DATA_KV.put('config:siri_key', body.siriKey || '');
           break;
@@ -9033,29 +9050,36 @@ const rid=Math.floor(Math.random()*1000);
   safeInit('initWhitelistFeature', initWhitelistFeature);
   safeInit('initLoanCalc', initLoanCalc);
   document.getElementById('goalEyeBtn').addEventListener('click',toggleGoalNumbers);
-  // 点击目标 chip 直接打开编辑弹窗
+  // 点击目标 chip 直接编辑完成数
   document.getElementById('goalChips').addEventListener('click',function(e){
-    const chip = e.target.closest('.goal-clickable');
+    var chip = e.target.closest('.goal-clickable');
     if (!chip) return;
-    var goals=loadGoals();
     var label = chip.dataset.goalLabel;
-    document.getElementById('goalWeeklyVisit').value=goals.weeklyVisit||'';
-    document.getElementById('goalWeeklyWechat').value=goals.weeklyWechat||'';
-    document.getElementById('goalMonthlyWechat').value=goals.monthlyWechat||'';
-    document.getElementById('goalMonthlyVisit').value=goals.monthlyVisit||'';
-    document.getElementById('goalMonthlyPayment').value=goals.monthlyPayment||'';
-    document.getElementById('goalStatus').textContent='';
-    // 聚焦对应字段
-    var focusMap = {
-      '本周上门': 'goalWeeklyVisit',
-      '本周微信': 'goalWeeklyWechat',
-      '本月微信': 'goalMonthlyWechat',
-      '本月上门': 'goalMonthlyVisit',
-      '本月回款': 'goalMonthlyPayment'
-    };
-    var targetId = focusMap[label];
-    document.getElementById('goalModal').classList.add('active');
-    if (targetId) { setTimeout(function(){ document.getElementById(targetId).focus(); document.getElementById(targetId).select(); }, 100); }
+    // label → { mapKey, aggregation: 'week'|'month' }
+    var cfg = {
+      '本周上门': { mapKey: VISIT_K, agg: 'week' },
+      '本周微信': { mapKey: WECHAT_K, agg: 'week' },
+      '本月微信': { mapKey: WECHAT_K, agg: 'month' },
+      '本月上门': { mapKey: VISIT_K, agg: 'month' },
+      '本月回款': { mapKey: PAYMENT_K, agg: 'month' }
+    }[label];
+    if (!cfg) return;
+    var mp = loadMap(cfg.mapKey);
+    var actual = cfg.agg === 'week' ? getWeekTotal(mp) : getMonthTotal(mp, calendarMonth);
+    var input = prompt('编辑 ' + label + ' 完成数', actual);
+    if (input === null || input.trim() === '') return;
+    var newVal = parseInt(input, 10);
+    if (isNaN(newVal) || newVal < 0) { alert('请输入有效数字'); return; }
+    var delta = newVal - actual;
+    if (delta === 0) return;
+    // 将差值加到今天的计数上
+    var today = getTodayStr();
+    mp[today] = (mp[today] || 0) + delta;
+    if (mp[today] < 0) mp[today] = 0;
+    saveMap(cfg.mapKey, mp);
+    renderGoalChips();
+    // 同步到云端
+    syncOp('setMap', { mapKey: cfg.mapKey, date: today, value: mp[today] });
   });
   function calGo(delta){
     const [y,m]=calendarMonth.split('-').map(Number);
