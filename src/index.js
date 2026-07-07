@@ -4193,6 +4193,37 @@ export default {
       background: rgba(52, 152, 219, 0.12);
       color: #5dade2;
     }
+    /* Customer grade label tags */
+    .client-card-tag-grade-a {
+      background: rgba(39, 174, 96, 0.12);
+      color: #1e8449;
+      border: 0.5px solid rgba(39, 174, 96, 0.3);
+      font-size: 0.75rem;
+    }
+    body.dark-mode .client-card-tag-grade-a {
+      background: rgba(39, 174, 96, 0.18);
+      color: #2ecc71;
+    }
+    .client-card-tag-grade-b {
+      background: rgba(52, 152, 219, 0.12);
+      color: #2471a3;
+      border: 0.5px solid rgba(52, 152, 219, 0.3);
+      font-size: 0.75rem;
+    }
+    body.dark-mode .client-card-tag-grade-b {
+      background: rgba(52, 152, 219, 0.18);
+      color: #5dade2;
+    }
+    .client-card-tag-grade-c {
+      background: rgba(149, 165, 166, 0.12);
+      color: #7f8c8d;
+      border: 0.5px solid rgba(149, 165, 166, 0.3);
+      font-size: 0.75rem;
+    }
+    body.dark-mode .client-card-tag-grade-c {
+      background: rgba(149, 165, 166, 0.18);
+      color: #bdc3c7;
+    }
     /* Collapsible detail panel */
     .detail-toggle-wrap {
       display: flex;
@@ -4628,6 +4659,7 @@ export default {
           <div class="register-block">
             <div class="form-line"><input type="text" class="input-simple" id="custName" placeholder="姓名" autocomplete="off"><input type="text" class="input-simple" id="custPhone" placeholder="电话" autocomplete="off"></div>
             <div class="form-line"><input type="text" class="input-simple" id="custCompany" placeholder="单位" autocomplete="off"><input type="text" class="input-simple" id="custFund" placeholder="公积金基数" autocomplete="off"></div>
+            <div class="form-line"><select class="input-simple input-select" id="custLabel"><option value="">客户等级</option><option value="A">A</option><option value="B">B</option><option value="C">C</option></select><span style="flex:1;"></span></div>
             <!-- Collapsible detail panel toggle -->
             <div class="detail-toggle-wrap">
               <button type="button" class="detail-toggle-btn" id="detailToggleBtn">
@@ -6058,6 +6090,7 @@ export default {
         '</div>'+
         getStatusBadgeHtml(c) +
         '<div class="client-card-tags">'+
+          (c.label ? '<span class="client-card-tag client-card-tag-grade-' + esc(c.label).toLowerCase() + '">' + esc(c.label) + '类客户</span>' : '')+
           (c.company ? getWhitelistTagHtml(c.company, false) : '')+
           (c.fund ? '<span class="client-card-tag client-card-tag-fund">公积金: '+esc(c.fund)+'</span>' : '')+
           getClientDetailTags(c) +
@@ -6156,6 +6189,7 @@ export default {
       var dFu=document.getElementById('custFundUsage'); if(dFu)dFu.value=c.fundUsage||'';
       var dVt=document.getElementById('custVisitTime'); if(dVt)dVt.value=c.visitTime||'';
       var dSt=document.getElementById('custStatus'); if(dSt)dSt.value=c.status||'';
+      var dLb=document.getElementById('custLabel'); if(dLb)dLb.value=c.label||'';
       var dAb=document.getElementById('custApprovedBank'); if(dAb)dAb.value=c.approvedBank||'';
       var dAa=document.getElementById('custApprovedAmount'); if(dAa)dAa.value=c.approvedAmount||'';
       var dRt=document.getElementById('custRateTerm'); if(dRt)dRt.value=c.rateTerm||'';
@@ -6298,7 +6332,7 @@ export default {
     let todoLog=[];
     if(cloudData&&cloudData.todoLog)todoLog=cloudData.todoLog;
     let timeline=[];
-    clients.forEach((c,i)=>{timeline.push({type:'client',time:c.time||'',name:c.name,phone:c.phone,company:c.company||'',fund:c.fund||'',note:c.note,idx:i,
+    clients.forEach((c,i)=>{timeline.push({type:'client',time:c.time||'',name:c.name,phone:c.phone,company:c.company||'',fund:c.fund||'',label:c.label||'',note:c.note,idx:i,
       age:c.age,maritalStatus:c.maritalStatus,isShenzhenHukou:c.isShenzhenHukou,
       socialSecurity:c.socialSecurity,avgSalary:c.avgSalary,tax2yr:c.tax2yr,
       salaryBank:c.salaryBank,education:c.education,property:c.property,
@@ -6340,6 +6374,7 @@ export default {
             '</div>'+
             getStatusBadgeHtml(e) +
             '<div class="client-card-tags">'+
+              (e.label ? '<span class="client-card-tag client-card-tag-grade-' + esc(e.label).toLowerCase() + '">' + esc(e.label) + '类客户</span>' : '')+
               (e.company ? getWhitelistTagHtml(e.company, false) : '')+
               (e.fund ? '<span class="client-card-tag client-card-tag-fund">公积金: '+esc(e.fund)+'</span>' : '')+
               getClientDetailTags(e) +
@@ -6527,6 +6562,10 @@ export default {
               '<input type="text" class="input-simple edit-fund-input" placeholder="公积金基数" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.fund||'') + '">' +
             '</div>' +
             '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+              '<select class="input-simple input-select edit-label-input" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;height:auto;"><option value="">客户等级</option><option value="A"' + (fullClient.label==='A'?' selected':'') + '>A</option><option value="B"' + (fullClient.label==='B'?' selected':'') + '>B</option><option value="C"' + (fullClient.label==='C'?' selected':'') + '>C</option></select>' +
+              '<span style="flex:1;"></span>' +
+            '</div>' +
+            '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
               '<input type="text" class="input-simple edit-age-input" placeholder="年龄" style="flex:1;min-width:60px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.age||'') + '">' +
               '<select class="input-simple input-select edit-marital-input" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;height:auto;"><option value="">婚姻状况</option><option value="未婚"' + (fullClient.maritalStatus==='未婚'?' selected':'') + '>未婚</option><option value="已婚"' + (fullClient.maritalStatus==='已婚'?' selected':'') + '>已婚</option><option value="离异"' + (fullClient.maritalStatus==='离异'?' selected':'') + '>离异</option><option value="丧偶"' + (fullClient.maritalStatus==='丧偶'?' selected':'') + '>丧偶</option></select>' +
               '<select class="input-simple input-select edit-hukou-input" style="flex:1;min-width:70px;padding:6px 8px;font-size:0.78rem;height:auto;"><option value="">是否深户</option><option value="是"' + (fullClient.isShenzhenHukou==='是'?' selected':'') + '>是</option><option value="否"' + (fullClient.isShenzhenHukou==='否'?' selected':'') + '>否</option></select>' +
@@ -6594,6 +6633,7 @@ export default {
             const p = card.querySelector('.edit-phone-input').value.trim();
             const comp = card.querySelector('.edit-company-input').value.trim();
             const fund = card.querySelector('.edit-fund-input').value.trim();
+            const label = (card.querySelector('.edit-label-input')||{}).value||'';
             const nt = card.querySelector('.edit-note-input').value.trim();
             const fu = card.querySelector('.edit-follow-input').value.trim();
             // Read new detail fields
@@ -6629,7 +6669,7 @@ export default {
               (ti.time ? item.time === ti.time : true));
             const updatedClient = {
               date: ds, time: fullClient.time || ti.time || getCurrentTime(),
-              name: n, phone: p, company: comp, fund: fund, note: nt, followUp: fu,
+              name: n, phone: p, company: comp, fund: fund, label: label, note: nt, followUp: fu,
               followUpTime: fu !== (fullClient.followUp || '') ? getCurrentTime() : (fullClient.followUpTime || ''),
               followUpDate: fu !== (fullClient.followUp || '') ? getTodayStr() : (fullClient.followUpDate || ds),
               age: ageV, maritalStatus: ms, isShenzhenHukou: sh, socialSecurity: ssV,
@@ -6772,6 +6812,7 @@ export default {
     const p=document.getElementById('custPhone').value.trim();
     const c=document.getElementById('custCompany').value.trim();
     const f=document.getElementById('custFund').value.trim();
+    const label=document.getElementById('custLabel').value;
     const nt=document.getElementById('custNote').value.trim();
     const fu=document.getElementById('custFollowUp').value.trim();
     // New detail fields
@@ -6802,13 +6843,14 @@ export default {
     if(!nt){alert('沟通记录为必填项，请填写完整！');return;}
     const list=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
     const today=getTodayStr(),time=getCurrentTime();
-    const newClient={name:n,phone:p,company:c,fund:f,note:nt,followUp:fu,date:today,time:time,
+    const newClient={name:n,phone:p,company:c,fund:f,label:label,note:nt,followUp:fu,date:today,time:time,
       age,maritalStatus,isShenzhenHukou,socialSecurity,avgSalary,tax2yr,salaryBank,
       education,property:propertyVal,bankDebt,creditCardDebt,query3m,onlineLoanCount,demand,fundUsage,
       visitTime,status,approvedBank,approvedAmount,rateTerm,rejectedBank,rejectReason};
     list.push(newClient);
     localStorage.setItem(CLIENTS_K,JSON.stringify(list));
     clearEl('custName'); clearEl('custPhone'); clearEl('custCompany'); clearEl('custFund');
+    var labelEl = document.getElementById('custLabel'); if (labelEl) labelEl.value = '';
     clearEl('custNote'); clearEl('custFollowUp');
     clearEl('custAge'); clearEl('custMaritalStatus'); clearEl('custIsShenzhenHukou');
     clearEl('custSocialSecurity'); clearEl('custAvgSalary'); clearEl('custTax2yr');
@@ -8192,6 +8234,7 @@ const rid=Math.floor(Math.random()*1000);
         '</div>' +
         getStatusBadgeHtml(c) +
         '<div class="client-card-tags">' +
+          (c.label ? '<span class="client-card-tag client-card-tag-grade-' + esc(c.label).toLowerCase() + '">' + esc(c.label) + '类客户</span>' : '') +
           (c.company ? getWhitelistTagHtml(c.company, false) : '') +
           (c.fund ? '<span class="client-card-tag client-card-tag-fund">公积金: ' + esc(c.fund) + '</span>' : '') +
           getClientDetailTags(c) +
@@ -8321,6 +8364,10 @@ const rid=Math.floor(Math.random()*1000);
           '<input type="text" class="input-simple edit-fund-input" placeholder="公积金基数" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.fund || '') + '">' +
         '</div>' +
         '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+          '<select class="input-simple input-select edit-label-input" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;height:auto;"><option value="">客户等级</option><option value="A"' + (c.label==='A'?' selected':'') + '>A</option><option value="B"' + (c.label==='B'?' selected':'') + '>B</option><option value="C"' + (c.label==='C'?' selected':'') + '>C</option></select>' +
+          '<span style="flex:1;"></span>' +
+        '</div>' +
+        '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
           '<input type="text" class="input-simple edit-age-input" placeholder="年龄" style="flex:1;min-width:60px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.age||'') + '">' +
           '<select class="input-simple input-select edit-marital-input" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;height:auto;"><option value="">婚姻状况</option><option value="未婚"' + (c.maritalStatus==='未婚'?' selected':'') + '>未婚</option><option value="已婚"' + (c.maritalStatus==='已婚'?' selected':'') + '>已婚</option><option value="离异"' + (c.maritalStatus==='离异'?' selected':'') + '>离异</option><option value="丧偶"' + (c.maritalStatus==='丧偶'?' selected':'') + '>丧偶</option></select>' +
           '<select class="input-simple input-select edit-hukou-input" style="flex:1;min-width:70px;padding:6px 8px;font-size:0.78rem;height:auto;"><option value="">是否深户</option><option value="是"' + (c.isShenzhenHukou==='是'?' selected':'') + '>是</option><option value="否"' + (c.isShenzhenHukou==='否'?' selected':'') + '>否</option></select>' +
@@ -8388,6 +8435,7 @@ const rid=Math.floor(Math.random()*1000);
         const p = card.querySelector('.edit-phone-input').value.trim();
         const comp = card.querySelector('.edit-company-input').value.trim();
         const fund = card.querySelector('.edit-fund-input').value.trim();
+        const label = (card.querySelector('.edit-label-input')||{}).value||'';
         const nt = card.querySelector('.edit-note-input').value.trim();
         const fu = card.querySelector('.edit-follow-input').value.trim();
         // Read new detail fields
@@ -8423,7 +8471,7 @@ const rid=Math.floor(Math.random()*1000);
           (time ? item.time === time : true));
         const updatedClient = {
           date: date, time: c.time || getCurrentTime(),
-          name: n, phone: p, company: comp, fund: fund, note: nt, followUp: fu,
+          name: n, phone: p, company: comp, fund: fund, label: label, note: nt, followUp: fu,
           followUpTime: fu !== (c.followUp || '') ? getCurrentTime() : (c.followUpTime || ''),
           followUpDate: fu !== (c.followUp || '') ? getTodayStr() : (c.followUpDate || c.date),
           age: ageV, maritalStatus: ms, isShenzhenHukou: sh, socialSecurity: ssV,
@@ -8504,6 +8552,10 @@ const rid=Math.floor(Math.random()*1000);
             '<input type="text" class="input-simple new-fund-input" placeholder="公积金基数" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;">' +
           '</div>' +
           '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+            '<select class="input-simple input-select new-label-input" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;height:auto;"><option value="">客户等级</option><option value="A">A</option><option value="B">B</option><option value="C">C</option></select>' +
+            '<span style="flex:1;"></span>' +
+          '</div>' +
+          '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
             '<input type="text" class="input-simple new-age-input" placeholder="年龄" style="flex:1;min-width:60px;padding:6px 8px;font-size:0.78rem;">' +
             '<select class="input-simple input-select new-marital-input" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;height:auto;"><option value="">婚姻状况</option><option value="未婚">未婚</option><option value="已婚">已婚</option><option value="离异">离异</option><option value="丧偶">丧偶</option></select>' +
             '<select class="input-simple input-select new-hukou-input" style="flex:1;min-width:70px;padding:6px 8px;font-size:0.78rem;height:auto;"><option value="">是否深户</option><option value="是">是</option><option value="否">否</option></select>' +
@@ -8573,6 +8625,7 @@ const rid=Math.floor(Math.random()*1000);
           const p = card.querySelector('.new-phone-input').value.trim();
           const comp = card.querySelector('.new-company-input').value.trim();
           const fund = card.querySelector('.new-fund-input').value.trim();
+          const label = (card.querySelector('.new-label-input')||{}).value||'';
           const nt = card.querySelector('.new-note-input').value.trim();
           const fu = card.querySelector('.new-follow-input').value.trim();
           // Read new detail fields
@@ -8604,7 +8657,7 @@ const rid=Math.floor(Math.random()*1000);
           if (!p) { alert('电话号码不能为空，请填写完整！'); return; }
           if (!nt) { alert('沟通记录为必填项，请填写完整！'); return; }
 
-          const newClient = { name: n, phone: p, company: comp, fund: fund, note: nt, followUp: fu, date: d, time: getCurrentTime(), followUpTime: fu ? getCurrentTime() : '', followUpDate: fu ? getTodayStr() : '',
+          const newClient = { name: n, phone: p, company: comp, fund: fund, label: label, note: nt, followUp: fu, date: d, time: getCurrentTime(), followUpTime: fu ? getCurrentTime() : '', followUpDate: fu ? getTodayStr() : '',
             age: ageV, maritalStatus: ms, isShenzhenHukou: sh, socialSecurity: ssV,
             avgSalary: asV, tax2yr: txV, salaryBank: sbV, education: ed, property: pr,
             bankDebt: bdV, creditCardDebt: cdV, query3m: q3V, onlineLoanCount: olV,
