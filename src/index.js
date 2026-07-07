@@ -3814,9 +3814,10 @@ export default {
     .date-chip { background: var(--card-bg); padding: 4px 12px; border-radius: var(--radius-xs); font-size: 0.75rem; font-weight: 700; color: var(--text-soft); border: 1px solid var(--card-border); }
     .goal-chips { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
     .goal-chip { background: var(--card-bg); padding: 4px 12px; border-radius: var(--radius-xs); font-size: 0.75rem; font-weight: 700; border: 1px solid var(--card-border); color: var(--text-soft); white-space: nowrap; cursor: default; }
-    .goal-val { cursor: pointer; text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 2px; text-decoration-color: var(--text-light); }
-    .goal-val:hover { color: var(--accent-wechat); text-decoration-color: var(--accent-wechat); }
-    .goal-editable { cursor: pointer; }
+    .goal-actual { cursor: pointer; border-bottom: 1.5px dashed var(--text-light); }
+    .goal-actual:hover { color: var(--accent-wechat); border-bottom-color: var(--accent-wechat); }
+    .goal-target { cursor: pointer; font-style: italic; font-weight: 400; border-bottom: 1px dotted var(--text-light); }
+    .goal-target:hover { color: var(--accent-intent); border-bottom-color: var(--accent-intent); }
     .goal-chip.goal-met { background: rgba(7,193,96,0.08); color: #07c160; }
     .goal-chip.goal-half { background: rgba(245,124,0,0.08); color: #e67e22; }
     .goal-chip.goal-low { background: rgba(74,108,247,0.06); color: #4a6cf7; }
@@ -6799,90 +6800,98 @@ export default {
   }
 
   const SHOW_GOAL_NUM_K='show_goal_num_v1';
+  var chipMeta = {
+    '本周上门': { mapKey: VISIT_K, agg: 'week', field: 'weeklyVisit' },
+    '本周微信': { mapKey: WECHAT_K, agg: 'week', field: 'weeklyWechat' },
+    '本月微信': { mapKey: WECHAT_K, agg: 'month', field: 'monthlyWechat' },
+    '本月上门': { mapKey: VISIT_K, agg: 'month', field: 'monthlyVisit' },
+    '本月回款': { mapKey: PAYMENT_K, agg: 'month', field: 'monthlyPayment' }
+  };
   function renderGoalChips(){
-    const container=document.getElementById('goalChips');
-    const showNum=localStorage.getItem(SHOW_GOAL_NUM_K)==='true';
-    const eyeBtn=document.getElementById('goalEyeBtn');
+    var container=document.getElementById('goalChips');
+    if(!container)return;
+    var showNum=localStorage.getItem(SHOW_GOAL_NUM_K)==='true';
+    var eyeBtn=document.getElementById('goalEyeBtn');
     if(eyeBtn){
       eyeBtn.className='goal-eye'+(showNum?'':' eye-off');
       eyeBtn.title=showNum?'隐藏目标数字':'显示目标数字';
     }
-    const wm=loadMap(WECHAT_K),vm=loadMap(VISIT_K),pm=loadMap(PAYMENT_K);
-    const goals=loadGoals();
-    let html='';
+    var wm=loadMap(WECHAT_K),vm=loadMap(VISIT_K),pm=loadMap(PAYMENT_K);
+    var goals=loadGoals();
+    var html='';
     var chipDefs = [
-      { label: '本周上门', actual: getWeekTotal(vm), target: goals.weeklyVisit },
-      { label: '本周微信', actual: getWeekTotal(wm), target: goals.weeklyWechat },
-      { label: '本月微信', actual: getMonthTotal(wm, calendarMonth), target: goals.monthlyWechat },
-      { label: '本月上门', actual: getMonthTotal(vm, calendarMonth), target: goals.monthlyVisit },
-      { label: '本月回款', actual: getMonthTotal(pm, calendarMonth), target: goals.monthlyPayment }
+      { label:'本周上门', actual:getWeekTotal(vm), target:goals.weeklyVisit },
+      { label:'本周微信', actual:getWeekTotal(wm), target:goals.weeklyWechat },
+      { label:'本月微信', actual:getMonthTotal(wm,calendarMonth), target:goals.monthlyWechat },
+      { label:'本月上门', actual:getMonthTotal(vm,calendarMonth), target:goals.monthlyVisit },
+      { label:'本月回款', actual:getMonthTotal(pm,calendarMonth), target:goals.monthlyPayment }
     ];
     chipDefs.forEach(function(d){
-      if (!d.target || d.target <= 0) {
-        html += '<span class="goal-chip goal-editable" data-meta="' + d.label + '">' + d.label + '</span>';
+      if(!d.target||d.target<=0||!showNum){
+        html+='<span class="goal-chip" data-meta="'+d.label+'">'+d.label+'</span>';
         return;
       }
-      if (!showNum) {
-        html += '<span class="goal-chip goal-editable" data-meta="' + d.label + '">' + d.label + '</span>';
-        return;
-      }
-      var pct = Math.round(d.actual / d.target * 100);
-      var cls = pct >= 100 ? 'goal-met' : pct >= 50 ? 'goal-half' : 'goal-low';
-      html += '<span class="goal-chip ' + cls + '" data-meta="' + d.label + '">' + d.label + ' <b class="goal-val goal-editable" data-meta="' + d.label + '">' + d.actual + '</b>/' + d.target + '</span>';
+      var pct=Math.round(d.actual/d.target*100);
+      var cls=pct>=100?'goal-met':pct>=50?'goal-half':'goal-low';
+      html+='<span class="goal-chip '+cls+'" data-meta="'+d.label+'">'+d.label+' <b class="goal-actual" data-meta="'+d.label+'" title="点击编辑完成数">'+d.actual+'</b>/<i class="goal-target" data-meta="'+d.label+'" title="点击编辑目标">'+d.target+'</i></span>';
     });
-    container.innerHTML = html;
+    container.innerHTML=html;
   }
-  // 点击完成数（加粗数字）→ 原地编辑；隐藏模式下点 chip 弹窗编辑
-  document.getElementById('goalChips').addEventListener('click', function(e){
-    var valEl = e.target.closest('.goal-val');
-    if (valEl) {
-      e.stopPropagation();
-      var label = valEl.dataset.meta;
-      var cfg = chipMeta[label];
-      if (!cfg) return;
-      var curVal = parseInt(valEl.textContent, 10);
-      var inp = document.createElement('input');
-      inp.type = 'number'; inp.min = '0'; inp.value = curVal;
-      inp.style.cssText = 'width:40px;padding:0 4px;font-size:0.75rem;font-weight:700;text-align:center;border:1px solid var(--accent-wechat);border-radius:3px;background:var(--card-bg);color:var(--text-main);';
-      inp.onblur = function(){ applyGoalEdit(label, cfg, curVal, parseInt(inp.value, 10) || 0); };
-      inp.onkeydown = function(ev){ if (ev.key === 'Enter') { inp.blur(); } };
-      valEl.replaceWith(inp);
-      inp.focus(); inp.select();
-      return;
-    }
-    // 隐藏模式下，点击 chip 本身 → prompt 编辑
-    var chip = e.target.closest('.goal-chip');
-    if (!chip || !chip.dataset.meta) return;
-    var label2 = chip.dataset.meta;
-    var cfg2 = chipMeta[label2];
-    if (!cfg2) return;
-    var mp2 = loadMap(cfg2.mapKey);
-    var actual2 = cfg2.agg === 'week' ? getWeekTotal(mp2) : getMonthTotal(mp2, calendarMonth);
-    var input2 = prompt('编辑 ' + label2 + ' 完成数', actual2);
-    if (input2 === null || input2.trim() === '') return;
-    var nv = parseInt(input2, 10);
-    if (isNaN(nv) || nv < 0) { alert('请输入有效数字'); return; }
-    applyGoalEdit(label2, cfg2, actual2, nv);
-  });
-  function applyGoalEdit(label, cfg, oldVal, newVal){
-    if (newVal === oldVal) { renderGoalChips(); return; }
-    var delta = newVal - oldVal;
-    var today = getTodayStr();
-    var mp = loadMap(cfg.mapKey);
-    mp[today] = (mp[today] || 0) + delta;
-    if (mp[today] < 0) mp[today] = 0;
-    saveMap(cfg.mapKey, mp);
-    renderGoalChips();
-    syncOp('setMap', { mapKey: cfg.mapKey, date: today, value: mp[today] });
-  }
-  // chipMeta needs to be accessible — define it outside
-  var chipMeta = {
-    '本周上门': { mapKey: VISIT_K, agg: 'week' },
-    '本周微信': { mapKey: WECHAT_K, agg: 'week' },
-    '本月微信': { mapKey: WECHAT_K, agg: 'month' },
-    '本月上门': { mapKey: VISIT_K, agg: 'month' },
-    '本月回款': { mapKey: PAYMENT_K, agg: 'month' }
-  };
+  // 统一 click 委托
+  (function(){
+    var container=document.getElementById('goalChips');
+    if(!container)return;
+    container.addEventListener('click',function(e){
+      // 点击完成数（粗体）→ 原地编辑
+      var actEl=e.target.closest('.goal-actual');
+      if(actEl){
+        e.stopPropagation();
+        var label=actEl.dataset.meta;
+        var cfg=chipMeta[label];
+        if(!cfg)return;
+        var cur=parseInt(actEl.textContent,10)||0;
+        var inp=document.createElement('input');
+        inp.type='number';inp.min='0';inp.value=cur;
+        inp.style.cssText='width:44px;padding:1px 4px;font-size:0.75rem;font-weight:700;text-align:center;border:1px solid var(--accent-wechat);border-radius:3px;background:var(--card-bg);color:var(--text-main);outline:none;';
+        inp.onblur=function(){
+          var nv=parseInt(inp.value,10)||0;
+          if(nv!==cur){
+            var delta=nv-cur;
+            var today=getTodayStr();
+            var mp=loadMap(cfg.mapKey);
+            mp[today]=(mp[today]||0)+delta;
+            if(mp[today]<0)mp[today]=0;
+            saveMap(cfg.mapKey,mp);
+            syncOp('setMap',{mapKey:cfg.mapKey,date:today,value:mp[today]});
+          }
+          renderGoalChips();
+        };
+        inp.onkeydown=function(ev){if(ev.key==='Enter')inp.blur();};
+        actEl.replaceWith(inp);
+        inp.focus();inp.select();
+        return;
+      }
+      // 点击目标数（斜体）→ 打开目标设定弹窗
+      var tgtEl=e.target.closest('.goal-target');
+      if(tgtEl){
+        e.stopPropagation();
+        var label=tgtEl.dataset.meta;
+        var cfg=chipMeta[label];
+        var goals=loadGoals();
+        document.getElementById('goalWeeklyVisit').value=goals.weeklyVisit||'';
+        document.getElementById('goalWeeklyWechat').value=goals.weeklyWechat||'';
+        document.getElementById('goalMonthlyWechat').value=goals.monthlyWechat||'';
+        document.getElementById('goalMonthlyVisit').value=goals.monthlyVisit||'';
+        document.getElementById('goalMonthlyPayment').value=goals.monthlyPayment||'';
+        document.getElementById('goalStatus').textContent='';
+        document.getElementById('goalModal').classList.add('active');
+        var focusMap={weeklyVisit:'goalWeeklyVisit',weeklyWechat:'goalWeeklyWechat',monthlyWechat:'goalMonthlyWechat',monthlyVisit:'goalMonthlyVisit',monthlyPayment:'goalMonthlyPayment'};
+        var fid=focusMap[cfg.field];
+        if(fid){setTimeout(function(){var el=document.getElementById(fid);if(el){el.focus();el.select();}},100);}
+        return;
+      }
+    });
+  })();
   function toggleGoalNumbers(){
     const cur=localStorage.getItem(SHOW_GOAL_NUM_K)==='true';
     localStorage.setItem(SHOW_GOAL_NUM_K,!cur);
