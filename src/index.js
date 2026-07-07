@@ -3207,8 +3207,8 @@ export default {
           };
           var field = countFields[body.mapKey];
           if (field && body.date) {
-            var raw = await env.DATA_KV.get('work:' + body.date);
-            var dayData = raw ? JSON.parse(raw) : { date: body.date, wechatCount: 0, intentCount: 0, revisitCount: 0, visitCount: 0, paymentCount: 0, clients: [], todayTodos: [], tomorrowTodos: [], tempClients: [], scripts: [], learns: [], todoLog: [] };
+            var dayRaw = await env.DATA_KV.get('work:' + body.date);
+            var dayData = dayRaw ? JSON.parse(dayRaw) : { date: body.date, wechatCount: 0, intentCount: 0, revisitCount: 0, visitCount: 0, paymentCount: 0, clients: [], todayTodos: [], tomorrowTodos: [], tempClients: [], scripts: [], learns: [], todoLog: [] };
             dayData[field] = Math.max(0, body.value || 0);
             dayData._ts = Date.now();
             await env.DATA_KV.put('work:' + body.date, JSON.stringify(dayData));
