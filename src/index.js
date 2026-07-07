@@ -4659,7 +4659,7 @@ export default {
           <div class="register-block">
             <div class="form-line"><input type="text" class="input-simple" id="custName" placeholder="姓名" autocomplete="off"><input type="text" class="input-simple" id="custPhone" placeholder="电话" autocomplete="off"></div>
             <div class="form-line"><input type="text" class="input-simple" id="custCompany" placeholder="单位" autocomplete="off"><input type="text" class="input-simple" id="custFund" placeholder="公积金基数" autocomplete="off"></div>
-            <div class="form-line"><select class="input-simple input-select" id="custLabel"><option value="">客户等级</option><option value="A">A</option><option value="B">B</option><option value="C">C</option></select><span style="flex:1;"></span></div>
+            <div class="form-line"><select class="input-simple input-select" id="custLabel" style="background:linear-gradient(135deg,rgba(39,174,96,0.08),rgba(52,152,219,0.08));border:1px solid rgba(39,174,96,0.35);font-weight:800;font-size:0.88rem;color:var(--accent-wechat);"><option value="">客户等级 (选填)</option><option value="A">A 类 — 重点跟进</option><option value="B">B 类 — 常规跟进</option><option value="C">C 类 — 低优先级</option></select><span style="flex:1;"></span></div>
             <!-- Collapsible detail panel toggle -->
             <div class="detail-toggle-wrap">
               <button type="button" class="detail-toggle-btn" id="detailToggleBtn">
@@ -6562,7 +6562,7 @@ export default {
               '<input type="text" class="input-simple edit-fund-input" placeholder="公积金基数" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.fund||'') + '">' +
             '</div>' +
             '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
-              '<select class="input-simple input-select edit-label-input" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;height:auto;"><option value="">客户等级</option><option value="A"' + (fullClient.label==='A'?' selected':'') + '>A</option><option value="B"' + (fullClient.label==='B'?' selected':'') + '>B</option><option value="C"' + (fullClient.label==='C'?' selected':'') + '>C</option></select>' +
+              '<select class="input-simple input-select edit-label-input" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;height:auto;"><option value="">客户等级</option><option value="A"' + (fullClient.label==='A'?' selected':'') + '>A 类 — 重点跟进</option><option value="B"' + (fullClient.label==='B'?' selected':'') + '>B 类 — 常规跟进</option><option value="C"' + (fullClient.label==='C'?' selected':'') + '>C 类 — 低优先级</option></select>' +
               '<span style="flex:1;"></span>' +
             '</div>' +
             '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
@@ -8364,7 +8364,7 @@ const rid=Math.floor(Math.random()*1000);
           '<input type="text" class="input-simple edit-fund-input" placeholder="公积金基数" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.fund || '') + '">' +
         '</div>' +
         '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
-          '<select class="input-simple input-select edit-label-input" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;height:auto;"><option value="">客户等级</option><option value="A"' + (c.label==='A'?' selected':'') + '>A</option><option value="B"' + (c.label==='B'?' selected':'') + '>B</option><option value="C"' + (c.label==='C'?' selected':'') + '>C</option></select>' +
+          '<select class="input-simple input-select edit-label-input" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;height:auto;"><option value="">客户等级</option><option value="A"' + (c.label==='A'?' selected':'') + '>A 类 — 重点跟进</option><option value="B"' + (c.label==='B'?' selected':'') + '>B 类 — 常规跟进</option><option value="C"' + (c.label==='C'?' selected':'') + '>C 类 — 低优先级</option></select>' +
           '<span style="flex:1;"></span>' +
         '</div>' +
         '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
@@ -8552,7 +8552,7 @@ const rid=Math.floor(Math.random()*1000);
             '<input type="text" class="input-simple new-fund-input" placeholder="公积金基数" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;">' +
           '</div>' +
           '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
-            '<select class="input-simple input-select new-label-input" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;height:auto;"><option value="">客户等级</option><option value="A">A</option><option value="B">B</option><option value="C">C</option></select>' +
+            '<select class="input-simple input-select new-label-input" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;height:auto;"><option value="">客户等级</option><option value="A">A 类 — 重点跟进</option><option value="B">B 类 — 常规跟进</option><option value="C">C 类 — 低优先级</option></select>' +
             '<span style="flex:1;"></span>' +
           '</div>' +
           '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
