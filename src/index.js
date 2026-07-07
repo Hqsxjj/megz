@@ -4679,9 +4679,9 @@ export default {
               <div class="status-conditional-area" id="failedStatusFields"><div class="status-field-separator">办理未成功信息</div><div class="form-line"><input type="text" class="input-simple" id="custRejectedBank" placeholder="拒绝银行" autocomplete="off"><input type="text" class="input-simple" id="custRejectReason" placeholder="拒绝原因" autocomplete="off"></div></div>
               <textarea class="input-simple note-textarea" id="custDemand" placeholder="客户大致需求" rows="2"></textarea>
               <textarea class="input-simple note-textarea" id="custFundUsage" placeholder="资金用途和时间" rows="2"></textarea>
+              <textarea class="input-simple note-textarea" id="custNote" placeholder="沟通记录 (必填)" rows="3"></textarea>
+              <textarea class="input-simple note-textarea" id="custFollowUp" placeholder="跟进情况" rows="2"></textarea>
             </div>
-            <textarea class="input-simple note-textarea" id="custNote" placeholder="沟通记录 (必填)" rows="3"></textarea>
-            <textarea class="input-simple note-textarea" id="custFollowUp" placeholder="跟进情况" rows="2"></textarea>
             <button class="btn-add" id="addClientBtn">+ 添加</button>
             <div id="clipboardStatus" style="font-size:0.65rem;color:var(--text-light);text-align:center;min-height:18px;margin-top:4px;"></div>
             <div class="client-scroll" id="clientList"></div>
