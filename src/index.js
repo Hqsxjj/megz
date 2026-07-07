@@ -3797,6 +3797,8 @@ export default {
     .date-chip { background: var(--card-bg); padding: 4px 12px; border-radius: var(--radius-xs); font-size: 0.75rem; font-weight: 700; color: var(--text-soft); border: 1px solid var(--card-border); }
     .goal-chips { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
     .goal-chip { background: var(--card-bg); padding: 4px 12px; border-radius: var(--radius-xs); font-size: 0.75rem; font-weight: 700; border: 1px solid var(--card-border); color: var(--text-soft); white-space: nowrap; cursor: default; }
+    .goal-chip.goal-clickable { cursor: pointer; transition: border-color 0.15s, box-shadow 0.15s; }
+    .goal-chip.goal-clickable:hover { border-color: var(--accent-wechat); box-shadow: 0 0 0 1px rgba(7,193,96,0.15); }
     .goal-chip.goal-met { background: rgba(7,193,96,0.08); color: #07c160; }
     .goal-chip.goal-half { background: rgba(245,124,0,0.08); color: #e67e22; }
     .goal-chip.goal-low { background: rgba(74,108,247,0.06); color: #4a6cf7; }
@@ -6791,11 +6793,11 @@ export default {
     const goals=loadGoals();
     let html='';
     const makeChip=(label,actual,target)=>{
-      if(!target||target<=0)return'';
-      if(!showNum) return '<span class="goal-chip">'+label+'</span>';
+      if(!target||target<=0)return'<span class="goal-chip goal-clickable" data-goal-label="'+label+'">'+label+'</span>';
+      if(!showNum) return '<span class="goal-chip goal-clickable" data-goal-label="'+label+'">'+label+'</span>';
       const pct=Math.round(actual/target*100);
       const cls=pct>=100?'goal-met':pct>=50?'goal-half':'goal-low';
-      return '<span class="goal-chip '+cls+'">'+label+' '+actual+'/'+target+'</span>';
+      return '<span class="goal-chip goal-clickable '+cls+'" data-goal-label="'+label+'">'+label+' '+actual+'/'+target+'</span>';
     };
     html+=makeChip('本周上门',getWeekTotal(vm),goals.weeklyVisit);
     html+=makeChip('本周微信',getWeekTotal(wm),goals.weeklyWechat);
@@ -9031,6 +9033,30 @@ const rid=Math.floor(Math.random()*1000);
   safeInit('initWhitelistFeature', initWhitelistFeature);
   safeInit('initLoanCalc', initLoanCalc);
   document.getElementById('goalEyeBtn').addEventListener('click',toggleGoalNumbers);
+  // 点击目标 chip 直接打开编辑弹窗
+  document.getElementById('goalChips').addEventListener('click',function(e){
+    const chip = e.target.closest('.goal-clickable');
+    if (!chip) return;
+    var goals=loadGoals();
+    var label = chip.dataset.goalLabel;
+    document.getElementById('goalWeeklyVisit').value=goals.weeklyVisit||'';
+    document.getElementById('goalWeeklyWechat').value=goals.weeklyWechat||'';
+    document.getElementById('goalMonthlyWechat').value=goals.monthlyWechat||'';
+    document.getElementById('goalMonthlyVisit').value=goals.monthlyVisit||'';
+    document.getElementById('goalMonthlyPayment').value=goals.monthlyPayment||'';
+    document.getElementById('goalStatus').textContent='';
+    // 聚焦对应字段
+    var focusMap = {
+      '本周上门': 'goalWeeklyVisit',
+      '本周微信': 'goalWeeklyWechat',
+      '本月微信': 'goalMonthlyWechat',
+      '本月上门': 'goalMonthlyVisit',
+      '本月回款': 'goalMonthlyPayment'
+    };
+    var targetId = focusMap[label];
+    document.getElementById('goalModal').classList.add('active');
+    if (targetId) { setTimeout(function(){ document.getElementById(targetId).focus(); document.getElementById(targetId).select(); }, 100); }
+  });
   function calGo(delta){
     const [y,m]=calendarMonth.split('-').map(Number);
     const d=new Date(y,m-1+delta,1);
