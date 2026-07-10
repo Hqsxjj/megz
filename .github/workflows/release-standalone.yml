@@ -1,0 +1,101 @@
+name: Release Standalone Deployment Package
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'standalone/**'
+      - 'src/index.js'
+      - 'src/supabase.js'
+  workflow_dispatch:
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Sync standalone with main source fixes
+        run: |
+          echo "📋 检查主项目关键修复是否同步到 standalone..."
+          # 检查 keydown 修复（输入框中不拦截 +/- 键）
+          if grep -q "document.activeElement" standalone/src/index.js; then
+            echo "✅ keydown 修复已同步"
+          else
+            echo "⚠️  keydown 修复未同步，需要手动更新 standalone/src/index.js"
+          fi
+          # 检查 button type 修复
+          if grep -q 'type="button".*save-all-client-btn' standalone/src/index.js; then
+            echo "✅ button type 修复已同步"
+          else
+            echo "⚠️  button type 修复未同步"
+          fi
+          echo "📋 同步检查完成"
+
+      - name: Create standalone zip
+        run: |
+          mkdir -p release
+          cp -r standalone release/megz-standalone
+          rm -f release/megz-standalone/deploy.sh  # 重新生成，确保 LF 换行
+          # 生成 Mac/Linux 部署脚本 (LF)
+          cat > release/megz-standalone/deploy.sh << 'SCRIPTEOF'
+          #!/bin/bash
+          set -e
+          echo "========================================="
+          echo "  megz 每日工作 — 一键部署"
+          echo "========================================="
+          echo ""
+          if ! command -v node &> /dev/null; then
+              echo "请先安装 Node.js: https://nodejs.org"; exit 1
+          fi
+          echo "检查 Cloudflare 登录..."
+          npx wrangler whoami &> /dev/null || npx wrangler login
+          echo "创建 KV 命名空间..."
+          KV_OUT=$(npx wrangler kv:namespace create DATA_KV 2>&1) || true
+          KV_ID=$(echo "$KV_OUT" | grep -oP '"id":\s*"\K[^"]+' | head -1)
+          if [ -z "$KV_ID" ]; then
+            KV_LIST=$(npx wrangler kv:namespace list 2>&1)
+            KV_ID=$(echo "$KV_LIST" | grep -oP '"id":\s*"\K[^"]+' | head -1)
+          fi
+          if [ -z "$KV_ID" ]; then
+            echo "请在 Cloudflare Dashboard 手动创建 KV 命名空间 DATA_KV"
+            echo "然后将 ID 填入 wrangler.toml"; exit 1
+          fi
+          sed -i "s/YOUR_KV_NAMESPACE_ID/$KV_ID/" wrangler.toml
+          read -p "PIN 解锁密码 (默认 8520): " PIN; PIN=${PIN:-8520}
+          npx wrangler deploy
+          npx wrangler kv:key put --binding=DATA_KV "config:pin_code" "$PIN"
+          echo "部署完成！PIN: $PIN"
+          SCRIPTEOF
+          chmod +x release/megz-standalone/deploy.sh
+          # 打包
+          cd release && zip -r ../megz-standalone.zip megz-standalone/
+
+      - name: Get short commit hash
+        run: echo "SHORT_SHA=$(echo $GITHUB_SHA | cut -c1-7)" >> $GITHUB_ENV
+
+      - name: Update latest release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: "最新部署包 (Latest)"
+          body: |
+            ## megz 独立版一键部署包
+
+            👉 **下载 `megz-standalone.zip`**，解压后按照 README.md 部署。
+
+            ---
+            - 更新于: ${{ github.event.head_commit.timestamp || 'manual' }}
+            - Commit: `${{ env.SHORT_SHA }}`
+            - 纯 KV 存储，不依赖 Supabase
+            - 包含完整的每日工作功能（计数、客户、待办、日历、PIN 锁）
+            - **不含拨号盘**（拨号盘需要 Supabase，见主项目）
+          files: megz-standalone.zip
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

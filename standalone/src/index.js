@@ -7258,7 +7258,7 @@ const rid=Math.floor(Math.random()*1000);
   document.getElementById('hideBtn').addEventListener('click',()=>{setLocked(true);pi.value='';pie.innerText='';});
   window.addEventListener('keydown',e=>{if(e.ctrlKey&&e.key==='z'){const a=document.activeElement;if(a&&(a.tagName==='INPUT'||a.tagName==='TEXTAREA'))return;e.preventDefault();if(document.body.classList.contains('page-hidden'))pie.innerText='请使用PIN解锁';else{setLocked(true);pi.value='';pie.innerText='';}}});
   window.addEventListener('keydown',e=>{if(e.ctrlKey&&e.key.toLowerCase()==='q'){if(!document.body.classList.contains('page-hidden'))return;const a=document.activeElement;if(a&&(a.tagName==='INPUT'||a.tagName==='TEXTAREA'))return;e.preventDefault();const tc=document.getElementById('timerContainer');if(tc)tc.classList.toggle('show');}});
-  window.addEventListener('keydown',e=>{if(e.key==='+'||e.key==='='){e.preventDefault();modCounter(WECHAT_K,1,'incWechat');}else if(e.key==='-'||e.key==='_'){e.preventDefault();modCounter(WECHAT_K,-1,'incWechat');}else if(e.key==='ArrowUp'){e.preventDefault();modCounter(REVISIT_K,1,'incRevisit');}else if(e.key==='ArrowDown'){e.preventDefault();modCounter(REVISIT_K,-1,'incRevisit');}});
+  window.addEventListener('keydown',e=>{const a=document.activeElement;if(a&&(a.tagName==='INPUT'||a.tagName==='TEXTAREA'||a.isContentEditable))return;if(e.key==='+'||e.key==='='){e.preventDefault();modCounter(WECHAT_K,1,'incWechat');}else if(e.key==='-'||e.key==='_'){e.preventDefault();modCounter(WECHAT_K,-1,'incWechat');}else if(e.key==='ArrowUp'){e.preventDefault();modCounter(REVISIT_K,1,'incRevisit');}else if(e.key==='ArrowDown'){e.preventDefault();modCounter(REVISIT_K,-1,'incRevisit');}});
 
   // ==================== 锁屏计时器 ====================
   const TIMER_K='timer_state_v1';
@@ -7872,8 +7872,8 @@ const rid=Math.floor(Math.random()*1000);
         '<textarea class="input-simple edit-note-input" placeholder="沟通记录" style="width:100%;min-height:70px;padding:8px;font-size:0.78rem;resize:vertical;box-sizing:border-box;">' + esc(c.note || '') + '</textarea>' +
         '<textarea class="input-simple edit-follow-input" placeholder="跟进情况" style="width:100%;min-height:60px;padding:8px;font-size:0.78rem;resize:vertical;box-sizing:border-box;">' + esc(c.followUp || '') + '</textarea>' +
         '<div style="display:flex;justify-content:flex-end;gap:8px;border-top:1px dashed var(--card-border);padding-top:8px;">' +
-          '<button class="save-all-client-btn btn-add" style="font-size:0.75rem;padding:6px 16px;background:var(--accent-wechat);color:white;border:none;border-radius:6px;font-weight:700;">保存</button>' +
-          '<button class="cancel-all-client-btn btn-add" style="font-size:0.75rem;padding:6px 16px;background:var(--btn-bg);color:var(--text-soft);border:1px solid var(--card-border);border-radius:6px;font-weight:700;">取消</button>' +
+          '<button type="button" class="save-all-client-btn btn-add" style="font-size:0.75rem;padding:6px 16px;background:var(--accent-wechat);color:white;border:none;border-radius:6px;font-weight:700;">保存</button>' +
+          '<button type="button" class="cancel-all-client-btn btn-add" style="font-size:0.75rem;padding:6px 16px;background:var(--btn-bg);color:var(--text-soft);border:1px solid var(--card-border);border-radius:6px;font-weight:700;">取消</button>' +
         '</div>';
 
       // Bind status change for conditional fields

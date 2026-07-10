@@ -7402,7 +7402,7 @@
       var tbody = document.getElementById('dbTbody');
       if (tbody) tbody.innerHTML = '<tr><td colspan="' + colCount + '" class="db-loading">数据加载中...</td></tr>';
       
-      fetch(url)
+      dialerFetch(url)
         .then(function(r) { return r.json(); })
         .then(function(res) {
           if (res.error) {
@@ -8247,7 +8247,7 @@
           if (category) pullUrl += '&category=' + encodeURIComponent(category);
           if (batchFilter) pullUrl += '&batch_label=' + encodeURIComponent(batchFilter);
           
-          fetch(pullUrl)
+          dialerFetch(pullUrl)
             .then(function(r) { return r.json(); })
             .then(function(res) {
               pullFilteredBtn.disabled = false;

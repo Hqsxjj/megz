@@ -1820,13 +1820,20 @@ export default {
       _dialerAccountId = _session.account_id;
       // Master can view sub-account data via X-View-Account-Id header
       var _viewId = request.headers.get('X-View-Account-Id') || '';
+      var _isMaster = false;
       if (_viewId) {
         var _accts = await dialerGetAccounts(env);
-        var _isMaster = false;
         for (var _ai = 0; _ai < _accts.length; _ai++) {
           if (_accts[_ai].account_id === _session.account_id && _accts[_ai].is_master !== false) { _isMaster = true; break; }
         }
         if (_isMaster) { _dialerAccountId = _viewId; }
+      } else {
+        // Master sees all accounts' data when no sub-account view is selected
+        var _accts2 = await dialerGetAccounts(env);
+        for (var _aj = 0; _aj < _accts2.length; _aj++) {
+          if (_accts2[_aj].account_id === _session.account_id && _accts2[_aj].is_master !== false) { _isMaster = true; break; }
+        }
+        if (_isMaster) { _dialerAccountId = ''; }
       }
     }
 
@@ -4689,7 +4696,7 @@ export default {
               <textarea class="input-simple note-textarea" id="custNote" placeholder="沟通记录 (必填)" rows="3"></textarea>
               <textarea class="input-simple note-textarea" id="custFollowUp" placeholder="跟进情况" rows="2"></textarea>
             </div>
-            <button class="btn-add" id="addClientBtn">+ 添加</button>
+            <button type="button" class="btn-add" id="addClientBtn">+ 添加</button>
             <div id="clipboardStatus" style="font-size:0.65rem;color:var(--text-light);text-align:center;min-height:18px;margin-top:4px;"></div>
             <div class="client-scroll" id="clientList"></div>
           </div>
@@ -6151,6 +6158,8 @@ export default {
       const idx=a.findIndex(c=>c.name===name&&c.phone===phone&&c.time===time);
       if(idx<0)return;
       const c=a[idx];
+      // Set editing marker — addClient() will replace this entry instead of appending
+      window._editingClientKey = name + '|' + phone + '|' + (time||'');
       document.getElementById('custName').value=c.name;
       document.getElementById('custPhone').value=c.phone;
       document.getElementById('custCompany').value=c.company||'';
@@ -6182,7 +6191,7 @@ export default {
       var dRb=document.getElementById('custRejectedBank'); if(dRb)dRb.value=c.rejectedBank||'';
       var dRr=document.getElementById('custRejectReason'); if(dRr)dRr.value=c.rejectReason||'';
       showStatusConditionalFields(c.status||'');
-      // Auto-expand detail panel if any new field has a value (including note/followUp now inside panel)
+      // Auto-expand detail panel if any new field has a value
       var hasDetail = c.age||c.maritalStatus||c.isShenzhenHukou||c.socialSecurity||c.avgSalary||c.tax2yr||c.salaryBank||c.education||c.property||c.bankDebt||c.creditCardDebt||c.query3m||c.onlineLoanCount||c.demand||c.fundUsage||c.visitTime||c.note||c.followUp;
       var panel = document.getElementById('detailPanel');
       var toggleBtn = document.getElementById('detailToggleBtn');
@@ -6192,9 +6201,10 @@ export default {
         if (icon) icon.classList.add('open');
         toggleBtn.innerHTML = '<span class="detail-toggle-icon open">▶</span> 收起详细资料';
       }
-      a.splice(idx,1);localStorage.setItem(CLIENTS_K,JSON.stringify(a));
-      renderClientList();refreshAll();
-      await syncOp('removeClientByMatch',{name:name,phone:phone,time:time});
+      // Do NOT delete from list yet — keep data safe until "添加" saves the update
+      // Mark the add button to show "保存修改" state
+      var addBtn = document.getElementById('addClientBtn');
+      if (addBtn) { addBtn.textContent = '保存修改'; addBtn.style.background = 'var(--accent-intent)'; }
       document.getElementById('custName').focus();
     }));
     container.querySelectorAll('.export-single-btn').forEach(b=>b.addEventListener('click',async e=>{
@@ -6935,10 +6945,32 @@ export default {
     if(!nt){alert('沟通记录为必填项，请填写完整！');return;}
     const list=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
     const today=getTodayStr(),time=getCurrentTime();
-    const newClient={name:n,phone:p,company:c,fund:f,label:label,note:nt,followUp:fu,date:today,time:time,
+
+    // Check if we're editing an existing entry (set by the "编" button handler)
+    var editKey = window._editingClientKey;
+    var oldEntry = null;
+    if (editKey) {
+      var parts = editKey.split('|');
+      var oldName = parts[0], oldPhone = parts[1], oldTime = parts[2] || '';
+      var oldIdx = list.findIndex(function(item) {
+        return item.name === oldName && item.phone === oldPhone && (oldTime ? item.time === oldTime : true);
+      });
+      if (oldIdx >= 0) {
+        oldEntry = list[oldIdx];
+        list.splice(oldIdx, 1);
+      }
+      window._editingClientKey = null;
+      // Reset add button
+      var addBtn = document.getElementById('addClientBtn');
+      if (addBtn) { addBtn.textContent = '+ 添加'; addBtn.style.background = 'var(--accent-wechat)'; }
+    }
+
+    var newClient={name:n,phone:p,company:c,fund:f,label:label,note:nt,followUp:fu,date:today,time:time,
       age,maritalStatus,isShenzhenHukou,socialSecurity,avgSalary,tax2yr,salaryBank,
       education,property:propertyVal,bankDebt,creditCardDebt,query3m,onlineLoanCount,demand,fundUsage,
       visitTime,status,approvedBank,approvedAmount,rateTerm,rejectedBank,rejectReason};
+    // Preserve original date+time when editing (keep the record on its original day)
+    if (oldEntry && oldEntry.date) { newClient.date = oldEntry.date; newClient.time = oldEntry.time || time; }
     list.push(newClient);
     localStorage.setItem(CLIENTS_K,JSON.stringify(list));
     clearEl('custName'); clearEl('custPhone'); clearEl('custCompany'); clearEl('custFund');
@@ -6954,7 +6986,10 @@ export default {
     var stEl = document.getElementById('custStatus'); if (stEl) stEl.value = '';
     showStatusConditionalFields('');
     renderClientList();refreshAll();
-    // 只用原子 syncOp，不再并发 saveFullState（避免竞态导致云端客户重复/覆盖）
+    // Sync: remove old entry first if editing, then add the new one
+    if (oldEntry) {
+      await syncOp('removeClientByMatch',{name:oldEntry.name,phone:oldEntry.phone,time:oldEntry.time||''});
+    }
     await syncOp('addClient',{client:newClient});
   }
 
@@ -7848,7 +7883,7 @@ const rid=Math.floor(Math.random()*1000);
   document.getElementById('hideBtn').addEventListener('click',()=>{setLocked(true);pi.value='';pie.innerText='';});
   window.addEventListener('keydown',e=>{if(e.ctrlKey&&e.key==='z'){const a=document.activeElement;if(a&&(a.tagName==='INPUT'||a.tagName==='TEXTAREA'))return;e.preventDefault();if(document.body.classList.contains('page-hidden'))pie.innerText='请使用PIN解锁';else{setLocked(true);pi.value='';pie.innerText='';}}});
   window.addEventListener('keydown',e=>{if(e.ctrlKey&&e.key.toLowerCase()==='q'){if(!document.body.classList.contains('page-hidden'))return;const a=document.activeElement;if(a&&(a.tagName==='INPUT'||a.tagName==='TEXTAREA'))return;e.preventDefault();const tc=document.getElementById('timerContainer');if(tc)tc.classList.toggle('show');}});
-  window.addEventListener('keydown',e=>{if(e.key==='+'||e.key==='='){e.preventDefault();modCounter(WECHAT_K,1,'incWechat');}else if(e.key==='-'||e.key==='_'){e.preventDefault();modCounter(WECHAT_K,-1,'incWechat');}else if(e.key==='ArrowUp'){e.preventDefault();modCounter(REVISIT_K,1,'incRevisit');}else if(e.key==='ArrowDown'){e.preventDefault();modCounter(REVISIT_K,-1,'incRevisit');}});
+  window.addEventListener('keydown',e=>{const a=document.activeElement;if(a&&(a.tagName==='INPUT'||a.tagName==='TEXTAREA'||a.isContentEditable))return;if(e.key==='+'||e.key==='='){e.preventDefault();modCounter(WECHAT_K,1,'incWechat');}else if(e.key==='-'||e.key==='_'){e.preventDefault();modCounter(WECHAT_K,-1,'incWechat');}else if(e.key==='ArrowUp'){e.preventDefault();modCounter(REVISIT_K,1,'incRevisit');}else if(e.key==='ArrowDown'){e.preventDefault();modCounter(REVISIT_K,-1,'incRevisit');}});
 
   // ==================== 锁屏计时器 ====================
   const TIMER_K='timer_state_v1';
@@ -8467,8 +8502,8 @@ const rid=Math.floor(Math.random()*1000);
         '<textarea class="input-simple edit-note-input" placeholder="沟通记录" style="width:100%;min-height:70px;padding:8px;font-size:0.78rem;resize:vertical;box-sizing:border-box;">' + esc(c.note || '') + '</textarea>' +
         '<textarea class="input-simple edit-follow-input" placeholder="跟进情况" style="width:100%;min-height:60px;padding:8px;font-size:0.78rem;resize:vertical;box-sizing:border-box;">' + esc(c.followUp || '') + '</textarea>' +
         '<div style="display:flex;justify-content:flex-end;gap:8px;border-top:1px dashed var(--card-border);padding-top:8px;">' +
-          '<button class="save-all-client-btn btn-add" style="font-size:0.75rem;padding:6px 16px;background:var(--accent-wechat);color:white;border:none;border-radius:6px;font-weight:700;">保存</button>' +
-          '<button class="cancel-all-client-btn btn-add" style="font-size:0.75rem;padding:6px 16px;background:var(--btn-bg);color:var(--text-soft);border:1px solid var(--card-border);border-radius:6px;font-weight:700;">取消</button>' +
+          '<button type="button" class="save-all-client-btn btn-add" style="font-size:0.75rem;padding:6px 16px;background:var(--accent-wechat);color:white;border:none;border-radius:6px;font-weight:700;">保存</button>' +
+          '<button type="button" class="cancel-all-client-btn btn-add" style="font-size:0.75rem;padding:6px 16px;background:var(--btn-bg);color:var(--text-soft);border:1px solid var(--card-border);border-radius:6px;font-weight:700;">取消</button>' +
         '</div>';
 
       // Bind status change for conditional fields
@@ -8567,11 +8602,6 @@ const rid=Math.floor(Math.random()*1000);
     if (modal) {
       modal.addEventListener('click', e => {
         if (e.target === modal) {
-          modal.classList.remove('active');
-          return;
-        }
-        const card = document.querySelector('#allClientsModal .modal-card');
-        if (card && card.contains(e.target) && !e.target.closest('button, input, textarea, a, select, label')) {
           modal.classList.remove('active');
         }
       });

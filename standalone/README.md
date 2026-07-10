@@ -1,6 +1,15 @@
-# megz 独立版 — 每日工作主界面
+# megz 独立版 — 每日工作主界面（手动部署包）
 
-纯 KV 存储，不依赖 Supabase。PIN 码通过 Cloudflare KV 动态配置。
+纯 KV 存储，不依赖 Supabase，不依赖数据库。PIN 码通过 Cloudflare KV 动态配置。
+
+## 文件清单
+
+| 文件 | 说明 |
+|------|------|
+| `src/index.js` | Worker 主文件（含完整界面 + API + PIN 锁） |
+| `wrangler.toml` | 部署配置（命令行方式用，需替换 KV ID） |
+| `deploy.sh` | Mac / Linux 一键部署脚本 |
+| `deploy.bat` | Windows 部署辅助脚本 |
 
 ---
 
