@@ -4867,7 +4867,7 @@ export default {
       <div style="border-top:1px solid var(--card-border);padding-top:10px;margin-top:5px;">
         <div style="font-size:0.75rem;font-weight:700;color:var(--text-main);margin-bottom:6px;">修改解锁密码</div>
         <div style="display:flex;gap:8px;">
-          <input type="password" class="input-simple" id="newPinInput" placeholder="新密码 (4-6位数字)" maxlength="6" inputmode="numeric" style="flex:2;font-size:0.7rem;height:28px;padding:0 8px;">
+          <input type="text" class="input-simple" id="newPinInput" placeholder="新密码 (4-6位数字)" maxlength="6" inputmode="numeric" pattern="[0-9]*" autocomplete="off" style="flex:2;font-size:0.7rem;height:28px;padding:0 8px;">
           <button id="savePinBtn" class="btn-add" style="flex:1;font-size:0.7rem;height:28px;margin:0;background:var(--accent-wechat);color:white;border:none;">保存</button>
         </div>
         <div id="pinStatus" style="font-size:0.62rem;padding:4px 0;min-height:18px;"></div>
@@ -7617,15 +7617,14 @@ const rid=Math.floor(Math.random()*1000);
 
     // Save PIN change
     document.getElementById('savePinBtn').addEventListener('click',()=>{
-      const newPin = document.getElementById('newPinInput').value.trim();
+      var raw = document.getElementById('newPinInput').value.trim();
+      var newPin = raw.replace(/\D/g, ''); // strip non-digits
       const statusEl = document.getElementById('pinStatus');
+      if (raw !== newPin) {
+        document.getElementById('newPinInput').value = newPin;
+      }
       if (!newPin || newPin.length < 4) {
         statusEl.innerHTML = '密码至少需要 4 位数字';
-        statusEl.style.color = '#e53935';
-        return;
-      }
-      if (!/^\d+$/.test(newPin)) {
-        statusEl.innerHTML = '密码只能包含数字';
         statusEl.style.color = '#e53935';
         return;
       }
