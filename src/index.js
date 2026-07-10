@@ -4673,7 +4673,7 @@ export default {
           <div class="register-block">
             <div class="form-line"><input type="text" class="input-simple" id="custName" placeholder="姓名" autocomplete="off"><input type="text" class="input-simple" id="custPhone" placeholder="电话" autocomplete="off"></div>
             <div class="form-line"><input type="text" class="input-simple" id="custCompany" placeholder="单位" autocomplete="off"><input type="text" class="input-simple" id="custFund" placeholder="公积金基数" autocomplete="off"></div>
-            <div class="form-line"><select class="input-simple input-select" id="custLabel" style="background:linear-gradient(135deg,rgba(39,174,96,0.08),rgba(52,152,219,0.08));border:1px solid rgba(39,174,96,0.35);font-weight:800;font-size:0.88rem;color:var(--accent-wechat);"><option value="">客户等级 (选填)</option><option value="A">A 类 — 重点跟进</option><option value="B">B 类 — 常规跟进</option><option value="C">C 类 — 低优先级</option></select><span style="flex:1;"></span></div>
+            <div class="form-line"><select class="input-simple input-select" id="custLabel" required style="background:linear-gradient(135deg,rgba(39,174,96,0.06),rgba(52,152,219,0.06));border:1.5px solid rgba(39,174,96,0.5);font-weight:700;font-size:0.85rem;color:var(--text-main);padding:8px 10px;border-radius:var(--radius-xs);width:100%;cursor:pointer;"><option value="">客户等级 *</option><option value="A">A 类 — 重点跟进</option><option value="B">B 类 — 常规跟进</option><option value="C">C 类 — 低优先级</option></select></div>
             <!-- Collapsible detail panel toggle -->
             <div class="detail-toggle-wrap">
               <button type="button" class="detail-toggle-btn" id="detailToggleBtn">
@@ -6595,8 +6595,7 @@ export default {
               '<input type="text" class="input-simple edit-fund-input" placeholder="公积金基数" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.fund||'') + '">' +
             '</div>' +
             '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
-              '<select class="input-simple input-select edit-label-input" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;height:auto;"><option value="">客户等级</option><option value="A"' + (fullClient.label==='A'?' selected':'') + '>A 类 — 重点跟进</option><option value="B"' + (fullClient.label==='B'?' selected':'') + '>B 类 — 常规跟进</option><option value="C"' + (fullClient.label==='C'?' selected':'') + '>C 类 — 低优先级</option></select>' +
-              '<span style="flex:1;"></span>' +
+              '<select class="input-simple input-select edit-label-input" required style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;height:auto;border:1.5px solid rgba(39,174,96,0.35);"><option value="">客户等级 *</option><option value="A"' + (fullClient.label==='A'?' selected':'') + '>A 类 — 重点跟进</option><option value="B"' + (fullClient.label==='B'?' selected':'') + '>B 类 — 常规跟进</option><option value="C"' + (fullClient.label==='C'?' selected':'') + '>C 类 — 低优先级</option></select>' +
             '</div>' +
             '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
               '<input type="text" class="input-simple edit-age-input" placeholder="年龄" style="flex:1;min-width:60px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.age||'') + '">' +
@@ -6695,6 +6694,7 @@ export default {
 
             if (!n) { alert('姓名不能为空，请填写完整！'); return; }
             if (!p) { alert('电话号码不能为空，请填写完整！'); return; }
+            if (!label) { alert('请选择客户等级（A/B/C 类），此项为必选！'); return; }
             if (!nt) { alert('沟通记录为必填项，请填写完整！'); return; }
 
             const allList = JSON.parse(localStorage.getItem(CLIENTS_K) || '[]');
@@ -6942,6 +6942,7 @@ export default {
     const rejectReason = getElVal('custRejectReason');
     if(!n){alert('姓名不能为空，请填写完整！');return;}
     if(!p){alert('电话号码不能为空，请填写完整！');return;}
+    if(!label){alert('请选择客户等级（A/B/C 类），此项为必选！');return;}
     if(!nt){alert('沟通记录为必填项，请填写完整！');return;}
     const list=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
     const today=getTodayStr(),time=getCurrentTime();
@@ -8449,8 +8450,7 @@ const rid=Math.floor(Math.random()*1000);
           '<input type="text" class="input-simple edit-fund-input" placeholder="公积金基数" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.fund || '') + '">' +
         '</div>' +
         '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
-          '<select class="input-simple input-select edit-label-input" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;height:auto;"><option value="">客户等级</option><option value="A"' + (c.label==='A'?' selected':'') + '>A 类 — 重点跟进</option><option value="B"' + (c.label==='B'?' selected':'') + '>B 类 — 常规跟进</option><option value="C"' + (c.label==='C'?' selected':'') + '>C 类 — 低优先级</option></select>' +
-          '<span style="flex:1;"></span>' +
+          '<select class="input-simple input-select edit-label-input" required style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;height:auto;border:1.5px solid rgba(39,174,96,0.35);"><option value="">客户等级 *</option><option value="A"' + (c.label==='A'?' selected':'') + '>A 类 — 重点跟进</option><option value="B"' + (c.label==='B'?' selected':'') + '>B 类 — 常规跟进</option><option value="C"' + (c.label==='C'?' selected':'') + '>C 类 — 低优先级</option></select>' +
         '</div>' +
         '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
           '<input type="text" class="input-simple edit-age-input" placeholder="年龄" style="flex:1;min-width:60px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.age||'') + '">' +
@@ -8549,6 +8549,7 @@ const rid=Math.floor(Math.random()*1000);
 
         if (!n) { alert('姓名不能为空，请填写完整！'); return; }
         if (!p) { alert('电话号码不能为空，请填写完整！'); return; }
+        if (!label) { alert('请选择客户等级（A/B/C 类），此项为必选！'); return; }
         if (!nt) { alert('沟通记录为必填项，请填写完整！'); return; }
 
         const allList = JSON.parse(localStorage.getItem(CLIENTS_K) || '[]');
@@ -8632,7 +8633,7 @@ const rid=Math.floor(Math.random()*1000);
             '<input type="text" class="input-simple new-fund-input" placeholder="公积金基数" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;">' +
           '</div>' +
           '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
-            '<select class="input-simple input-select new-label-input" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;height:auto;"><option value="">客户等级</option><option value="A">A 类 — 重点跟进</option><option value="B">B 类 — 常规跟进</option><option value="C">C 类 — 低优先级</option></select>' +
+            '<select class="input-simple input-select new-label-input" required style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;height:auto;border:1.5px solid rgba(39,174,96,0.35);"><option value="">客户等级 *</option><option value="A">A 类 — 重点跟进</option><option value="B">B 类 — 常规跟进</option><option value="C">C 类 — 低优先级</option></select>' +
             '<span style="flex:1;"></span>' +
           '</div>' +
           '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
@@ -8735,6 +8736,7 @@ const rid=Math.floor(Math.random()*1000);
           if (!d) { alert('请选择日期！'); return; }
           if (!n) { alert('姓名不能为空，请填写完整！'); return; }
           if (!p) { alert('电话号码不能为空，请填写完整！'); return; }
+          if (!label) { alert('请选择客户等级（A/B/C 类），此项为必选！'); return; }
           if (!nt) { alert('沟通记录为必填项，请填写完整！'); return; }
 
           const newClient = { name: n, phone: p, company: comp, fund: fund, label: label, note: nt, followUp: fu, date: d, time: getCurrentTime(), followUpTime: fu ? getCurrentTime() : '', followUpDate: fu ? getTodayStr() : '',
