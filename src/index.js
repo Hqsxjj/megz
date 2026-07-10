@@ -2924,6 +2924,7 @@ export default {
       if (data.paymentCount === undefined) data.paymentCount = 0;
       // Inject global webhook URL so it persists across all dates and new days
       data.webhookUrl = await env.DATA_KV.get('config:webhook_url') || '';
+      data.pinHash = await env.DATA_KV.get('config:pin_hash') || '';
       data.deepseekApiKey = await env.DATA_KV.get('config:deepseek_api_key') || '';
       data.wecomCorpId = await env.DATA_KV.get('config:wecom_corp_id') || '';
       data.wecomToken = await env.DATA_KV.get('config:wecom_token') || '';
@@ -3165,6 +3166,9 @@ export default {
         case 'setWebhookUrl':
           data.webhookUrl = body.webhookUrl || '';
           await env.DATA_KV.put('config:webhook_url', data.webhookUrl);
+          break;
+        case 'setPinHash':
+          await env.DATA_KV.put('config:pin_hash', body.pinHash || '');
           break;
         case 'setDeepseekApiKey':
           await env.DATA_KV.put('config:deepseek_api_key', body.deepseekApiKey || '');
@@ -4860,6 +4864,16 @@ export default {
         <div style="font-size:0.65rem;color:var(--text-light);">用于数据主动导出推送的群机器人 Webhook 地址</div>
       </div>
 
+      <div style="border-top:1px solid var(--card-border);padding-top:10px;margin-top:5px;">
+        <div style="font-size:0.75rem;font-weight:700;color:var(--text-main);margin-bottom:6px;">修改解锁密码</div>
+        <div style="display:flex;gap:8px;">
+          <input type="password" class="input-simple" id="newPinInput" placeholder="新密码 (4-6位数字)" maxlength="6" inputmode="numeric" style="flex:2;font-size:0.7rem;height:28px;padding:0 8px;">
+          <button id="savePinBtn" class="btn-add" style="flex:1;font-size:0.7rem;height:28px;margin:0;background:var(--accent-wechat);color:white;border:none;">保存</button>
+        </div>
+        <div id="pinStatus" style="font-size:0.62rem;padding:4px 0;min-height:18px;"></div>
+        <div style="font-size:0.6rem;color:var(--text-light);">默认密码 8520，修改后立即生效，用于解锁页面和删除客户验证</div>
+      </div>
+
             <details style="margin-top:10px; border:1px dashed var(--card-border); border-radius:var(--radius-xs); padding:8px; background:rgba(120,120,120,0.02);">
         <summary style="font-size:0.75rem; color:var(--text-soft); cursor:pointer; font-weight:700; outline:none; user-select:none;">企业微信应用与机器人回调配置</summary>
         <div style="display:flex; flex-direction:column; gap:8px; margin-top:8px;">
@@ -5161,7 +5175,9 @@ export default {
   const VISIT_K='visit_v1', PAYMENT_K='payment_v1', GOALS_K='goals_v1';
   const DARK_K='dark_mode', LOCK_K='locked', TODAY_TODO_K='today_todo_v2', TOMORROW_TODO_K='tomorrow_todo_v2';
   const LAST_LOAD_DATE_K='last_load_date_v1', WALLPAPER_K='wp_cache', SCRIPTS_K='scripts_v1', LEARN_K='learn_v1', LOCAL_TS_K='local_ts_v1';
-  const TEMP_CLIENTS_K='temp_clients_v1';
+  const TEMP_CLIENTS_K='temp_clients_v1', PIN_HASH_K='pin_hash_v1';
+  const DEFAULT_PIN_HASH = hashPinSimple('8520'); // '7c78e7fa'
+  function getPinHash() { return localStorage.getItem(PIN_HASH_K) || DEFAULT_PIN_HASH; }
   const TEMP_CLIENTS_MAP_K='temp_clients_map_v1';
   const OP_QUEUE_K='op_queue_v1'; // 操作队列：持久化到 localStorage，页面关闭后下次打开继续补发
   const DEFAULT_PIN='1983';
@@ -6022,6 +6038,7 @@ export default {
       if(data.scripts!==undefined){saveScripts(data.scripts);renderLockScripts();}
       if(data.learns!==undefined){saveLearns(data.learns);renderLockLearns();}
       // 同步 Webhook URL 并保存到本地，解耦 DOM 访问
+      if(data.pinHash!==undefined&&data.pinHash)localStorage.setItem(PIN_HASH_K,data.pinHash);
       if(data.webhookUrl!==undefined)localStorage.setItem('webhook_url',data.webhookUrl);
       if(data.deepseekApiKey!==undefined)localStorage.setItem('deepseek_api_key',data.deepseekApiKey);
       if(data.wecomCorpId!==undefined)localStorage.setItem('wecom_corp_id',data.wecomCorpId);
@@ -6071,6 +6088,7 @@ export default {
     if(data.tempClients!==undefined)localStorage.setItem(TEMP_CLIENTS_K,JSON.stringify(data.tempClients));
     if(data.scripts!==undefined)saveScripts(data.scripts);
     if(data.learns!==undefined)saveLearns(data.learns);
+    if(data.pinHash!==undefined&&data.pinHash)localStorage.setItem(PIN_HASH_K,data.pinHash);
     if(data.webhookUrl!==undefined)localStorage.setItem('webhook_url',data.webhookUrl);
     if(data.deepseekApiKey!==undefined)localStorage.setItem('deepseek_api_key',data.deepseekApiKey);
     if(data.wecomCorpId!==undefined)localStorage.setItem('wecom_corp_id',data.wecomCorpId);
@@ -6821,7 +6839,7 @@ export default {
           if(!ti)return;
           const pin=prompt('删除客户「' + ti.name + '」需输入解锁密码：');
           if(!pin){return;}
-          if(hashPinSimple(pin)!=='7c78e7fa'){alert('密码错误，删除取消');return;}
+          if(hashPinSimple(pin)!==getPinHash()){alert('密码错误，删除取消');return;}
           const allList=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
           const matchIdx=allList.findIndex(c=>c.date===ds&&c.name===ti.name&&c.phone===ti.phone&&(ti.time?c.time===ti.time:true));
           if(matchIdx>=0) allList.splice(matchIdx,1);
@@ -7597,6 +7615,28 @@ const rid=Math.floor(Math.random()*1000);
       syncOp('setWebhookUrl',{webhookUrl:val});
     });
 
+    // Save PIN change
+    document.getElementById('savePinBtn').addEventListener('click',()=>{
+      const newPin = document.getElementById('newPinInput').value.trim();
+      const statusEl = document.getElementById('pinStatus');
+      if (!newPin || newPin.length < 4) {
+        statusEl.innerHTML = '密码至少需要 4 位数字';
+        statusEl.style.color = '#e53935';
+        return;
+      }
+      if (!/^\d+$/.test(newPin)) {
+        statusEl.innerHTML = '密码只能包含数字';
+        statusEl.style.color = '#e53935';
+        return;
+      }
+      const hash = hashPinSimple(newPin);
+      localStorage.setItem(PIN_HASH_K, hash);
+      document.getElementById('newPinInput').value = '';
+      statusEl.innerHTML = '密码已更新，立即生效';
+      statusEl.style.color = '#27ae60';
+      syncOp('setPinHash', { pinHash: hash });
+    });
+
     // Save WeCom Bot configs
     document.getElementById('saveWecomBotBtn').addEventListener('click',async ()=>{
       const corpId = document.getElementById('wecomCorpIdInput').value.trim();
@@ -7969,7 +8009,7 @@ const rid=Math.floor(Math.random()*1000);
     return (hash >>> 0).toString(16);
   }
   const pi=document.getElementById('pinInput'),pib=document.getElementById('pinUnlockBtn'),pie=document.getElementById('pinError');
-  function au(){const e=pi.value.trim();if(hashPinSimple(e)==='7c78e7fa'){localStorage.setItem(UNLOCK_TS_K,Date.now());setLocked(false);pi.value='';pie.innerText='';refreshAll();}else{pie.innerText='PIN码错误';pi.value='';setTimeout(function(){pi.focus();},50);}}
+  function au(){const e=pi.value.trim();if(hashPinSimple(e)===getPinHash()){localStorage.setItem(UNLOCK_TS_K,Date.now());setLocked(false);pi.value='';pie.innerText='';refreshAll();}else{pie.innerText='PIN码错误';pi.value='';setTimeout(function(){pi.focus();},50);}}
   pib.addEventListener('click',au);pi.addEventListener('keypress',e=>{if(e.key==='Enter')au();});
   document.getElementById('hideBtn').addEventListener('click',()=>{setLocked(true);pi.value='';pie.innerText='';});
   window.addEventListener('keydown',e=>{if(e.ctrlKey&&e.key==='z'){const a=document.activeElement;if(a&&(a.tagName==='INPUT'||a.tagName==='TEXTAREA'))return;e.preventDefault();if(document.body.classList.contains('page-hidden'))pie.innerText='请使用PIN解锁';else{setLocked(true);pi.value='';pie.innerText='';}}});
