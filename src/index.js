@@ -4126,6 +4126,10 @@ export default {
     .todo-del-btn-clean { background: none; border: none; color: #c97a7a; cursor: pointer; font-size: 0.8rem; padding: 0 4px; opacity: 0.5; transition: opacity 0.2s; }
     .todo-del-btn-clean:hover { opacity: 1; }
     .todo-time-tag { background: var(--card-border); color: var(--text-soft); padding: 1px 4px; border-radius: 4px; font-size: 0.65rem; margin-left: 6px; font-weight: 700; }
+    .todo-tab-switch { display: inline-flex; background: var(--btn-bg); border-radius: var(--radius-xs); padding: 2px; gap: 2px; }
+    .todo-tab-btn { padding: 3px 14px; font-size: 0.75rem; font-weight: 700; border: none; border-radius: 4px; cursor: pointer; background: transparent; color: var(--text-soft); transition: all 0.2s; }
+    .todo-tab-btn.active { background: var(--accent-wechat); color: white; }
+    .todo-tab-btn:not(.active):hover { color: var(--text-main); }
 
     /* ===== 客户端卡片排版样式 ===== */
     .client-card-item {
@@ -4750,17 +4754,16 @@ export default {
           </div>
         </div>
         <div class="card">
-          <div class="card-title">今日待办</div>
-          <div class="register-block">
-            <div class="todo-input-row"><input type="text" class="todo-input" id="todayTodoInput" placeholder="添加今日待办..." autocomplete="off"><input type="time" class="todo-input time-input-compact" id="todayRemindTime"><button class="todo-add-btn" id="addTodayTodoBtn">+ 添加</button></div>
-            <div class="todo-list" id="todayTodoList"></div>
+          <div class="card-title" style="display:flex;align-items:center;gap:10px;">
+            <span>待办</span>
+            <div class="todo-tab-switch" id="todoTabSwitch">
+              <button class="todo-tab-btn active" data-tab="today">今日</button>
+              <button class="todo-tab-btn" data-tab="tomorrow">明日</button>
+            </div>
           </div>
-        </div>
-        <div class="card">
-          <div class="card-title">明日待办</div>
           <div class="register-block">
-            <div class="todo-input-row"><input type="text" class="todo-input" id="todoInput" placeholder="添加明日待办..." autocomplete="off"><input type="time" class="todo-input time-input-compact" id="tomorrowRemindTime"><button class="todo-add-btn" id="addTodoBtn">+ 添加</button></div>
-            <div class="todo-list" id="tomorrowTodoList"></div>
+            <div class="todo-input-row"><input type="text" class="todo-input" id="todoInput" placeholder="添加待办..." autocomplete="off"><input type="time" class="todo-input time-input-compact" id="todoRemindTime"><button class="todo-add-btn" id="addTodoBtn">+ 添加</button></div>
+            <div class="todo-list" id="todoList"></div>
           </div>
         </div>
       </div>
@@ -6306,24 +6309,32 @@ export default {
     }));
   }
 
+  var todoActiveTab = 'today'; // 'today' or 'tomorrow'
   function renderTodos(){
     const today=getTodayStr();
-    const tt=loadTodos(TODAY_TODO_K).filter(t=>(typeof t==='string'?today:(t.date||today))===today);
-    const tm=loadTodos(TOMORROW_TODO_K).filter(t=>(typeof t==='string'?today:(t.date||today))===today);
-    const tc=document.getElementById('todayTodoList'), mc=document.getElementById('tomorrowTodoList');
-    const makeItem=(t,i,list)=>{
+    const isToday = todoActiveTab === 'today';
+    const storageKey = isToday ? TODAY_TODO_K : TOMORROW_TODO_K;
+    const list = isToday ? 'today' : 'tomorrow';
+    const todos = loadTodos(storageKey).filter(t=> (typeof t==='string'?today:(t.date||today))===today);
+    const container = document.getElementById('todoList');
+    if (!container) return;
+    const makeItem=(t,i)=>{
       const txt=typeof t==='string'?t:t.text;
       const rm=t&&t.remind?'<span class="todo-time-tag">'+esc(t.remind)+'</span>':'';
       return '<div class="todo-item-clean"><span class="todo-number-clean">'+(i+1)+'.</span><span class="todo-text-clean">'+esc(txt)+rm+'</span><button class="todo-del-btn-clean" data-idx="'+i+'" data-list="'+list+'">✕</button></div>';
     };
-    tc.innerHTML=tt.length===0?'<div style="font-size:0.75rem;color:var(--text-light);padding:6px;">暂无待办</div>':tt.map((t,i)=>makeItem(t,i,'today')).join('');
-    mc.innerHTML=tm.length===0?'<div style="font-size:0.75rem;color:var(--text-light);padding:6px;">暂无待办</div>':tm.map((t,i)=>makeItem(t,i,'tomorrow')).join('');
-    document.querySelectorAll('.todo-del-btn-clean').forEach(b=>b.addEventListener('click',async e=>{
+    container.innerHTML=todos.length===0?'<div style="font-size:0.75rem;color:var(--text-light);padding:6px;">暂无待办</div>':todos.map((t,i)=>makeItem(t,i)).join('');
+    container.querySelectorAll('.todo-del-btn-clean').forEach(b=>b.addEventListener('click',async e=>{
       const i=parseInt(b.dataset.idx),l=b.dataset.list;
-      const todos=loadTodos(l==='today'?TODAY_TODO_K:TOMORROW_TODO_K);
-      todos.splice(i,1);saveTodos(l==='today'?TODAY_TODO_K:TOMORROW_TODO_K,todos);renderTodos();
-      await syncOp(l==='today'?'setTodayTodos':'setTomorrowTodos',{todos});
+      const storageKey2 = l==='today'?TODAY_TODO_K:TOMORROW_TODO_K;
+      const todos2=loadTodos(storageKey2);
+      todos2.splice(i,1);saveTodos(storageKey2,todos2);renderTodos();
+      await syncOp(l==='today'?'setTodayTodos':'setTomorrowTodos',{todos:todos2});
     }));
+    // Update tab button styles
+    document.querySelectorAll('.todo-tab-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.tab === todoActiveTab);
+    });
   }
 
   function renderCalendar(wm,im){
@@ -7191,21 +7202,15 @@ export default {
     }));
   }
 
-  async function addTodayTodo(){
-    const input=document.getElementById('todayTodoInput'),text=input.value.trim();
-    if(!text)return;const remind=document.getElementById('todayRemindTime').value;
-    const todo={text,time:getCurrentTime(),date:getTodayStr(),remind:remind||'',type:'today'};
-    const t=loadTodos(TODAY_TODO_K);t.push(todo);saveTodos(TODAY_TODO_K,t);input.value='';document.getElementById('todayRemindTime').value='';renderTodos();
-    pushTodoLog(todo,getTodayStr());
-    await syncOp('setTodayTodos',{todos:t});
-  }
-  async function addTodo(){
+  async function addTodoItem(){
     const input=document.getElementById('todoInput'),text=input.value.trim();
-    if(!text)return;const remind=document.getElementById('tomorrowRemindTime').value;
-    const todo={text,time:getCurrentTime(),date:getTodayStr(),remind:remind||'',type:'tomorrow'};
-    const t=loadTodos(TOMORROW_TODO_K);t.push(todo);saveTodos(TOMORROW_TODO_K,t);input.value='';document.getElementById('tomorrowRemindTime').value='';renderTodos();
+    if(!text)return;const remind=document.getElementById('todoRemindTime').value;
+    const isToday = todoActiveTab === 'today';
+    const todo={text,time:getCurrentTime(),date:getTodayStr(),remind:remind||'',type:isToday?'today':'tomorrow'};
+    const storageKey = isToday ? TODAY_TODO_K : TOMORROW_TODO_K;
+    const t=loadTodos(storageKey);t.push(todo);saveTodos(storageKey,t);input.value='';document.getElementById('todoRemindTime').value='';renderTodos();
     pushTodoLog(todo,getTodayStr());
-    await syncOp('setTomorrowTodos',{todos:t});
+    await syncOp(isToday?'setTodayTodos':'setTomorrowTodos',{todos:t});
   }
 
   // ==================== 壁纸 ====================
@@ -8289,10 +8294,15 @@ const rid=Math.floor(Math.random()*1000);
     }
   });
 
-  document.getElementById('addTodayTodoBtn').addEventListener('click',addTodayTodo);
-  document.getElementById('addTodoBtn').addEventListener('click',addTodo);
-  document.getElementById('todayTodoInput').addEventListener('keypress',e=>{if(e.key==='Enter')addTodayTodo();});
-  document.getElementById('todoInput').addEventListener('keypress',e=>{if(e.key==='Enter')addTodo();});
+  document.getElementById('addTodoBtn').addEventListener('click',addTodoItem);
+  document.getElementById('todoInput').addEventListener('keypress',e=>{if(e.key==='Enter')addTodoItem();});
+  document.getElementById('todoTabSwitch').addEventListener('click',e=>{
+    const btn = e.target.closest('.todo-tab-btn');
+    if (!btn) return;
+    todoActiveTab = btn.dataset.tab;
+    document.getElementById('todoInput').placeholder = todoActiveTab==='today' ? '添加今日待办...' : '添加明日待办...';
+    renderTodos();
+  });
   ['custName','custPhone','custCompany','custFund','custAge','custSocialSecurity','custAvgSalary','custTax2yr','custSalaryBank','custBankDebt','custCreditCardDebt','custQuery3m','custOnlineLoanCount'].forEach(id=>{const el=document.getElementById(id);if(el)el.addEventListener('keypress',e=>{if(e.key==='Enter')addClient();});});
   document.getElementById('addTempCustBtn').addEventListener('click',addTempClient);
   ['tempCustName','tempCustPhone'].forEach(id=>document.getElementById(id).addEventListener('keypress',e=>{if(e.key==='Enter')addTempClient();}));
