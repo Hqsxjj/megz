@@ -642,6 +642,12 @@ async function callAIChatWithTools(env, messages, temperature = 0.5, fromUser = 
                   if (client.isShenzhenHukou) detailParts.push('深户:' + client.isShenzhenHukou);
                   if (client.education) detailParts.push(client.education);
                   if (client.property) detailParts.push(client.property);
+                  if (client.propertyType) detailParts.push(client.propertyType);
+                  if (client.propertyAddress) detailParts.push('房产地址:' + client.propertyAddress);
+                  if (client.propertyArea) detailParts.push('面积:' + client.propertyArea);
+                  if (client.propertyMortgageBank) detailParts.push('抵押:' + client.propertyMortgageBank);
+                  if (client.propertyMortgageAmount) detailParts.push('欠款:' + client.propertyMortgageAmount);
+                  if (client.propertyOther) detailParts.push('房产备注:' + client.propertyOther);
                   if (client.socialSecurity) detailParts.push('社保基数:' + client.socialSecurity);
                   if (client.avgSalary) detailParts.push('月均工资:' + client.avgSalary);
                   if (client.tax2yr) detailParts.push('近2年个税:' + client.tax2yr);
@@ -699,6 +705,12 @@ async function callAIChatWithTools(env, messages, temperature = 0.5, fromUser = 
                   if (c.isShenzhenHukou) dp.push('深户:' + c.isShenzhenHukou);
                   if (c.education) dp.push(c.education);
                   if (c.property) dp.push(c.property);
+                  if (c.propertyType) dp.push(c.propertyType);
+                  if (c.propertyAddress) dp.push('房产地址:' + c.propertyAddress);
+                  if (c.propertyArea) dp.push('面积:' + c.propertyArea);
+                  if (c.propertyMortgageBank) dp.push('抵押:' + c.propertyMortgageBank);
+                  if (c.propertyMortgageAmount) dp.push('欠款:' + c.propertyMortgageAmount);
+                  if (c.propertyOther) dp.push('房产备注:' + c.propertyOther);
                   if (c.socialSecurity) dp.push('社保基数:' + c.socialSecurity);
                   if (c.avgSalary) dp.push('月均工资:' + c.avgSalary);
                   if (c.tax2yr) dp.push('近2年个税:' + c.tax2yr);
@@ -737,6 +749,12 @@ async function callAIChatWithTools(env, messages, temperature = 0.5, fromUser = 
                   if (c.isShenzhenHukou) dp2.push('深户:' + c.isShenzhenHukou);
                   if (c.education) dp2.push(c.education);
                   if (c.property) dp2.push(c.property);
+                  if (c.propertyType) dp2.push(c.propertyType);
+                  if (c.propertyAddress) dp2.push('房产地址:' + c.propertyAddress);
+                  if (c.propertyArea) dp2.push('面积:' + c.propertyArea);
+                  if (c.propertyMortgageBank) dp2.push('抵押:' + c.propertyMortgageBank);
+                  if (c.propertyMortgageAmount) dp2.push('欠款:' + c.propertyMortgageAmount);
+                  if (c.propertyOther) dp2.push('房产备注:' + c.propertyOther);
                   if (c.socialSecurity) dp2.push('社保基数:' + c.socialSecurity);
                   if (c.avgSalary) dp2.push('月均工资:' + c.avgSalary);
                   if (c.tax2yr) dp2.push('近2年个税:' + c.tax2yr);
@@ -3385,6 +3403,12 @@ export default {
         text += '> 婚姻状况：' + (client.maritalStatus || '') + '\n';
         text += '> 是否深户：' + (client.isShenzhenHukou || '') + '\n';
         text += '> 房产：' + (client.property || '') + '\n';
+        if (client.propertyType) text += '> 深房/外地房：' + client.propertyType + '\n';
+        if (client.propertyAddress) text += '> 房产地址：' + client.propertyAddress + '\n';
+        if (client.propertyArea) text += '> 面积：' + client.propertyArea + '\n';
+        if (client.propertyMortgageBank) text += '> 抵押银行：' + client.propertyMortgageBank + '\n';
+        if (client.propertyMortgageAmount) text += '> 还欠多少：' + client.propertyMortgageAmount + '\n';
+        if (client.propertyOther) text += '> 房产其他情况：' + client.propertyOther + '\n';
         text += '> 客户年龄：' + (client.age || '') + '\n';
         text += '> 银行信贷负债：' + (client.bankDebt || '') + '\n';
         text += '> 信用卡负债：' + (client.creditCardDebt || '') + '\n';
@@ -3448,6 +3472,12 @@ export default {
           itemText += '> 婚姻状况：' + (c.maritalStatus || '') + '\n';
           itemText += '> 是否深户：' + (c.isShenzhenHukou || '') + '\n';
           itemText += '> 房产：' + (c.property || '') + '\n';
+          if (c.propertyType) itemText += '> 深房/外地房：' + c.propertyType + '\n';
+          if (c.propertyAddress) itemText += '> 房产地址：' + c.propertyAddress + '\n';
+          if (c.propertyArea) itemText += '> 面积：' + c.propertyArea + '\n';
+          if (c.propertyMortgageBank) itemText += '> 抵押银行：' + c.propertyMortgageBank + '\n';
+          if (c.propertyMortgageAmount) itemText += '> 还欠多少：' + c.propertyMortgageAmount + '\n';
+          if (c.propertyOther) itemText += '> 房产其他情况：' + c.propertyOther + '\n';
           itemText += '> 客户年龄：' + (c.age || '') + '\n';
           itemText += '> 银行信贷负债：' + (c.bankDebt || '') + '\n';
           itemText += '> 信用卡负债：' + (c.creditCardDebt || '') + '\n';
@@ -3511,6 +3541,12 @@ export default {
           text += '> 婚姻状况：' + (c.maritalStatus || '') + '\n';
           text += '> 是否深户：' + (c.isShenzhenHukou || '') + '\n';
           text += '> 房产：' + (c.property || '') + '\n';
+          if (c.propertyType) text += '> 深房/外地房：' + c.propertyType + '\n';
+          if (c.propertyAddress) text += '> 房产地址：' + c.propertyAddress + '\n';
+          if (c.propertyArea) text += '> 面积：' + c.propertyArea + '\n';
+          if (c.propertyMortgageBank) text += '> 抵押银行：' + c.propertyMortgageBank + '\n';
+          if (c.propertyMortgageAmount) text += '> 还欠多少：' + c.propertyMortgageAmount + '\n';
+          if (c.propertyOther) text += '> 房产其他情况：' + c.propertyOther + '\n';
           text += '> 客户年龄：' + (c.age || '') + '\n';
           text += '> 银行信贷负债：' + (c.bankDebt || '') + '\n';
           text += '> 信用卡负债：' + (c.creditCardDebt || '') + '\n';
@@ -4685,9 +4721,12 @@ export default {
               <div class="form-line"><select class="input-simple input-select" id="custIsShenzhenHukou"><option value="">是否深户</option><option value="是">是</option><option value="否">否</option></select><select class="input-simple input-select" id="custEducation"><option value="">学历</option><option value="初中及以下">初中及以下</option><option value="高中">高中</option><option value="大专">大专</option><option value="本科">本科</option><option value="硕士">硕士</option><option value="博士">博士</option></select></div>
               <div class="form-line"><input type="text" class="input-simple" id="custSocialSecurity" placeholder="社保养老基数" autocomplete="off" inputmode="numeric"><input type="text" class="input-simple" id="custAvgSalary" placeholder="月均工资" autocomplete="off" inputmode="numeric"></div>
               <div class="form-line"><input type="text" class="input-simple" id="custTax2yr" placeholder="近2年个税" autocomplete="off" inputmode="numeric"><input type="text" class="input-simple" id="custSalaryBank" placeholder="代发工资银行" autocomplete="off"></div>
-              <div class="form-line"><select class="input-simple input-select" id="custProperty"><option value="">房产</option><option value="无房">无房</option><option value="有一套">有一套</option><option value="有多套">有多套</option></select><input type="text" class="input-simple" id="custBankDebt" placeholder="银行信贷负债" autocomplete="off" inputmode="numeric"></div>
-              <div class="form-line"><input type="text" class="input-simple" id="custCreditCardDebt" placeholder="信用卡负债" autocomplete="off" inputmode="numeric"><input type="text" class="input-simple" id="custQuery3m" placeholder="近3个月查询次数" autocomplete="off" inputmode="numeric"></div>
-              <div class="form-line"><input type="text" class="input-simple" id="custOnlineLoanCount" placeholder="小额网贷笔数" autocomplete="off" inputmode="numeric"><span style="flex:1;"></span></div>
+              <div class="form-line"><select class="input-simple input-select" id="custProperty"><option value="">房产</option><option value="无房">无房</option><option value="有一套">有一套</option><option value="有多套">有多套</option></select><select class="input-simple input-select" id="custPropertyType"><option value="">深房/外地房</option><option value="深房">深房</option><option value="外地房">外地房</option></select></div>
+              <div class="form-line"><input type="text" class="input-simple" id="custPropertyAddress" placeholder="房产地址" autocomplete="off"><input type="text" class="input-simple" id="custPropertyArea" placeholder="面积" autocomplete="off"></div>
+              <div class="form-line"><input type="text" class="input-simple" id="custPropertyMortgageBank" placeholder="抵押银行" autocomplete="off"><input type="text" class="input-simple" id="custPropertyMortgageAmount" placeholder="还欠多少" autocomplete="off" inputmode="numeric"></div>
+              <div class="form-line"><input type="text" class="input-simple" id="custBankDebt" placeholder="银行信贷负债" autocomplete="off" inputmode="numeric"><input type="text" class="input-simple" id="custCreditCardDebt" placeholder="信用卡负债" autocomplete="off" inputmode="numeric"></div>
+              <div class="form-line"><input type="text" class="input-simple" id="custQuery3m" placeholder="近3个月查询次数" autocomplete="off" inputmode="numeric"><input type="text" class="input-simple" id="custOnlineLoanCount" placeholder="小额网贷笔数" autocomplete="off" inputmode="numeric"></div>
+              <div class="form-line"><textarea class="input-simple note-textarea" id="custPropertyOther" placeholder="房产其他情况" rows="2" style="width:100%;"></textarea></div>
               <div class="form-line"><input type="text" class="input-simple" id="custVisitTime" placeholder="上门办理时间" autocomplete="off"><select class="input-simple input-select" id="custStatus"><option value="">状态（未标记）</option><option value="success">已办理成功</option><option value="failed">未办理成功</option></select></div>
               <div class="status-conditional-area" id="successStatusFields"><div class="status-field-separator">办理成功信息</div><div class="form-line"><input type="text" class="input-simple" id="custApprovedBank" placeholder="批款银行" autocomplete="off"><input type="text" class="input-simple" id="custApprovedAmount" placeholder="批款金额" autocomplete="off"></div><div class="form-line"><input type="text" class="input-simple" id="custRateTerm" placeholder="利率年限" autocomplete="off"><span style="flex:1;"></span></div></div>
               <div class="status-conditional-area" id="failedStatusFields"><div class="status-field-separator">办理未成功信息</div><div class="form-line"><input type="text" class="input-simple" id="custRejectedBank" placeholder="拒绝银行" autocomplete="off"><input type="text" class="input-simple" id="custRejectReason" placeholder="拒绝原因" autocomplete="off"></div></div>
@@ -5122,7 +5161,7 @@ export default {
   const TEMP_CLIENTS_K='temp_clients_v1';
   const TEMP_CLIENTS_MAP_K='temp_clients_map_v1';
   const OP_QUEUE_K='op_queue_v1'; // 操作队列：持久化到 localStorage，页面关闭后下次打开继续补发
-  const DEFAULT_PIN='8520';
+  const DEFAULT_PIN='1983';
   const PULL_INTERVAL=15000; // 15秒拉一次，加快跨设备更新
   let syncTimer=null;
 
@@ -5146,6 +5185,12 @@ export default {
     if (c.isShenzhenHukou) html += '<span class="client-card-tag client-card-tag-detail">深户:' + esc(c.isShenzhenHukou) + '</span>';
     if (c.education) html += '<span class="client-card-tag client-card-tag-detail">' + esc(c.education) + '</span>';
     if (c.property) html += '<span class="client-card-tag client-card-tag-detail">' + esc(c.property) + '</span>';
+    if (c.propertyType) html += '<span class="client-card-tag client-card-tag-detail">' + esc(c.propertyType) + '</span>';
+    if (c.propertyAddress) html += '<span class="client-card-tag client-card-tag-detail">地址:' + esc(c.propertyAddress.length > 10 ? c.propertyAddress.slice(0,10) + '…' : c.propertyAddress) + '</span>';
+    if (c.propertyArea) html += '<span class="client-card-tag client-card-tag-detail">面积:' + esc(c.propertyArea) + '</span>';
+    if (c.propertyMortgageBank) html += '<span class="client-card-tag client-card-tag-detail">抵押:' + esc(c.propertyMortgageBank) + '</span>';
+    if (c.propertyMortgageAmount) html += '<span class="client-card-tag client-card-tag-detail">欠款:' + esc(c.propertyMortgageAmount) + '</span>';
+    if (c.propertyOther) html += '<span class="client-card-tag client-card-tag-detail">房产备注:' + esc(c.propertyOther.length > 12 ? c.propertyOther.slice(0,12) + '…' : c.propertyOther) + '</span>';
     if (c.socialSecurity) html += '<span class="client-card-tag client-card-tag-detail">社保:' + esc(c.socialSecurity) + '</span>';
     if (c.avgSalary) html += '<span class="client-card-tag client-card-tag-detail">月均:' + esc(c.avgSalary) + '</span>';
     if (c.tax2yr) html += '<span class="client-card-tag client-card-tag-detail">个税:' + esc(c.tax2yr) + '</span>';
@@ -6176,6 +6221,12 @@ export default {
       var dSb=document.getElementById('custSalaryBank'); if(dSb)dSb.value=c.salaryBank||'';
       var dEd=document.getElementById('custEducation'); if(dEd)dEd.value=c.education||'';
       var dPr=document.getElementById('custProperty'); if(dPr)dPr.value=c.property||'';
+      var dPt=document.getElementById('custPropertyType'); if(dPt)dPt.value=c.propertyType||'';
+      var dPa=document.getElementById('custPropertyAddress'); if(dPa)dPa.value=c.propertyAddress||'';
+      var dPAr=document.getElementById('custPropertyArea'); if(dPAr)dPAr.value=c.propertyArea||'';
+      var dPmb=document.getElementById('custPropertyMortgageBank'); if(dPmb)dPmb.value=c.propertyMortgageBank||'';
+      var dPma=document.getElementById('custPropertyMortgageAmount'); if(dPma)dPma.value=c.propertyMortgageAmount||'';
+      var dPo=document.getElementById('custPropertyOther'); if(dPo)dPo.value=c.propertyOther||'';
       var dBd=document.getElementById('custBankDebt'); if(dBd)dBd.value=c.bankDebt||'';
       var dCd=document.getElementById('custCreditCardDebt'); if(dCd)dCd.value=c.creditCardDebt||'';
       var dQ3=document.getElementById('custQuery3m'); if(dQ3)dQ3.value=c.query3m||'';
@@ -6192,7 +6243,7 @@ export default {
       var dRr=document.getElementById('custRejectReason'); if(dRr)dRr.value=c.rejectReason||'';
       showStatusConditionalFields(c.status||'');
       // Auto-expand detail panel if any new field has a value
-      var hasDetail = c.age||c.maritalStatus||c.isShenzhenHukou||c.socialSecurity||c.avgSalary||c.tax2yr||c.salaryBank||c.education||c.property||c.bankDebt||c.creditCardDebt||c.query3m||c.onlineLoanCount||c.demand||c.fundUsage||c.visitTime||c.note||c.followUp;
+      var hasDetail = c.age||c.maritalStatus||c.isShenzhenHukou||c.socialSecurity||c.avgSalary||c.tax2yr||c.salaryBank||c.education||c.property||c.propertyType||c.propertyAddress||c.propertyArea||c.propertyMortgageBank||c.propertyMortgageAmount||c.propertyOther||c.bankDebt||c.creditCardDebt||c.query3m||c.onlineLoanCount||c.demand||c.fundUsage||c.visitTime||c.note||c.followUp;
       var panel = document.getElementById('detailPanel');
       var toggleBtn = document.getElementById('detailToggleBtn');
       if (hasDetail && panel && panel.style.display === 'none') {
@@ -6347,6 +6398,8 @@ export default {
       age:c.age,maritalStatus:c.maritalStatus,isShenzhenHukou:c.isShenzhenHukou,
       socialSecurity:c.socialSecurity,avgSalary:c.avgSalary,tax2yr:c.tax2yr,
       salaryBank:c.salaryBank,education:c.education,property:c.property,
+      propertyType:c.propertyType,propertyAddress:c.propertyAddress,propertyArea:c.propertyArea,
+      propertyMortgageBank:c.propertyMortgageBank,propertyMortgageAmount:c.propertyMortgageAmount,propertyOther:c.propertyOther,
       bankDebt:c.bankDebt,creditCardDebt:c.creditCardDebt,query3m:c.query3m,
       onlineLoanCount:c.onlineLoanCount,demand:c.demand,fundUsage:c.fundUsage,status:c.status,
       followUp:c.followUp||'',followUpTime:c.followUpTime||'',followUpDate:c.followUpDate||'',
@@ -6528,6 +6581,8 @@ export default {
                   salaryBank:ti.salaryBank,
                   education:ti.education,
                   property:ti.property,
+                  propertyType:ti.propertyType,propertyAddress:ti.propertyAddress,propertyArea:ti.propertyArea,
+                  propertyMortgageBank:ti.propertyMortgageBank,propertyMortgageAmount:ti.propertyMortgageAmount,propertyOther:ti.propertyOther,
                   bankDebt:ti.bankDebt,
                   creditCardDebt:ti.creditCardDebt,
                   query3m:ti.query3m,
@@ -6615,6 +6670,20 @@ export default {
               '<select class="input-simple input-select edit-prop-input" style="flex:1;min-width:70px;padding:6px 8px;font-size:0.78rem;height:auto;"><option value="">房产</option><option value="无房"' + (fullClient.property==='无房'?' selected':'') + '>无房</option><option value="有一套"' + (fullClient.property==='有一套'?' selected':'') + '>有一套</option><option value="有多套"' + (fullClient.property==='有多套'?' selected':'') + '>有多套</option></select>' +
             '</div>' +
             '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+              '<select class="input-simple input-select edit-proptype-input" style="flex:1;min-width:90px;padding:6px 8px;font-size:0.78rem;height:auto;"><option value="">深房/外地房</option><option value="深房"' + (fullClient.propertyType==='深房'?' selected':'') + '>深房</option><option value="外地房"' + (fullClient.propertyType==='外地房'?' selected':'') + '>外地房</option></select>' +
+              '<input type="text" class="input-simple edit-proparea-input" placeholder="面积" style="flex:1;min-width:70px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.propertyArea||'') + '">' +
+            '</div>' +
+            '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+              '<input type="text" class="input-simple edit-propaddr-input" placeholder="房产地址" style="flex:1;min-width:120px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.propertyAddress||'') + '">' +
+            '</div>' +
+            '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+              '<input type="text" class="input-simple edit-propmbank-input" placeholder="抵押银行" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.propertyMortgageBank||'') + '">' +
+              '<input type="text" class="input-simple edit-propmamt-input" placeholder="还欠多少" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.propertyMortgageAmount||'') + '">' +
+            '</div>' +
+            '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+              '<input type="text" class="input-simple edit-propother-input" placeholder="房产其他情况" style="flex:1;min-width:120px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.propertyOther||'') + '">' +
+            '</div>' +
+            '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
               '<input type="text" class="input-simple edit-bankdebt-input" placeholder="银行信贷负债" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.bankDebt||'') + '">' +
               '<input type="text" class="input-simple edit-ccdebt-input" placeholder="信用卡负债" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.creditCardDebt||'') + '">' +
             '</div>' +
@@ -6678,6 +6747,12 @@ export default {
             const sb = (card.querySelector('.edit-sbank-input')||{}).value||''; const sbV = sb.trim();
             const ed = (card.querySelector('.edit-edu-input')||{}).value||'';
             const pr = (card.querySelector('.edit-prop-input')||{}).value||'';
+            const pt = (card.querySelector('.edit-proptype-input')||{}).value||'';
+            const pa = (card.querySelector('.edit-propaddr-input')||{}).value||''; const paV = pa.trim();
+            const pAr = (card.querySelector('.edit-proparea-input')||{}).value||''; const pArV = pAr.trim();
+            const pmb = (card.querySelector('.edit-propmbank-input')||{}).value||''; const pmbV = pmb.trim();
+            const pma = (card.querySelector('.edit-propmamt-input')||{}).value||''; const pmaV = pma.trim();
+            const po = (card.querySelector('.edit-propother-input')||{}).value||''; const poV = po.trim();
             const bd = (card.querySelector('.edit-bankdebt-input')||{}).value||''; const bdV = bd.trim();
             const cd = (card.querySelector('.edit-ccdebt-input')||{}).value||''; const cdV = cd.trim();
             const q3 = (card.querySelector('.edit-query-input')||{}).value||''; const q3V = q3.trim();
@@ -6707,6 +6782,7 @@ export default {
               followUpDate: fu !== (fullClient.followUp || '') ? getTodayStr() : (fullClient.followUpDate || ds),
               age: ageV, maritalStatus: ms, isShenzhenHukou: sh, socialSecurity: ssV,
               avgSalary: asV, tax2yr: txV, salaryBank: sbV, education: ed, property: pr,
+              propertyType: pt, propertyAddress: paV, propertyArea: pArV, propertyMortgageBank: pmbV, propertyMortgageAmount: pmaV, propertyOther: poV,
               bankDebt: bdV, creditCardDebt: cdV, query3m: q3V, onlineLoanCount: olV,
               demand: dmV, fundUsage: fgV,
               visitTime: vtV, status: stV, approvedBank: abV, approvedAmount: aaV,
@@ -6734,7 +6810,7 @@ export default {
           if(!ti)return;
           const pin=prompt('删除客户「' + ti.name + '」需输入解锁密码：');
           if(!pin){return;}
-          if(hashPinSimple(pin)!=='7c7cacd4'){alert('密码错误，删除取消');return;}
+          if(hashPinSimple(pin)!=='7c78e7fa'){alert('密码错误，删除取消');return;}
           const allList=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
           const matchIdx=allList.findIndex(c=>c.date===ds&&c.name===ti.name&&c.phone===ti.phone&&(ti.time?c.time===ti.time:true));
           if(matchIdx>=0) allList.splice(matchIdx,1);
@@ -6927,6 +7003,12 @@ export default {
     const salaryBank = getElVal('custSalaryBank');
     const education = getElVal('custEducation');
     const propertyVal = getElVal('custProperty');
+    const propertyType = getElVal('custPropertyType');
+    const propertyAddress = getElVal('custPropertyAddress');
+    const propertyArea = getElVal('custPropertyArea');
+    const propertyMortgageBank = getElVal('custPropertyMortgageBank');
+    const propertyMortgageAmount = getElVal('custPropertyMortgageAmount');
+    const propertyOther = getElVal('custPropertyOther');
     const bankDebt = getElVal('custBankDebt');
     const creditCardDebt = getElVal('custCreditCardDebt');
     const query3m = getElVal('custQuery3m');
@@ -6968,7 +7050,8 @@ export default {
 
     var newClient={name:n,phone:p,company:c,fund:f,label:label,note:nt,followUp:fu,date:today,time:time,
       age,maritalStatus,isShenzhenHukou,socialSecurity,avgSalary,tax2yr,salaryBank,
-      education,property:propertyVal,bankDebt,creditCardDebt,query3m,onlineLoanCount,demand,fundUsage,
+      education,property:propertyVal,propertyType,propertyAddress,propertyArea,propertyMortgageBank,propertyMortgageAmount,propertyOther,
+      bankDebt,creditCardDebt,query3m,onlineLoanCount,demand,fundUsage,
       visitTime,status,approvedBank,approvedAmount,rateTerm,rejectedBank,rejectReason};
     // Preserve original date+time when editing (keep the record on its original day)
     if (oldEntry && oldEntry.date) { newClient.date = oldEntry.date; newClient.time = oldEntry.time || time; }
@@ -6980,6 +7063,8 @@ export default {
     clearEl('custAge'); clearEl('custMaritalStatus'); clearEl('custIsShenzhenHukou');
     clearEl('custSocialSecurity'); clearEl('custAvgSalary'); clearEl('custTax2yr');
     clearEl('custSalaryBank'); clearEl('custEducation'); clearEl('custProperty');
+    clearEl('custPropertyType'); clearEl('custPropertyAddress'); clearEl('custPropertyArea');
+    clearEl('custPropertyMortgageBank'); clearEl('custPropertyMortgageAmount'); clearEl('custPropertyOther');
     clearEl('custBankDebt'); clearEl('custCreditCardDebt'); clearEl('custQuery3m');
     clearEl('custOnlineLoanCount'); clearEl('custDemand'); clearEl('custFundUsage');
     clearEl('custVisitTime'); clearEl('custApprovedBank'); clearEl('custApprovedAmount');
@@ -7879,7 +7964,7 @@ const rid=Math.floor(Math.random()*1000);
     return (hash >>> 0).toString(16);
   }
   const pi=document.getElementById('pinInput'),pib=document.getElementById('pinUnlockBtn'),pie=document.getElementById('pinError');
-  function au(){const e=pi.value.trim();if(hashPinSimple(e)==='7c7cacd4'){localStorage.setItem(UNLOCK_TS_K,Date.now());setLocked(false);pi.value='';pie.innerText='';refreshAll();}else{pie.innerText='PIN码错误';pi.value='';setTimeout(function(){pi.focus();},50);}}
+  function au(){const e=pi.value.trim();if(hashPinSimple(e)==='7c78e7fa'){localStorage.setItem(UNLOCK_TS_K,Date.now());setLocked(false);pi.value='';pie.innerText='';refreshAll();}else{pie.innerText='PIN码错误';pi.value='';setTimeout(function(){pi.focus();},50);}}
   pib.addEventListener('click',au);pi.addEventListener('keypress',e=>{if(e.key==='Enter')au();});
   document.getElementById('hideBtn').addEventListener('click',()=>{setLocked(true);pi.value='';pie.innerText='';});
   window.addEventListener('keydown',e=>{if(e.ctrlKey&&e.key==='z'){const a=document.activeElement;if(a&&(a.tagName==='INPUT'||a.tagName==='TEXTAREA'))return;e.preventDefault();if(document.body.classList.contains('page-hidden'))pie.innerText='请使用PIN解锁';else{setLocked(true);pi.value='';pie.innerText='';}}});
@@ -8470,6 +8555,20 @@ const rid=Math.floor(Math.random()*1000);
           '<select class="input-simple input-select edit-prop-input" style="flex:1;min-width:70px;padding:6px 8px;font-size:0.78rem;height:auto;"><option value="">房产</option><option value="无房"' + (c.property==='无房'?' selected':'') + '>无房</option><option value="有一套"' + (c.property==='有一套'?' selected':'') + '>有一套</option><option value="有多套"' + (c.property==='有多套'?' selected':'') + '>有多套</option></select>' +
         '</div>' +
         '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+          '<select class="input-simple input-select edit-proptype-input" style="flex:1;min-width:90px;padding:6px 8px;font-size:0.78rem;height:auto;"><option value="">深房/外地房</option><option value="深房"' + (c.propertyType==='深房'?' selected':'') + '>深房</option><option value="外地房"' + (c.propertyType==='外地房'?' selected':'') + '>外地房</option></select>' +
+          '<input type="text" class="input-simple edit-proparea-input" placeholder="面积" style="flex:1;min-width:70px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.propertyArea||'') + '">' +
+        '</div>' +
+        '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+          '<input type="text" class="input-simple edit-propaddr-input" placeholder="房产地址" style="flex:1;min-width:120px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.propertyAddress||'') + '">' +
+        '</div>' +
+        '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+          '<input type="text" class="input-simple edit-propmbank-input" placeholder="抵押银行" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.propertyMortgageBank||'') + '">' +
+          '<input type="text" class="input-simple edit-propmamt-input" placeholder="还欠多少" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.propertyMortgageAmount||'') + '">' +
+        '</div>' +
+        '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+          '<input type="text" class="input-simple edit-propother-input" placeholder="房产其他情况" style="flex:1;min-width:120px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.propertyOther||'') + '">' +
+        '</div>' +
+        '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
           '<input type="text" class="input-simple edit-bankdebt-input" placeholder="银行信贷负债" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.bankDebt||'') + '">' +
           '<input type="text" class="input-simple edit-ccdebt-input" placeholder="信用卡负债" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.creditCardDebt||'') + '">' +
         '</div>' +
@@ -8533,6 +8632,12 @@ const rid=Math.floor(Math.random()*1000);
         const sb = (card.querySelector('.edit-sbank-input')||{}).value||''; const sbV = sb.trim();
         const ed = (card.querySelector('.edit-edu-input')||{}).value||'';
         const pr = (card.querySelector('.edit-prop-input')||{}).value||'';
+        const pt = (card.querySelector('.edit-proptype-input')||{}).value||'';
+        const pa = (card.querySelector('.edit-propaddr-input')||{}).value||''; const paV = pa.trim();
+        const pAr = (card.querySelector('.edit-proparea-input')||{}).value||''; const pArV = pAr.trim();
+        const pmb = (card.querySelector('.edit-propmbank-input')||{}).value||''; const pmbV = pmb.trim();
+        const pma = (card.querySelector('.edit-propmamt-input')||{}).value||''; const pmaV = pma.trim();
+        const po = (card.querySelector('.edit-propother-input')||{}).value||''; const poV = po.trim();
         const bd = (card.querySelector('.edit-bankdebt-input')||{}).value||''; const bdV = bd.trim();
         const cd = (card.querySelector('.edit-ccdebt-input')||{}).value||''; const cdV = cd.trim();
         const q3 = (card.querySelector('.edit-query-input')||{}).value||''; const q3V = q3.trim();
@@ -8562,6 +8667,7 @@ const rid=Math.floor(Math.random()*1000);
           followUpDate: fu !== (c.followUp || '') ? getTodayStr() : (c.followUpDate || c.date),
           age: ageV, maritalStatus: ms, isShenzhenHukou: sh, socialSecurity: ssV,
           avgSalary: asV, tax2yr: txV, salaryBank: sbV, education: ed, property: pr,
+          propertyType: pt, propertyAddress: paV, propertyArea: pArV, propertyMortgageBank: pmbV, propertyMortgageAmount: pmaV, propertyOther: poV,
           bankDebt: bdV, creditCardDebt: cdV, query3m: q3V, onlineLoanCount: olV,
           demand: dmV, fundUsage: fgV,
           visitTime: vtV, status: stV, approvedBank: abV, approvedAmount: aaV,
@@ -8654,6 +8760,20 @@ const rid=Math.floor(Math.random()*1000);
             '<select class="input-simple input-select new-prop-input" style="flex:1;min-width:70px;padding:6px 8px;font-size:0.78rem;height:auto;"><option value="">房产</option><option value="无房">无房</option><option value="有一套">有一套</option><option value="有多套">有多套</option></select>' +
           '</div>' +
           '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+            '<select class="input-simple input-select new-proptype-input" style="flex:1;min-width:90px;padding:6px 8px;font-size:0.78rem;height:auto;"><option value="">深房/外地房</option><option value="深房">深房</option><option value="外地房">外地房</option></select>' +
+            '<input type="text" class="input-simple new-proparea-input" placeholder="面积" style="flex:1;min-width:70px;padding:6px 8px;font-size:0.78rem;">' +
+          '</div>' +
+          '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+            '<input type="text" class="input-simple new-propaddr-input" placeholder="房产地址" style="flex:1;min-width:120px;padding:6px 8px;font-size:0.78rem;">' +
+          '</div>' +
+          '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+            '<input type="text" class="input-simple new-propmbank-input" placeholder="抵押银行" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;">' +
+            '<input type="text" class="input-simple new-propmamt-input" placeholder="还欠多少" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;">' +
+          '</div>' +
+          '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+            '<input type="text" class="input-simple new-propother-input" placeholder="房产其他情况" style="flex:1;min-width:120px;padding:6px 8px;font-size:0.78rem;">' +
+          '</div>' +
+          '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
             '<input type="text" class="input-simple new-bankdebt-input" placeholder="银行信贷负债" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;">' +
             '<input type="text" class="input-simple new-ccdebt-input" placeholder="信用卡负债" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;">' +
           '</div>' +
@@ -8719,6 +8839,12 @@ const rid=Math.floor(Math.random()*1000);
           const sb = (card.querySelector('.new-sbank-input')||{}).value||''; const sbV = sb.trim();
           const ed = (card.querySelector('.new-edu-input')||{}).value||'';
           const pr = (card.querySelector('.new-prop-input')||{}).value||'';
+          const pt = (card.querySelector('.new-proptype-input')||{}).value||'';
+          const pa = (card.querySelector('.new-propaddr-input')||{}).value||''; const paV = pa.trim();
+          const pAr = (card.querySelector('.new-proparea-input')||{}).value||''; const pArV = pAr.trim();
+          const pmb = (card.querySelector('.new-propmbank-input')||{}).value||''; const pmbV = pmb.trim();
+          const pma = (card.querySelector('.new-propmamt-input')||{}).value||''; const pmaV = pma.trim();
+          const po = (card.querySelector('.new-propother-input')||{}).value||''; const poV = po.trim();
           const bd = (card.querySelector('.new-bankdebt-input')||{}).value||''; const bdV = bd.trim();
           const cd = (card.querySelector('.new-ccdebt-input')||{}).value||''; const cdV = cd.trim();
           const q3 = (card.querySelector('.new-query-input')||{}).value||''; const q3V = q3.trim();
@@ -8742,6 +8868,7 @@ const rid=Math.floor(Math.random()*1000);
           const newClient = { name: n, phone: p, company: comp, fund: fund, label: label, note: nt, followUp: fu, date: d, time: getCurrentTime(), followUpTime: fu ? getCurrentTime() : '', followUpDate: fu ? getTodayStr() : '',
             age: ageV, maritalStatus: ms, isShenzhenHukou: sh, socialSecurity: ssV,
             avgSalary: asV, tax2yr: txV, salaryBank: sbV, education: ed, property: pr,
+            propertyType: pt, propertyAddress: paV, propertyArea: pArV, propertyMortgageBank: pmbV, propertyMortgageAmount: pmaV, propertyOther: poV,
             bankDebt: bdV, creditCardDebt: cdV, query3m: q3V, onlineLoanCount: olV,
             demand: dmV, fundUsage: fgV,
             visitTime: vtV, status: stV, approvedBank: abV, approvedAmount: aaV,

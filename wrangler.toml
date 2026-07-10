@@ -5,7 +5,7 @@ compatibility_flags = [ "nodejs_compat" ]
 
 [[kv_namespaces]]
 binding = "DATA_KV"
-id = "ff69992ea0034094913d4a6fa1e78075"
+id = "01195924400548829cbd80bf60ada313"
 
 [ai]
 binding = "AI"
