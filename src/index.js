@@ -1012,8 +1012,7 @@ export default {
       path === '/api/calendar' ||
       path === '/api/stats' ||
       path === '/api/all-clients' ||
-      path === '/api/export' ||
-      path === '/api/moments-push'
+      path === '/api/export'
     );
     if (needsKV && !env.DATA_KV) {
       return new Response(JSON.stringify({ error: 'DATA_KV binding is missing or not configured.' }), {
@@ -2910,8 +2909,6 @@ export default {
       data.aiModel = await env.DATA_KV.get('config:ai_model') || '';
       data.searchProvider = await env.DATA_KV.get('config:search_provider') || '';
       data.searchApiKey = await env.DATA_KV.get('config:search_api_key') || '';
-      data.momentsWebhookUrl = await env.DATA_KV.get('config:moments_webhook_url') || '';
-      data.momentsEnabled = await env.DATA_KV.get('config:moments_enabled') || 'true';
       data.visionApiKey = await env.DATA_KV.get('config:vision_api_key') || '';
       data.visionApiBase = await env.DATA_KV.get('config:vision_api_base') || '';
       // Inject goals
@@ -2927,7 +2924,7 @@ export default {
       const items = Array.isArray(body) ? body : [body];
       let hasError = false;
       for (const item of items) {
-        const { date, wechatCount, intentCount, revisitCount, visitCount, paymentCount, clients, todayTodos, tomorrowTodos, tempClients, scripts, learns, todoLog, webhookUrl, deepseekApiKey, wecomCorpId, wecomToken, wecomAesKey, aiProvider, aiApiKey, aiApiBase, aiModel, searchProvider, searchApiKey, momentsWebhookUrl, momentsEnabled, visionApiKey, visionApiBase, _ts } = item;
+        const { date, wechatCount, intentCount, revisitCount, visitCount, paymentCount, clients, todayTodos, tomorrowTodos, tempClients, scripts, learns, todoLog, webhookUrl, deepseekApiKey, wecomCorpId, wecomToken, wecomAesKey, aiProvider, aiApiKey, aiApiBase, aiModel, searchProvider, searchApiKey, visionApiKey, visionApiBase, _ts } = item;
         if (!date) { hasError = true; continue; }
         
         // If a non-empty Webhook URL is supplied, persist it globally
@@ -2963,12 +2960,6 @@ export default {
         }
         if (searchApiKey !== undefined) {
           await env.DATA_KV.put('config:search_api_key', searchApiKey);
-        }
-        if (momentsWebhookUrl !== undefined) {
-          await env.DATA_KV.put('config:moments_webhook_url', momentsWebhookUrl);
-        }
-        if (momentsEnabled !== undefined) {
-          await env.DATA_KV.put('config:moments_enabled', momentsEnabled ? 'true' : 'false');
         }
         if (visionApiKey !== undefined) {
           await env.DATA_KV.put('config:vision_api_key', visionApiKey);
@@ -3014,8 +3005,6 @@ export default {
           aiModel: aiModel !== undefined ? aiModel : (existing.aiModel || ''),
           searchProvider: searchProvider !== undefined ? searchProvider : (existing.searchProvider || ''),
           searchApiKey: searchApiKey !== undefined ? searchApiKey : (existing.searchApiKey || ''),
-          momentsWebhookUrl: momentsWebhookUrl !== undefined ? momentsWebhookUrl : (existing.momentsWebhookUrl || ''),
-          momentsEnabled: momentsEnabled !== undefined ? momentsEnabled : (existing.momentsEnabled || 'true'),
           visionApiKey: visionApiKey !== undefined ? visionApiKey : (existing.visionApiKey || ''),
           visionApiBase: visionApiBase !== undefined ? visionApiBase : (existing.visionApiBase || ''),
           lastLoadDate: date,
@@ -3179,10 +3168,6 @@ export default {
         case 'setSearchConfig':
           if (body.searchProvider !== undefined) await env.DATA_KV.put('config:search_provider', body.searchProvider || '');
           if (body.searchApiKey !== undefined) await env.DATA_KV.put('config:search_api_key', body.searchApiKey || '');
-          break;
-        case 'setMomentsConfig':
-          if (body.momentsWebhookUrl !== undefined) await env.DATA_KV.put('config:moments_webhook_url', body.momentsWebhookUrl || '');
-          if (body.momentsEnabled !== undefined) await env.DATA_KV.put('config:moments_enabled', body.momentsEnabled ? 'true' : 'false');
           break;
         case 'setVisionConfig':
           if (body.visionApiKey !== undefined) await env.DATA_KV.put('config:vision_api_key', body.visionApiKey || '');
@@ -4916,24 +4901,6 @@ export default {
         </div>
       </details>
 
-      <details style="margin-top:10px; border:1px dashed var(--card-border); border-radius:var(--radius-xs); padding:8px; background:rgba(120,120,120,0.02);">
-        <summary style="font-size:0.75rem; color:var(--text-soft); cursor:pointer; font-weight:700; outline:none; user-select:none;">朋友圈文案定时推送</summary>
-        <div style="display:flex; flex-direction:column; gap:6px; margin-top:8px;">
-          <div style="display:flex; align-items:center; gap:6px;">
-            <label style="font-size:0.7rem; color:var(--text-main); font-weight:700; display:flex; align-items:center; gap:4px; cursor:pointer;">
-              <input type="checkbox" id="momentsEnabledCheck" checked style="width:16px; height:16px;"> 启用每日定时推送
-            </label>
-          </div>
-          <input type="text" class="input-simple" id="momentsWebhookUrlInput" placeholder="朋友圈推送专用 Webhook URL（留空使用上方通用地址）" style="font-size:0.7rem; height:28px; padding:0 8px;">
-          <button id="saveMomentsConfigBtn" class="btn-add" style="font-size:0.7rem; height:28px; margin:0; background:linear-gradient(135deg,#f093fb,#f5576c); color:white; border:none; width:100%; font-weight:700;">保存推送配置</button>
-          <button id="manualPushBtn" class="btn-add" style="font-size:0.7rem; height:28px; margin:0; background:linear-gradient(135deg,#667eea,#764ba2); color:white; border:none; width:100%; font-weight:700;">手动立即发送</button>
-          <div style="font-size:0.6rem; color:var(--text-light); line-height:1.4; margin-top:2px;">
-            ⏰ 每天早上 <strong>8:00 (北京时间)</strong> 自动生成 <strong>30 条</strong>朋友圈文案（励志生活·社会热点·财经电报·股市热点·贷款回访·日常招呼各5条），并通过企业微信 Webhook 推送到指定群聊。<br>
-            文案由 AI 结合新浪财经实时快讯和搜索引擎最新资讯自动生成，涵盖40-60字长文案和25字内短招呼语，风格多样（励志、热点、财经、股市、回访、招呼）。<br>
-            ⚠️ 需要已配置 AI 大模型 API Key 才能正常生成文案，否则仅发送提醒。
-          </div>
-        </div>
-      </details>
 
       <div id="exportStatus" style="font-size:0.75rem;text-align:center;min-height:20px;"></div>
     </div>
@@ -6011,8 +5978,6 @@ export default {
       if(data.aiModel!==undefined)localStorage.setItem('ai_model',data.aiModel);
       if(data.searchProvider!==undefined)localStorage.setItem('search_provider',data.searchProvider);
       if(data.searchApiKey!==undefined)localStorage.setItem('search_api_key',data.searchApiKey);
-      if(data.momentsWebhookUrl!==undefined)localStorage.setItem('moments_webhook_url',data.momentsWebhookUrl);
-      if(data.momentsEnabled!==undefined)localStorage.setItem('moments_enabled',data.momentsEnabled);
       if(data.visionApiKey!==undefined)localStorage.setItem('vision_api_key',data.visionApiKey);
       if(data.visionApiBase!==undefined)localStorage.setItem('vision_api_base',data.visionApiBase);
       localStorage.setItem(LOCAL_TS_K,data._ts);
@@ -6062,8 +6027,6 @@ export default {
     if(data.aiModel!==undefined)localStorage.setItem('ai_model',data.aiModel);
     if(data.searchProvider!==undefined)localStorage.setItem('search_provider',data.searchProvider);
     if(data.searchApiKey!==undefined)localStorage.setItem('search_api_key',data.searchApiKey);
-    if(data.momentsWebhookUrl!==undefined)localStorage.setItem('moments_webhook_url',data.momentsWebhookUrl);
-    if(data.momentsEnabled!==undefined)localStorage.setItem('moments_enabled',data.momentsEnabled);
     if(data.visionApiKey!==undefined)localStorage.setItem('vision_api_key',data.visionApiKey);
     if(data.visionApiBase!==undefined)localStorage.setItem('vision_api_base',data.visionApiBase);
     if(data.lastLoadDate)localStorage.setItem(LAST_LOAD_DATE_K,data.lastLoadDate);
@@ -7492,10 +7455,6 @@ const rid=Math.floor(Math.random()*1000);
       document.getElementById('searchProviderSelect').value = localStorage.getItem('search_provider') || 'duckduckgo';
       document.getElementById('searchApiKeyInput').value = localStorage.getItem('search_api_key') || '';
 
-      // Load moments config
-      document.getElementById('momentsEnabledCheck').checked = localStorage.getItem('moments_enabled') !== 'false';
-      document.getElementById('momentsWebhookUrlInput').value = localStorage.getItem('moments_webhook_url') || '';
-
       // Load vision config
       document.getElementById('visionApiKeyInput').value = localStorage.getItem('vision_api_key') || '';
       document.getElementById('visionApiBaseInput').value = localStorage.getItem('vision_api_base') || '';
@@ -7753,44 +7712,6 @@ const rid=Math.floor(Math.random()*1000);
       }
     });
 
-    // Save moments config
-    document.getElementById('saveMomentsConfigBtn').addEventListener('click', async () => {
-      const enabled = document.getElementById('momentsEnabledCheck').checked;
-      const webhookUrl = document.getElementById('momentsWebhookUrlInput').value.trim();
-      localStorage.setItem('moments_enabled', enabled ? 'true' : 'false');
-      localStorage.setItem('moments_webhook_url', webhookUrl);
-      try {
-        await syncOp('setMomentsConfig', { momentsEnabled: enabled, momentsWebhookUrl: webhookUrl });
-        const msg = enabled
-          ? '✅ 朋友圈定时推送已启用！每天早 8:00 自动发送 30 条文案（励志生活·热点·财经·股市·回访·招呼各5条）到企业微信。'
-          : '⏸️ 朋友圈定时推送已停用。';
-        document.getElementById('exportStatus').innerText = msg;
-      } catch (e) {
-        document.getElementById('exportStatus').innerText = '❌ 保存失败: ' + e.message;
-      }
-    });
-
-    // Manual push button
-    document.getElementById('manualPushBtn').addEventListener('click', async () => {
-      const btn = document.getElementById('manualPushBtn');
-      const statusEl = document.getElementById('exportStatus');
-      btn.disabled = true;
-      btn.textContent = '⏳ 正在生成文案...';
-      statusEl.innerText = '⏳ 正在联网搜索并生成 30 条文案，预计需要 30-60 秒...';
-      try {
-        const resp = await fetch('/api/moments-push', { method: 'POST' });
-        const result = await resp.json();
-        if (result.success) {
-          statusEl.innerText = '✅ 手动发送成功！已推送 ' + result.posts.length + ' 条文案到企业微信。';
-        } else {
-          statusEl.innerText = '❌ 发送失败: ' + result.message;
-        }
-      } catch (e) {
-        statusEl.innerText = '❌ 请求失败: ' + e.message;
-      }
-      btn.disabled = false;
-      btn.textContent = '手动立即发送';
-    });
 
     async function doExport(type){
       const webhookUrl=document.getElementById('webhookUrlInput').value.trim();
@@ -11088,20 +11009,6 @@ const rid=Math.floor(Math.random()*1000);
       }
     }
 
-    // 手动触发朋友圈文案推送
-    if (path === '/api/moments-push' && request.method === 'POST') {
-      try {
-        const result = await doMomentsPush(env, '[API]');
-        return new Response(JSON.stringify(result), {
-          headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
-        });
-      } catch (e) {
-        return new Response(JSON.stringify({ success: false, message: e.message }), {
-          status: 500,
-          headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
-        });
-      }
-    }
 
     // 返回 HTML 页面
     return new Response(HTML, {
@@ -11109,12 +11016,8 @@ const rid=Math.floor(Math.random()*1000);
     });
   },
 
-  // Cron 定时任务：每天早上 8:00 (北京时间，UTC+8)
-  // 1. 自动生成朋友圈文案并推送到企业微信
-  // 2. 自动扫描 Supabase 客户数据，AI 修正公积金/单位/备注字段
+  // Cron 定时任务：AI 公积金自动修正（每天全量扫描）
   async scheduled(event, env, ctx) {
-    await doMomentsPush(env, '[Cron]');
-
     // AI 公积金自动修正（每天全量扫描）
     try {
       console.log('[Cron] 开始 AI 公积金自动修正...');
@@ -11130,532 +11033,3 @@ const rid=Math.floor(Math.random()*1000);
     }
   }
 };
-
-// 从新浪财经等接口抓取最新财经/股市快讯（财联社 API 已失效，改用新浪财经）
-// 返回 { items: [...], source: 'sina'|'search' } — source 标记数据来源
-async function fetchFinancialNews(env) {
-  // 新浪财经实时新闻 API（lid=2509 为股市频道，lid=2517 为财经要闻）
-  const sinaEndpoints = [
-    { url: 'https://feed.mix.sina.com.cn/api/roll/get?pageid=153&lid=2509&num=30&versionNumber=1.2.4', channel: '股市' },
-    { url: 'https://feed.mix.sina.com.cn/api/roll/get?pageid=153&lid=2517&num=30&versionNumber=1.2.4', channel: '财经' }
-  ];
-
-  const allItems = [];
-  const todayBeijing = new Date(Date.now() + 8 * 3600000);
-  const todayStr = todayBeijing.toISOString().split('T')[0]; // YYYY-MM-DD 北京时间
-  const yesterdayBeijing = new Date(todayBeijing.getTime() - 24 * 3600000);
-  const yesterdayStr = yesterdayBeijing.toISOString().split('T')[0];
-
-  for (const { url, channel } of sinaEndpoints) {
-    try {
-      const resp = await fetch(url, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36',
-          'Accept': 'application/json, text/plain, */*',
-          'Referer': 'https://finance.sina.com.cn/'
-        }
-      });
-
-      if (!resp.ok) {
-        console.log(`[FinNews] 新浪${channel} HTTP ${resp.status}`);
-        continue;
-      }
-
-      const data = await resp.json();
-      if (!data.result || !data.result.data || !Array.isArray(data.result.data)) {
-        console.log(`[FinNews] 新浪${channel} 返回数据格式异常`);
-        continue;
-      }
-
-      const rawItems = data.result.data;
-      console.log(`[FinNews] 新浪${channel} 获取到 ${rawItems.length} 条`);
-
-      for (const item of rawItems) {
-        // ctime 是 Unix 秒级时间戳，转换为北京时间日期过滤
-        const itemTime = new Date((item.ctime || 0) * 1000);
-        const itemDateStr = itemTime.toISOString().split('T')[0];
-        // 只保留今天的和昨天的（容错：北京时间早8点推送时可能还没多少当天新闻）
-        if (itemDateStr !== todayStr && itemDateStr !== yesterdayStr) {
-          continue; // 跳过超过 1 天的旧闻
-        }
-
-        const title = item.title || '';
-        const content = item.intro || item.summary || '';
-        // 分类：根据频道来源和标题关键词判断
-        let type = '财经电报';
-        if (channel === '股市' || /(?:股|A股|港股|涨停|跌停|大盘|指数|创业板|科创板|北交|ETF|板块|牛市|熊市|券商|ipo|分红|回购|涨幅|跌幅|市值)/i.test(title + content)) {
-          type = '股市热点';
-        }
-
-        allItems.push({
-          title: title,
-          content: content,
-          ctime: item.ctime || '',
-          dateStr: itemDateStr,
-          channel: channel,
-          type: type
-        });
-      }
-    } catch (e) {
-      console.log(`[FinNews] 新浪${channel} 请求失败:`, e.message);
-    }
-  }
-
-  if (allItems.length > 0) {
-    // 去重（按标题去重）
-    const seen = new Set();
-    const unique = allItems.filter(item => {
-      const key = item.title.substring(0, 30);
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
-    console.log(`[FinNews] 去重后共 ${unique.length} 条（今天 ${unique.filter(i=>i.dateStr===todayStr).length} 条，昨天 ${unique.filter(i=>i.dateStr===yesterdayStr).length} 条）`);
-    return { items: unique, source: 'sina' };
-  }
-
-  console.log('[FinNews] 新浪财经接口未获取到数据，将依赖搜索引擎结果');
-  return { items: [], source: 'search' };
-}
-
-// 朋友圈文案推送核心逻辑（Cron 和手动 API 共用）
-async function doMomentsPush(env, logPrefix) {
-  const bjTime = new Date(Date.now() + 8 * 3600000);
-  const dateStr = bjTime.toISOString().split('T')[0];
-  const timeStr = bjTime.toISOString().replace('T', ' ').substring(0, 19);
-
-  console.log(`${logPrefix} 朋友圈推送触发 - 北京时间: ${timeStr}`);
-
-  // 检查是否启用朋友圈定时推送（手动调用跳过此检查）
-  if (logPrefix === '[Cron]') {
-    const momentsEnabled = await env.DATA_KV.get('config:moments_enabled');
-    if (momentsEnabled === 'false') {
-      console.log(`${logPrefix} 朋友圈定时推送已停用，跳过。`);
-      return { success: false, message: '朋友圈定时推送已停用' };
-    }
-  }
-
-  // 获取目标 Webhook URL
-  const momentsWebhookUrl = await env.DATA_KV.get('config:moments_webhook_url');
-  const fallbackUrl = await env.DATA_KV.get('config:webhook_url');
-  const targetUrl = (momentsWebhookUrl && momentsWebhookUrl.trim()) ? momentsWebhookUrl.trim() : (fallbackUrl || '').trim();
-  if (!targetUrl) {
-    console.log(`${logPrefix} 未配置 Webhook URL，跳过。`);
-    return { success: false, message: '未配置 Webhook URL，请先在设置中配置企业微信 Webhook 地址' };
-  }
-
-  // SSRF 防御：仅允许企业微信官方域名
-  if (!targetUrl.startsWith('https://qyapi.weixin.qq.com/')) {
-    console.log(`${logPrefix} 非企业微信官方域名，拒绝发送。`);
-    return { success: false, message: 'Webhook URL 非企业微信官方域名' };
-  }
-
-  // 检查 AI API Key
-  const apiKey = await env.DATA_KV.get('config:ai_api_key') || await env.DATA_KV.get('config:deepseek_api_key') || await env.DATA_KV.get('config:vision_api_key') || env.AI_API_KEY || env.DEEPSEEK_API_KEY;
-  if (!apiKey) {
-    console.log(`${logPrefix} 未配置 AI API Key，无法生成朋友圈文案。`);
-    if (logPrefix === '[Cron]') {
-      try {
-        await fetch(targetUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            msgtype: 'markdown',
-            markdown: { content: `## ⏰ 朋友圈定时推送提醒\n\n> 日期: <font color="info">${dateStr}</font>\n> 状态: <font color="warning">未配置 AI API Key</font>\n\n请登录 [Megz 管理后台](${env.WORKER_HOST || ''}) 配置 AI 大模型 API Key 以自动生成朋友圈文案。` }
-          })
-        });
-      } catch (e) {
-        console.error(`${logPrefix} 发送提醒失败:`, e.message);
-      }
-    }
-    return { success: false, message: '未配置 AI API Key，请在设置中配置 AI 大模型 API Key' };
-  }
-
-  try {
-    // 步骤 1: 联网搜索今日热点和生活资讯（动态生成当天日期，确保搜索结果最新）
-    let searchContext = '';
-    const bjYear = bjTime.getFullYear();
-    const bjMonth = bjTime.getMonth() + 1;
-    const bjDay = bjTime.getDate();
-    const dateStrCN = `${bjYear}年${bjMonth}月${bjDay}日`;
-    const dateStrShort = `${bjYear}年${bjMonth}月`;
-    const searchQueries = [
-      `${dateStrCN} 今日热点新闻 头条`,
-      `${dateStrCN} 热门话题 社会热点 民生`,
-      `${dateStrShort} 生活趋势 励志 成长 健康`,
-      `${dateStrCN} 财经新闻 经济数据 政策 行业动态`,
-      `${dateStrCN} 股市行情 A股 热点板块 涨停`,
-      `${dateStrShort} 投资理财 基金 市场趋势`
-    ];
-
-    for (const sq of searchQueries) {
-      try {
-        const results = await doWebSearch(env, sq);
-        if (results.length > 0) {
-          searchContext += `\n### 搜索主题: ${sq}\n`;
-          results.forEach((r, i) => {
-            searchContext += `${i + 1}. **${r.title}**\n   ${r.snippet}\n`;
-          });
-        }
-      } catch (e) {
-        console.error(`${logPrefix} WebSearch "${sq}" 失败:`, e.message);
-      }
-    }
-
-    // 步骤 1.5: 从新浪财经实时接口抓取今日真实财经/股市快讯（财联社 API 已失效，改用新浪财经）
-    let telegraphSource = 'search'; // 'sina' | 'search' — 用于标记数据来源
-    const finNews = await fetchFinancialNews(env);
-    if (finNews.items.length > 0) {
-      telegraphSource = finNews.source;
-      const financeItems = finNews.items.filter(t => t.type === '财经电报').slice(0, 8);
-      const stockItems = finNews.items.filter(t => t.type === '股市热点').slice(0, 8);
-      // 标记哪些是今天的数据
-      const todayCount = finNews.items.filter(i => i.dateStr === dateStr).length;
-      const yesterdayCount = finNews.items.filter(i => i.dateStr !== dateStr).length;
-      if (financeItems.length > 0 || stockItems.length > 0) {
-        searchContext += `\n### 新浪财经实时快讯（请优先使用以下真实资讯生成财经电报和股市热点；今日${todayCount}条，昨日${yesterdayCount}条）\n`;
-        financeItems.forEach((t, i) => { searchContext += `[财经${i+1}] ${t.title} ${t.content}\n`; });
-        stockItems.forEach((t, i) => { searchContext += `[股市${i+1}] ${t.title} ${t.content}\n`; });
-        console.log(`${logPrefix} 已注入 ${financeItems.length} 条财经 + ${stockItems.length} 条股市实时快讯（来源: 新浪财经）`);
-      }
-    } else {
-      console.log(`${logPrefix} 新浪财经未获取到今日数据，财经/股市文案将基于搜索引擎结果生成`);
-    }
-
-    // 步骤 2: 调用 AI 生成 30 条朋友圈文案（励志生活5+热点5+财经5+股市5+贷款回访5+日常招呼5）
-    const prompt = searchContext
-      ? `你是一位朋友圈文案创作高手，在金融行业工作。请根据今日热点和资讯，撰写 30 条适合发微信朋友圈的文案。
-
-## 今日热点参考
-${searchContext}
-
-## 文案要求（按类别输出 30 条）
-
-### 第1-5条 · 励志生活类
-- 分享积极向上的生活感悟、成长心得、自律习惯、运动健康等
-- 温暖治愈，给人力量和希望，展现正能量
-- 每条 40-60 字
-- **禁止出现"评论区见""点赞告诉你""私信我"等诱导互动话术**
-
-### 第6-10条 · 社会热点类
-- 结合当天热门事件/新闻发表观点或感悟
-- 展现独立思考和对时事的关注，有态度不偏激
-- 每条 40-60 字
-- **禁止出现"评论区见""点赞告诉你""私信我"等诱导互动话术**
-
-### 第11-15条 · 财经电报类
-- **优先使用上方"新浪财经实时快讯"中的真实资讯**，提炼成40-60字的朋友圈文案
-- 如果上方没有实时快讯数据，则根据搜索到的财经新闻自行编写
-- 像财经快讯风格，信息密度高，一句话讲清楚一件事
-
-### 第16-20条 · 股市热点类
-- **优先使用上方"新浪财经实时快讯"中的真实资讯**，提炼成40-60字的朋友圈文案
-- 如果上方没有实时快讯数据，则根据搜索到的股市行情自行编写
-- 像炒股群里的快讯风格，客观陈述带一句简短点评
-
-### 第21-25条 · 贷款回访类
-- 贷款客户微信回访的打招呼用语，用于微信上联系老客户
-- 语气亲切自然，像朋友问候，不要像推销
-- **每条不超过 25 个字**，简短精炼，适合微信开场白
-- 可以包含关怀问候、节日祝福、温馨提醒等元素
-- 不要直接问"要不要贷款""需要资金吗"等硬推销话术
-- 示例风格："最近生意怎么样，有需要随时微信我~"
-
-### 第26-30条 · 日常招呼类
-- 微信纯文字打招呼用语，用于在微信上和朋友/客户破冰聊天
-- **纯线上微信沟通，禁止出现任何线下见面相关内容**（如"出来喝茶""聚聚""约饭""见面聊""有空来坐坐"等）
-- 轻松随意，像熟人之间的问候
-- **每条不超过 25 个字**，简短口语化
-- 可以结合天气、节日、日常趣事、微信动态等话题
-- 示例风格："今天这天气太适合摸鱼了哈哈"
-
-## 通用要求
-- 第1-20条**字数严格控制在 40-60 字**，第21-30条**字数不超过 25 字**
-- 语气自然口语化，像真人发的而不是营销号
-- 适当使用 Emoji 增加活力（1-2个即可，不要过多）
-- **禁止使用"评论区见""评论区聊""点赞告诉你""私信""转发"等营销话术**
-- 不要硬推销产品，可以偶尔在热点类提及金融行业视角
-
-## 输出格式
-请严格按以下 JSON 格式输出（只输出 JSON，不要包裹代码块）：
-
-{
-  "date": "${dateStr}",
-  "posts": [
-    {"type": "励志生活", "content": "文案内容"},
-    {"type": "励志生活", "content": "文案内容"},
-    {"type": "励志生活", "content": "文案内容"},
-    {"type": "励志生活", "content": "文案内容"},
-    {"type": "励志生活", "content": "文案内容"},
-    {"type": "社会热点", "content": "文案内容"},
-    {"type": "社会热点", "content": "文案内容"},
-    {"type": "社会热点", "content": "文案内容"},
-    {"type": "社会热点", "content": "文案内容"},
-    {"type": "社会热点", "content": "文案内容"},
-    {"type": "财经电报", "content": "文案内容"},
-    {"type": "财经电报", "content": "文案内容"},
-    {"type": "财经电报", "content": "文案内容"},
-    {"type": "财经电报", "content": "文案内容"},
-    {"type": "财经电报", "content": "文案内容"},
-    {"type": "股市热点", "content": "文案内容"},
-    {"type": "股市热点", "content": "文案内容"},
-    {"type": "股市热点", "content": "文案内容"},
-    {"type": "股市热点", "content": "文案内容"},
-    {"type": "股市热点", "content": "文案内容"},
-    {"type": "贷款回访", "content": "文案内容"},
-    {"type": "贷款回访", "content": "文案内容"},
-    {"type": "贷款回访", "content": "文案内容"},
-    {"type": "贷款回访", "content": "文案内容"},
-    {"type": "贷款回访", "content": "文案内容"},
-    {"type": "日常招呼", "content": "文案内容"},
-    {"type": "日常招呼", "content": "文案内容"},
-    {"type": "日常招呼", "content": "文案内容"},
-    {"type": "日常招呼", "content": "文案内容"},
-    {"type": "日常招呼", "content": "文案内容"}
-  ]
-}`
-      : `你是一位朋友圈文案创作高手，在金融行业工作。请撰写 30 条适合发微信朋友圈的文案（今天是 ${dateStr}）。
-
-## 文案要求（按类别输出 30 条）
-
-### 第1-5条 · 励志生活类
-- 分享积极向上的生活感悟、成长心得、自律习惯、运动健康等
-- 温暖治愈，给人力量和希望，展现正能量
-- 每条 40-60 字
-- **禁止出现"评论区见""点赞告诉你""私信我"等诱导互动话术**
-
-### 第6-10条 · 社会热点类
-- 对社会现象或身边事的思考点评，展现独立思考
-- 有态度不偏激，能引发好友共鸣
-- 每条 40-60 字
-- **禁止出现"评论区见""点赞告诉你""私信我"等诱导互动话术**
-
-### 第11-15条 · 财经电报类
-- 简明扼要播报当日重要财经资讯（政策、数据、行业动态等）
-- 像财经快讯风格，信息密度高，一句话讲清楚一件事
-- 每条 40-60 字
-
-### 第16-20条 · 股市热点类
-- 聚焦当日市场热点板块、资金动向、投资心得等
-- 客观陈述，带一句简短点评
-- 每条 40-60 字，像炒股群里的快讯风格
-
-### 第21-25条 · 贷款回访类
-- 贷款客户微信回访的打招呼用语，用于微信上联系老客户
-- 语气亲切自然，像朋友问候，不要像推销
-- **每条不超过 25 个字**，简短精炼，适合微信开场白
-- 可以包含关怀问候、节日祝福、温馨提醒等元素
-- 不要直接问"要不要贷款""需要资金吗"等硬推销话术
-- 示例风格："最近生意怎么样，有需要随时微信我~"
-
-### 第26-30条 · 日常招呼类
-- 微信纯文字打招呼用语，用于在微信上和朋友/客户破冰聊天
-- **纯线上微信沟通，禁止出现任何线下见面相关内容**（如"出来喝茶""聚聚""约饭""见面聊""有空来坐坐"等）
-- 轻松随意，像熟人之间的问候
-- **每条不超过 25 个字**，简短口语化
-- 可以结合天气、节日、日常趣事、微信动态等话题
-- 示例风格："今天这天气太适合摸鱼了哈哈"
-
-## 通用要求
-- 第1-20条**字数严格控制在 40-60 字**，第21-30条**字数不超过 25 字**
-- 语气自然口语化，像真人发的而不是营销号
-- 适当使用 Emoji 增加活力（1-2个即可，不要过多）
-- **禁止使用"评论区见""评论区聊""点赞告诉你""私信""转发"等营销话术**
-- 不要硬推销产品，可以偶尔提及金融/贷款行业的工作日常，但以生活为主
-
-## 输出格式
-请严格按以下 JSON 格式输出（只输出 JSON，不要包裹代码块）：
-
-{
-  "date": "${dateStr}",
-  "posts": [
-    {"type": "励志生活", "content": "文案内容"},
-    {"type": "励志生活", "content": "文案内容"},
-    {"type": "励志生活", "content": "文案内容"},
-    {"type": "励志生活", "content": "文案内容"},
-    {"type": "励志生活", "content": "文案内容"},
-    {"type": "社会热点", "content": "文案内容"},
-    {"type": "社会热点", "content": "文案内容"},
-    {"type": "社会热点", "content": "文案内容"},
-    {"type": "社会热点", "content": "文案内容"},
-    {"type": "社会热点", "content": "文案内容"},
-    {"type": "财经电报", "content": "文案内容"},
-    {"type": "财经电报", "content": "文案内容"},
-    {"type": "财经电报", "content": "文案内容"},
-    {"type": "财经电报", "content": "文案内容"},
-    {"type": "财经电报", "content": "文案内容"},
-    {"type": "股市热点", "content": "文案内容"},
-    {"type": "股市热点", "content": "文案内容"},
-    {"type": "股市热点", "content": "文案内容"},
-    {"type": "股市热点", "content": "文案内容"},
-    {"type": "股市热点", "content": "文案内容"},
-    {"type": "贷款回访", "content": "文案内容"},
-    {"type": "贷款回访", "content": "文案内容"},
-    {"type": "贷款回访", "content": "文案内容"},
-    {"type": "贷款回访", "content": "文案内容"},
-    {"type": "贷款回访", "content": "文案内容"},
-    {"type": "日常招呼", "content": "文案内容"},
-    {"type": "日常招呼", "content": "文案内容"},
-    {"type": "日常招呼", "content": "文案内容"},
-    {"type": "日常招呼", "content": "文案内容"},
-    {"type": "日常招呼", "content": "文案内容"}
-  ]
-}`;
-
-    const aiResp = await callAIChat(env, [
-      { role: 'system', content: '你是一个专业的朋友圈文案创作助手，擅长励志生活感悟、热点评论、财经快讯、股市解读、客户回访和日常招呼。请只输出 JSON 格式的结果，不要包裹 markdown 代码块，不要多余的解释。第1-20条40-60字，第21-30条不超过25字，禁止使用"评论区见"等营销话术。' },
-      { role: 'user', content: prompt }
-    ], 0.8);
-
-    let aiContent = aiResp.choices[0].message.content.trim();
-    if (aiContent.startsWith('```')) {
-      aiContent = aiContent.replace(/^```json\s*/i, '').replace(/```$/, '').trim();
-    }
-
-    let parsed;
-    try {
-      parsed = JSON.parse(aiContent);
-    } catch (parseErr) {
-      const jsonMatch = aiContent.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        parsed = JSON.parse(jsonMatch[0]);
-      } else {
-        throw new Error('无法解析 AI 返回的 JSON: ' + aiContent.substring(0, 200));
-      }
-    }
-
-    const posts = parsed.posts || [];
-    if (posts.length === 0) {
-      throw new Error('AI 未生成任何朋友圈文案');
-    }
-
-    // 步骤 3: 拼接 Markdown 按类型分组，取消序号，虚线分割
-    const typeGroups = [
-      { type: '励志生活', emoji: '🌱' },
-      { type: '社会热点', emoji: '🔥' },
-      { type: '财经电报', emoji: '📊' },
-      { type: '股市热点', emoji: '📈' },
-      { type: '贷款回访', emoji: '🤝' },
-      { type: '日常招呼', emoji: '👋' }
-    ];
-
-    let markdown = `## 📱 今日朋友圈文案精选\n`;
-    markdown += `> 日期: <font color="info">${dateStr}</font>\n`;
-    markdown += `> 生成时间: <font color="comment">${timeStr.substring(11, 16)}</font>\n`;
-    markdown += `> 共 <font color="warning">${posts.length} 条</font>文案\n`;
-    markdown += `> 数据源: <font color="comment">${telegraphSource === 'sina' ? '新浪财经实时快讯 + 搜索引擎' : '搜索引擎'}</font>\n`;
-    if (telegraphSource === 'search') {
-      markdown += `> <font color="warning">⚠️ 今日未获取到实时财经快讯数据，财经/股市文案基于搜索引擎结果生成，请核实</font>\n`;
-    }
-    markdown += `\n`;
-
-    typeGroups.forEach(group => {
-      const groupPosts = posts.filter(p => p.type === group.type);
-      if (groupPosts.length > 0) {
-        markdown += `## ${group.emoji} ${group.type}\n\n`;
-        groupPosts.forEach((post, j) => {
-          markdown += `${post.content}\n`;
-          if (j < groupPosts.length - 1) {
-            markdown += `\n---\n\n`;
-          }
-        });
-        markdown += `\n\n`;
-      }
-    });
-
-    const tagLine = logPrefix === '[Cron]' ? '\n> 🤖 由 AI 自动生成 · 每日 8:00 定时推送' : '\n> 🚀 手动触发 · AI 自动生成';
-    markdown += tagLine;
-
-    // 企业微信 Markdown 消息有 4096 字节限制，分条发送
-    const encoder = new TextEncoder();
-    const MAX_BYTES = 4000;
-
-    if (encoder.encode(markdown).length <= MAX_BYTES) {
-      const resp = await fetch(targetUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ msgtype: 'markdown', markdown: { content: markdown } })
-      });
-      if (!resp.ok) throw new Error('Webhook 发送失败 HTTP ' + resp.status);
-      const respBody = await resp.json();
-      if (respBody.errcode !== 0) throw new Error(`企业微信错误 [${respBody.errcode}]: ${respBody.errmsg || '未知'}`);
-      console.log(`${logPrefix} 朋友圈文案已成功发送 (单条, ${encoder.encode(markdown).length} 字节)`);
-    } else {
-      let part = 1;
-      let currentText = `## 📱 今日朋友圈文案精选 (${part})\n> 日期: ${dateStr}\n\n`;
-      let currentBytes = encoder.encode(currentText).length;
-      let lastType = '';
-
-      for (let i = 0; i < posts.length; i++) {
-        const post = posts[i];
-        const typeEmoji = post.type.includes('励志') ? '🌱' :
-                         post.type.includes('热点') ? '🔥' :
-                         post.type.includes('财经') || post.type.includes('电报') ? '📊' :
-                         post.type.includes('股市') ? '📈' :
-                         post.type.includes('回访') ? '🤝' :
-                         post.type.includes('招呼') ? '👋' : '📝';
-
-        // 类型切换时加上类型标题
-        let postText = '';
-        if (post.type !== lastType) {
-          postText += `## ${typeEmoji} ${post.type}\n\n`;
-          lastType = post.type;
-        }
-        postText += `${post.content}\n`;
-        // 同类型内用虚线分割
-        const nextPost = (i + 1 < posts.length) ? posts[i + 1] : null;
-        if (nextPost && nextPost.type === post.type) {
-          postText += `\n---\n\n`;
-        } else if (nextPost) {
-          postText += `\n\n`;
-        }
-
-        const postBytes = encoder.encode(postText).length;
-
-        if (currentBytes + postBytes > MAX_BYTES) {
-          const resp = await fetch(targetUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ msgtype: 'markdown', markdown: { content: currentText } })
-          });
-          if (!resp.ok) throw new Error(`Webhook 分条 ${part} 发送失败 HTTP ${resp.status}`);
-          part++;
-          currentText = `## 📱 今日朋友圈文案精选 (续${part})\n\n`;
-          currentBytes = encoder.encode(currentText).length;
-          // 续条需要重新加类型标题
-          postText = `## ${typeEmoji} ${post.type}\n\n${post.content}\n`;
-        }
-        currentText += postText;
-        currentBytes += postBytes;
-      }
-
-      if (currentText.trim().length > 0) {
-        currentText += tagLine;
-        const resp = await fetch(targetUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ msgtype: 'markdown', markdown: { content: currentText } })
-        });
-        if (!resp.ok) throw new Error(`Webhook 末条发送失败 HTTP ${resp.status}`);
-      }
-      console.log(`${logPrefix} 朋友圈文案已分 ${part} 条发送完成`);
-    }
-
-    return { success: true, posts, message: `已成功生成并发送 ${posts.length} 条文案` };
-  } catch (err) {
-    console.error(`${logPrefix} 朋友圈推送失败:`, err.message);
-    try {
-      await fetch(targetUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          msgtype: 'text',
-          text: { content: `⚠️ 朋友圈推送失败\n日期: ${dateStr}\n错误: ${err.message}\n请检查 AI 配置和 Webhook 连接。` }
-        })
-      });
-    } catch (e) {
-      console.error(`${logPrefix} 连错误通知都发不出:`, e.message);
-    }
-    return { success: false, message: err.message };
-  }
-}

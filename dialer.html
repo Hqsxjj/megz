@@ -1151,9 +1151,242 @@
       .db-pager { padding: 4px 10px; }
       .db-cat-bar { padding: 3px 10px; }
     }
+    /* ===== Auth Overlays ===== */
+    .auth-overlay {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: var(--bg-app);
+      z-index: 10000;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .auth-overlay.active { display: flex; }
+    .auth-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 32px 24px;
+      max-width: 380px;
+      width: 100%;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+    }
+    .auth-card h2 {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: var(--text-main);
+      margin: 0 0 4px 0;
+      text-align: center;
+    }
+    .auth-card .auth-subtitle {
+      font-size: 0.82rem;
+      color: var(--text-light);
+      text-align: center;
+      margin: 0 0 20px 0;
+    }
+    .auth-field {
+      margin-bottom: 14px;
+    }
+    .auth-field label {
+      display: block;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-soft);
+      margin-bottom: 4px;
+    }
+    .auth-field input,
+    .auth-field select {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius-xs);
+      background: var(--card-bg);
+      color: var(--text-main);
+      font-size: 0.95rem;
+      outline: none;
+      box-sizing: border-box;
+    }
+    .auth-field input:focus,
+    .auth-field select:focus {
+      border-color: var(--accent-wechat);
+      box-shadow: 0 0 0 2px rgba(7,193,96,0.1);
+    }
+    .auth-btn {
+      width: 100%;
+      padding: 11px;
+      border: none;
+      border-radius: var(--radius-xs);
+      background: var(--accent-wechat);
+      color: #fff;
+      font-size: 0.95rem;
+      font-weight: 700;
+      cursor: pointer;
+      margin-top: 4px;
+    }
+    .auth-btn:active { opacity: 0.85; }
+    .auth-btn.secondary {
+      background: transparent;
+      color: var(--accent-wechat);
+      border: 1px solid var(--accent-wechat);
+      margin-top: 8px;
+    }
+    .auth-error {
+      color: #e74c3c;
+      font-size: 0.8rem;
+      text-align: center;
+      margin-top: 8px;
+      min-height: 18px;
+    }
+    .auth-link {
+      background: none;
+      border: none;
+      color: var(--text-light);
+      font-size: 0.82rem;
+      cursor: pointer;
+      display: block;
+      margin: 12px auto 0;
+      text-decoration: underline;
+      text-align: center;
+      width: 100%;
+    }
+    /* Account selector dropdown */
+    .auth-field select {
+      appearance: none;
+      -webkit-appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23888' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      padding-right: 32px;
+    }
+    /* Account badge in header */
+    .account-badge {
+      font-size: 0.78rem;
+      padding: 4px 10px;
+      border: 1px solid var(--card-border);
+      background: var(--btn-bg);
+      color: var(--text-soft);
+      cursor: pointer;
+      border-radius: var(--radius-xs);
+      white-space: nowrap;
+      max-width: 120px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    /* Account management modal */
+    .acct-mgmt-card {
+      max-width: 440px;
+      width: 95vw;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+    .acct-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border-light);
+      gap: 8px;
+    }
+    .acct-row:last-child { border-bottom: none; }
+    .acct-row .acct-info {
+      flex: 1;
+      min-width: 0;
+    }
+    .acct-row .acct-name {
+      font-weight: 600;
+      color: var(--text-main);
+      font-size: 0.9rem;
+    }
+    .acct-row .acct-id {
+      font-size: 0.72rem;
+      color: var(--text-light);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .acct-row .acct-badge {
+      font-size: 0.7rem;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: 600;
+    }
+    .acct-badge.master { background: rgba(74,108,247,0.1); color: #4a6cf7; }
+    .acct-badge.sub { background: var(--btn-bg); color: var(--text-soft); }
+    .acct-badge.disabled { background: rgba(231,76,60,0.08); color: #e74c3c; }
+    .acct-actions {
+      display: flex;
+      gap: 6px;
+    }
+    .acct-actions button {
+      font-size: 0.72rem;
+      padding: 4px 8px;
+      border: 1px solid var(--card-border);
+      border-radius: 4px;
+      background: var(--btn-bg);
+      color: var(--text-soft);
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .acct-actions button.danger { color: #e74c3c; border-color: rgba(231,76,60,0.2); }
+
+    /* Dark mode */
+    body.dark .auth-card { background: #1e1e1e; border-color: #333; }
+    body.dark .auth-field input,
+    body.dark .auth-field select {
+      background: #2a2a2a;
+      border-color: #444;
+      color: #e0e0e0;
+    }
+    body.dark .auth-card h2 { color: #e0e0e0; }
+    body.dark .acct-row { border-color: #333; }
+    body.dark .acct-row .acct-name { color: #e0e0e0; }
   </style>
 </head>
 <body>
+  <!-- Auth Overlays -->
+  <div class="auth-overlay" id="setupOverlay">
+    <div class="auth-card">
+      <h2>首次设置</h2>
+      <p class="auth-subtitle">创建主账户以保护你的数据</p>
+      <div class="auth-field">
+        <label>账户名</label>
+        <input type="text" id="setupAccountName" placeholder="输入账户名称" maxlength="30" autocomplete="off">
+      </div>
+      <div class="auth-field">
+        <label>PIN 码 (4-6位数字)</label>
+        <input type="password" id="setupPin" placeholder="输入 PIN 码" maxlength="6" inputmode="numeric" pattern="[0-9]*" autocomplete="new-password">
+      </div>
+      <div class="auth-field">
+        <label>确认 PIN 码</label>
+        <input type="password" id="setupPinConfirm" placeholder="再次输入 PIN 码" maxlength="6" inputmode="numeric" pattern="[0-9]*" autocomplete="new-password">
+      </div>
+      <button class="auth-btn" id="setupBtn">创建账户</button>
+      <div class="auth-error" id="setupError"></div>
+    </div>
+  </div>
+
+  <div class="auth-overlay" id="loginOverlay">
+    <div class="auth-card">
+      <h2>智能快捷拨号</h2>
+      <p class="auth-subtitle">选择账户并输入 PIN 码登录</p>
+      <div class="auth-field">
+        <label>选择账户</label>
+        <select id="loginAccountSelect">
+          <option value="">-- 加载中 --</option>
+        </select>
+      </div>
+      <div class="auth-field">
+        <label>PIN 码</label>
+        <input type="password" id="loginPin" placeholder="输入 PIN 码" maxlength="6" inputmode="numeric" pattern="[0-9]*" autocomplete="current-password">
+      </div>
+      <button class="auth-btn" id="loginBtn">登录</button>
+      <div class="auth-error" id="loginError"></div>
+      <button class="auth-link" id="resetAccountsLink">重置所有账户</button>
+    </div>
+  </div>
+
   <div class="copy-limit-toast" id="copyLimitToast"></div>
   <div class="app-shell">
     <div class="container">
@@ -1759,6 +1992,12 @@
     var CLIENTS_K = 'standalone_dialer_clients';
     var DARK_K = 'standalone_dialer_dark';
 
+    // Session keys (sessionStorage - cleared on tab close)
+    var SESSION_TOKEN_K = 'dialer_session_token';
+    var SESSION_AID_K = 'dialer_session_aid';
+    var SESSION_NAME_K = 'dialer_session_name';
+    var SESSION_MASTER_K = 'dialer_session_master';
+
     // State Variables
     var importedClients = [];
     var currentCallIdx = -1;
@@ -1826,6 +2065,439 @@
       var history = getAddHistory();
       history[mobile] = new Date().toISOString();
       saveAddHistory(history);
+    }
+
+    // ==================== Auth: Session & API Helpers ====================
+
+    function hashPin(str) {
+      var hash = 5381;
+      for (var i = 0; i < str.length; i++) {
+        hash = ((hash << 5) + hash) + str.charCodeAt(i);
+      }
+      return (hash >>> 0).toString(16);
+    }
+
+    function getSessionToken() {
+      return sessionStorage.getItem(SESSION_TOKEN_K) || '';
+    }
+
+    function getSessionAccountId() {
+      return sessionStorage.getItem(SESSION_AID_K) || '';
+    }
+
+    function isSessionMaster() {
+      return sessionStorage.getItem(SESSION_MASTER_K) === '1';
+    }
+
+    function getSessionName() {
+      return sessionStorage.getItem(SESSION_NAME_K) || '';
+    }
+
+    function saveSession(data) {
+      sessionStorage.setItem(SESSION_TOKEN_K, data.session_token || '');
+      sessionStorage.setItem(SESSION_AID_K, data.account_id || '');
+      sessionStorage.setItem(SESSION_NAME_K, data.label || data.account_name || '');
+      sessionStorage.setItem(SESSION_MASTER_K, data.is_master ? '1' : '0');
+    }
+
+    function clearSession() {
+      sessionStorage.removeItem(SESSION_TOKEN_K);
+      sessionStorage.removeItem(SESSION_AID_K);
+      sessionStorage.removeItem(SESSION_NAME_K);
+      sessionStorage.removeItem(SESSION_MASTER_K);
+    }
+
+    function dialerFetch(url, opts) {
+      opts = opts || {};
+      opts.headers = opts.headers || {};
+      var token = getSessionToken();
+      if (token) {
+        opts.headers['Authorization'] = 'Bearer ' + token;
+      }
+      return fetch(url, opts);
+    }
+    // Exposed to window at bottom of IIFE after all definitions
+
+    // ==================== Auth: Login / Setup Flow ====================
+
+    function showSetupOverlay() {
+      document.getElementById('setupOverlay').classList.add('active');
+      document.getElementById('loginOverlay').classList.remove('active');
+      document.getElementById('setupError').textContent = '';
+      document.getElementById('setupAccountName').value = '';
+      document.getElementById('setupPin').value = '';
+      document.getElementById('setupPinConfirm').value = '';
+      document.getElementById('setupAccountName').focus();
+    }
+
+    function showLoginOverlay() {
+      document.getElementById('loginOverlay').classList.add('active');
+      document.getElementById('setupOverlay').classList.remove('active');
+      document.getElementById('loginError').textContent = '';
+      document.getElementById('loginPin').value = '';
+      // Load account list
+      fetch('/api/dialer/auth/accounts', {method:'GET'})
+        .then(function(r){ return r.json(); })
+        .then(function(data){
+          var sel = document.getElementById('loginAccountSelect');
+          sel.innerHTML = '';
+          if (data.accounts && data.accounts.length > 0) {
+            for (var i = 0; i < data.accounts.length; i++) {
+              var a = data.accounts[i];
+              var opt = document.createElement('option');
+              opt.value = a.account_id;
+              var label = a.label || a.account_name || a.account_id;
+              opt.textContent = label + (a.is_master ? ' [主]' : '') + (a.active ? '' : ' [已禁用]');
+              if (!a.active) opt.disabled = true;
+              sel.appendChild(opt);
+            }
+          }
+        }).catch(function(){
+          document.getElementById('loginError').textContent = '无法加载账户列表';
+        });
+      document.getElementById('loginPin').focus();
+    }
+
+    function startDialerApp() {
+      document.getElementById('setupOverlay').classList.remove('active');
+      document.getElementById('loginOverlay').classList.remove('active');
+      document.querySelector('.app-shell').style.display = '';
+      // Add account badge to header if not already added
+      if (!document.getElementById('accountBadge')) {
+        var headerBar = document.querySelector('.header-bar');
+        if (headerBar) {
+          var badge = document.createElement('button');
+          badge.id = 'accountBadge';
+          badge.className = 'account-badge';
+          badge.title = '账户管理';
+          badge.textContent = getSessionName() || '账户';
+          badge.onclick = function() {
+            if (isSessionMaster()) {
+              showAccountMgmt();
+            } else {
+              handleLogout();
+            }
+          };
+          var autoDialBtn = document.getElementById('autoDialBtn');
+          if (autoDialBtn) {
+            autoDialBtn.parentNode.insertBefore(badge, autoDialBtn);
+          }
+        }
+      }
+      // Update account badge in header
+      updateAccountBadge();
+    }
+
+    function updateAccountBadge() {
+      var badge = document.getElementById('accountBadge');
+      if (!badge) return;
+      var name = getSessionName() || getSessionAccountId();
+      badge.textContent = name.length > 12 ? name.slice(0, 11) + '...' : name;
+      badge.title = '账户: ' + name + (isSessionMaster() ? ' (主账户)' : '');
+    }
+
+    function handleSetup() {
+      var name = document.getElementById('setupAccountName').value.trim();
+      var pin = document.getElementById('setupPin').value.trim();
+      var pin2 = document.getElementById('setupPinConfirm').value.trim();
+      var err = document.getElementById('setupError');
+
+      if (!name) { err.textContent = '请输入账户名'; return; }
+      if (pin.length < 4) { err.textContent = 'PIN 至少需要 4 位数字'; return; }
+      if (pin !== pin2) { err.textContent = '两次 PIN 码不一致'; return; }
+      if (!/^\d+$/.test(pin)) { err.textContent = 'PIN 只能包含数字'; return; }
+
+      var btn = document.getElementById('setupBtn');
+      btn.disabled = true;
+      btn.textContent = '创建中...';
+      err.textContent = '';
+
+      fetch('/api/dialer/auth/setup', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({account_name: name, pin: pin, label: name})
+      }).then(function(r){ return r.json(); })
+        .then(function(data){
+          btn.disabled = false;
+          btn.textContent = '创建账户';
+          if (data.success) {
+            saveSession({session_token: data.session_token, account_id: data.account_id, is_master: data.is_master, label: data.label});
+            startDialerApp();
+          } else {
+            err.textContent = data.error || '创建失败';
+          }
+        }).catch(function(){
+          btn.disabled = false;
+          btn.textContent = '创建账户';
+          err.textContent = '网络连接失败';
+        });
+    }
+
+    function handleLogin() {
+      var accountId = document.getElementById('loginAccountSelect').value;
+      var pin = document.getElementById('loginPin').value.trim();
+      var err = document.getElementById('loginError');
+
+      if (!accountId) { err.textContent = '请选择账户'; return; }
+      if (pin.length < 4) { err.textContent = '请输入 PIN 码'; return; }
+
+      var btn = document.getElementById('loginBtn');
+      btn.disabled = true;
+      btn.textContent = '登录中...';
+      err.textContent = '';
+
+      fetch('/api/dialer/auth/login', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({account_name: accountId, pin: pin})
+      }).then(function(r){ return r.json(); })
+        .then(function(data){
+          btn.disabled = false;
+          btn.textContent = '登录';
+          if (data.success) {
+            saveSession({session_token: data.session_token, account_id: data.account_id, is_master: data.is_master, label: data.label});
+            startDialerApp();
+          } else {
+            err.textContent = data.error || '登录失败';
+          }
+        }).catch(function(){
+          btn.disabled = false;
+          btn.textContent = '登录';
+          err.textContent = '网络连接失败';
+        });
+    }
+
+    function handleLogout() {
+      if (confirm('确定要退出登录吗？')) {
+        clearSession();
+        location.reload();
+      }
+    }
+
+    function handleResetAccounts() {
+      if (!confirm('确定要重置所有账户吗？此操作将清除所有账户数据，不可恢复！')) return;
+      var pin = prompt('请输入任意一个已存在主账户的 PIN 码确认:');
+      if (!pin || pin.length < 4) { alert('PIN 码至少 4 位'); return; }
+      // Try to login as any account to get a session, then reset
+      fetch('/api/dialer/auth/reset', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({pin: pin})})
+        .then(function(r){ return r.json(); })
+        .then(function(data){
+          if (data.success) {
+            clearSession();
+            alert('所有账户已清除。');
+            location.reload();
+          } else {
+            alert('重置失败: ' + (data.error || '未知错误'));
+          }
+        }).catch(function(){
+          alert('网络连接失败');
+        });
+    }
+
+    // ==================== Auth: Account Management Modal ====================
+
+    function showAccountMgmt() {
+      if (!isSessionMaster()) {
+        alert('仅主账户可管理子账户');
+        return;
+      }
+      // Remove existing mgmt overlay if any
+      var existing = document.getElementById('acctMgmtOverlay');
+      if (existing) existing.remove();
+
+      var overlay = document.createElement('div');
+      overlay.id = 'acctMgmtOverlay';
+      overlay.style.cssText = 'display:flex;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.45);z-index:10001;flex-direction:column;align-items:center;justify-content:center;padding:20px;';
+      overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+      var card = document.createElement('div');
+      card.className = 'auth-card acct-mgmt-card';
+      card.onclick = function(e) { e.stopPropagation(); };
+      card.innerHTML = '<h2 style="margin-bottom:8px;">账户管理</h2>' +
+        '<p style="font-size:0.78rem;color:var(--text-light);text-align:center;margin-bottom:12px;">当前: ' + (getSessionName() || getSessionAccountId()) + '</p>' +
+        '<div id="acctList" style="max-height:300px;overflow-y:auto;margin-bottom:12px;">加载中...</div>' +
+        '<div style="display:flex;gap:8px;margin-bottom:12px;">' +
+          '<input type="text" id="newAcctName" placeholder="子账户名" maxlength="20" style="flex:1;padding:8px 10px;border:1px solid var(--card-border);border-radius:var(--radius-xs);background:var(--card-bg);color:var(--text-main);font-size:0.85rem;outline:none;">' +
+          '<input type="password" id="newAcctPin" placeholder="PIN码(4-6位)" maxlength="6" inputmode="numeric" pattern="[0-9]*" style="width:110px;padding:8px 10px;border:1px solid var(--card-border);border-radius:var(--radius-xs);background:var(--card-bg);color:var(--text-main);font-size:0.85rem;outline:none;">' +
+        '</div>' +
+        '<button class="auth-btn" id="createSubBtn" style="margin-bottom:4px;">创建子账户</button>' +
+        '<div class="auth-error" id="acctMgmtError"></div>' +
+        '<button class="auth-btn secondary" id="changePinBtn" style="margin-top:12px;">修改当前账户 PIN 码</button>' +
+        '<button class="auth-link" id="logoutLink" style="margin-top:8px;color:#e74c3c;">退出登录</button>';
+
+      overlay.appendChild(card);
+      document.body.appendChild(overlay);
+
+      // Load account list
+      refreshAccountList();
+      document.getElementById('newAcctName').focus();
+
+      // Event handlers
+      document.getElementById('createSubBtn').onclick = function() {
+        var name = document.getElementById('newAcctName').value.trim();
+        var pin = document.getElementById('newAcctPin').value.trim();
+        var err = document.getElementById('acctMgmtError');
+        if (!name) { err.textContent = '请输入子账户名'; return; }
+        if (pin.length < 4) { err.textContent = 'PIN 至少需要 4 位'; return; }
+        if (!/^\d+$/.test(pin)) { err.textContent = 'PIN 只能包含数字'; return; }
+
+        var btn = document.getElementById('createSubBtn');
+        btn.disabled = true;
+        btn.textContent = '创建中...';
+        err.textContent = '';
+
+        dialerFetch('/api/dialer/auth/accounts', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({account_name: name, pin: pin, label: name})
+        }).then(function(r){ return r.json(); })
+          .then(function(data){
+            btn.disabled = false;
+            btn.textContent = '创建子账户';
+            if (data.success) {
+              document.getElementById('newAcctName').value = '';
+              document.getElementById('newAcctPin').value = '';
+              refreshAccountList();
+            } else {
+              err.textContent = data.error || '创建失败';
+            }
+          }).catch(function(){
+            btn.disabled = false;
+            btn.textContent = '创建子账户';
+            err.textContent = '网络连接失败';
+          });
+      };
+
+      document.getElementById('changePinBtn').onclick = function() {
+        var oldPin = prompt('当前 PIN 码:');
+        if (!oldPin || oldPin.length < 4) return;
+        var newPin = prompt('新 PIN 码 (4-6位数字):');
+        if (!newPin || newPin.length < 4) return;
+        if (!/^\d+$/.test(newPin)) { alert('PIN 只能包含数字'); return; }
+        var newPin2 = prompt('确认新 PIN 码:');
+        if (newPin !== newPin2) { alert('两次 PIN 不一致'); return; }
+
+        dialerFetch('/api/dialer/auth/change-pin', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({old_pin: oldPin, new_pin: newPin})
+        }).then(function(r){ return r.json(); })
+          .then(function(data){
+            if (data.success) {
+              alert('PIN 码修改成功');
+            } else {
+              alert('修改失败: ' + (data.error || '未知错误'));
+            }
+          }).catch(function(){ alert('网络连接失败'); });
+      };
+
+      document.getElementById('logoutLink').onclick = handleLogout;
+    }
+
+    function refreshAccountList() {
+      dialerFetch('/api/dialer/auth/accounts', {method:'GET'})
+        .then(function(r){ return r.json(); })
+        .then(function(data){
+          var list = document.getElementById('acctList');
+          if (!list) return;
+          if (!data.accounts || data.accounts.length === 0) {
+            list.innerHTML = '<p style="color:var(--text-light);text-align:center;">暂无账户</p>';
+            return;
+          }
+          var html = '';
+          for (var i = 0; i < data.accounts.length; i++) {
+            var a = data.accounts[i];
+            var badgeClass = a.is_master ? 'master' : (a.active ? 'sub' : 'disabled');
+            var badgeText = a.is_master ? '主账户' : (a.active ? '子账户' : '已禁用');
+            html += '<div class="acct-row">' +
+              '<div class="acct-info">' +
+                '<div class="acct-name">' + (a.label || a.account_name || a.account_id) + ' <span class="acct-badge ' + badgeClass + '">' + badgeText + '</span></div>' +
+                '<div class="acct-id">' + a.account_id + '</div>' +
+              '</div>';
+            if (!a.is_master) {
+              html += '<div class="acct-actions">' +
+                '<button onclick="(function(){var o=document.getElementById(\'acctMgmtOverlay\');if(!o)return;var mid=\'' + a.account_id + '\';' +
+                  'window._dialerFetch(\'/api/dialer/auth/accounts\',{method:\'PATCH\',headers:{\'Content-Type\':\'application/json\'},body:JSON.stringify({target_account_id:mid,active:' + (!a.active) + '})}).then(function(r){return r.json();}).then(function(d){if(d.success){o.remove();window._showAccountMgmt();}});})()">' +
+                  (a.active ? '禁用' : '启用') +
+                '</button>' +
+                '<button class="danger" onclick="(function(){if(!confirm(\'确定删除子账户 ' + (a.label || a.account_name || a.account_id) + ' 吗？\'))return;var o=document.getElementById(\'acctMgmtOverlay\');if(!o)return;' +
+                  'window._dialerFetch(\'/api/dialer/auth/accounts\',{method:\'DELETE\',headers:{\'Content-Type\':\'application/json\'},body:JSON.stringify({target_account_id:\'' + a.account_id + '\'})}).then(function(r){return r.json();}).then(function(d){if(d.success){o.remove();window._showAccountMgmt();}else{alert(\'删除失败: \'+(d.error||\'\'));}});})()">' +
+                  '删除' +
+                '</button>' +
+              '</div>';
+            }
+            html += '</div>';
+          }
+          list.innerHTML = html;
+        });
+    }
+
+    // ==================== Auth: Init ====================
+
+    function initAuth() {
+      // Bind UI events
+      document.getElementById('setupBtn').onclick = handleSetup;
+      document.getElementById('loginBtn').onclick = handleLogin;
+      document.getElementById('resetAccountsLink').onclick = handleResetAccounts;
+
+      // Allow Enter key to submit
+      document.getElementById('setupPinConfirm').onkeydown = function(e) { if (e.key === 'Enter') handleSetup(); };
+      document.getElementById('loginPin').onkeydown = function(e) { if (e.key === 'Enter') handleLogin(); };
+
+      // Check if we have an active session
+      var token = getSessionToken();
+      var aid = getSessionAccountId();
+
+      if (token && aid) {
+        // Verify session is still valid
+        fetch('/api/dialer/auth/login', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({account_name: aid, pin: ''})
+        }).then(function(){ return {success: false}; }).catch(function(){ return {success: false}; });
+        // Since we can't re-login without pin, just use session token
+        // The server will validate on each data API call
+        startDialerApp();
+        // Also load accounts to verify
+        fetch('/api/dialer/auth/accounts', {method:'GET'})
+          .then(function(r){ return r.json(); })
+          .then(function(data){
+            if (data.accounts && data.accounts.length > 0) {
+              for (var i = 0; i < data.accounts.length; i++) {
+                if (data.accounts[i].account_id === aid) {
+                  if (data.accounts[i].active === false) {
+                    clearSession();
+                    showLoginOverlay();
+                  }
+                  return;
+                }
+              }
+              // Account still exists, all good
+            } else {
+              // No accounts - this shouldn't happen if we have a session
+            }
+          }).catch(function(){});
+        return;
+      }
+
+      // No session - check if any accounts exist
+      fetch('/api/dialer/auth/status', {method:'POST'})
+        .then(function(r){ return r.json(); })
+        .then(function(data){
+          if (data.has_accounts) {
+            showLoginOverlay();
+          } else {
+            showSetupOverlay();
+          }
+        }).catch(function(){
+          // Offline? Try with cached session data
+          if (token) {
+            startDialerApp();
+          } else {
+            showLoginOverlay();
+          }
+        });
+
     }
 
     function getCooldownRemaining(mobile) {
@@ -2111,7 +2783,7 @@
       var label = batchLabel || ("导入-" + new Date().toISOString().slice(0, 19).replace("T", " "));
       setSyncStatus("online-unsynced", "正在上传到云端数据库...");
       var payload = serializeCustomersForSupabase(customers);
-      fetch("/api/dialer/upload-customers", {
+      dialerFetch("/api/dialer/upload-customers", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ customers: payload, batch_label: label })
@@ -2154,7 +2826,7 @@
 
           setSyncStatus("online-unsynced", "正在上传到云端数据库...");
           var payload = serializeCustomersForSupabase(importedClients);
-          fetch("/api/dialer/upload-customers", {
+          dialerFetch("/api/dialer/upload-customers", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ customers: payload, batch_label: chosenBatch })
@@ -6963,7 +7635,7 @@
             notePayload = JSON.stringify(pl);
           }
           
-          fetch('/api/dialer/customers', {
+          dialerFetch('/api/dialer/customers', {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -7436,7 +8108,7 @@
           addCustBtn.disabled = true;
           addCustBtn.textContent = '添加中...';
           
-          fetch('/api/dialer/upload-customers', {
+          dialerFetch('/api/dialer/upload-customers', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -7453,7 +8125,7 @@
           .then(function(res) {
             if (res.success) {
               if (cat) {
-                return fetch('/api/dialer/customers', {
+                return dialerFetch('/api/dialer/customers', {
                   method: 'PATCH',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({
@@ -7653,7 +8325,7 @@
           moveIntentBtn.textContent = '处理中...';
           
           var promises = mobiles.map(function(m) {
-            return fetch('/api/dialer/customers', {
+            return dialerFetch('/api/dialer/customers', {
               method: 'PATCH',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
@@ -7695,7 +8367,7 @@
           moveLeadsBtn.textContent = '处理中...';
           
           var promises = mobiles.map(function(m) {
-            return fetch('/api/dialer/customers', {
+            return dialerFetch('/api/dialer/customers', {
               method: 'PATCH',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
@@ -7744,7 +8416,7 @@
         batchDeleteBtn.disabled = true;
         batchDeleteBtn.textContent = '删除中...';
 
-        fetch('/api/dialer/customers', {
+        dialerFetch('/api/dialer/customers', {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ mobiles: mobiles })
@@ -7785,7 +8457,7 @@
           movePublicBtn.textContent = '处理中...';
           
           var promises = mobiles.map(function(m) {
-            return fetch('/api/dialer/customers', {
+            return dialerFetch('/api/dialer/customers', {
               method: 'PATCH',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
@@ -7831,7 +8503,7 @@
             var clientData = DB.allData.find(function(c) { return c.mobile === m; });
             var oldNote = clientData ? (clientData.note || '') : '';
             var newNote = oldNote + (oldNote ? ' ' : '') + '[协助人: ' + helper + ']';
-            return fetch('/api/dialer/customers', {
+            return dialerFetch('/api/dialer/customers', {
               method: 'PATCH',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
@@ -7871,7 +8543,7 @@
             var clientData = DB.allData.find(function(c) { return c.mobile === m; });
             var note = clientData ? (clientData.note || '') : '';
             var newNote = note.replace(/\[协助人:\s*[^\]]+\]/g, '').trim();
-            return fetch('/api/dialer/customers', {
+            return dialerFetch('/api/dialer/customers', {
               method: 'PATCH',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
@@ -7938,7 +8610,7 @@
  var cat = bcpTarget ? bcpTarget.value : '';
  if (!batch || !cat) { alert('请选择批次和目标分类'); return; }
  if (bcpStatus) { bcpStatus.style.display = 'inline'; bcpStatus.textContent = '更新中...'; bcpStatus.style.color = '#f57c00'; }
- fetch('/api/dialer/customers/batch-category', {
+ dialerFetch('/api/dialer/customers/batch-category', {
  method: 'POST',
  headers: { 'Content-Type': 'application/json' },
  body: JSON.stringify({ batch_label: batch, category: cat })
@@ -8428,10 +9100,15 @@
       renderFailedUploadsArea();
     }
 
+    // Expose for inline onclick handlers in account management modal
+    window._dialerFetch = dialerFetch;
+    window._showAccountMgmt = showAccountMgmt;
+
     // Main Init (每个 init 独立 try-catch，防止某个报错导致后续按钮初始化被跳过)
     function safeInit(name, fn) {
       try { fn(); } catch (e) { console.error('Init error: ' + name, e); }
     }
+    safeInit('initAuth', initAuth);
     safeInit('initDark', initDark);
     safeInit('initFileInputs', initFileInputs);
     safeInit('initCallControls', initCallControls);
