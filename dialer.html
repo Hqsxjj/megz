@@ -1369,21 +1369,17 @@
 
   <div class="auth-overlay" id="loginOverlay">
     <div class="auth-card">
-      <h2>智能快捷拨号</h2>
-      <p class="auth-subtitle">选择账户并输入 PIN 码登录</p>
       <div class="auth-field">
-        <label>选择账户</label>
         <select id="loginAccountSelect">
-          <option value="">-- 加载中 --</option>
+          <option value=""></option>
         </select>
       </div>
       <div class="auth-field">
-        <label>PIN 码</label>
-        <input type="password" id="loginPin" placeholder="输入 PIN 码" maxlength="6" inputmode="numeric" pattern="[0-9]*" autocomplete="current-password">
+        <input type="password" id="loginPin" placeholder="" maxlength="6" inputmode="numeric" pattern="[0-9]*" autocomplete="current-password">
       </div>
       <button class="auth-btn" id="loginBtn">登录</button>
       <div class="auth-error" id="loginError"></div>
-      <button class="auth-link" id="resetAccountsLink">重置所有账户</button>
+      <button class="auth-link" id="resetAccountsLink"></button>
     </div>
   </div>
 
@@ -2153,7 +2149,7 @@
             }
           }
         }).catch(function(){
-          document.getElementById('loginError').textContent = '无法加载账户列表';
+          document.getElementById('loginError').textContent = '';
         });
       document.getElementById('loginPin').focus();
     }
@@ -2238,12 +2234,11 @@
       var pin = document.getElementById('loginPin').value.trim();
       var err = document.getElementById('loginError');
 
-      if (!accountId) { err.textContent = '请选择账户'; return; }
-      if (pin.length < 4) { err.textContent = '请输入 PIN 码'; return; }
+      if (!accountId || pin.length < 4) return;
 
       var btn = document.getElementById('loginBtn');
       btn.disabled = true;
-      btn.textContent = '登录中...';
+      btn.textContent = '登录';
       err.textContent = '';
 
       fetch('/api/dialer/auth/login', {
@@ -2258,12 +2253,12 @@
             saveSession({session_token: data.session_token, account_id: data.account_id, is_master: data.is_master, label: data.label});
             startDialerApp();
           } else {
-            err.textContent = data.error || '登录失败';
+            err.textContent = '';
           }
         }).catch(function(){
           btn.disabled = false;
           btn.textContent = '登录';
-          err.textContent = '网络连接失败';
+          err.textContent = '';
         });
     }
 
