@@ -425,11 +425,6 @@ async function callAIChatWithTools(env, messages, temperature = 0.5, fromUser = 
         }
       }
     },
-    {
-      type: "function",
-        }
-      }
-    }
   ];
 
   let chatMessages = [...messages];
@@ -2524,7 +2519,6 @@ export default {
         case 'setWecomApiProxy':
           await env.DATA_KV.put('config:wecom_api_proxy', body.wecomApiProxy || '');
           break;
-        case 'setSearchConfig':
         case 'setMomentsConfig':
           if (body.momentsWebhookUrl !== undefined) await env.DATA_KV.put('config:moments_webhook_url', body.momentsWebhookUrl || '');
           if (body.momentsEnabled !== undefined) await env.DATA_KV.put('config:moments_enabled', body.momentsEnabled ? 'true' : 'false');
@@ -6635,21 +6629,7 @@ const rid=Math.floor(Math.random()*1000);
       document.getElementById('exportStatus').innerText='';
       document.getElementById('webhookUrlInput').value=localStorage.getItem('webhook_url')||'';
       
-      // Load WeCom Bot Config
-      document.getElementById('wecomCorpIdInput').value=localStorage.getItem('wecom_corp_id')||'';
-      document.getElementById('wecomTokenInput').value=localStorage.getItem('wecom_token')||'';
-      document.getElementById('wecomAesKeyInput').value=localStorage.getItem('wecom_aes_key')||'';
-      document.getElementById('wecomAgentIdInput').value=localStorage.getItem('wecom_agent_id')||'';
-      document.getElementById('wecomSecretInput').value=localStorage.getItem('wecom_secret')||'';
-      document.getElementById('wecomTouserInput').value=localStorage.getItem('wecom_touser')||'';
-      document.getElementById('wecomApiProxyInput').value=localStorage.getItem('wecom_api_proxy')||'';
-      document.getElementById('wecomCallbackUrlDisplay').innerText = window.location.origin + '/api/wecom/callback';
 
-      // Load Siri Key
-      document.getElementById('siriKeyInput').value=localStorage.getItem('siri_key')||'siri_default_123';
-      document.getElementById('siriApiUrlDisplay').innerText = window.location.origin + '/api/siri?key=' + (localStorage.getItem('siri_key')||'siri_default_123');
-
-      // Load search config
       // Load moments config
       document.getElementById('momentsEnabledCheck').checked = localStorage.getItem('moments_enabled') !== 'false';
       document.getElementById('momentsWebhookUrlInput').value = localStorage.getItem('moments_webhook_url') || '';

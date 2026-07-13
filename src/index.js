@@ -2644,7 +2644,6 @@ export default {
         case 'setDeepseekApiKey':
           await env.DATA_KV.put('config:deepseek_api_key', body.deepseekApiKey || '');
           break;
-        case 'setSearchConfig':
         case 'setVisionConfig':
           if (body.visionApiKey !== undefined) await env.DATA_KV.put('config:vision_api_key', body.visionApiKey || '');
           if (body.visionApiBase !== undefined) await env.DATA_KV.put('config:vision_api_base', body.visionApiBase || '');
@@ -6925,9 +6924,6 @@ const rid=Math.floor(Math.random()*1000);
       document.getElementById('exportStatus').innerText='';
       document.getElementById('webhookUrlInput').value=localStorage.getItem('webhook_url')||'';
       
-      // Load WeCom Bot Config
-      // Load Siri Key
-      // Load search config
       // Load vision config
       document.getElementById('visionApiKeyInput').value = localStorage.getItem('vision_api_key') || '';
       document.getElementById('visionApiBaseInput').value = localStorage.getItem('vision_api_base') || '';
