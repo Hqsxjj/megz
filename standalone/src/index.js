@@ -4120,61 +4120,6 @@ export default {
         <div style="font-size:0.65rem;color:var(--text-light);">用于数据主动导出推送的群机器人 Webhook 地址</div>
       </div>
 
-            <details style="margin-top:10px; border:1px dashed var(--card-border); border-radius:var(--radius-xs); padding:8px; background:rgba(120,120,120,0.02);">
-        <summary style="font-size:0.75rem; color:var(--text-soft); cursor:pointer; font-weight:700; outline:none; user-select:none;">企业微信应用与机器人回调配置</summary>
-        <div style="display:flex; flex-direction:column; gap:8px; margin-top:8px;">
-          <input type="text" class="input-simple" id="wecomCorpIdInput" placeholder="企业 Corp ID（如 ww1234567890abcdef）" style="font-size:0.7rem; height:28px; padding:0 8px;">
-          <input type="text" class="input-simple" id="wecomTokenInput" placeholder="应用 Token (用于回调)" style="font-size:0.7rem; height:28px; padding:0 8px;">
-          <input type="password" class="input-simple" id="wecomAesKeyInput" placeholder="应用 EncodingAESKey (用于回调)" style="font-size:0.7rem; height:28px; padding:0 8px;">
-          <input type="text" class="input-simple" id="wecomAgentIdInput" placeholder="应用 Agent ID (用于推送，如 1000002)" style="font-size:0.7rem; height:28px; padding:0 8px;">
-          <input type="password" class="input-simple" id="wecomSecretInput" placeholder="应用 Secret (用于推送)" style="font-size:0.7rem; height:28px; padding:0 8px;">
-          <input type="text" class="input-simple" id="wecomTouserInput" placeholder="接收成员 UserID (如 WangWu，留空则为全员 @all)" style="font-size:0.7rem; height:28px; padding:0 8px;">
-          <input type="text" class="input-simple" id="wecomApiProxyInput" placeholder="API 代理地址 (中转代理，留空使用官方默认)" style="font-size:0.7rem; height:28px; padding:0 8px;">
-          <div style="display:flex; gap:6px;">
-            <button id="saveWecomBotBtn" class="btn-add" style="font-size:0.7rem; height:28px; margin:0; background:var(--accent-wechat); color:white; border:none; flex:1;">保存配置</button>
-            <button id="testWecomBtn" class="btn-add" style="font-size:0.7rem; height:28px; margin:0; background:linear-gradient(135deg,#36d1dc,#5b86e5); color:white; border:none; flex:1;">测试连接</button>
-          </div>
-          <div id="wecomConfigStatus" style="font-size:0.62rem; padding:6px; border-radius:4px; background:var(--btn-bg); display:none; line-height:1.5;"></div>
-          
-          <div style="font-size:0.6rem; color:var(--text-light); line-height:1.4; margin-top:4px;">
-            <strong>⚠️ 回调与推送配置步骤：</strong><br>
-            ① 先在此页面填入 Corp ID、Token、AESKey（若使用主动推送，还需填写 Agent ID 和 Secret）并点击"保存配置"<br>
-            ② 点击"测试连接"确认配置已生效（若配置了 Secret，将执行 API 连通性测试）<br>
-            ③ 再到企业微信后台填入下面的 URL 并保存<br><br>
-            <strong>回调 URL:</strong> <span id="wecomCallbackUrlDisplay" style="user-select:all; background:var(--btn-bg); padding:1px 3px; border-radius:3px; word-break:break-all;"></span>
-          </div>
-        </div>
-      </details>
-
-      <details style="margin-top:10px; border:1px dashed var(--card-border); border-radius:var(--radius-xs); padding:8px; background:rgba(120,120,120,0.02);">
-        <summary style="font-size:0.75rem; color:var(--text-soft); cursor:pointer; font-weight:700; outline:none; user-select:none;">Siri 语音快捷指令配置</summary>
-        <div style="display:flex; flex-direction:column; gap:8px; margin-top:8px;">
-          <input type="text" class="input-simple" id="siriKeyInput" placeholder="Siri 认证密钥 (默认: siri_default_123)" style="font-size:0.7rem; height:28px; padding:0 8px;">
-          <button id="saveSiriKeyBtn" class="btn-add" style="font-size:0.7rem; height:28px; margin:0; background:linear-gradient(135deg,#ff9966,#ff5e62); color:white; border:none; width:100%;">保存密钥</button>
-          
-          <button id="downloadSiriShortcutBtn" class="btn-secondary" style="font-size:0.7rem; height:28px; margin:0; background:var(--btn-bg); color:var(--text-main); border:1px solid var(--card-border); border-radius:var(--radius-xs); cursor:pointer; width:100%; font-weight:700;">一键下载快捷指令文件 (.shortcut)</button>
-
-          <div id="siriConfigStatus" style="font-size:0.62rem; padding:6px; border-radius:4px; background:var(--btn-bg); display:none; line-height:1.5;"></div>
-
-          <div style="font-size:0.6rem; color:var(--text-light); line-height:1.4; margin-top:4px;">
-            <strong style="color:var(--accent-orange);">快捷指令导入提示：</strong><br>
-            由于苹果 iOS 15 及以上系统的安全机制，直接下载的 <code>.shortcut</code> 文件在手机上打开时可能会提示“未签名”而无法直接导入。如果您遇到此问题：<br>
-            - <strong>推荐做法：</strong>直接使用下方极其简单的 <strong>30秒极速手动配置步骤</strong> 即可配置完成。<br>
-            - <strong>极客做法：</strong>可在 Mac 上使用终端命令 <code>shortcuts sign</code> 签名后再导入，或在已越狱设备上使用插件导入。<br><br>
-            <strong>苹果 iOS 快捷指令配置步骤：</strong><br>
-            ① 点击“保存密钥”将配置写入云端。<br>
-            ② 打开 iPhone 的 **快捷指令** (Shortcuts) App。<br>
-            ③ 新建快捷指令：<br>
-            &nbsp;&nbsp;&nbsp;&nbsp;- 动作 1：<code>要求输入</code> -> 文本（如“你想对 AI 助手说什么？”）<br>
-            &nbsp;&nbsp;&nbsp;&nbsp;- 动作 2：<code>获取 URL 内容</code> -> 填入下方的 API 地址，并以 <code>GET</code> 方式请求，拼接参数如下：<br>
-            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<code>&lt;API地址&gt;&amp;query=&lt;输入的文本&gt;</code><br>
-            &nbsp;&nbsp;&nbsp;&nbsp;- 动作 3：<code>获取词典值</code> -> 键填入 <code>reply</code>，对象选择为“URL 的内容”<br>
-            &nbsp;&nbsp;&nbsp;&nbsp;- 动作 4：<code>朗读文本</code> -> 填入上面的“词典值”<br><br>
-            <strong>API 基础地址:</strong> <span id="siriApiUrlDisplay" style="user-select:all; background:var(--btn-bg); padding:1px 3px; border-radius:3px; word-break:break-all;"></span>
-          </div>
-        </div>
-      </details>
-
       <details style="margin-top:10px; border:1px dashed var(--card-border); border-radius:var(--radius-xs); padding:8px; background:rgba(120,120,120,0.02);">
         <summary style="font-size:0.75rem; color:var(--text-soft); cursor:pointer; font-weight:700; outline:none; user-select:none;">Google Gemini AI 配置</summary>
         <div style="display:flex; flex-direction:column; gap:6px; margin-top:8px;">
@@ -4188,10 +4133,6 @@ export default {
             <button id="testVisionBtn" class="btn-add" style="font-size:0.7rem; height:28px; flex:1; margin:0; background:linear-gradient(135deg,#36d1dc,#5b86e5); color:white; border:none; font-weight:700;">测试连接</button>
           </div>
           <div id="visionConfigStatus" style="font-size:0.62rem; padding:4px 6px; border-radius:4px; background:var(--btn-bg); display:none; line-height:1.5; margin-top:4px;"></div>
-        </div>
-      </details>
-
-      <details style="margin-top:10px; border:1px dashed var(--card-border); border-radius:var(--radius-xs); padding:8px; background:rgba(120,120,120,0.02);">
         </div>
       </details>
 
