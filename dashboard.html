@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
@@ -998,21 +998,6 @@
       </details>
 
       <details style="margin-top:10px; border:1px dashed var(--card-border); border-radius:var(--radius-xs); padding:8px; background:rgba(120,120,120,0.02);">
-        <summary style="font-size:0.75rem; color:var(--text-soft); cursor:pointer; font-weight:700; outline:none; user-select:none;">🔍 AI 联网搜索配置</summary>
-        <div style="display:flex; flex-direction:column; gap:6px; margin-top:8px;">
-          <div style="display:flex; align-items:center; gap:6px;">
-            <span style="font-size:0.65rem; color:var(--text-soft); width:50px; font-weight:700;">搜索引擎:</span>
-            <select id="searchProviderSelect" class="input-simple" style="flex:1; font-size:0.7rem; height:28px; padding:0 4px; font-weight:700; background:var(--btn-bg); border-color:var(--card-border); color:var(--text-main);">
-              <option value="duckduckgo">DuckDuckGo (免费)</option>
-              <option value="tavily">Tavily Search</option>
-              <option value="brave">Brave Search</option>
-            </select>
-          </div>
-          <input type="password" class="input-simple" id="searchApiKeyInput" placeholder="搜索 API Key (DuckDuckGo 无需填写)" style="font-size:0.7rem; height:28px; padding:0 8px;">
-          <button id="saveSearchConfigBtn" class="btn-add" style="font-size:0.7rem; height:28px; margin:0; background:linear-gradient(135deg,#667eea,#764ba2); color:white; border:none; width:100%; font-weight:700;">💾 保存搜索配置</button>
-          <div style="font-size:0.6rem; color:var(--text-light); line-height:1.4; margin-top:2px;">
-            配置后，AI 助手可联网搜索最新资讯、政策、行业动态等实时信息。默认使用 DuckDuckGo（免费无需 API Key），也可配置 Tavily 或 Brave Search 获得更好的搜索结果。
-          </div>
         </div>
       </details>
 
@@ -1963,9 +1948,6 @@
       if(data.aiApiKey!==undefined)localStorage.setItem('ai_api_key',data.aiApiKey);
       if(data.aiApiBase!==undefined)localStorage.setItem('ai_api_base',data.aiApiBase);
       if(data.aiModel!==undefined)localStorage.setItem('ai_model',data.aiModel);
-      if(data.searchProvider!==undefined)localStorage.setItem('search_provider',data.searchProvider);
-      if(data.searchApiKey!==undefined)localStorage.setItem('search_api_key',data.searchApiKey);
-      if(data.momentsWebhookUrl!==undefined)localStorage.setItem('moments_webhook_url',data.momentsWebhookUrl);
       if(data.momentsEnabled!==undefined)localStorage.setItem('moments_enabled',data.momentsEnabled);
       if(data.visionApiKey!==undefined)localStorage.setItem('vision_api_key',data.visionApiKey);
       if(data.visionApiBase!==undefined)localStorage.setItem('vision_api_base',data.visionApiBase);
@@ -2014,9 +1996,6 @@
     if(data.aiApiKey!==undefined)localStorage.setItem('ai_api_key',data.aiApiKey);
     if(data.aiApiBase!==undefined)localStorage.setItem('ai_api_base',data.aiApiBase);
     if(data.aiModel!==undefined)localStorage.setItem('ai_model',data.aiModel);
-    if(data.searchProvider!==undefined)localStorage.setItem('search_provider',data.searchProvider);
-    if(data.searchApiKey!==undefined)localStorage.setItem('search_api_key',data.searchApiKey);
-    if(data.momentsWebhookUrl!==undefined)localStorage.setItem('moments_webhook_url',data.momentsWebhookUrl);
     if(data.momentsEnabled!==undefined)localStorage.setItem('moments_enabled',data.momentsEnabled);
     if(data.visionApiKey!==undefined)localStorage.setItem('vision_api_key',data.visionApiKey);
     if(data.visionApiBase!==undefined)localStorage.setItem('vision_api_base',data.visionApiBase);
@@ -3005,9 +2984,6 @@ const rid=Math.floor(Math.random()*1000);
       document.getElementById('siriApiUrlDisplay').innerText = window.location.origin + '/api/siri?key=' + (localStorage.getItem('siri_key')||'siri_default_123');
 
       // Load search config
-      document.getElementById('searchProviderSelect').value = localStorage.getItem('search_provider') || 'duckduckgo';
-      document.getElementById('searchApiKeyInput').value = localStorage.getItem('search_api_key') || '';
-
       // Load moments config
       document.getElementById('momentsEnabledCheck').checked = localStorage.getItem('moments_enabled') !== 'false';
       document.getElementById('momentsWebhookUrlInput').value = localStorage.getItem('moments_webhook_url') || '';
@@ -3256,15 +3232,6 @@ const rid=Math.floor(Math.random()*1000);
     });
 
     // Save search config
-    document.getElementById('saveSearchConfigBtn').addEventListener('click', async () => {
-      const provider = document.getElementById('searchProviderSelect').value;
-      const apiKey = document.getElementById('searchApiKeyInput').value.trim();
-      localStorage.setItem('search_provider', provider);
-      localStorage.setItem('search_api_key', apiKey);
-      try {
-        await syncOp('setSearchConfig', { searchProvider: provider, searchApiKey: apiKey });
-        document.getElementById('exportStatus').innerText = '✅ 搜索配置已保存！AI 现在可以联网搜索了。';
-      } catch (e) {
         document.getElementById('exportStatus').innerText = '❌ 保存失败: ' + e.message;
       }
     });
@@ -3292,8 +3259,6 @@ const rid=Math.floor(Math.random()*1000);
       const statusEl = document.getElementById('exportStatus');
       btn.disabled = true;
       btn.textContent = '⏳ 正在生成文案...';
-      statusEl.innerText = '⏳ 正在联网搜索并生成 30 条文案，预计需要 30-60 秒...';
-      try {
         const resp = await fetch('/api/moments-push', { method: 'POST' });
         const result = await resp.json();
         if (result.success) {

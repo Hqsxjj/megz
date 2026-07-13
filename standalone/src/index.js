@@ -1,4 +1,4 @@
-// 每日工作 - Cloudflare Worker 版本
+﻿// 每日工作 - Cloudflare Worker 版本
 // 部署后绑定 DATA_KV 即可使用
 // 独立版：仅 KV 存储，不依赖 Supabase
 
@@ -214,114 +214,6 @@ async function sendWebhookMarkdown(env, target, baseHeader, items, itemFormatter
   }
 }
 
-async function doWebSearch(env, query) {
-  const provider = await env.DATA_KV.get('config:search_provider') || 'duckduckgo';
-  const apiKey = await env.DATA_KV.get('config:search_api_key') || '';
-
-  // Tavily Search API (requires API key)
-  if (provider === 'tavily' && apiKey) {
-    try {
-      const resp = await fetch('https://api.tavily.com/search', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ api_key: apiKey, query: query, search_depth: 'basic', max_results: 5, include_answer: false })
-      });
-      if (!resp.ok) throw new Error('Tavily HTTP ' + resp.status);
-      const data = await resp.json();
-      if (data.results && data.results.length > 0) {
-        return data.results.slice(0, 5).map(r => ({
-          title: r.title || '',
-          url: r.url || '',
-          snippet: r.content || ''
-        }));
-      }
-      return [];
-    } catch (e) {
-      console.error('[WebSearch Tavily Error]:', e.message);
-      return [];
-    }
-  }
-
-  // Brave Search API
-  if (provider === 'brave' && apiKey) {
-    try {
-      const resp = await fetch(`https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=5`, {
-        headers: { 'Accept': 'application/json', 'Accept-Encoding': 'gzip', 'X-Subscription-Token': apiKey }
-      });
-      if (!resp.ok) throw new Error('Brave HTTP ' + resp.status);
-      const data = await resp.json();
-      if (data.web && data.web.results) {
-        return data.web.results.slice(0, 5).map(r => ({
-          title: r.title || '',
-          url: r.url || '',
-          snippet: r.description || ''
-        }));
-      }
-      return [];
-    } catch (e) {
-      console.error('[WebSearch Brave Error]:', e.message);
-      return [];
-    }
-  }
-
-  // Default: DuckDuckGo Lite (free, no API key needed)
-  try {
-    const resp = await fetch(`https://lite.duckduckgo.com/lite/?q=${encodeURIComponent(query)}`, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; MegzBot/1.0)' }
-    });
-    if (!resp.ok) throw new Error('DuckDuckGo HTTP ' + resp.status);
-    const html = await resp.text();
-
-    // Parse DuckDuckGo Lite HTML results
-    const results = [];
-    // Pattern: each result is a <tr> with link, followed by <tr> with snippet
-    const linkRe = /<a\s+(?:[^>]*\s)?href="([^"]*)"[^>]*>([^<]*)<\/a>/gi;
-    const snippetRe = /<td\s+class="result-snippet"[^>]*>([^<]*(?:<(?!\/td>)[^<]*<\/[^>]*>)?[^<]*)<\/td>/gi;
-
-    // More robust: split by <tr> and parse
-    const rows = html.split(/<tr[^>]*>/i);
-    let currentLink = null, currentUrl = null;
-    for (const row of rows) {
-      const linkMatch = row.match(/<a\s+(?:[^>]*\s)?href="(https?:\/\/[^"]*)"[^>]*>([\s\S]*?)<\/a>/i);
-      if (linkMatch) {
-        currentUrl = linkMatch[1];
-        currentLink = linkMatch[2].replace(/<[^>]*>/g, '').trim();
-        if (currentLink && currentUrl && !currentUrl.includes('duckduckgo.com')) {
-          // Push placeholder, snippet fills in next
-        }
-      }
-      const snippetMatch = row.match(/<td\s+class="result-snippet"[^>]*>([\s\S]*?)<\/td>/i);
-      if (snippetMatch && currentLink && currentUrl) {
-        const snippet = snippetMatch[1].replace(/<[^>]*>/g, '').trim();
-        if (snippet && !results.find(r => r.url === currentUrl)) {
-          results.push({ title: currentLink, url: currentUrl, snippet: snippet });
-          currentLink = null; currentUrl = null;
-        }
-      }
-    }
-
-    if (results.length > 0) return results.slice(0, 5);
-
-    // Fallback: DuckDuckGo Instant Answer API
-    const fallbackResp = await fetch(`https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1`);
-    const fbData = await fallbackResp.json();
-    const fbResults = [];
-    if (fbData.AbstractText) {
-      fbResults.push({ title: fbData.Heading || query, url: fbData.AbstractURL || '', snippet: fbData.AbstractText });
-    }
-    if (fbData.RelatedTopics) {
-      for (const t of fbData.RelatedTopics.slice(0, 4)) {
-        if (t.Text) {
-          fbResults.push({ title: t.FirstURL ? t.Text.split(' - ')[0] : query, url: t.FirstURL || '', snippet: t.Text });
-        }
-      }
-    }
-    return fbResults.slice(0, 5);
-  } catch (e) {
-    console.error('[WebSearch DuckDuckGo Error]:', e.message);
-    return [];
-  }
-}
 
 async function callAIChat(env, messages, temperature = 0.5, apiKeyOverride = '') {
   let provider = await getKVCached(env, 'config:ai_provider') || 'gemini';
@@ -535,18 +427,6 @@ async function callAIChatWithTools(env, messages, temperature = 0.5, fromUser = 
     },
     {
       type: "function",
-      function: {
-        name: "web_search",
-        description: "联网搜索最新资讯、新闻、行业动态、政策等实时信息。用于获取知识截止日期之后的新闻事件、最新政策法规、市场行情、行业趋势等需要最新信息才能回答的问题。返回搜索结果标题、URL 和摘要。",
-        parameters: {
-          type: "object",
-          properties: {
-            query: {
-              type: "string",
-              description: "搜索关键词或问题（如 2026年最新房贷利率政策、近期金融行业新闻 等）"
-            }
-          },
-          required: ["query"]
         }
       }
     }
@@ -973,20 +853,6 @@ async function callAIChatWithTools(env, messages, temperature = 0.5, fromUser = 
           };
           data.learns.unshift(newItem);
           await env.DATA_KV.put(`work:${todayDate}`, JSON.stringify(data));
-
-          resultData = { success: true, data: newItem, message: `已成功保存学习内容”${parsedResult.title}”并同步至锁屏展示！` };
-        } else if (functionName === 'web_search') {
-          const searchResults = await doWebSearch(env, functionArgs.query);
-          if (searchResults.length > 0) {
-            resultData = {
-              query: functionArgs.query,
-              results: searchResults.map(r => `${r.title}\n  URL: ${r.url}\n  摘要: ${r.snippet}`).join('\n\n'),
-              raw: searchResults
-            };
-          } else {
-            resultData = { query: functionArgs.query, results: '未找到相关搜索结果，请尝试更换搜索关键词。' };
-          }
-        } else {
           resultData = { error: `Unknown tool: ${functionName}` };
         }
       } catch (err) {
@@ -2402,9 +2268,6 @@ export default {
       data.aiApiKey = await env.DATA_KV.get('config:ai_api_key') || '';
       data.aiApiBase = await env.DATA_KV.get('config:ai_api_base') || '';
       data.aiModel = await env.DATA_KV.get('config:ai_model') || '';
-      data.searchProvider = await env.DATA_KV.get('config:search_provider') || '';
-      data.searchApiKey = await env.DATA_KV.get('config:search_api_key') || '';
-      data.momentsWebhookUrl = await env.DATA_KV.get('config:moments_webhook_url') || '';
       data.momentsEnabled = await env.DATA_KV.get('config:moments_enabled') || 'true';
       data.visionApiKey = await env.DATA_KV.get('config:vision_api_key') || '';
       data.visionApiBase = await env.DATA_KV.get('config:vision_api_base') || '';
@@ -2421,7 +2284,7 @@ export default {
       const items = Array.isArray(body) ? body : [body];
       let hasError = false;
       for (const item of items) {
-        const { date, wechatCount, intentCount, revisitCount, visitCount, paymentCount, clients, todayTodos, tomorrowTodos, tempClients, scripts, learns, todoLog, webhookUrl, deepseekApiKey, wecomCorpId, wecomToken, wecomAesKey, aiProvider, aiApiKey, aiApiBase, aiModel, searchProvider, searchApiKey, momentsWebhookUrl, momentsEnabled, visionApiKey, visionApiBase, _ts } = item;
+        const { date, wechatCount, intentCount, revisitCount, visitCount, paymentCount, clients, todayTodos, tomorrowTodos, tempClients, scripts, learns, todoLog, webhookUrl, deepseekApiKey, wecomCorpId, wecomToken, wecomAesKey, aiProvider, aiApiKey, aiApiBase, aiModel, momentsWebhookUrl, momentsEnabled, visionApiKey, visionApiBase, _ts } = item;
         if (!date) { hasError = true; continue; }
         
         // If a non-empty Webhook URL is supplied, persist it globally
@@ -2451,12 +2314,6 @@ export default {
         }
         if (aiModel !== undefined) {
           await env.DATA_KV.put('config:ai_model', aiModel);
-        }
-        if (searchProvider !== undefined) {
-          await env.DATA_KV.put('config:search_provider', searchProvider);
-        }
-        if (searchApiKey !== undefined) {
-          await env.DATA_KV.put('config:search_api_key', searchApiKey);
         }
         if (momentsWebhookUrl !== undefined) {
           await env.DATA_KV.put('config:moments_webhook_url', momentsWebhookUrl);
@@ -2506,9 +2363,6 @@ export default {
           aiApiKey: aiApiKey !== undefined ? aiApiKey : (existing.aiApiKey || ''),
           aiApiBase: aiApiBase !== undefined ? aiApiBase : (existing.aiApiBase || ''),
           aiModel: aiModel !== undefined ? aiModel : (existing.aiModel || ''),
-          searchProvider: searchProvider !== undefined ? searchProvider : (existing.searchProvider || ''),
-          searchApiKey: searchApiKey !== undefined ? searchApiKey : (existing.searchApiKey || ''),
-          momentsWebhookUrl: momentsWebhookUrl !== undefined ? momentsWebhookUrl : (existing.momentsWebhookUrl || ''),
           momentsEnabled: momentsEnabled !== undefined ? momentsEnabled : (existing.momentsEnabled || 'true'),
           visionApiKey: visionApiKey !== undefined ? visionApiKey : (existing.visionApiKey || ''),
           visionApiBase: visionApiBase !== undefined ? visionApiBase : (existing.visionApiBase || ''),
@@ -2671,9 +2525,6 @@ export default {
           await env.DATA_KV.put('config:wecom_api_proxy', body.wecomApiProxy || '');
           break;
         case 'setSearchConfig':
-          if (body.searchProvider !== undefined) await env.DATA_KV.put('config:search_provider', body.searchProvider || '');
-          if (body.searchApiKey !== undefined) await env.DATA_KV.put('config:search_api_key', body.searchApiKey || '');
-          break;
         case 'setMomentsConfig':
           if (body.momentsWebhookUrl !== undefined) await env.DATA_KV.put('config:moments_webhook_url', body.momentsWebhookUrl || '');
           if (body.momentsEnabled !== undefined) await env.DATA_KV.put('config:moments_enabled', body.momentsEnabled ? 'true' : 'false');
@@ -4347,21 +4198,6 @@ export default {
       </details>
 
       <details style="margin-top:10px; border:1px dashed var(--card-border); border-radius:var(--radius-xs); padding:8px; background:rgba(120,120,120,0.02);">
-        <summary style="font-size:0.75rem; color:var(--text-soft); cursor:pointer; font-weight:700; outline:none; user-select:none;">AI 联网搜索配置</summary>
-        <div style="display:flex; flex-direction:column; gap:6px; margin-top:8px;">
-          <div style="display:flex; align-items:center; gap:6px;">
-            <span style="font-size:0.65rem; color:var(--text-soft); width:50px; font-weight:700;">搜索引擎:</span>
-            <select id="searchProviderSelect" class="input-simple" style="flex:1; font-size:0.7rem; height:28px; padding:0 4px; font-weight:700; background:var(--btn-bg); border-color:var(--card-border); color:var(--text-main);">
-              <option value="duckduckgo">DuckDuckGo (免费)</option>
-              <option value="tavily">Tavily Search</option>
-              <option value="brave">Brave Search</option>
-            </select>
-          </div>
-          <input type="password" class="input-simple" id="searchApiKeyInput" placeholder="搜索 API Key (DuckDuckGo 无需填写)" style="font-size:0.7rem; height:28px; padding:0 8px;">
-          <button id="saveSearchConfigBtn" class="btn-add" style="font-size:0.7rem; height:28px; margin:0; background:linear-gradient(135deg,#667eea,#764ba2); color:white; border:none; width:100%; font-weight:700;">保存搜索配置</button>
-          <div style="font-size:0.6rem; color:var(--text-light); line-height:1.4; margin-top:2px;">
-            配置后，AI 助手可联网搜索最新资讯、政策、行业动态等实时信息。默认使用 DuckDuckGo（免费无需 API Key），也可配置 Tavily 或 Brave Search 获得更好的搜索结果。
-          </div>
         </div>
       </details>
 
@@ -5456,9 +5292,6 @@ export default {
       if(data.aiApiKey!==undefined)localStorage.setItem('ai_api_key',data.aiApiKey);
       if(data.aiApiBase!==undefined)localStorage.setItem('ai_api_base',data.aiApiBase);
       if(data.aiModel!==undefined)localStorage.setItem('ai_model',data.aiModel);
-      if(data.searchProvider!==undefined)localStorage.setItem('search_provider',data.searchProvider);
-      if(data.searchApiKey!==undefined)localStorage.setItem('search_api_key',data.searchApiKey);
-      if(data.momentsWebhookUrl!==undefined)localStorage.setItem('moments_webhook_url',data.momentsWebhookUrl);
       if(data.momentsEnabled!==undefined)localStorage.setItem('moments_enabled',data.momentsEnabled);
       if(data.visionApiKey!==undefined)localStorage.setItem('vision_api_key',data.visionApiKey);
       if(data.visionApiBase!==undefined)localStorage.setItem('vision_api_base',data.visionApiBase);
@@ -5507,9 +5340,6 @@ export default {
     if(data.aiApiKey!==undefined)localStorage.setItem('ai_api_key',data.aiApiKey);
     if(data.aiApiBase!==undefined)localStorage.setItem('ai_api_base',data.aiApiBase);
     if(data.aiModel!==undefined)localStorage.setItem('ai_model',data.aiModel);
-    if(data.searchProvider!==undefined)localStorage.setItem('search_provider',data.searchProvider);
-    if(data.searchApiKey!==undefined)localStorage.setItem('search_api_key',data.searchApiKey);
-    if(data.momentsWebhookUrl!==undefined)localStorage.setItem('moments_webhook_url',data.momentsWebhookUrl);
     if(data.momentsEnabled!==undefined)localStorage.setItem('moments_enabled',data.momentsEnabled);
     if(data.visionApiKey!==undefined)localStorage.setItem('vision_api_key',data.visionApiKey);
     if(data.visionApiBase!==undefined)localStorage.setItem('vision_api_base',data.visionApiBase);
@@ -6820,9 +6650,6 @@ const rid=Math.floor(Math.random()*1000);
       document.getElementById('siriApiUrlDisplay').innerText = window.location.origin + '/api/siri?key=' + (localStorage.getItem('siri_key')||'siri_default_123');
 
       // Load search config
-      document.getElementById('searchProviderSelect').value = localStorage.getItem('search_provider') || 'duckduckgo';
-      document.getElementById('searchApiKeyInput').value = localStorage.getItem('search_api_key') || '';
-
       // Load moments config
       document.getElementById('momentsEnabledCheck').checked = localStorage.getItem('moments_enabled') !== 'false';
       document.getElementById('momentsWebhookUrlInput').value = localStorage.getItem('moments_webhook_url') || '';
@@ -7071,15 +6898,6 @@ const rid=Math.floor(Math.random()*1000);
     });
 
     // Save search config
-    document.getElementById('saveSearchConfigBtn').addEventListener('click', async () => {
-      const provider = document.getElementById('searchProviderSelect').value;
-      const apiKey = document.getElementById('searchApiKeyInput').value.trim();
-      localStorage.setItem('search_provider', provider);
-      localStorage.setItem('search_api_key', apiKey);
-      try {
-        await syncOp('setSearchConfig', { searchProvider: provider, searchApiKey: apiKey });
-        document.getElementById('exportStatus').innerText = '✅ 搜索配置已保存！AI 现在可以联网搜索了。';
-      } catch (e) {
         document.getElementById('exportStatus').innerText = '❌ 保存失败: ' + e.message;
       }
     });
@@ -7107,8 +6925,6 @@ const rid=Math.floor(Math.random()*1000);
       const statusEl = document.getElementById('exportStatus');
       btn.disabled = true;
       btn.textContent = '⏳ 正在生成文案...';
-      statusEl.innerText = '⏳ 正在联网搜索并生成 30 条文案，预计需要 30-60 秒...';
-      try {
         const resp = await fetch('/api/moments-push', { method: 'POST' });
         const result = await resp.json();
         if (result.success) {
@@ -10590,38 +10406,6 @@ async function doMomentsPush(env, logPrefix) {
     }
     return { success: false, message: '未配置 AI API Key，请在设置中配置 AI 大模型 API Key' };
   }
-
-  try {
-    // 步骤 1: 联网搜索今日热点和生活资讯（动态生成当天日期，确保搜索结果最新）
-    let searchContext = '';
-    const bjYear = bjTime.getFullYear();
-    const bjMonth = bjTime.getMonth() + 1;
-    const bjDay = bjTime.getDate();
-    const dateStrCN = `${bjYear}年${bjMonth}月${bjDay}日`;
-    const dateStrShort = `${bjYear}年${bjMonth}月`;
-    const searchQueries = [
-      `${dateStrCN} 今日热点新闻 头条`,
-      `${dateStrCN} 热门话题 社会热点 民生`,
-      `${dateStrShort} 生活趋势 励志 成长 健康`,
-      `${dateStrCN} 财经新闻 经济数据 政策 行业动态`,
-      `${dateStrCN} 股市行情 A股 热点板块 涨停`,
-      `${dateStrShort} 投资理财 基金 市场趋势`
-    ];
-
-    for (const sq of searchQueries) {
-      try {
-        const results = await doWebSearch(env, sq);
-        if (results.length > 0) {
-          searchContext += `\n### 搜索主题: ${sq}\n`;
-          results.forEach((r, i) => {
-            searchContext += `${i + 1}. **${r.title}**\n   ${r.snippet}\n`;
-          });
-        }
-      } catch (e) {
-        console.error(`${logPrefix} WebSearch "${sq}" 失败:`, e.message);
-      }
-    }
-
     // 步骤 1.5: 从新浪财经实时接口抓取今日真实财经/股市快讯（财联社 API 已失效，改用新浪财经）
     let telegraphSource = 'search'; // 'sina' | 'search' — 用于标记数据来源
     const finNews = await fetchFinancialNews(env);
