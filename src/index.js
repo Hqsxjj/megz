@@ -3271,7 +3271,7 @@ export default {
     @keyframes iconPulseDark { 0%, 100% { box-shadow: 0 0 20px rgba(74,108,247,0.4), 0 4px 16px rgba(7,193,96,0.25); } 50% { box-shadow: 0 0 32px rgba(74,108,247,0.55), 0 6px 24px rgba(7,193,96,0.35); } }
     /* PWA safe area for iOS notch & home indicator */
     .app-shell { padding-top: constant(safe-area-inset-top); padding-top: env(safe-area-inset-top); }
-    .container { padding-bottom: max(env(safe-area-inset-bottom),12px); }
+    .container { padding-bottom: 0; }
     @media (max-width: 760px) { .app-icon { width: 34px; height: 34px; border-radius: 8px; } .app-logo { gap: 8px; } }
     .date-chip { background: var(--card-bg); padding: 4px 12px; border-radius: var(--radius-xs); font-size: 0.75rem; font-weight: 700; color: var(--text-soft); border: 1px solid var(--card-border); }
     .goal-chips { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
