@@ -303,11 +303,6 @@ async function callAIChatWithTools(env, messages, temperature = 0.5, fromUser = 
         }
       }
     },
-    {
-      type: "function",
-        }
-      }
-    }
   ];
 
   let chatMessages = [...messages];
