@@ -7139,37 +7139,6 @@ const rid=Math.floor(Math.random()*1000);
       syncOp('setPinHash', { pinHash: hash });
     });
 
-    // Save WeCom Bot configs
-        statusEl.innerHTML = '✅ 配置已保存并同步到云端！请点击"测试连接"确认配置生效';
-        statusEl.style.color = '#43a047';
-      } catch (e) {
-        statusEl.innerHTML = '❌ 保存失败: ' + e.message;
-        statusEl.style.color = '#e53935';
-      }
-    });
-
-    // Test WeCom config by calling debug endpoint
-        } else {
-          html += '<br>⚠️ <strong style="color:#e53935;">配置不完整或连通测试失败！请检查填写</strong>';
-          statusEl.style.color = '#e53935';
-        }
-        statusEl.innerHTML = html;
-      } catch (e) {
-        statusEl.innerHTML = '❌ 检测请求失败: ' + e.message;
-        statusEl.style.color = '#e53935';
-      }
-    });
-
-    // Save Siri Key
-        statusEl.style.color = '#43a047';
-      } catch (e) {
-        statusEl.innerHTML = '❌ 同步失败: ' + e.message;
-        statusEl.style.color = '#e53935';
-      }
-    });
-
-    // Download Siri Shortcut File
-
     // Vision: client-side cooldown to prevent rapid-fire API calls
     let visionTestCooldown = 0;
 
