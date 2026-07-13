@@ -97,7 +97,7 @@ const rateLimitStore = new Map();
  */
 export function getRateLimitTier(path) {
   // 敏感端点
-  if (path === '/api/siri' || path === '/api/export' || path.startsWith('/api/admin/')) {
+  if (path === '/api/export' || path.startsWith('/api/admin/')) {
     return 'sensitive';
   }
   // API 端点

@@ -1,8 +1,7 @@
-// 每日工作 - Cloudflare Worker 版本
+﻿// 每日工作 - Cloudflare Worker 版本
 // 部署后绑定 DATA_KV 即可使用
 
 import { createSupabaseClient } from './supabase.js';
-import { WeComCrypt } from './wecom_crypt.js';
 import { getClientIP, isBadBot, checkSecFetch, checkRateLimit, getRateLimitTier, maybeCleanup, isBlocked, blockIP, unblockIP, listBlockedIPs } from './anti-bot.js';
 
 // KV 读取缓存 - 减少子请求数量（同一 invocation 内有效）
@@ -46,85 +45,6 @@ async function getKVValuesConcurrently(env, keys) {
   return results;
 }
 
-async function getWeComAccessToken(env, corpId, secret) {
-  const cacheKey = `wecom:access_token:${corpId}:${secret}`;
-  let token = await env.DATA_KV.get(cacheKey);
-  if (token) return token;
-
-  const proxyBase = await env.DATA_KV.get('config:wecom_api_proxy') || 'https://qyapi.weixin.qq.com';
-  const cleanProxy = proxyBase.endsWith('/') ? proxyBase.slice(0, -1) : proxyBase;
-  const url = `${cleanProxy}/cgi-bin/gettoken?corpid=${corpId}&corpsecret=${secret}`;
-  const resp = await fetch(url);
-  if (!resp.ok) {
-    throw new Error(`获取 access_token 失败，HTTP 状态：${resp.status}`);
-  }
-  const data = await resp.json();
-  if (data.errcode !== 0) {
-    throw new Error(`企业微信接口返回错误: [${data.errcode}] ${data.errmsg}`);
-  }
-
-  // Token is valid for 7200s, cache for 7000s
-  await env.DATA_KV.put(cacheKey, data.access_token, { expirationTtl: 7000 });
-  return data.access_token;
-}
-
-async function sendWeComAppMessage(env, corpId, secret, agentId, touser, content) {
-  const token = await getWeComAccessToken(env, corpId, secret);
-  const proxyBase = await env.DATA_KV.get('config:wecom_api_proxy') || 'https://qyapi.weixin.qq.com';
-  const cleanProxy = proxyBase.endsWith('/') ? proxyBase.slice(0, -1) : proxyBase;
-  const url = `${cleanProxy}/cgi-bin/message/send?access_token=${token}`;
-  const body = {
-    touser: touser || '@all',
-    msgtype: 'markdown',
-    agentid: Number(agentId),
-    markdown: {
-      content: content
-    },
-    enable_duplicate_check: 0
-  };
-  const resp = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body)
-  });
-  if (!resp.ok) {
-    throw new Error(`发送应用消息失败，HTTP 状态：${resp.status}`);
-  }
-  const data = await resp.json();
-  if (data.errcode !== 0) {
-    throw new Error(`企业微信消息发送接口返回错误: [${data.errcode}] ${data.errmsg}`);
-  }
-  return data;
-}
-
-// 发送纯文本消息给企业微信用户（用于回调异步回复）
-async function sendWeComTextMessage(env, corpId, secret, agentId, touser, content) {
-  const token = await getWeComAccessToken(env, corpId, secret);
-  const proxyBase = await env.DATA_KV.get('config:wecom_api_proxy') || 'https://qyapi.weixin.qq.com';
-  const cleanProxy = proxyBase.endsWith('/') ? proxyBase.slice(0, -1) : proxyBase;
-  const msgUrl = `${cleanProxy}/cgi-bin/message/send?access_token=${token}`;
-  const body = {
-    touser: touser || '@all',
-    msgtype: 'text',
-    agentid: Number(agentId),
-    text: { content: content },
-    enable_duplicate_check: 0
-  };
-  const resp = await fetch(msgUrl, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body)
-  });
-  if (!resp.ok) {
-    throw new Error(`发送文本消息失败，HTTP 状态：${resp.status}`);
-  }
-  const data = await resp.json();
-  if (data.errcode !== 0) {
-    throw new Error(`企业微信文本消息发送错误: [${data.errcode}] ${data.errmsg}`);
-  }
-  return data;
-}
-
 async function sendMarkdownMessage(env, target, content) {
   if (typeof target === 'string' && target.startsWith('https://')) {
     const whResp = await fetch(target, {
@@ -140,12 +60,6 @@ async function sendMarkdownMessage(env, target, content) {
       throw new Error('WeChat API 错误 [' + body.errcode + ']: ' + (body.errmsg || '未知'));
     }
     return body;
-  } else if (target && typeof target === 'object') {
-    const { corpId, secret, agentId, touser } = target;
-    if (!corpId || !secret || !agentId) {
-      throw new Error('企业微信应用配置不完整 (缺少 CorpID, Secret 或 AgentID)');
-    }
-    return await sendWeComAppMessage(env, corpId, secret, agentId, touser, content);
   } else {
     throw new Error('无效的发送目标 (target)');
   }
@@ -581,23 +495,10 @@ async function callAIChatWithTools(env, messages, temperature = 0.5, fromUser = 
         } else if (functionName === 'export_data') {
           const webhookUrl = await env.DATA_KV.get('config:webhook_url');
           let target;
-          if (webhookUrl && webhookUrl.trim() !== '') {
-            target = webhookUrl.trim();
+          if (!webhookUrl || webhookUrl.trim() === '') {
+            resultData = { error: '请先在网页端配置企业微信群 Webhook URL' };
           } else {
-            // Fallback to self-built App configuration
-            const corpId = await env.DATA_KV.get('config:wecom_corp_id') || env.WECOM_CORP_ID;
-            const agentId = await env.DATA_KV.get('config:wecom_agent_id');
-            const secret = await env.DATA_KV.get('config:wecom_secret');
-            // Use sender's WeCom UserID if available
-            const touser = fromUser || await env.DATA_KV.get('config:wecom_touser') || '@all';
-            if (corpId && agentId && secret) {
-              target = { corpId, agentId, secret, touser };
-            }
-          }
-
-          if (!target) {
-            resultData = { error: '企业微信群 Webhook URL 未设置且未配置自建应用，请先在网页端配置。' };
-          } else {
+            const target = webhookUrl.trim();
             const type = functionArgs.export_type;
             if (type === 'single_client') {
               const query = functionArgs.client_query;
@@ -1137,272 +1038,6 @@ export default {
           'Access-Control-Allow-Origin': '*'
         }
       });
-    }
-
-    // 0.7 Siri Shortcuts Download API
-    if (path === '/api/siri/download' && request.method === 'GET') {
-      try {
-        const siriKey = await env.DATA_KV.get('config:siri_key') || 'siri_default_123';
-        const origin = url.origin || `${url.protocol}//${url.host}`;
-        const queryUrl = `${origin}/api/siri?key=${encodeURIComponent(siriKey)}&query=`;
-        const queryUrlLen = queryUrl.length;
-        
-        const plistXml = `<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-	<key>WFWorkflowActions</key>
-	<array>
-		<dict>
-			<key>WFWorkflowActionIdentifier</key>
-			<string>is.workflow.actions.ask</string>
-			<key>WFWorkflowActionParameters</key>
-			<dict>
-				<key>UUID</key>
-				<string>A1B2C3D4-E5F6-47A8-B9C0-D1E2F3A4B5C6</string>
-				<key>WFAskActionPrompt</key>
-				<string>你想对 AI 助手说什么？</string>
-				<key>WFInputType</key>
-				<string>Text</string>
-			</dict>
-		</dict>
-		<dict>
-			<key>WFWorkflowActionIdentifier</key>
-			<string>is.workflow.actions.downloadurl</string>
-			<key>WFWorkflowActionParameters</key>
-			<dict>
-				<key>UUID</key>
-				<string>B2C3D4E5-F6A7-48B9-C0D1-E2F3A4B5C6D7</string>
-				<key>WFURL</key>
-				<dict>
-					<key>Value</key>
-					<dict>
-						<key>attachmentsByRange</key>
-						<dict>
-							<key>{${queryUrlLen}, 1}</key>
-							<dict>
-								<key>OutputName</key>
-								<string>要求输入</string>
-								<key>OutputUUID</key>
-								<string>A1B2C3D4-E5F6-47A8-B9C0-D1E2F3A4B5C6</string>
-								<key>Type</key>
-								<string>ActionOutput</string>
-							</dict>
-						</dict>
-						<key>string</key>
-						<string>${queryUrl.replace(/&/g, '&amp;')}\\uFFFC</string>
-					</dict>
-					<key>WFSerializationType</key>
-					<string>WFTextTokenString</string>
-				</dict>
-				<key>WFHTTPMethod</key>
-				<string>GET</string>
-			</dict>
-		</dict>
-		<dict>
-			<key>WFWorkflowActionIdentifier</key>
-			<string>is.workflow.actions.getvalueforkey</string>
-			<key>WFWorkflowActionParameters</key>
-			<dict>
-				<key>UUID</key>
-				<string>C3D4E5F6-A7B8-49C0-D1E2-F3A4B5C6D7E8</string>
-				<key>WFGetDictionaryValueKey</key>
-				<string>reply</string>
-				<key>WFInput</key>
-				<dict>
-					<key>Value</key>
-					<dict>
-						<key>OutputName</key>
-						<string>URL 的内容</string>
-						<key>OutputUUID</key>
-						<string>B2C3D4E5-F6A7-48B9-C0D1-E2F3A4B5C6D7</string>
-						<key>Type</key>
-						<string>ActionOutput</string>
-					</dict>
-					<key>WFSerializationType</key>
-					<string>WFTextTokenAttachment</string>
-				</dict>
-			</dict>
-		</dict>
-		<dict>
-			<key>WFWorkflowActionIdentifier</key>
-			<string>is.workflow.actions.speaktext</string>
-			<key>WFWorkflowActionParameters</key>
-			<dict>
-				<key>WFSpeakTextText</key>
-				<dict>
-					<key>Value</key>
-					<dict>
-						<key>attachmentsByRange</key>
-						<dict>
-							<key>{0, 1}</key>
-							<dict>
-								<key>OutputName</key>
-								<string>词典值</string>
-								<key>OutputUUID</key>
-								<string>C3D4E5F6-A7B8-49C0-D1E2-F3A4B5C6D7E8</string>
-								<key>Type</key>
-								<string>ActionOutput</string>
-							</dict>
-						</dict>
-						<key>string</key>
-						<string>\\uFFFC</string>
-					</dict>
-					<key>WFSerializationType</key>
-					<string>WFTextTokenString</string>
-				</dict>
-			</dict>
-		</dict>
-	</array>
-	<key>WFWorkflowClientVersion</key>
-	<string>1200</string>
-	<key>WFWorkflowClientRelease</key>
-	<string>2.1.2</string>
-	<key>WFWorkflowInputContentItemClasses</key>
-	<array>
-		<string>WFStringContentItem</string>
-	</array>
-</dict>
-</plist>`.replace(/\\uFFFC/g, '\uFFFC');
-
-        return new Response(plistXml, {
-          headers: {
-            'Content-Type': 'application/octet-stream',
-            'Content-Disposition': 'attachment; filename="AskAI.shortcut"',
-            'Access-Control-Allow-Origin': '*'
-          }
-        });
-      } catch (err) {
-        return new Response(JSON.stringify({ error: err.message }), {
-          status: 500,
-          headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
-        });
-      }
-    }
-
-    // 0.6 Siri Shortcuts API
-    if (path === '/api/siri' && (request.method === 'GET' || request.method === 'POST')) {
-      try {
-        let query = '';
-        if (request.method === 'GET') {
-          query = url.searchParams.get('query') || url.searchParams.get('text') || '';
-        } else {
-          try {
-            const body = await request.json();
-            query = body.query || body.text || '';
-          } catch (e) {
-            query = '';
-          }
-        }
-
-        if (!query || !query.trim()) {
-          return new Response(JSON.stringify({ error: '缺少查询文本 query 参数' }), {
-            status: 400,
-            headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
-          });
-        }
-
-        const trimmedQuery = query.trim();
-
-        // 验证密钥
-        const siriKey = await env.DATA_KV.get('config:siri_key') || 'siri_default_123';
-        const clientKey = url.searchParams.get('key') || request.headers.get('x-siri-key');
-        if (clientKey !== siriKey) {
-          return new Response(JSON.stringify({ error: '密钥验证失败，请核对快捷指令配置' }), {
-            status: 401,
-            headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
-          });
-        }
-
-        const hasKey = await env.DATA_KV.get('config:ai_api_key') || await env.DATA_KV.get('config:deepseek_api_key') || await env.DATA_KV.get('config:vision_api_key') || env.AI_API_KEY || env.DEEPSEEK_API_KEY;
-        if (!hasKey) {
-          return new Response(JSON.stringify({ reply: '后端未配置大模型 API Key，请先登录网页端配置。' }), {
-            headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
-          });
-        }
-
-        let contextText = '';
-        try {
-          const lowerContent = trimmedQuery.toLowerCase();
-          // 1. 检索今日工作登记与意向客户
-          if (lowerContent.includes('客户') || lowerContent.includes('意向') || lowerContent.includes('登记') || lowerContent.includes('今天') || lowerContent.includes('工作') || lowerContent.includes('汇报')) {
-            const d = new Date(Date.now() + 8 * 3600000);
-            const todayDate = d.toISOString().split('T')[0];
-            const raw = await env.DATA_KV.get(`work:${todayDate}`);
-            if (raw) {
-              const parsed = JSON.parse(raw);
-              contextText += `\n[今日工作登记与意向客户数据] (日期: ${todayDate}):\n` +
-                `- 今日微信数: ${parsed.wechatCount || 0}\n` +
-                `- 今日回访数: ${parsed.revisitCount || 0}\n` +
-                `- 今日上门数: ${parsed.visitCount || 0}\n` +
-                `- 今日回款数: ${parsed.paymentCount || 0}\n` +
-                `- 登记的意向客户列表:\n` +
-                (parsed.clients && parsed.clients.length > 0 ?
-                  parsed.clients.map((c, idx) => `  ${idx + 1}. 姓名: ${c.name} | 电话: ${c.phone} | 登记时间: ${c.time || ''} | 跟进/备注: ${c.note || '无'}`).join('\n') :
-                  '  (暂无意向客户)') + '\n';
-            }
-          }
-          // 2. 检查公司白名单准入
-          if (lowerContent.includes('白名单') || lowerContent.includes('公司') || lowerContent.includes('单位') || lowerContent.includes('白') || (trimmedQuery.length >= 4 && !trimmedQuery.includes('/'))) {
-            const cleanQuery = trimmedQuery.replace(/(查一下|查询|白名单|公司|是不是|在不在|白名单里有|有)/g, '').trim();
-            if (cleanQuery.length >= 2) {
-              const whitelistRes = await supabase.checkCompanies([cleanQuery]);
-              if (whitelistRes && whitelistRes.length > 0) {
-                contextText += `\n[企业白名单准入核对结果]:\n` +
-                  whitelistRes.map(r => `- 公司名: ${r.matchedName} | 状态: ${r.isMatch ? '✅ 已准入白名单' : '❌ 未准入'} | 准入银行: ${r.bank_name || '建行建易贷'} | 名单状态: ${r.status || '正常'}`).join('\n') + '\n';
-              }
-            }
-          }
-          // 3. 搜索客户档案
-          if (lowerContent.includes('查客户') || lowerContent.includes('搜索客户') || lowerContent.includes('客户档案') || (trimmedQuery.length >= 2 && trimmedQuery.length <= 4 && !lowerContent.includes('今天') && !lowerContent.includes('昨天') && !lowerContent.includes('白名单'))) {
-            const cleanQuery = trimmedQuery.replace(/(查客户|搜索客户|查询客户|客户|档案|是)/g, '').trim();
-            if (cleanQuery.length >= 1) {
-              const customerRes = await supabase.searchCustomers(cleanQuery);
-              if (customerRes && customerRes.length > 0) {
-                contextText += `\n[客户档案检索结果]:\n` +
-                  customerRes.map(c => `- 姓名: ${c.name} | 电话: ${c.mobile || '—'} | 公司: ${c.company_name || '—'} | 标签: ${c.tags ? c.tags.join(',') : '无'} | 备注/跟进记录: ${c.note || '无'}`).join('\n') + '\n';
-              }
-            }
-          }
-        } catch (prefErr) {
-          console.error('[Siri Prefetch Error]:', prefErr);
-        }
-
-        const bjTime = new Date(Date.now() + 8 * 3600000).toISOString().replace('T', ' ').substring(0, 19);
-        let systemPrompt = `你是一个专业的苹果 Siri 语音助手。当前北京时间是 ${bjTime}。\n`;
-        if (contextText) {
-          systemPrompt += `\n系统已为您预先检索了与当前问题相关的实时数据库内容：\n${contextText}\n你可以直接使用以上数据回答用户。若以上检索到的信息足够回答，请结合它们给用户做出最详细 and 准确的解答。\n`;
-        }
-        systemPrompt += `如果你需要检索其它日期、更深入搜索客户档案、核对公司白名单、检索话术与知识库，请直接通过 tool_calls 调用相关函数。请回复简洁、流畅的纯文本，适合 Siri 语音播放（尽量减少复杂格式和排版，但保留关键信息，回答长度控制在 150 字以内最佳）。`;
-
-        const apiData = await callAIChatWithTools(env, [
-          {
-            role: 'system',
-            content: systemPrompt
-          },
-          {
-            role: 'user',
-            content: trimmedQuery
-          }
-        ], 0.5, 'SiriUser');
-
-        const reply = apiData.choices[0].message.content.trim();
-        return new Response(JSON.stringify({ reply: reply }), {
-          headers: {
-            'Content-Type': 'application/json; charset=UTF-8',
-            'Access-Control-Allow-Origin': '*'
-          }
-        });
-      } catch (err) {
-        console.error('[Siri Endpoint Error]:', err);
-        return new Response(JSON.stringify({ error: err.message }), {
-          status: 500,
-          headers: {
-            'Content-Type': 'application/json; charset=UTF-8',
-            'Access-Control-Allow-Origin': '*'
-          }
-        });
-      }
     }
 
     // ==================== 拨号器账户认证 ====================
@@ -2926,10 +2561,6 @@ export default {
       data.webhookUrl = await env.DATA_KV.get('config:webhook_url') || '';
       data.pinHash = await env.DATA_KV.get('config:pin_hash') || '';
       data.deepseekApiKey = await env.DATA_KV.get('config:deepseek_api_key') || '';
-      data.wecomCorpId = await env.DATA_KV.get('config:wecom_corp_id') || '';
-      data.wecomToken = await env.DATA_KV.get('config:wecom_token') || '';
-      data.wecomAesKey = await env.DATA_KV.get('config:wecom_aes_key') || '';
-      data.aiProvider = await env.DATA_KV.get('config:ai_provider') || '';
       data.aiApiKey = await env.DATA_KV.get('config:ai_api_key') || '';
       data.aiApiBase = await env.DATA_KV.get('config:ai_api_base') || '';
       data.aiModel = await env.DATA_KV.get('config:ai_model') || '';
@@ -2950,7 +2581,7 @@ export default {
       const items = Array.isArray(body) ? body : [body];
       let hasError = false;
       for (const item of items) {
-        const { date, wechatCount, intentCount, revisitCount, visitCount, paymentCount, clients, todayTodos, tomorrowTodos, tempClients, scripts, learns, todoLog, webhookUrl, deepseekApiKey, wecomCorpId, wecomToken, wecomAesKey, aiProvider, aiApiKey, aiApiBase, aiModel, searchProvider, searchApiKey, visionApiKey, visionApiBase, _ts } = item;
+        const { date, wechatCount, intentCount, revisitCount, visitCount, paymentCount, clients, todayTodos, tomorrowTodos, tempClients, scripts, learns, todoLog, webhookUrl, deepseekApiKey, aiProvider, aiApiKey, aiApiBase, aiModel, searchProvider, searchApiKey, visionApiKey, visionApiBase, _ts } = item;
         if (!date) { hasError = true; continue; }
         
         // If a non-empty Webhook URL is supplied, persist it globally
@@ -2959,15 +2590,6 @@ export default {
         }
         if (deepseekApiKey !== undefined) {
           await env.DATA_KV.put('config:deepseek_api_key', deepseekApiKey);
-        }
-        if (wecomCorpId !== undefined) {
-          await env.DATA_KV.put('config:wecom_corp_id', wecomCorpId);
-        }
-        if (wecomToken !== undefined) {
-          await env.DATA_KV.put('config:wecom_token', wecomToken);
-        }
-        if (wecomAesKey !== undefined) {
-          await env.DATA_KV.put('config:wecom_aes_key', wecomAesKey);
         }
         if (aiProvider !== undefined) {
           await env.DATA_KV.put('config:ai_provider', aiProvider);
@@ -3022,10 +2644,6 @@ export default {
           todoLog: todoLog || existing.todoLog || [],
           webhookUrl: webhookUrl || existing.webhookUrl || '',
           deepseekApiKey: deepseekApiKey !== undefined ? deepseekApiKey : (existing.deepseekApiKey || ''),
-          wecomCorpId: wecomCorpId !== undefined ? wecomCorpId : (existing.wecomCorpId || ''),
-          wecomToken: wecomToken !== undefined ? wecomToken : (existing.wecomToken || ''),
-          wecomAesKey: wecomAesKey !== undefined ? wecomAesKey : (existing.wecomAesKey || ''),
-          aiProvider: aiProvider !== undefined ? aiProvider : (existing.aiProvider || ''),
           aiApiKey: aiApiKey !== undefined ? aiApiKey : (existing.aiApiKey || ''),
           aiApiBase: aiApiBase !== undefined ? aiApiBase : (existing.aiApiBase || ''),
           aiModel: aiModel !== undefined ? aiModel : (existing.aiModel || ''),
@@ -3173,27 +2791,6 @@ export default {
         case 'setDeepseekApiKey':
           await env.DATA_KV.put('config:deepseek_api_key', body.deepseekApiKey || '');
           break;
-        case 'setWecomCorpId':
-          await env.DATA_KV.put('config:wecom_corp_id', body.wecomCorpId || '');
-          break;
-        case 'setWecomToken':
-          await env.DATA_KV.put('config:wecom_token', body.wecomToken || '');
-          break;
-        case 'setWecomAesKey':
-          await env.DATA_KV.put('config:wecom_aes_key', body.wecomAesKey || '');
-          break;
-        case 'setWecomAgentId':
-          await env.DATA_KV.put('config:wecom_agent_id', body.wecomAgentId || '');
-          break;
-        case 'setWecomSecret':
-          await env.DATA_KV.put('config:wecom_secret', body.wecomSecret || '');
-          break;
-        case 'setWecomTouser':
-          await env.DATA_KV.put('config:wecom_touser', body.wecomTouser || '');
-          break;
-        case 'setWecomApiProxy':
-          await env.DATA_KV.put('config:wecom_api_proxy', body.wecomApiProxy || '');
-          break;
         case 'setSearchConfig':
           if (body.searchProvider !== undefined) await env.DATA_KV.put('config:search_provider', body.searchProvider || '');
           if (body.searchApiKey !== undefined) await env.DATA_KV.put('config:search_api_key', body.searchApiKey || '');
@@ -3227,9 +2824,6 @@ export default {
             dayData._ts = Date.now();
             await env.DATA_KV.put('work:' + body.date, JSON.stringify(dayData));
           }
-          break;
-        case 'setSiriKey':
-          await env.DATA_KV.put('config:siri_key', body.siriKey || '');
           break;
         default:
           return new Response(JSON.stringify({ error: '未知操作: ' + op }), {
@@ -3367,18 +2961,10 @@ export default {
         }
         target = webhookUrl.trim();
       } else {
-        // Fallback to self-built App configuration
-        const corpId = await env.DATA_KV.get('config:wecom_corp_id') || env.WECOM_CORP_ID;
-        const agentId = await env.DATA_KV.get('config:wecom_agent_id');
-        const secret = await env.DATA_KV.get('config:wecom_secret');
-        const touser = await env.DATA_KV.get('config:wecom_touser') || '@all';
-        if (!corpId || !agentId || !secret) {
-          return new Response(JSON.stringify({ error: '缺少 Webhook URL，且未配置自建应用凭证 (CorpID / AgentID / Secret)' }), {
-            status: 400,
-            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-          });
-        }
-        target = { corpId, agentId, secret, touser };
+        return new Response(JSON.stringify({ error: '缺少 Webhook URL' }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
       }
 
       // 导出单个意向客户
@@ -4874,60 +4460,6 @@ export default {
         <div style="font-size:0.6rem;color:var(--text-light);">默认密码 8520，修改后立即生效，用于解锁页面和删除客户验证</div>
       </div>
 
-            <details style="margin-top:10px; border:1px dashed var(--card-border); border-radius:var(--radius-xs); padding:8px; background:rgba(120,120,120,0.02);">
-        <summary style="font-size:0.75rem; color:var(--text-soft); cursor:pointer; font-weight:700; outline:none; user-select:none;">企业微信应用与机器人回调配置</summary>
-        <div style="display:flex; flex-direction:column; gap:8px; margin-top:8px;">
-          <input type="text" class="input-simple" id="wecomCorpIdInput" placeholder="企业 Corp ID（如 ww1234567890abcdef）" style="font-size:0.7rem; height:28px; padding:0 8px;">
-          <input type="text" class="input-simple" id="wecomTokenInput" placeholder="应用 Token (用于回调)" style="font-size:0.7rem; height:28px; padding:0 8px;">
-          <input type="password" class="input-simple" id="wecomAesKeyInput" placeholder="应用 EncodingAESKey (用于回调)" style="font-size:0.7rem; height:28px; padding:0 8px;">
-          <input type="text" class="input-simple" id="wecomAgentIdInput" placeholder="应用 Agent ID (用于推送，如 1000002)" style="font-size:0.7rem; height:28px; padding:0 8px;">
-          <input type="password" class="input-simple" id="wecomSecretInput" placeholder="应用 Secret (用于推送)" style="font-size:0.7rem; height:28px; padding:0 8px;">
-          <input type="text" class="input-simple" id="wecomTouserInput" placeholder="接收成员 UserID (如 WangWu，留空则为全员 @all)" style="font-size:0.7rem; height:28px; padding:0 8px;">
-          <input type="text" class="input-simple" id="wecomApiProxyInput" placeholder="API 代理地址 (中转代理，留空使用官方默认)" style="font-size:0.7rem; height:28px; padding:0 8px;">
-          <div style="display:flex; gap:6px;">
-            <button id="saveWecomBotBtn" class="btn-add" style="font-size:0.7rem; height:28px; margin:0; background:var(--accent-wechat); color:white; border:none; flex:1;">保存配置</button>
-            <button id="testWecomBtn" class="btn-add" style="font-size:0.7rem; height:28px; margin:0; background:linear-gradient(135deg,#36d1dc,#5b86e5); color:white; border:none; flex:1;">测试连接</button>
-          </div>
-          <div id="wecomConfigStatus" style="font-size:0.62rem; padding:6px; border-radius:4px; background:var(--btn-bg); display:none; line-height:1.5;"></div>
-          
-          <div style="font-size:0.6rem; color:var(--text-light); line-height:1.4; margin-top:4px;">
-            <strong>⚠️ 回调与推送配置步骤：</strong><br>
-            ① 先在此页面填入 Corp ID、Token、AESKey（若使用主动推送，还需填写 Agent ID 和 Secret）并点击"保存配置"<br>
-            ② 点击"测试连接"确认配置已生效（若配置了 Secret，将执行 API 连通性测试）<br>
-            ③ 再到企业微信后台填入下面的 URL 并保存<br><br>
-            <strong>回调 URL:</strong> <span id="wecomCallbackUrlDisplay" style="user-select:all; background:var(--btn-bg); padding:1px 3px; border-radius:3px; word-break:break-all;"></span>
-          </div>
-        </div>
-      </details>
-
-      <details style="margin-top:10px; border:1px dashed var(--card-border); border-radius:var(--radius-xs); padding:8px; background:rgba(120,120,120,0.02);">
-        <summary style="font-size:0.75rem; color:var(--text-soft); cursor:pointer; font-weight:700; outline:none; user-select:none;">Siri 语音快捷指令配置</summary>
-        <div style="display:flex; flex-direction:column; gap:8px; margin-top:8px;">
-          <input type="text" class="input-simple" id="siriKeyInput" placeholder="Siri 认证密钥 (默认: siri_default_123)" style="font-size:0.7rem; height:28px; padding:0 8px;">
-          <button id="saveSiriKeyBtn" class="btn-add" style="font-size:0.7rem; height:28px; margin:0; background:linear-gradient(135deg,#ff9966,#ff5e62); color:white; border:none; width:100%;">保存密钥</button>
-          
-          <button id="downloadSiriShortcutBtn" class="btn-secondary" style="font-size:0.7rem; height:28px; margin:0; background:var(--btn-bg); color:var(--text-main); border:1px solid var(--card-border); border-radius:var(--radius-xs); cursor:pointer; width:100%; font-weight:700;">一键下载快捷指令文件 (.shortcut)</button>
-
-          <div id="siriConfigStatus" style="font-size:0.62rem; padding:6px; border-radius:4px; background:var(--btn-bg); display:none; line-height:1.5;"></div>
-
-          <div style="font-size:0.6rem; color:var(--text-light); line-height:1.4; margin-top:4px;">
-            <strong style="color:var(--accent-orange);">快捷指令导入提示：</strong><br>
-            由于苹果 iOS 15 及以上系统的安全机制，直接下载的 <code>.shortcut</code> 文件在手机上打开时可能会提示“未签名”而无法直接导入。如果您遇到此问题：<br>
-            - <strong>推荐做法：</strong>直接使用下方极其简单的 <strong>30秒极速手动配置步骤</strong> 即可配置完成。<br>
-            - <strong>极客做法：</strong>可在 Mac 上使用终端命令 <code>shortcuts sign</code> 签名后再导入，或在已越狱设备上使用插件导入。<br><br>
-            <strong>苹果 iOS 快捷指令配置步骤：</strong><br>
-            ① 点击“保存密钥”将配置写入云端。<br>
-            ② 打开 iPhone 的 **快捷指令** (Shortcuts) App。<br>
-            ③ 新建快捷指令：<br>
-            &nbsp;&nbsp;&nbsp;&nbsp;- 动作 1：<code>要求输入</code> -> 文本（如“你想对 AI 助手说什么？”）<br>
-            &nbsp;&nbsp;&nbsp;&nbsp;- 动作 2：<code>获取 URL 内容</code> -> 填入下方的 API 地址，并以 <code>GET</code> 方式请求，拼接参数如下：<br>
-            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<code>&lt;API地址&gt;&amp;query=&lt;输入的文本&gt;</code><br>
-            &nbsp;&nbsp;&nbsp;&nbsp;- 动作 3：<code>获取词典值</code> -> 键填入 <code>reply</code>，对象选择为“URL 的内容”<br>
-            &nbsp;&nbsp;&nbsp;&nbsp;- 动作 4：<code>朗读文本</code> -> 填入上面的“词典值”<br><br>
-            <strong>API 基础地址:</strong> <span id="siriApiUrlDisplay" style="user-select:all; background:var(--btn-bg); padding:1px 3px; border-radius:3px; word-break:break-all;"></span>
-          </div>
-        </div>
-      </details>
 
       <details style="margin-top:10px; border:1px dashed var(--card-border); border-radius:var(--radius-xs); padding:8px; background:rgba(120,120,120,0.02);">
         <summary style="font-size:0.75rem; color:var(--text-soft); cursor:pointer; font-weight:700; outline:none; user-select:none;">Google Gemini AI 配置</summary>
@@ -6041,10 +5573,6 @@ export default {
       if(data.pinHash!==undefined&&data.pinHash)localStorage.setItem(PIN_HASH_K,data.pinHash);
       if(data.webhookUrl!==undefined)localStorage.setItem('webhook_url',data.webhookUrl);
       if(data.deepseekApiKey!==undefined)localStorage.setItem('deepseek_api_key',data.deepseekApiKey);
-      if(data.wecomCorpId!==undefined)localStorage.setItem('wecom_corp_id',data.wecomCorpId);
-      if(data.wecomToken!==undefined)localStorage.setItem('wecom_token',data.wecomToken);
-      if(data.wecomAesKey!==undefined)localStorage.setItem('wecom_aes_key',data.wecomAesKey);
-      if(data.aiProvider!==undefined)localStorage.setItem('ai_provider',data.aiProvider);
       if(data.aiApiKey!==undefined)localStorage.setItem('ai_api_key',data.aiApiKey);
       if(data.aiApiBase!==undefined)localStorage.setItem('ai_api_base',data.aiApiBase);
       if(data.aiModel!==undefined)localStorage.setItem('ai_model',data.aiModel);
@@ -6091,10 +5619,6 @@ export default {
     if(data.pinHash!==undefined&&data.pinHash)localStorage.setItem(PIN_HASH_K,data.pinHash);
     if(data.webhookUrl!==undefined)localStorage.setItem('webhook_url',data.webhookUrl);
     if(data.deepseekApiKey!==undefined)localStorage.setItem('deepseek_api_key',data.deepseekApiKey);
-    if(data.wecomCorpId!==undefined)localStorage.setItem('wecom_corp_id',data.wecomCorpId);
-    if(data.wecomToken!==undefined)localStorage.setItem('wecom_token',data.wecomToken);
-    if(data.wecomAesKey!==undefined)localStorage.setItem('wecom_aes_key',data.wecomAesKey);
-    if(data.aiProvider!==undefined)localStorage.setItem('ai_provider',data.aiProvider);
     if(data.aiApiKey!==undefined)localStorage.setItem('ai_api_key',data.aiApiKey);
     if(data.aiApiBase!==undefined)localStorage.setItem('ai_api_base',data.aiApiBase);
     if(data.aiModel!==undefined)localStorage.setItem('ai_model',data.aiModel);
@@ -6288,8 +5812,6 @@ export default {
       if(!c)return;
       const savedUrl=(localStorage.getItem('webhook_url')||'').trim();
       if(!savedUrl){
-        alert('请先在主菜单 → 导出数据 中配置企业微信 Webhook URL');
-        return;
       }
       b.textContent='...';
       b.disabled=true;
@@ -6300,8 +5822,6 @@ export default {
           body:JSON.stringify({type:'single_client',webhookUrl:savedUrl,client:c})
         });
         if(r.ok){
-          alert('客户已成功导出到企业微信！');
-        }else{
           const err=await r.json();
           alert('导出失败: ' + (err.error || r.statusText));
         }
@@ -6581,8 +6101,6 @@ export default {
           if(!ti)return;
           const savedUrl=(localStorage.getItem('webhook_url')||'').trim();
           if(!savedUrl){
-            alert('请先在主菜单 → 导出数据 中配置企业微信 Webhook URL');
-            return;
           }
           btn.textContent='...';
           btn.disabled=true;
@@ -6622,9 +6140,6 @@ export default {
               })
             });
             if(r.ok){
-              alert('客户已成功导出到企业微信！');
-            }else{
-              const err=await r.json();
               alert('导出失败: ' + (err.error || r.statusText));
             }
           }catch(errVal){
@@ -7582,19 +7097,7 @@ const rid=Math.floor(Math.random()*1000);
       document.getElementById('webhookUrlInput').value=localStorage.getItem('webhook_url')||'';
       
       // Load WeCom Bot Config
-      document.getElementById('wecomCorpIdInput').value=localStorage.getItem('wecom_corp_id')||'';
-      document.getElementById('wecomTokenInput').value=localStorage.getItem('wecom_token')||'';
-      document.getElementById('wecomAesKeyInput').value=localStorage.getItem('wecom_aes_key')||'';
-      document.getElementById('wecomAgentIdInput').value=localStorage.getItem('wecom_agent_id')||'';
-      document.getElementById('wecomSecretInput').value=localStorage.getItem('wecom_secret')||'';
-      document.getElementById('wecomTouserInput').value=localStorage.getItem('wecom_touser')||'';
-      document.getElementById('wecomApiProxyInput').value=localStorage.getItem('wecom_api_proxy')||'';
-      document.getElementById('wecomCallbackUrlDisplay').innerText = window.location.origin + '/api/wecom/callback';
-
       // Load Siri Key
-      document.getElementById('siriKeyInput').value=localStorage.getItem('siri_key')||'siri_default_123';
-      document.getElementById('siriApiUrlDisplay').innerText = window.location.origin + '/api/siri?key=' + (localStorage.getItem('siri_key')||'siri_default_123');
-
       // Load search config
       document.getElementById('searchProviderSelect').value = localStorage.getItem('search_provider') || 'duckduckgo';
       document.getElementById('searchApiKeyInput').value = localStorage.getItem('search_api_key') || '';
@@ -7637,51 +7140,6 @@ const rid=Math.floor(Math.random()*1000);
     });
 
     // Save WeCom Bot configs
-    document.getElementById('saveWecomBotBtn').addEventListener('click',async ()=>{
-      const corpId = document.getElementById('wecomCorpIdInput').value.trim();
-      const token = document.getElementById('wecomTokenInput').value.trim();
-      const aesKey = document.getElementById('wecomAesKeyInput').value.trim();
-      const agentId = document.getElementById('wecomAgentIdInput').value.trim();
-      const secret = document.getElementById('wecomSecretInput').value.trim();
-      const touser = document.getElementById('wecomTouserInput').value.trim();
-      const apiProxy = document.getElementById('wecomApiProxyInput').value.trim();
-      const statusEl = document.getElementById('wecomConfigStatus');
-      
-      if (!corpId || !token || !aesKey) {
-        statusEl.style.display = 'block';
-        statusEl.innerHTML = '❌ 请填写企业基本配置（Corp ID、Token、EncodingAESKey）';
-        statusEl.style.color = '#e53935';
-        return;
-      }
-      if (aesKey.length !== 43) {
-        statusEl.style.display = 'block';
-        statusEl.innerHTML = '❌ EncodingAESKey 长度应为 43 个字符，当前长度: ' + aesKey.length + '<br>请从企业微信后台完整复制';
-        statusEl.style.color = '#e53935';
-        return;
-      }
-
-      statusEl.style.display = 'block';
-      statusEl.innerHTML = '⏳ 正在保存配置到云端...';
-      statusEl.style.color = 'var(--text-soft)';
-      
-      localStorage.setItem('wecom_corp_id', corpId);
-      localStorage.setItem('wecom_token', token);
-      localStorage.setItem('wecom_aes_key', aesKey);
-      localStorage.setItem('wecom_agent_id', agentId);
-      localStorage.setItem('wecom_secret', secret);
-      localStorage.setItem('wecom_touser', touser);
-      localStorage.setItem('wecom_api_proxy', apiProxy);
-
-      try {
-        await Promise.all([
-          syncOp('setWecomCorpId', { wecomCorpId: corpId }),
-          syncOp('setWecomToken', { wecomToken: token }),
-          syncOp('setWecomAesKey', { wecomAesKey: aesKey }),
-          syncOp('setWecomAgentId', { wecomAgentId: agentId }),
-          syncOp('setWecomSecret', { wecomSecret: secret }),
-          syncOp('setWecomTouser', { wecomTouser: touser }),
-          syncOp('setWecomApiProxy', { wecomApiProxy: apiProxy })
-        ]);
         statusEl.innerHTML = '✅ 配置已保存并同步到云端！请点击"测试连接"确认配置生效';
         statusEl.style.color = '#43a047';
       } catch (e) {
@@ -7691,39 +7149,6 @@ const rid=Math.floor(Math.random()*1000);
     });
 
     // Test WeCom config by calling debug endpoint
-    document.getElementById('testWecomBtn').addEventListener('click', async ()=>{
-      const statusEl = document.getElementById('wecomConfigStatus');
-      statusEl.style.display = 'block';
-      statusEl.innerHTML = '⏳ 正在检测云端配置并执行 API 连通性测试...';
-      statusEl.style.color = 'var(--text-soft)';
-      try {
-        const resp = await fetch('/api/wecom/debug');
-        const data = await resp.json();
-        let html = '<strong>🔍 云端配置检测结果：</strong><br>';
-        html += 'Corp ID: ' + data.effective.corpId + '<br>';
-        html += 'Token: ' + data.effective.token + '<br>';
-        html += 'AES Key: ' + data.effective.aesKey + '<br>';
-        html += 'Agent ID: ' + (data.kv.wecom_agent_id || '❌ 未配置') + '<br>';
-        html += 'Secret: ' + (data.kv.wecom_secret || '❌ 未配置') + '<br>';
-        html += 'Recipient: ' + (data.kv.wecom_touser || '未配置 (默认 @all)') + '<br>';
-        html += 'Proxy: ' + (data.kv.wecom_api_proxy || '官方默认') + '<br>';
-        
-        if (data.connection_test) {
-          html += '<br><strong>📡 API 连通性测试：</strong><br>';
-          html += '状态: ' + data.connection_test.status + '<br>';
-          html += '详情: ' + data.connection_test.message + '<br>';
-        }
-        
-        html += '<br><strong>回调 URL:</strong> ' + data.callback_url + '<br>';
-        
-        const hasSecret = data.kv.wecom_secret && !data.kv.wecom_secret.includes('❌');
-        const allGood = data.effective.corpId.includes('✅') &&
-                        data.effective.token.includes('✅') &&
-                        data.effective.aesKey.includes('✅');
-        const connGood = data.connection_test && data.connection_test.status.includes('✅');
-        if (allGood && (!hasSecret || connGood)) {
-          html += '<br>🎉 <strong style="color:#43a047;">全部配置已就绪！现在可以去企业微信后台设置回调 URL 了</strong>';
-          statusEl.style.color = '#43a047';
         } else {
           html += '<br>⚠️ <strong style="color:#e53935;">配置不完整或连通测试失败！请检查填写</strong>';
           statusEl.style.color = '#e53935';
@@ -7736,25 +7161,6 @@ const rid=Math.floor(Math.random()*1000);
     });
 
     // Save Siri Key
-    document.getElementById('saveSiriKeyBtn').addEventListener('click', async ()=>{
-      const siriKey = document.getElementById('siriKeyInput').value.trim();
-      const statusEl = document.getElementById('siriConfigStatus');
-      if (!siriKey) {
-        statusEl.style.display = 'block';
-        statusEl.innerHTML = '❌ 密钥不能为空';
-        statusEl.style.color = '#e53935';
-        return;
-      }
-      statusEl.style.display = 'block';
-      statusEl.innerHTML = '⏳ 正在保存密钥到云端...';
-      statusEl.style.color = 'var(--text-soft)';
-      
-      localStorage.setItem('siri_key', siriKey);
-      document.getElementById('siriApiUrlDisplay').innerText = window.location.origin + '/api/siri?key=' + siriKey;
-
-      try {
-        await syncOp('setSiriKey', { siriKey: siriKey });
-        statusEl.innerHTML = '✅ Siri 密钥已保存并同步！';
         statusEl.style.color = '#43a047';
       } catch (e) {
         statusEl.innerHTML = '❌ 同步失败: ' + e.message;
@@ -7763,10 +7169,6 @@ const rid=Math.floor(Math.random()*1000);
     });
 
     // Download Siri Shortcut File
-    document.getElementById('downloadSiriShortcutBtn').addEventListener('click', () => {
-      const siriKey = document.getElementById('siriKeyInput').value.trim() || 'siri_default_123';
-      window.open(window.location.origin + '/api/siri/download?key=' + encodeURIComponent(siriKey), '_blank');
-    });
 
     // Vision: client-side cooldown to prevent rapid-fire API calls
     let visionTestCooldown = 0;
@@ -7880,12 +7282,8 @@ const rid=Math.floor(Math.random()*1000);
 
     async function doExport(type){
       const webhookUrl=document.getElementById('webhookUrlInput').value.trim();
-      const corpId=localStorage.getItem('wecom_corp_id');
-      const agentId=localStorage.getItem('wecom_agent_id');
-      const secret=localStorage.getItem('wecom_secret');
-      
-      if(!webhookUrl && (!corpId || !agentId || !secret)){
-        document.getElementById('exportStatus').innerText='请填写 Webhook URL 或配置自建应用(CorpID / AgentID / Secret)';
+      if(!webhookUrl){
+        document.getElementById('exportStatus').innerText='请填写 Webhook URL';
         return;
       }
       
@@ -9634,515 +9032,6 @@ const rid=Math.floor(Math.random()*1000);
           headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
         });
       }
-    }
-
-    // ========== 企业微信应用机器人回调 API ==========
-
-    // 调试日志接口：返回最新接收到的企业微信请求日志
-    if (path === '/api/wecom/log' && request.method === 'GET') {
-      const logVal = await env.DATA_KV.get('config:wecom_callback_log');
-      return new Response(logVal || JSON.stringify({ message: 'No callback request received yet.' }), {
-        headers: {
-          'Content-Type': 'application/json; charset=UTF-8',
-          'Access-Control-Allow-Origin': '*'
-        }
-      });
-    }
-
-    // 调试接口：检查 WeCom 配置是否已存入 KV
-    if (path === '/api/wecom/debug' && request.method === 'GET') {
-      const corpId = await env.DATA_KV.get('config:wecom_corp_id');
-      const token = await env.DATA_KV.get('config:wecom_token');
-      const aesKey = await env.DATA_KV.get('config:wecom_aes_key');
-      const agentId = await env.DATA_KV.get('config:wecom_agent_id');
-      const secret = await env.DATA_KV.get('config:wecom_secret');
-      const touser = await env.DATA_KV.get('config:wecom_touser');
-      const envCorpId = env.WECOM_CORP_ID;
-      const envToken = env.WECOM_TOKEN;
-      const envAesKey = env.WECOM_AES_KEY;
-
-      let connectionTest = { status: '未配置', message: '未配置 CorpID 或 Secret，无法执行接口连通性测试。' };
-      const testCorpId = corpId || envCorpId;
-      if (testCorpId && secret) {
-        try {
-          const proxyBase = await env.DATA_KV.get('config:wecom_api_proxy') || 'https://qyapi.weixin.qq.com';
-          const cleanProxy = proxyBase.endsWith('/') ? proxyBase.slice(0, -1) : proxyBase;
-          const testUrl = `${cleanProxy}/cgi-bin/gettoken?corpid=${testCorpId}&corpsecret=${secret}`;
-          const tResp = await fetch(testUrl);
-          if (tResp.ok) {
-            const tData = await tResp.json();
-            if (tData.errcode === 0) {
-              connectionTest = {
-                status: '✅ 连通成功',
-                message: '成功获取 access_token，且 API 服务连通正常！'
-              };
-            } else {
-              connectionTest = {
-                status: '❌ 连通失败',
-                message: `企业微信接口返回错误: [${tData.errcode}] ${tData.errmsg}`
-              };
-            }
-          } else {
-            connectionTest = {
-              status: '❌ 连通失败',
-              message: `请求企业微信 API 失败，HTTP 状态码: ${tResp.status}`
-            };
-          }
-        } catch (err) {
-          connectionTest = {
-            status: '❌ 连通失败',
-            message: `网络请求遇到错误: ${err.message}`
-          };
-        }
-      }
-
-      return new Response(JSON.stringify({
-        kv: {
-          wecom_corp_id: corpId ? '已配置 (' + corpId.substring(0, 6) + '...)' : '❌ 未配置',
-          wecom_token: token ? '已配置 (长度:' + token.length + ')' : '❌ 未配置',
-          wecom_aes_key: aesKey ? '已配置 (长度:' + aesKey.length + ')' : '❌ 未配置',
-          wecom_agent_id: agentId ? '已配置 (' + agentId + ')' : '❌ 未配置',
-          wecom_secret: secret ? '已配置 (' + secret.substring(0, 6) + '...)' : '❌ 未配置',
-          wecom_touser: touser ? '已配置 (' + touser + ')' : '未配置 (默认发送给 @all)',
-          wecom_api_proxy: (await env.DATA_KV.get('config:wecom_api_proxy')) || '未配置 (使用官方默认)',
-        },
-        env_fallback: {
-          WECOM_CORP_ID: envCorpId ? '已配置' : '❌ 未配置',
-          WECOM_TOKEN: envToken ? '已配置' : '❌ 未配置',
-          WECOM_AES_KEY: envAesKey ? '已配置' : '❌ 未配置',
-        },
-        effective: {
-          corpId: (corpId || envCorpId) ? '✅ 可用' : '❌ 缺失 — 回调将返回 500',
-          token: (token || envToken) ? '✅ 可用' : '❌ 缺失 — 回调将返回 500',
-          aesKey: (aesKey || envAesKey) ? '✅ 可用' : '❌ 缺失 — 回调将返回 500',
-        },
-        connection_test: connectionTest,
-        callback_url: url.origin + '/api/wecom/callback',
-        tip: '如果 effective 中有❌，请先在 megz 前端保存配置或调用 /api/wecom/set-config 写入配置后，再到企业微信后台验证回调URL。'
-      }, null, 2), {
-        headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
-      });
-    }
-
-    // 直接写入 WeCom 配置到 KV（用于解决鸡生蛋问题：先写配置再验证URL）
-    if (path === '/api/wecom/set-config' && request.method === 'POST') {
-      try {
-        const body = await request.json();
-        const { corpId, token, aesKey, agentId, secret } = body;
-        if (!corpId || !token || !aesKey) {
-          return new Response(JSON.stringify({ error: '请提供 corpId, token, aesKey 三个参数' }), {
-            status: 400,
-            headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
-          });
-        }
-        // 校验 EncodingAESKey 长度（企业微信标准是 43 字符）
-        if (aesKey.length !== 43) {
-          return new Response(JSON.stringify({
-            error: 'EncodingAESKey 长度应为 43 个字符，当前长度: ' + aesKey.length,
-            tip: '请从企业微信后台 API 接收消息页面复制完整的 EncodingAESKey'
-          }), {
-            status: 400,
-            headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
-          });
-        }
-        const promises = [
-          env.DATA_KV.put('config:wecom_corp_id', corpId),
-          env.DATA_KV.put('config:wecom_token', token),
-          env.DATA_KV.put('config:wecom_aes_key', aesKey),
-        ];
-        if (agentId !== undefined && agentId !== null) {
-          promises.push(env.DATA_KV.put('config:wecom_agent_id', String(agentId)));
-        }
-        if (secret !== undefined && secret !== null) {
-          promises.push(env.DATA_KV.put('config:wecom_secret', String(secret)));
-        }
-        await Promise.all(promises);
-        return new Response(JSON.stringify({
-          success: true,
-          message: '配置已成功写入 KV！现在可以去企业微信后台设置回调 URL 了。',
-          callback_url: url.origin + '/api/wecom/callback'
-        }), {
-          headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
-        });
-      } catch (e) {
-        return new Response(JSON.stringify({ error: e.message }), {
-          status: 500,
-          headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
-        });
-      }
-    }
-
-    if (path === '/api/wecom/callback') {
-      // Log request to KV for diagnostics
-      try {
-        const queryParams = {};
-        for (const [k, v] of url.searchParams.entries()) {
-          queryParams[k] = v;
-        }
-        const logData = {
-          time: new Date(Date.now() + 8 * 3600000).toISOString().replace('T', ' ').substring(0, 19),
-          method: request.method,
-          url: request.url,
-          queryParams: queryParams,
-          headers: Object.fromEntries(request.headers.entries()),
-          ip: request.headers.get('cf-connecting-ip') || request.headers.get('x-real-ip') || 'unknown'
-        };
-        await env.DATA_KV.put('config:wecom_callback_log', JSON.stringify(logData));
-      } catch (logErr) {
-        console.error('[WeComCallbackLog] Failed to log request:', logErr);
-      }
-
-      const corpId = await env.DATA_KV.get('config:wecom_corp_id') || env.WECOM_CORP_ID;
-      const token = await env.DATA_KV.get('config:wecom_token') || env.WECOM_TOKEN;
-      const aesKey = await env.DATA_KV.get('config:wecom_aes_key') || env.WECOM_AES_KEY;
-
-      console.log('[WeComCallback] method=' + request.method + ' corpId=' + (corpId ? corpId.substring(0,6) + '...' : 'MISSING') + ' token=' + (token ? 'SET' : 'MISSING') + ' aesKey=' + (aesKey ? 'SET(' + aesKey.length + ')' : 'MISSING'));
-
-      if (!corpId || !token || !aesKey) {
-        console.error('[WeComCallback] Missing config! corpId=' + !!corpId + ' token=' + !!token + ' aesKey=' + !!aesKey);
-        return new Response('WeCom callback keys not configured', { status: 500 });
-      }
-
-      const crypt = new WeComCrypt(token, aesKey, corpId);
-
-      // GET: Callback verification (企业微信URL验证)
-      if (request.method === 'GET') {
-        const getRawParam = (name) => {
-          const reg = new RegExp('[?&]' + name + '=([^&]*)');
-          const m = url.search.match(reg);
-          return m ? decodeURIComponent(m[1]) : null;
-        };
-
-        const msg_signature = getRawParam('msg_signature') || url.searchParams.get('msg_signature');
-        const timestamp = getRawParam('timestamp') || url.searchParams.get('timestamp');
-        const nonce = getRawParam('nonce') || url.searchParams.get('nonce');
-        const echostr = getRawParam('echostr') || url.searchParams.get('echostr');
-
-        console.log('[WeComCallback GET] msg_signature=' + msg_signature + ' timestamp=' + timestamp + ' nonce=' + nonce + ' echostr=' + (echostr ? echostr.substring(0, 20) + '...' : 'MISSING'));
-
-        if (!msg_signature || !timestamp || !nonce || !echostr) {
-          return new Response('Missing parameters', { status: 400 });
-        }
-
-        // Use the raw parsed echostr to prevent '+' to space URL parsing bugs
-        const isValid = crypt.verifySignature(msg_signature, timestamp, nonce, echostr);
-        console.log('[WeComCallback GET] signature valid=' + isValid);
-        if (!isValid) {
-          return new Response('Invalid signature', { status: 401 });
-        }
-
-        try {
-          const { msg } = crypt.decrypt(echostr);
-          console.log('[WeComCallback GET] decrypt OK, echostr reply length=' + msg.length);
-          return new Response(msg, { headers: { 'Content-Type': 'text/plain; charset=UTF-8' } });
-        } catch (e) {
-          console.error('[WeComCallback GET] Decryption failed:', e.message, e.stack);
-          return new Response('Decryption failed: ' + e.message, { status: 500 });
-        }
-      }
-
-      // POST: Handle user messages
-      if (request.method === 'POST') {
-        const msg_signature = url.searchParams.get('msg_signature');
-        const timestamp = url.searchParams.get('timestamp');
-        const nonce = url.searchParams.get('nonce');
-
-        if (!msg_signature || !timestamp || !nonce) {
-          return new Response('Missing signature parameters', { status: 400 });
-        }
-
-        const bodyXml = await request.text();
-        
-        const encryptMatch = bodyXml.match(/<Encrypt><!\[CDATA\[([\s\S]*?)\]\]><\/Encrypt>/) || bodyXml.match(/<Encrypt>([\s\S]*?)<\/Encrypt>/);
-        if (!encryptMatch) {
-          return new Response('Missing Encrypt block', { status: 400 });
-        }
-        const encryptB64 = encryptMatch[1].trim();
-
-        const isValid = crypt.verifySignature(msg_signature, timestamp, nonce, encryptB64);
-        if (!isValid) {
-          return new Response('Invalid signature', { status: 401 });
-        }
-
-        try {
-          const { msg } = crypt.decrypt(encryptB64);
-          
-          const fromUserMatch = msg.match(/<FromUserName><!\[CDATA\[([\s\S]*?)\]\]><\/FromUserName>/) || msg.match(/<FromUserName>([\s\S]*?)<\/FromUserName>/);
-          const toUserMatch = msg.match(/<ToUserName><!\[CDATA\[([\s\S]*?)\]\]><\/ToUserName>/) || msg.match(/<ToUserName>([\s\S]*?)<\/ToUserName>/);
-          const msgTypeMatch = msg.match(/<MsgType><!\[CDATA\[([\s\S]*?)\]\]><\/MsgType>/) || msg.match(/<MsgType>([\s\S]*?)<\/MsgType>/);
-          const contentMatch = msg.match(/<Content><!\[CDATA\[([\s\S]*?)\]\]><\/Content>/) || msg.match(/<Content>([\s\S]*?)<\/Content>/);
-
-          const fromUser = fromUserMatch ? fromUserMatch[1].trim() : '';
-          const toUser = toUserMatch ? toUserMatch[1].trim() : '';
-          const msgType = msgTypeMatch ? msgTypeMatch[1].trim() : '';
-          const content = contentMatch ? contentMatch[1].trim() : '';
-
-          if (msgType !== 'text') {
-            return new Response('', { status: 200 });
-          }
-
-          const trimmedContent = content.trim();
-
-          // Read active send credentials from KV
-          const agentId = await env.DATA_KV.get('config:wecom_agent_id');
-          const secret = await env.DATA_KV.get('config:wecom_secret');
-
-          // If Agent ID or Secret is missing, we must fallback to synchronous reply (passive XML)
-          if (!agentId || !secret) {
-            console.log('[WeComCallback] Agent ID or Secret not configured. Falling back to sync reply.');
-            let replyContent = '';
-            if (trimmedContent.startsWith('/company')) {
-              const queryName = trimmedContent.replace('/company', '').trim();
-              if (!queryName) {
-                replyContent = '格式错误。用法举例：/company 腾讯科技';
-              } else {
-                try {
-                  const results = await supabase.checkCompanies([queryName]);
-                  const match = results[0];
-                  if (match && match.isMatch) {
-                    replyContent = `🔍 查询结果：\n单位名称：${match.matchedName}\n准入银行：${match.bank_name || '建行建易贷'}\n名单状态：${match.status || '正常'}`;
-                  } else {
-                    replyContent = `🔍 查询结果：\n未在白名单库中查到公司【${queryName}】。`;
-                  }
-                } catch (se) {
-                  replyContent = `数据库查询失败: ${se.message}`;
-                }
-              }
-            } else if (trimmedContent.startsWith('/customer')) {
-              const queryName = trimmedContent.replace('/customer', '').trim();
-              if (!queryName) {
-                replyContent = '格式错误。用法举例：/customer 张三';
-              } else {
-                try {
-                  const results = await supabase.searchCustomers(queryName);
-                  if (results.length === 0) {
-                    replyContent = `🔍 未在客户库中查到包含【${queryName}】的客户。`;
-                  } else {
-                    replyContent = `🔍 共查到 ${results.length} 位客户：\n` + 
-                      results.map(c => `👤 姓名：${c.name}\n📞 电话：${c.mobile || '—'}\n🏢 单位：${c.company_name || '—'}\n💵 社保/公积金：${c.social_security_base || '—'}/${c.fund_base || '—'}\n🏷️ 标签：${c.tags ? c.tags.join(',') : '无'}`).join('\n\n');
-                  }
-                } catch (se) {
-                  replyContent = `客户数据库查询失败: ${se.message}`;
-                }
-              }
-            } else if (trimmedContent.startsWith('/product') || trimmedContent.startsWith('/case')) {
-              const queryVal = trimmedContent.replace(/^\/(product|case)/, '').trim();
-              if (!queryVal) {
-                replyContent = '格式错误。用法举例：/case 建易贷';
-              } else {
-                try {
-                  const results = await supabase.searchLoanCases(queryVal);
-                  if (results.length === 0) {
-                    replyContent = `🔍 未在案例库中查到包含【${queryVal}】的记录。`;
-                  } else {
-                    replyContent = `🔍 查到以下案例记录：\n` +
-                      results.map(r => `🏢 公司：${r.company_name}\n🏦 贷款产品：${r.loan_product}\n💰 贷款金额：${r.loan_amount || '—'}\n📊 结果：${r.result || '—'}\n📝 总结：${r.summary || '—'}`).join('\n\n');
-                  }
-                } catch (se) {
-                  replyContent = `案例库查询失败: ${se.message}`;
-                }
-              }
-            } else if (trimmedContent.startsWith('/speech')) {
-              const queryVal = trimmedContent.replace('/speech', '').trim();
-              if (!queryVal) {
-                replyContent = '格式错误。用法举例：/speech 开场白';
-              } else {
-                try {
-                  const results = await supabase.searchSpeech(queryVal);
-                  if (results.length === 0) {
-                    replyContent = `🔍 未在话术库中查到包含【${queryVal}】的记录。`;
-                  } else {
-                    replyContent = `🔍 查到以下话术：\n` +
-                      results.map(r => `📌 分类/场景：${r.category} -> ${r.scenario}\n💬 内容：${r.content}`).join('\n\n');
-                  }
-                } catch (se) {
-                  replyContent = `话术库查询失败: ${se.message}`;
-                }
-              }
-            } else {
-              const hasKey = await env.DATA_KV.get('config:ai_api_key') || await env.DATA_KV.get('config:deepseek_api_key') || await env.DATA_KV.get('config:vision_api_key') || env.AI_API_KEY || env.DEEPSEEK_API_KEY;
-              if (!hasKey) {
-                replyContent = `🤖 每日智能助手：\n\n您说：“${trimmedContent}”。\n\n提示：系统管理员尚未配置 AI 大模型 API Key 且未配置企业微信自建应用，因此无法为您服务。`;
-              } else {
-                replyContent = `⚠️ 企业微信未配置自建应用（Agent ID/Secret），导致无法使用异步模式。由于大模型对话易超时，请在网页端配置自建应用以启用完整功能。`;
-              }
-            }
-
-            const replyTime = Math.floor(Date.now() / 1000);
-            const replyXml = `<xml>` +
-              `<ToUserName><![CDATA[${fromUser}]]></ToUserName>` +
-              `<FromUserName><![CDATA[${toUser}]]></FromUserName>` +
-              `<CreateTime>${replyTime}</CreateTime>` +
-              `<MsgType><![CDATA[text]]></MsgType>` +
-              `<Content><![CDATA[${replyContent}]]></Content>` +
-              `</xml>`;
-
-            const encryptedReply = crypt.encrypt(replyXml);
-            const replySignature = crypt.getSignature(replyTime, nonce, encryptedReply);
-
-            const responseXml = `<xml>` +
-              `<Encrypt><![CDATA[${encryptedReply}]]></Encrypt>` +
-              `<MsgSignature><![CDATA[${replySignature}]]></MsgSignature>` +
-              `<TimeStamp>${replyTime}</TimeStamp>` +
-              `<Nonce>${nonce}</Nonce>` +
-              `</xml>`;
-
-            return new Response(responseXml, { headers: { 'Content-Type': 'application/xml; charset=UTF-8' } });
-          }
-
-          // Otherwise, use ASYNC mode: immediately return empty response to avoid WeCom 5s timeout.
-          console.log('[WeComCallback] Async mode activated. Returning empty response.');
-
-          ctx.waitUntil((async () => {
-            try {
-              let replyContent = '';
-              if (trimmedContent.startsWith('/company')) {
-                const queryName = trimmedContent.replace('/company', '').trim();
-                if (!queryName) {
-                  replyContent = '格式错误。用法举例：/company 腾讯科技';
-                } else {
-                  const results = await supabase.checkCompanies([queryName]);
-                  const match = results[0];
-                  if (match && match.isMatch) {
-                    replyContent = `🔍 查询结果：\n单位名称：${match.matchedName}\n准入银行：${match.bank_name || '建行建易贷'}\n名单状态：${match.status || '正常'}`;
-                  } else {
-                    replyContent = `🔍 查询结果：\n未在白名单库中查到公司【${queryName}】。`;
-                  }
-                }
-              } else if (trimmedContent.startsWith('/customer')) {
-                const queryName = trimmedContent.replace('/customer', '').trim();
-                if (!queryName) {
-                  replyContent = '格式错误。用法举例：/customer 张三';
-                } else {
-                  const results = await supabase.searchCustomers(queryName);
-                  if (results.length === 0) {
-                    replyContent = `🔍 未在客户库中查到包含【${queryName}】的客户。`;
-                  } else {
-                    replyContent = `🔍 共查到 ${results.length} 位客户：\n` + 
-                      results.map(c => `👤 姓名：${c.name}\n📞 电话：${c.mobile || '—'}\n🏢 单位：${c.company_name || '—'}\n🏷️ 标签：${c.tags ? c.tags.join(',') : '无'}\n📝 备注/跟进：${c.note || '无'}`).join('\n\n');
-                  }
-                }
-              } else if (trimmedContent.startsWith('/product') || trimmedContent.startsWith('/case')) {
-                const queryVal = trimmedContent.replace(/^\/(product|case)/, '').trim();
-                if (!queryVal) {
-                  replyContent = '格式错误。用法举例：/case 建易贷';
-                } else {
-                  const results = await supabase.searchLoanCases(queryVal);
-                  if (results.length === 0) {
-                    replyContent = `🔍 未在案例库中查到包含【${queryVal}】的记录。`;
-                  } else {
-                    replyContent = `🔍 查到以下案例记录：\n` +
-                      results.map(r => `🏢 公司：${r.company_name}\n🏦 贷款产品：${r.loan_product}\n💰 贷款金额：${r.loan_amount || '—'}\n📊 结果：${r.result || '—'}\n📝 总结：${r.summary || '—'}`).join('\n\n');
-                  }
-                }
-              } else if (trimmedContent.startsWith('/speech')) {
-                const queryVal = trimmedContent.replace('/speech', '').trim();
-                if (!queryVal) {
-                  replyContent = '格式错误。用法举例：/speech 开场白';
-                } else {
-                  const results = await supabase.searchSpeech(queryVal);
-                  if (results.length === 0) {
-                    replyContent = `🔍 未在话术库中查到包含【${queryVal}】的记录。`;
-                  } else {
-                    replyContent = `🔍 查到以下话术：\n` +
-                      results.map(r => `📌 分类/场景：${r.category} -> ${r.scenario}\n💬 内容：${r.content}`).join('\n\n');
-                  }
-                }
-              } else {
-                // LLM AI dialogue
-                const hasKey = await env.DATA_KV.get('config:ai_api_key') || await env.DATA_KV.get('config:deepseek_api_key') || await env.DATA_KV.get('config:vision_api_key') || env.AI_API_KEY || env.DEEPSEEK_API_KEY;
-                if (!hasKey) {
-                  replyContent = `🤖 每日智能助手：\n\n您说：“${trimmedContent}”。\n\n提示：系统管理员尚未配置 AI 大模型 API Key，因此无法为您服务。`;
-                } else {
-                  let contextText = '';
-                  try {
-                    const lowerContent = trimmedContent.toLowerCase();
-                    // 1. 检索今日工作登记与意向客户
-                    if (lowerContent.includes('客户') || lowerContent.includes('意向') || lowerContent.includes('登记') || lowerContent.includes('今天') || lowerContent.includes('工作') || lowerContent.includes('汇报')) {
-                      const d = new Date(Date.now() + 8 * 3600000);
-                      const todayDate = d.toISOString().split('T')[0];
-                      const raw = await env.DATA_KV.get(`work:${todayDate}`);
-                      if (raw) {
-                        const parsed = JSON.parse(raw);
-                        contextText += `\n[今日工作登记与意向客户数据] (日期: ${todayDate}):\n` +
-                          `- 今日微信数: ${parsed.wechatCount || 0}\n` +
-                          `- 今日回访数: ${parsed.revisitCount || 0}\n` +
-                          `- 今日上门数: ${parsed.visitCount || 0}\n` +
-                          `- 今日回款数: ${parsed.paymentCount || 0}\n` +
-                          `- 登记的意向客户列表:\n` +
-                          (parsed.clients && parsed.clients.length > 0 ?
-                            parsed.clients.map((c, idx) => `  ${idx + 1}. 姓名: ${c.name} | 电话: ${c.phone} | 登记时间: ${c.time || ''} | 跟进/备注: ${c.note || '无'}`).join('\n') :
-                            '  (暂无意向客户)') + '\n';
-                      }
-                    }
-                    // 2. 检查公司白名单准入
-                    if (lowerContent.includes('白名单') || lowerContent.includes('公司') || lowerContent.includes('单位') || lowerContent.includes('白') || (trimmedContent.length >= 4 && !trimmedContent.includes('/'))) {
-                      const cleanQuery = trimmedContent.replace(/(查一下|查询|白名单|公司|是不是|在不在|白名单里有|有)/g, '').trim();
-                      if (cleanQuery.length >= 2) {
-                        const whitelistRes = await supabase.checkCompanies([cleanQuery]);
-                        if (whitelistRes && whitelistRes.length > 0) {
-                          contextText += `\n[企业白名单准入核对结果]:\n` +
-                            whitelistRes.map(r => `- 公司名: ${r.matchedName} | 状态: ${r.isMatch ? '✅ 已准入白名单' : '❌ 未准入'} | 准入银行: ${r.bank_name || '建行建易贷'} | 名单状态: ${r.status || '正常'}`).join('\n') + '\n';
-                        }
-                      }
-                    }
-                    // 3. 搜索客户档案
-                    if (lowerContent.includes('查客户') || lowerContent.includes('搜索客户') || lowerContent.includes('客户档案') || (trimmedContent.length >= 2 && trimmedContent.length <= 4 && !lowerContent.includes('今天') && !lowerContent.includes('昨天') && !lowerContent.includes('白名单'))) {
-                      const cleanQuery = trimmedContent.replace(/(查客户|搜索客户|查询客户|客户|档案|是)/g, '').trim();
-                      if (cleanQuery.length >= 1) {
-                        const customerRes = await supabase.searchCustomers(cleanQuery);
-                        if (customerRes && customerRes.length > 0) {
-                          contextText += `\n[客户档案检索结果]:\n` +
-                            customerRes.map(c => `- 姓名: ${c.name} | 电话: ${c.mobile || '—'} | 公司: ${c.company_name || '—'} | 标签: ${c.tags ? c.tags.join(',') : '无'} | 备注/跟进记录: ${c.note || '无'}`).join('\n') + '\n';
-                        }
-                      }
-                    }
-                  } catch (prefErr) {
-                    console.error('[PreFetchError] Failed to pre-fetch context:', prefErr);
-                  }
-
-                  const bjTime = new Date(Date.now() + 8 * 3600000).toISOString().replace('T', ' ').substring(0, 19);
-                  let systemPrompt = `你是一个专业的银行贷款智能助手。你拥有调用 Supabase 数据库和 Cloudflare KV 数据工作的权限。当前北京时间是 ${bjTime}。\n`;
-                  if (contextText) {
-                    systemPrompt += `\n系统已为您预先检索了与当前问题相关的实时数据库内容：\n${contextText}\n你可以直接使用以上数据回答用户。若以上检索到的信息足够回答，请结合它们给用户做出最详细 and 准确的解答。\n`;
-                  }
-                  systemPrompt += `如果你需要检索其它日期、更深入搜索客户档案、核对公司白名单、检索话术与知识库，请直接通过 tool_calls 调用相关函数。请使用清晰的换行 and 丰富的 emoji 符号（增强可读性）对结果进行整理回答。`;
-
-                  const apiData = await callAIChatWithTools(env, [
-                    {
-                      role: 'system',
-                      content: systemPrompt
-                    },
-                    {
-                      role: 'user',
-                      content: trimmedContent
-                    }
-                  ], 0.5, fromUser);
-
-                  replyContent = apiData.choices[0].message.content.trim();
-                }
-              }
-
-              // Send the reply message actively
-              await sendWeComAppMessage(env, corpId, secret, agentId, fromUser, replyContent);
-            } catch (err) {
-              console.error('[WeComCallback Async] Error processing message:', err);
-              try {
-                await sendWeComTextMessage(env, corpId, secret, agentId, fromUser, `❌ 助手处理消息时出错：${err.message}`);
-              } catch (sendErr) {
-                console.error('[WeComCallback Async] Failed to send error message:', sendErr);
-              }
-            }
-          })());
-
-          return new Response('', { status: 200 });
-        } catch (e) {
-          console.error('[WeComCallback POST] Processing failed:', e);
-          return new Response('Processing failed: ' + e.message, { status: 500 });
-        }
-      }
-
-      return new Response('Method not allowed', { status: 405 });
     }
 
     // ========== 白名单 API ==========
