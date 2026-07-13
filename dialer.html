@@ -1429,6 +1429,7 @@
             <button class="dropdown-item" id="clearBtn" style="display:none; color: #e74c3c;">清空数据</button>
             <button class="dropdown-item" id="custViewerBtn">客户数据</button>
             <button class="dropdown-item" id="darkToggleBtn">切换主题</button>
+	            <button class="dropdown-item" id="fullscreenBtn">全屏浏览</button>
           </div>
         </div>
 
@@ -2658,6 +2659,19 @@
           }
         });
       }
+    }
+
+    // Fullscreen Control
+    function initFullscreen() {
+      var btn = document.getElementById('fullscreenBtn');
+      if (!btn) return;
+      var updateLabel = function() { btn.textContent = document.fullscreenElement ? '退出全屏' : '全屏浏览'; };
+      btn.addEventListener('click', function() {
+        if (document.fullscreenElement) { document.exitFullscreen(); }
+        else { document.documentElement.requestFullscreen().catch(function() {}); }
+      });
+      document.addEventListener('fullscreenchange', updateLabel);
+      updateLabel();
     }
 
     // Helper functions
@@ -9149,6 +9163,7 @@
     }
     safeInit('initAuth', initAuth);
     safeInit('initDark', initDark);
+    safeInit('initFullscreen', initFullscreen);
     safeInit('initFileInputs', initFileInputs);
     safeInit('initCallControls', initCallControls);
     safeInit('initFilters', initFilters);

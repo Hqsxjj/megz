@@ -4103,6 +4103,7 @@ export default {
           <button class="menu-item" id="goalBtn">目标设定</button>
           <button class="menu-item" id="whitelistMenuBtn">白名单管理</button>
           <button class="menu-item" id="darkToggleBtn">深色模式</button>
+	          <button class="menu-item" id="fullscreenBtn">全屏浏览</button>
         </div>
       </div>
     </div>
@@ -7132,6 +7133,17 @@ const rid=Math.floor(Math.random()*1000);
       });
     }
   }
+  function initFullscreen(){
+    const btn=document.getElementById('fullscreenBtn');
+    if(!btn)return;
+    const updateLabel=()=>{btn.textContent=document.fullscreenElement?'退出全屏':'全屏浏览';};
+    btn.addEventListener('click',()=>{
+      if(document.fullscreenElement){document.exitFullscreen();}
+      else{document.documentElement.requestFullscreen().catch(()=>{});}
+    });
+    document.addEventListener('fullscreenchange',updateLabel);
+    updateLabel();
+  }
   function initGoals(){
     const modal=document.getElementById('goalModal');
     const btn=document.getElementById('goalBtn');
@@ -8433,6 +8445,7 @@ const rid=Math.floor(Math.random()*1000);
   safeInit('initAndroid', initAndroid);
   safeInit('initLogs', initLogs);
   safeInit('initDark', initDark);
+  safeInit('initFullscreen', initFullscreen);
   safeInit('initWp', initWp);
   safeInit('initScriptFeature', initScriptFeature);
   safeInit('initLearnFeature', initLearnFeature);
