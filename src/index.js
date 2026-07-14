@@ -6254,7 +6254,7 @@ export default {
             const fuRaw = card.querySelector('.edit-follow-input').value.trim();
             var newFollowUps = [];
             if (fuRaw) {
-              // Parse [date time] content lines or use as single record
+              /* Parse [date time] content lines or use as single record */
               var lines = fuRaw.split('\n');
               lines.forEach(function(line) {
                 var m = line.match(/^\[([^\]]+)\s+([^\]]+)\]\s*(.*)/);
@@ -7834,7 +7834,7 @@ const rid=Math.floor(Math.random()*1000);
   }
 
   function migrateClientFollowUps(c) {
-    // Backward compat: migrate old followUp/followUpDate/followUpTime to followUps array
+    /* Backward compat: migrate old followUp to followUps array */
     if (!c.followUps && c.followUp) {
       c.followUps = [{ date: c.followUpDate || c.date, time: c.followUpTime || '', content: c.followUp }];
     }
@@ -7851,24 +7851,24 @@ const rid=Math.floor(Math.random()*1000);
       return;
     }
 
-    // Migrate old data
+    /* Migrate old data */
     clients.forEach(c => migrateClientFollowUps(c));
 
-    // Sinking sort: clients WITHOUT followUps at TOP, clients WITH followUps at BOTTOM
-    // Within each group, sort by date descending
+    /* Sinking sort: clients without followUps at top, with followUps at bottom */
+    /* Within each group, sort by date descending */
     clients.sort((a, b) => {
       var aHas = a.followUps && a.followUps.length > 0;
       var bHas = b.followUps && b.followUps.length > 0;
-      if (aHas && !bHas) return 1;   // a sinks to bottom
-      if (!aHas && bHas) return -1;  // b sinks to bottom
-      // Both have or both don't — sort by date desc
+      if (aHas && !bHas) return 1;   /* a sinks to bottom */
+      if (!aHas && bHas) return -1;  /* b sinks to bottom */
+      /* Both have or both don't, sort by date desc */
       return (b.date || '').localeCompare(a.date || '');
     });
 
-    // Update stats bar
+    /* Update stats bar */
     updateAllClientsStats(clients);
 
-    // Build followUp HTML helper
+    /* Build followUp HTML helper */
     function buildFollowUpsHtml(c) {
       if (!c.followUps || c.followUps.length === 0) return '';
       var parts = [];
@@ -8108,7 +8108,7 @@ const rid=Math.floor(Math.random()*1000);
         if (ff) ff.style.display = this.value === 'failed' ? 'flex' : 'none';
       });
 
-      // Populate followUps list
+      /* Populate followUps list */
       var followUpsList = card.querySelector('.edit-followups-list');
       var followUpsData = (c.followUps && c.followUps.length > 0) ? c.followUps.slice() : [];
       function renderFollowUpsEditList() {
@@ -8121,7 +8121,7 @@ const rid=Math.floor(Math.random()*1000);
           '</div>';
         });
         followUpsList.innerHTML = h;
-        // Bind remove buttons
+        /* Bind remove buttons */
         followUpsList.querySelectorAll('.edit-fu-remove').forEach(function(btn) {
           btn.addEventListener('click', function() {
             var row = btn.closest('.follow-up-edit-row');
@@ -8134,7 +8134,7 @@ const rid=Math.floor(Math.random()*1000);
         });
       }
       renderFollowUpsEditList();
-      // Bind add followup button
+      /* Bind add followup button */
       var addFuBtn = card.querySelector('.edit-add-followup-btn');
       if (addFuBtn) {
         addFuBtn.addEventListener('click', function() {
@@ -8151,7 +8151,7 @@ const rid=Math.floor(Math.random()*1000);
         const fund = card.querySelector('.edit-fund-input').value.trim();
         const label = (card.querySelector('.edit-label-input')||{}).value||'';
         const nt = card.querySelector('.edit-note-input').value.trim();
-        // Collect followUps from dynamic list
+        /* Collect followUps from dynamic list */
         var newFollowUps = [];
         var fuContents = card.querySelectorAll('.edit-fu-content');
         fuContents.forEach(function(el) {
