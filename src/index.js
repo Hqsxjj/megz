@@ -3917,6 +3917,9 @@ export default {
       background: rgba(230,126,34,0.16);
       color: #f0a04b;
     }
+    .flag-dot{width:12px;height:12px;border-radius:50%;border:2px solid #e74c3c;background:transparent;cursor:pointer;padding:0;margin:0 4px;flex-shrink:0;transition:all .15s}
+    .flag-dot-active{background:#e74c3c;box-shadow:0 0 6px rgba(231,76,60,0.6)}
+    body.dark-mode .flag-dot-active{box-shadow:0 0 8px rgba(231,76,60,0.8)}
     .all-clients-stats{display:flex;gap:8px;padding:10px 16px;margin:0 -4px;background:var(--card-bg);border-bottom:1px solid var(--border-light);flex-wrap:wrap;position:sticky;top:0;z-index:5}
     .all-clients-stats .stats-item{font-size:0.72rem;font-weight:600;color:var(--text-soft);padding:4px 12px;border-radius:12px;background:var(--btn-bg);white-space:nowrap}
     .all-clients-stats .stats-item strong{font-weight:900;font-size:0.85rem;margin-left:2px}
@@ -4646,6 +4649,10 @@ export default {
     var label = c.status ? STATUS_LABELS[c.status] : '标';
     var cls = c.status ? 'status-toggle-btn ' + STATUS_CLASSES[c.status] : 'status-toggle-btn';
     return '<button class="' + cls + '" data-status="' + (c.status||'') + '">' + label + '</button>';
+  }
+  function getFlagDotHtml(c) {
+    var dotCls = c.flagged ? 'flag-dot flag-dot-active' : 'flag-dot';
+    return '<button class="' + dotCls + '" data-flagged="' + (c.flagged ? '1' : '0') + '" title="' + (c.flagged ? '取消标记' : '标记关注') + '"></button>';
   }
   function cycleStatus(current) {
     if (!current) return 'success';
@@ -5587,6 +5594,7 @@ export default {
         '</div>'+
         '<div class="client-card-actions">'+
           getStatusToggleHtml(c) +
+          getFlagDotHtml(c) +
           '<button class="export-single-btn" data-name="'+esc(c.name)+'" data-phone="'+esc(c.phone)+'" data-time="'+esc(c.time||'')+'" title="导出">出</button>'+
           '<button class="edit-icon" data-name="'+esc(c.name)+'" data-phone="'+esc(c.phone)+'" data-time="'+esc(c.time||'')+'" title="编辑">编</button>'+
           '<button class="del-icon" data-name="'+esc(c.name)+'" data-phone="'+esc(c.phone)+'" data-time="'+esc(c.time||'')+'" title="删除">×</button>'+
@@ -5614,6 +5622,26 @@ export default {
       await syncOp('updateClient', { matchName: cName, matchPhone: cPhone, matchTime: a[idx].time||'', client: a[idx] });
       renderClientList();
     }));
+
+    /* Flag dot toggle for client list cards */
+    container.querySelectorAll('.flag-dot').forEach(function(b) {
+      b.addEventListener('click', async function(e) {
+        e.stopPropagation();
+        var card = b.closest('.client-card-item');
+        var nameEl = card.querySelector('.client-card-name');
+        var phoneEl = card.querySelector('.client-phone');
+        if (!nameEl || !phoneEl) return;
+        var cName = nameEl.textContent;
+        var cPhone = phoneEl.dataset.full;
+        var a = JSON.parse(localStorage.getItem(CLIENTS_K) || '[]');
+        var idx = a.findIndex(function(c) { return c.name === cName && c.phone === cPhone; });
+        if (idx < 0) return;
+        a[idx].flagged = !a[idx].flagged;
+        localStorage.setItem(CLIENTS_K, JSON.stringify(a));
+        await syncOp('updateClient', { matchName: cName, matchPhone: cPhone, matchTime: a[idx].time || '', client: a[idx] });
+        renderClientList();
+      });
+    });
 
     /* Inline followup add for client list cards */
     container.querySelectorAll('.cl-add-followup-btn').forEach(function(btn) {
@@ -5980,6 +6008,7 @@ export default {
             '</div>'+
             '<div class="client-card-actions">'+
               getStatusToggleHtml(e) +
+              getFlagDotHtml(e) +
               '<button class="export-timeline-single-btn" data-idx="'+e.idx+'" title="导出">出</button>'+
               '<button class="edit-note-btn" title="编辑客户信息" data-idx="'+e.idx+'">编</button>'+
               '<button class="delete-timeline-client-btn" title="删除客户" data-idx="'+e.idx+'">删</button>'+
@@ -6044,6 +6073,25 @@ export default {
         await syncOp('updateClient', { matchName: cName, matchPhone: cPhone, matchTime: a[idx].time||'', client: a[idx] }, ds);
         showTimelineForDate(ds);
       }));
+      /* Flag dot toggle for timeline cards */
+      document.querySelectorAll('#modalClientList .flag-dot').forEach(function(b) {
+        b.addEventListener('click', async function(e) {
+          e.stopPropagation();
+          var card = b.closest('.client-card-item');
+          var nameEl = card.querySelector('.client-card-name');
+          var phoneEl = card.querySelector('.modal-client-phone');
+          if (!nameEl || !phoneEl) return;
+          var cName = nameEl.textContent;
+          var cPhone = phoneEl.dataset.full;
+          var a = JSON.parse(localStorage.getItem(CLIENTS_K) || '[]');
+          var idx = a.findIndex(function(c) { return c.name === cName && c.phone === cPhone; });
+          if (idx < 0) return;
+          a[idx].flagged = !a[idx].flagged;
+          localStorage.setItem(CLIENTS_K, JSON.stringify(a));
+          await syncOp('updateClient', { matchName: cName, matchPhone: cPhone, matchTime: a[idx].time || '', client: a[idx] }, ds);
+          showTimelineForDate(ds);
+        });
+      });
       // Bind Timeline Single Client Export
       document.querySelectorAll('.export-timeline-single-btn').forEach(btn=>{
         btn.onclick=async function(){
@@ -7956,6 +8004,7 @@ const rid=Math.floor(Math.random()*1000);
         '</div>' +
         '<div class="client-card-actions-top">' +
           getStatusToggleHtml(c) +
+          getFlagDotHtml(c) +
           '<button class="all-edit-btn card-action-btn" data-date="' + esc(c.date) + '" data-name="' + esc(c.name) + '" data-phone="' + esc(c.phone) + '" data-time="' + esc(c.time || '') + '" title="编辑">编辑</button>' +
           '<button class="all-export-btn card-action-btn" data-date="' + esc(c.date) + '" data-name="' + esc(c.name) + '" data-phone="' + esc(c.phone) + '" data-time="' + esc(c.time || '') + '" title="导出">导出</button>' +
         '</div>' +
@@ -8027,6 +8076,25 @@ const rid=Math.floor(Math.random()*1000);
       await syncOp('updateClient', { matchName: cName, matchPhone: cPhone, matchTime: cTime, client: a[idx] }, date);
       loadAllClients();
     }));
+
+    /* Flag dot toggle for all-clients cards */
+    container.querySelectorAll('.flag-dot').forEach(function(b) {
+      b.addEventListener('click', async function(e) {
+        e.stopPropagation();
+        var card = b.closest('.all-client-card');
+        var date = card.dataset.date;
+        var cName = card.dataset.name;
+        var cPhone = card.dataset.phone;
+        var cTime = card.dataset.time;
+        var a = JSON.parse(localStorage.getItem(CLIENTS_K) || '[]');
+        var idx = a.findIndex(function(c) { return c.date === date && c.name === cName && c.phone === cPhone && (cTime ? c.time === cTime : true); });
+        if (idx < 0) return;
+        a[idx].flagged = !a[idx].flagged;
+        localStorage.setItem(CLIENTS_K, JSON.stringify(a));
+        await syncOp('updateClient', { matchName: cName, matchPhone: cPhone, matchTime: cTime, client: a[idx] }, date);
+        loadAllClients();
+      });
+    });
 
     // --- Phone toggle ---
     container.querySelectorAll('.all-phone-toggle').forEach(b => b.addEventListener('click', e => {
