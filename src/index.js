@@ -5556,17 +5556,24 @@ export default {
             '<span class="client-card-label">沟通记录</span>'+
             '<span class="client-card-text">'+esc(c.note||'')+'</span>'+
           '</div>'+
-          (c.followUps && c.followUps.length > 0 ?
-            '<div class="client-card-content-block follow-up">'+
-              '<span class="client-card-label">跟进记录('+c.followUps.length+')</span>'+
+          '<div class="client-card-content-block follow-up">'+
+            '<div style="display:flex;justify-content:space-between;align-items:center;">'+
+              '<span class="client-card-label">跟进记录('+(c.followUps?c.followUps.length:0)+')</span>'+
+              '<button class="cl-add-followup-btn" data-idx="'+idx+'" title="新增跟进记录" style="font-size:0.9rem;width:24px;height:24px;border-radius:50%;border:1.5px dashed var(--accent-wechat);background:transparent;color:var(--accent-wechat);cursor:pointer;font-weight:700;line-height:1;display:flex;align-items:center;justify-content:center;">+</button>'+
+            '</div>'+
+            (c.followUps && c.followUps.length > 0 ?
               '<div class="follow-up-list">'+
                 c.followUps.map(function(fu){ return '<div class="follow-up-record"><div class="follow-up-record-header">'+esc(fu.date||'')+' '+esc(fu.time||'')+'</div><div class="follow-up-record-text">'+esc(fu.content||'')+'</div></div>'; }).join('')+
+              '</div>' : (c.followUp ?
+              '<span class="client-card-text">'+esc(c.followUp)+'</span>' : ''))+
+            '<div class="cl-followup-inline-form" style="display:none;margin-top:6px;">'+
+              '<textarea class="cl-followup-inline-input" placeholder="新增跟进记录..." style="width:100%;min-height:44px;padding:6px 8px;font-size:0.78rem;resize:vertical;border:1px solid var(--card-border);border-radius:6px;background:var(--input-bg);color:var(--text-main);font-family:inherit;box-sizing:border-box;"></textarea>'+
+              '<div style="display:flex;justify-content:flex-end;gap:6px;margin-top:4px;">'+
+                '<button class="cl-followup-save-btn" data-idx="'+idx+'" style="font-size:0.7rem;padding:3px 10px;background:var(--accent-wechat);color:#fff;border:none;border-radius:4px;font-weight:700;cursor:pointer;">保存</button>'+
+                '<button class="cl-followup-cancel-btn" style="font-size:0.7rem;padding:3px 10px;background:var(--btn-bg);color:var(--text-soft);border:1px solid var(--card-border);border-radius:4px;font-weight:700;cursor:pointer;">取消</button>'+
               '</div>'+
-            '</div>' : (c.followUp ?
-            '<div class="client-card-content-block follow-up">'+
-              '<span class="client-card-label">跟进情况</span>'+
-              '<span class="client-card-text">'+esc(c.followUp)+'</span>'+
-            '</div>' : ''))+
+            '</div>'+
+          '</div>'+
           (c.demand ?
             '<div class="client-card-content-block">'+
               '<span class="client-card-label">客户需求</span>'+
@@ -5607,6 +5614,54 @@ export default {
       await syncOp('updateClient', { matchName: cName, matchPhone: cPhone, matchTime: a[idx].time||'', client: a[idx] });
       renderClientList();
     }));
+
+    /* Inline followup add for client list cards */
+    container.querySelectorAll('.cl-add-followup-btn').forEach(function(btn) {
+      btn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        var card = btn.closest('.client-card-item');
+        var form = card.querySelector('.cl-followup-inline-form');
+        var input = card.querySelector('.cl-followup-inline-input');
+        if (form.style.display === 'none' || !form.style.display) {
+          form.style.display = 'block'; input.value = ''; input.focus();
+        } else {
+          form.style.display = 'none';
+        }
+      });
+    });
+    container.querySelectorAll('.cl-followup-save-btn').forEach(function(btn) {
+      btn.addEventListener('click', async function(e) {
+        e.stopPropagation();
+        var card = btn.closest('.client-card-item');
+        var input = card.querySelector('.cl-followup-inline-input');
+        var content = input.value.trim();
+        if (!content) { alert('请输入跟进内容'); return; }
+        var nameEl = card.querySelector('.client-card-name');
+        var phoneEl = card.querySelector('.client-phone');
+        if (!nameEl || !phoneEl) return;
+        var cName = nameEl.textContent;
+        var cPhone = phoneEl.dataset.full;
+        var a = JSON.parse(localStorage.getItem(CLIENTS_K) || '[]');
+        var matchIdx = a.findIndex(function(c) {
+          return c.name === cName && c.phone === cPhone;
+        });
+        if (matchIdx < 0) return;
+        if (!a[matchIdx].followUps) a[matchIdx].followUps = [];
+        a[matchIdx].followUps.push({ date: getTodayStr(), time: getCurrentTime(), content: content });
+        localStorage.setItem(CLIENTS_K, JSON.stringify(a));
+        await syncOp('updateClient', { matchName: cName, matchPhone: cPhone, matchTime: a[matchIdx].time || '', client: a[matchIdx] });
+        renderClientList();
+        refreshAll();
+      });
+    });
+    container.querySelectorAll('.cl-followup-cancel-btn').forEach(function(btn) {
+      btn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        var card = btn.closest('.client-card-item');
+        var form = card.querySelector('.cl-followup-inline-form');
+        form.style.display = 'none';
+      });
+    });
 
     container.querySelectorAll('.del-icon').forEach(b=>b.addEventListener('click',async e=>{
       const name=b.dataset.name;
@@ -7822,20 +7877,33 @@ const rid=Math.floor(Math.random()*1000);
 
     updateAllClientsStats(clients);
 
-    function buildFollowUpsHtml(c) {
-      if (!c.followUps || c.followUps.length === 0) return '';
+    function buildFollowUpsHtml(c, idx) {
+      var count = (c.followUps && c.followUps.length) ? c.followUps.length : 0;
       var parts = [];
-      c.followUps.forEach(function(fu) {
-        parts.push(
-          '<div class="follow-up-record">' +
-            '<div class="follow-up-record-header">' + esc(fu.date || '') + ' ' + esc(fu.time || '') + '</div>' +
-            '<div class="follow-up-record-text">' + esc(fu.content || '') + '</div>' +
-          '</div>'
-        );
-      });
+      if (c.followUps && c.followUps.length > 0) {
+        c.followUps.forEach(function(fu) {
+          parts.push(
+            '<div class="follow-up-record">' +
+              '<div class="follow-up-record-header">' + esc(fu.date || '') + ' ' + esc(fu.time || '') + '</div>' +
+              '<div class="follow-up-record-text">' + esc(fu.content || '') + '</div>' +
+            '</div>'
+          );
+        });
+      }
+      var idxAttr = (typeof idx !== 'undefined') ? ' data-allidx="' + idx + '"' : '';
       return '<div class="client-card-content-block follow-up">' +
-        '<span class="client-card-label">' + c.followUps.length + '</span>' +
-        '<div class="follow-up-list">' + parts.join('') + '</div>' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;">' +
+          '<span class="client-card-label">' + count + '</span>' +
+          '<button class="allcard-add-followup-btn"' + idxAttr + ' title="新增跟进记录" style="font-size:0.9rem;width:24px;height:24px;border-radius:50%;border:1.5px dashed var(--accent-wechat);background:transparent;color:var(--accent-wechat);cursor:pointer;font-weight:700;line-height:1;display:flex;align-items:center;justify-content:center;">+</button>' +
+        '</div>' +
+        (parts.length > 0 ? '<div class="follow-up-list">' + parts.join('') + '</div>' : '') +
+        '<div class="allcard-followup-inline-form" style="display:none;margin-top:6px;">' +
+          '<textarea class="allcard-followup-inline-input" placeholder="新增跟进记录..." style="width:100%;min-height:44px;padding:6px 8px;font-size:0.78rem;resize:vertical;border:1px solid var(--card-border);border-radius:6px;background:var(--input-bg);color:var(--text-main);font-family:inherit;box-sizing:border-box;"></textarea>' +
+          '<div style="display:flex;justify-content:flex-end;gap:6px;margin-top:4px;">' +
+            '<button class="allcard-followup-save-btn"' + idxAttr + ' style="font-size:0.7rem;padding:3px 10px;background:var(--accent-wechat);color:#fff;border:none;border-radius:4px;font-weight:700;cursor:pointer;">保存</button>' +
+            '<button class="allcard-followup-cancel-btn" style="font-size:0.7rem;padding:3px 10px;background:var(--btn-bg);color:var(--text-soft);border:1px solid var(--card-border);border-radius:4px;font-weight:700;cursor:pointer;">取消</button>' +
+          '</div>' +
+        '</div>' +
       '</div>';
     }
 
@@ -7864,7 +7932,7 @@ const rid=Math.floor(Math.random()*1000);
             '<span class="client-card-label">' + esc(c.date) + ' ' + esc(c.time || '') + '</span>' +
             '<span class="client-card-text">' + esc(c.note || '') + '</span>' +
           '</div>' +
-          buildFollowUpsHtml(c) +
+          buildFollowUpsHtml(c, idx) +
           (c.demand ?
             '<div class="client-card-content-block">' +
               '<span class="client-card-label">客户需求</span>' +
@@ -7895,6 +7963,51 @@ const rid=Math.floor(Math.random()*1000);
     });
 
     container.innerHTML = html;
+
+    /* --- Inline followup add for all-clients cards --- */
+    container.querySelectorAll('.allcard-add-followup-btn').forEach(function(btn) {
+      btn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        var card = btn.closest('.all-client-card');
+        var form = card.querySelector('.allcard-followup-inline-form');
+        var input = card.querySelector('.allcard-followup-inline-input');
+        if (form.style.display === 'none' || !form.style.display) {
+          form.style.display = 'block'; input.value = ''; input.focus();
+        } else {
+          form.style.display = 'none';
+        }
+      });
+    });
+    container.querySelectorAll('.allcard-followup-save-btn').forEach(function(btn) {
+      btn.addEventListener('click', async function(e) {
+        e.stopPropagation();
+        var idx = parseInt(btn.dataset.allidx);
+        var card = btn.closest('.all-client-card');
+        var date = card.dataset.date, cName = card.dataset.name;
+        var cPhone = card.dataset.phone, cTime = card.dataset.time;
+        var input = card.querySelector('.allcard-followup-inline-input');
+        var content = input.value.trim();
+        if (!content) { alert('请输入跟进内容'); return; }
+        var a = JSON.parse(localStorage.getItem(CLIENTS_K) || '[]');
+        var matchIdx = a.findIndex(function(c) {
+          return c.date === date && c.name === cName && c.phone === cPhone && (cTime ? c.time === cTime : true);
+        });
+        if (matchIdx < 0) return;
+        if (!a[matchIdx].followUps) a[matchIdx].followUps = [];
+        a[matchIdx].followUps.push({ date: getTodayStr(), time: getCurrentTime(), content: content });
+        localStorage.setItem(CLIENTS_K, JSON.stringify(a));
+        await syncOp('updateClient', { matchName: cName, matchPhone: cPhone, matchTime: cTime, client: a[matchIdx] }, date);
+        loadAllClients();
+      });
+    });
+    container.querySelectorAll('.allcard-followup-cancel-btn').forEach(function(btn) {
+      btn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        var card = btn.closest('.all-client-card');
+        var form = card.querySelector('.allcard-followup-inline-form');
+        form.style.display = 'none';
+      });
+    });
 
     // --- Status toggle for all-clients cards ---
     container.querySelectorAll('.status-toggle-btn').forEach(b => b.addEventListener('click', async e => {
