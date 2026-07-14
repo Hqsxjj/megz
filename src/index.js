@@ -3917,7 +3917,7 @@ export default {
       background: rgba(230,126,34,0.16);
       color: #f0a04b;
     }
-    .flag-dot{width:12px;height:12px;border-radius:50%;border:2px solid #e74c3c;background:transparent;cursor:pointer;padding:0;margin:0 4px;flex-shrink:0;transition:all .15s}
+    .flag-dot{width:16px;height:16px;border-radius:50%;border:2px solid #e74c3c;background:transparent;cursor:pointer;padding:0;margin:0 4px;flex-shrink:0;transition:all .15s;touch-action:manipulation;min-width:16px}
     .flag-dot-active{background:#e74c3c;box-shadow:0 0 6px rgba(231,76,60,0.6)}
     body.dark-mode .flag-dot-active{box-shadow:0 0 8px rgba(231,76,60,0.8)}
     .all-clients-stats{display:flex;gap:8px;padding:10px 16px;margin:0 -4px;background:var(--card-bg);border-bottom:1px solid var(--border-light);flex-wrap:wrap;position:sticky;top:0;z-index:5}
@@ -5718,7 +5718,7 @@ export default {
       document.getElementById('custFund').value=c.fund||'';
       document.getElementById('custNote').value=c.note||'';
       var fuVal = '';
-      if (c.followUps && c.followUps.length > 0) { fuVal = c.followUps.map(function(f){ return '[' + (f.date||'') + ' ' + (f.time||'') + '] ' + (f.content||''); }).join('\n'); }
+      if (c.followUps && c.followUps.length > 0) { fuVal = c.followUps.map(function(f){ return '[' + (f.date||'') + ' ' + (f.time||'') + '] ' + (f.content||''); }).join('\\n'); }
       else if (c.followUp) { fuVal = c.followUp; }
       document.getElementById('custFollowUp').value = fuVal;
       // Pre-fill new detail fields
@@ -6257,7 +6257,7 @@ export default {
             '<textarea class="input-simple edit-demand-input" placeholder="客户大致需求" style="width:100%;min-height:50px;padding:8px;font-size:0.78rem;resize:vertical;box-sizing:border-box;">' + esc(fullClient.demand||'') + '</textarea>' +
             '<textarea class="input-simple edit-fusage-input" placeholder="资金用途和时间" style="width:100%;min-height:50px;padding:8px;font-size:0.78rem;resize:vertical;box-sizing:border-box;">' + esc(fullClient.fundUsage||'') + '</textarea>' +
             '<textarea class="input-simple edit-note-input" placeholder="沟通记录（必填）" style="width:100%;min-height:70px;padding:8px;font-size:0.78rem;resize:vertical;box-sizing:border-box;">' + esc(fullClient.note||ti.note||'') + '</textarea>' +
-            '<textarea class="input-simple edit-follow-input" placeholder="跟进情况" style="width:100%;min-height:60px;padding:8px;font-size:0.78rem;resize:vertical;box-sizing:border-box;">' + (fullClient.followUps && fullClient.followUps.length > 0 ? fullClient.followUps.map(function(f){ return '[' + (f.date||'') + ' ' + (f.time||'') + '] ' + (f.content||''); }).join('\n') : esc(fullClient.followUp||'')) + '</textarea>' +
+            '<textarea class="input-simple edit-follow-input" placeholder="跟进情况" style="width:100%;min-height:60px;padding:8px;font-size:0.78rem;resize:vertical;box-sizing:border-box;">' + (fullClient.followUps && fullClient.followUps.length > 0 ? fullClient.followUps.map(function(f){ return '[' + (f.date||'') + ' ' + (f.time||'') + '] ' + (f.content||''); }).join('\\n') : esc(fullClient.followUp||'')) + '</textarea>' +
             '<div style="display:flex;justify-content:flex-end;gap:8px;border-top:1px dashed var(--card-border);padding-top:8px;">' +
               '<button class="save-timeline-client-btn btn-add" style="font-size:0.75rem;padding:6px 16px;background:var(--accent-wechat);color:white;border:none;border-radius:6px;font-weight:700;">保存</button>' +
               '<button class="cancel-timeline-client-btn btn-add" style="font-size:0.75rem;padding:6px 16px;background:var(--btn-bg);color:var(--text-soft);border:1px solid var(--card-border);border-radius:6px;font-weight:700;">取消</button>' +
