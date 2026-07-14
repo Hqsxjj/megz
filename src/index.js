@@ -1,4 +1,4 @@
-// 每日工作 - Cloudflare Worker 版本
+﻿// 每日工作 - Cloudflare Worker 版本
 // 部署后绑定 DATA_KV 即可使用
 
 import { createSupabaseClient } from './supabase.js';
@@ -2851,14 +2851,7 @@ export default {
         text += '> 客户大致需求：' + (client.demand || '').replace(/\n/g, ' ') + '\n';
         text += '> 资金用途和时间：' + (client.fundUsage || '').replace(/\n/g, ' ') + '\n';
         text += '> 沟通记录：' + (client.note || '').replace(/\n/g, ' ') + '\n';
-        if (client.followUps && client.followUps.length > 0) {
-          text += '> 跟进记录：\n';
-          client.followUps.forEach(function(fu) {
-            text += '>   [' + (fu.date || '') + ' ' + (fu.time || '') + '] ' + (fu.content || '').replace(/\n/g, ' ') + '\n';
-          });
-        } else if (client.followUp) {
-          text += '> 跟进情况：' + client.followUp.replace(/\n/g, ' ') + '\n';
-        }
+        text += '> 跟进情况：' + (client.followUp || '').replace(/\n/g, ' ') + '\n';
         if (client.status) text += '> 状态：' + (client.status==='success'?'已办理成功':'未办理成功') + '\n';
 
         try {
@@ -2927,14 +2920,7 @@ export default {
           itemText += '> 客户大致需求：' + (c.demand || '').replace(/\n/g, ' ') + '\n';
           itemText += '> 资金用途和时间：' + (c.fundUsage || '').replace(/\n/g, ' ') + '\n';
           itemText += '> 沟通记录：' + (c.note || '').replace(/\n/g, ' ') + '\n';
-          if (c.followUps && c.followUps.length > 0) {
-            itemText += '> 跟进记录：\n';
-            c.followUps.forEach(function(fu) {
-              itemText += '>   [' + (fu.date||'') + ' ' + (fu.time||'') + '] ' + (fu.content||'').replace(/\n/g, ' ') + '\n';
-            });
-          } else if (c.followUp) {
-            itemText += '> 跟进情况：' + c.followUp.replace(/\n/g, ' ') + '\n';
-          }
+          itemText += '> 跟进情况：' + (c.followUp || '').replace(/\n/g, ' ') + '\n';
           if (c.status) itemText += '> 状态：' + (c.status==='success'?'已办理成功':'未办理成功') + '\n';
           itemText += '\n';
           return itemText;
@@ -3003,14 +2989,7 @@ export default {
           text += '> 客户大致需求：' + (c.demand || '').replace(/\n/g, ' ') + '\n';
           text += '> 资金用途和时间：' + (c.fundUsage || '').replace(/\n/g, ' ') + '\n';
           text += '> 沟通记录：' + (c.note || '').replace(/\n/g, ' ') + '\n';
-          if (c.followUps && c.followUps.length > 0) {
-            text += '> 跟进记录：\n';
-            c.followUps.forEach(function(fu) {
-              text += '>   [' + (fu.date||'') + ' ' + (fu.time||'') + '] ' + (fu.content||'').replace(/\n/g, ' ') + '\n';
-            });
-          } else if (c.followUp) {
-            text += '> 跟进情况：' + c.followUp.replace(/\n/g, ' ') + '\n';
-          }
+          text += '> 跟进情况：' + (c.followUp || '').replace(/\n/g, ' ') + '\n';
           if (c.status) text += '> 状态：' + (c.status==='success'?'已办理成功':'未办理成功') + '\n';
           return text;
         };
@@ -3917,106 +3896,15 @@ export default {
       background: rgba(230,126,34,0.16);
       color: #f0a04b;
     }
-    /* All-clients stats bar */
-    .all-clients-stats {
-      display: flex;
-      gap: 8px;
-      padding: 10px 16px;
-      margin: 0 -4px;
-      background: var(--card-bg);
-      border-bottom: 1px solid var(--border-light);
-      flex-wrap: wrap;
-      position: sticky;
-      top: 0;
-      z-index: 5;
-    }
-    .all-clients-stats .stats-item {
-      font-size: 0.72rem;
-      font-weight: 600;
-      color: var(--text-soft);
-      padding: 4px 12px;
-      border-radius: 12px;
-      background: var(--btn-bg);
-      white-space: nowrap;
-    }
-    .all-clients-stats .stats-item strong {
-      font-weight: 900;
-      font-size: 0.85rem;
-      margin-left: 2px;
-    }
-    .all-clients-stats .stats-total strong { color: var(--accent-wechat); }
-    .all-clients-stats .stats-unmarked strong { color: var(--text-soft); }
-    .all-clients-stats .stats-success strong { color: #27ae60; }
-    .all-clients-stats .stats-failed strong { color: #e67e22; }
-    body.dark-mode .all-clients-stats .stats-success strong { color: #2ecc71; }
-    body.dark-mode .all-clients-stats .stats-failed strong { color: #f0a04b; }
-    /* Follow-up records in cards */
-    .follow-up-list {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-    .follow-up-record {
-      background: var(--btn-bg);
-      border-radius: 8px;
-      padding: 8px 10px;
-      border-left: 3px solid var(--accent-wechat);
-    }
-    .follow-up-record-header {
-      font-size: 0.68rem;
-      font-weight: 800;
-      color: var(--accent-wechat);
-      margin-bottom: 3px;
-    }
-    .follow-up-record-text {
-      font-size: 0.78rem;
-      font-weight: 600;
-      color: var(--text-main);
-      line-height: 1.4;
-      word-break: break-all;
-    }
-    .follow-up-add-btn {
-      font-size: 0.7rem;
-      font-weight: 700;
-      padding: 5px 12px;
-      border: 1px dashed var(--accent-wechat);
-      color: var(--accent-wechat);
-      background: transparent;
-      border-radius: 6px;
-      cursor: pointer;
-      transition: all 0.15s;
-      margin-top: 4px;
-    }
-    .follow-up-add-btn:hover {
-      background: rgba(7,193,96,0.08);
-    }
-    .follow-up-edit-row {
-      display: flex;
-      gap: 8px;
-      align-items: flex-start;
-    }
-    .follow-up-edit-row textarea {
-      flex: 1;
-      min-height: 44px;
-      padding: 6px 8px;
-      font-size: 0.78rem;
-      resize: vertical;
-      border: 1px solid var(--card-border);
-      border-radius: 6px;
-      background: var(--input-bg);
-      color: var(--text-main);
-      font-family: inherit;
-    }
-    .follow-up-remove-btn {
-      font-size: 0.8rem;
-      background: none;
-      border: none;
-      color: #e74c3c;
-      cursor: pointer;
-      font-weight: 700;
-      padding: 4px 6px;
-    }
-
+    .all-clients-stats{display:flex;gap:8px;padding:10px 16px;margin:0 -4px;background:var(--card-bg);border-bottom:1px solid var(--border-light);flex-wrap:wrap;position:sticky;top:0;z-index:5}
+    .all-clients-stats .stats-item{font-size:0.72rem;font-weight:600;color:var(--text-soft);padding:4px 12px;border-radius:12px;background:var(--btn-bg);white-space:nowrap}
+    .all-clients-stats .stats-item strong{font-weight:900;font-size:0.85rem;margin-left:2px}
+    .all-clients-stats .stats-total strong{color:var(--accent-wechat)}
+    .all-clients-stats .stats-unmarked strong{color:var(--text-soft)}
+    .all-clients-stats .stats-success strong{color:#27ae60}
+    .all-clients-stats .stats-failed strong{color:#e67e22}
+    body.dark-mode .all-clients-stats .stats-success strong{color:#2ecc71}
+    body.dark-mode .all-clients-stats .stats-failed strong{color:#f0a04b}
     .client-card-actions {
       display: flex;
       justify-content: flex-end;
@@ -5639,17 +5527,11 @@ export default {
             '<span class="client-card-label">沟通记录</span>'+
             '<span class="client-card-text">'+esc(c.note||'')+'</span>'+
           '</div>'+
-          (c.followUps && c.followUps.length > 0 ?
-            '<div class="client-card-content-block follow-up">'+
-              '<span class="client-card-label">跟进情况 (' + c.followUps.length + '条)</span>'+
-              '<div class="follow-up-list">'+
-                c.followUps.map(function(fu){ return '<div class="follow-up-record"><div class="follow-up-record-header">' + esc(fu.date||'') + ' ' + esc(fu.time||'') + '</div><div class="follow-up-record-text">' + esc(fu.content||'') + '</div></div>'; }).join('') +
-              '</div>'+
-            '</div>' : (c.followUp ?
+          (c.followUp ?
             '<div class="client-card-content-block follow-up">'+
               '<span class="client-card-label">跟进情况</span>'+
               '<span class="client-card-text">'+esc(c.followUp)+'</span>'+
-            '</div>' : ''))+
+            '</div>' : '')+
           (c.demand ?
             '<div class="client-card-content-block">'+
               '<span class="client-card-label">客户需求</span>'+
@@ -5717,10 +5599,7 @@ export default {
       document.getElementById('custCompany').value=c.company||'';
       document.getElementById('custFund').value=c.fund||'';
       document.getElementById('custNote').value=c.note||'';
-      var fuVal = '';
-      if (c.followUps && c.followUps.length > 0) { fuVal = c.followUps.map(function(f){ return '[' + (f.date||'') + ' ' + (f.time||'') + '] ' + (f.content||''); }).join('\n'); }
-      else if (c.followUp) { fuVal = c.followUp; }
-      document.getElementById('custFollowUp').value = fuVal;
+      document.getElementById('custFollowUp').value=c.followUp||'';
       // Pre-fill new detail fields
       var dAge=document.getElementById('custAge'); if(dAge)dAge.value=c.age||'';
       var dMs=document.getElementById('custMaritalStatus'); if(dMs)dMs.value=c.maritalStatus||'';
@@ -5753,7 +5632,7 @@ export default {
       var dRr=document.getElementById('custRejectReason'); if(dRr)dRr.value=c.rejectReason||'';
       showStatusConditionalFields(c.status||'');
       // Auto-expand detail panel if any new field has a value
-      var hasDetail = c.age||c.maritalStatus||c.isShenzhenHukou||c.socialSecurity||c.avgSalary||c.tax2yr||c.salaryBank||c.education||c.property||c.propertyType||c.propertyAddress||c.propertyArea||c.propertyMortgageBank||c.propertyMortgageAmount||c.propertyOther||c.bankDebt||c.creditCardDebt||c.query3m||c.onlineLoanCount||c.demand||c.fundUsage||c.visitTime||c.note||(c.followUps&&c.followUps.length>0)||c.followUp;
+      var hasDetail = c.age||c.maritalStatus||c.isShenzhenHukou||c.socialSecurity||c.avgSalary||c.tax2yr||c.salaryBank||c.education||c.property||c.propertyType||c.propertyAddress||c.propertyArea||c.propertyMortgageBank||c.propertyMortgageAmount||c.propertyOther||c.bankDebt||c.creditCardDebt||c.query3m||c.onlineLoanCount||c.demand||c.fundUsage||c.visitTime||c.note||c.followUp;
       var panel = document.getElementById('detailPanel');
       var toggleBtn = document.getElementById('detailToggleBtn');
       if (hasDetail && panel && panel.style.display === 'none') {
@@ -5916,7 +5795,7 @@ export default {
       propertyMortgageBank:c.propertyMortgageBank,propertyMortgageAmount:c.propertyMortgageAmount,propertyOther:c.propertyOther,
       bankDebt:c.bankDebt,creditCardDebt:c.creditCardDebt,query3m:c.query3m,
       onlineLoanCount:c.onlineLoanCount,demand:c.demand,fundUsage:c.fundUsage,status:c.status,
-      followUps:c.followUps||[],
+      followUp:c.followUp||'',followUpTime:c.followUpTime||'',followUpDate:c.followUpDate||'',
       visitTime:c.visitTime||'',approvedBank:c.approvedBank||'',approvedAmount:c.approvedAmount||'',
       rateTerm:c.rateTerm||'',rejectedBank:c.rejectedBank||'',rejectReason:c.rejectReason||''});});
     tempClients.forEach((c,i)=>{timeline.push({type:'tempClient',time:c.time||'',name:c.name,phone:c.phone,note:c.note,idx:i});});
@@ -5967,17 +5846,11 @@ export default {
                   '<div class="tbl-note-text" style="cursor:pointer;">'+(e.note?esc(e.note):'<span class="tbl-note-empty">点击添加沟通记录…</span>')+'</div>'+
                 '</div>'+
               '</div>'+
-              (e.followUps && e.followUps.length > 0 ?
-                '<div class="client-card-content-block follow-up">'+
-                  '<span class="client-card-label">跟进情况 (' + e.followUps.length + '条)</span>'+
-                  '<div class="follow-up-list">'+
-                    e.followUps.map(function(fu){ return '<div class="follow-up-record"><div class="follow-up-record-header">' + esc(fu.date||'') + ' ' + esc(fu.time||'') + '</div><div class="follow-up-record-text">' + esc(fu.content||'') + '</div></div>'; }).join('') +
-                  '</div>'+
-                '</div>' : (e.followUp ?
+              (e.followUp ?
                 '<div class="client-card-content-block follow-up">'+
                   '<span class="client-card-label">跟进情况</span>'+
                   '<span class="client-card-text">'+esc(e.followUp)+'</span>'+
-                '</div>' : ''))+
+                '</div>' : '')+
               (e.demand ?
                 '<div class="client-card-content-block">'+
                   '<span class="client-card-label">客户需求</span>'+
@@ -6229,7 +6102,7 @@ export default {
             '<textarea class="input-simple edit-demand-input" placeholder="客户大致需求" style="width:100%;min-height:50px;padding:8px;font-size:0.78rem;resize:vertical;box-sizing:border-box;">' + esc(fullClient.demand||'') + '</textarea>' +
             '<textarea class="input-simple edit-fusage-input" placeholder="资金用途和时间" style="width:100%;min-height:50px;padding:8px;font-size:0.78rem;resize:vertical;box-sizing:border-box;">' + esc(fullClient.fundUsage||'') + '</textarea>' +
             '<textarea class="input-simple edit-note-input" placeholder="沟通记录（必填）" style="width:100%;min-height:70px;padding:8px;font-size:0.78rem;resize:vertical;box-sizing:border-box;">' + esc(fullClient.note||ti.note||'') + '</textarea>' +
-            '<textarea class="input-simple edit-follow-input" placeholder="跟进情况" style="width:100%;min-height:60px;padding:8px;font-size:0.78rem;resize:vertical;box-sizing:border-box;">' + (fullClient.followUps && fullClient.followUps.length > 0 ? fullClient.followUps.map(function(f){ return '[' + (f.date||'') + ' ' + (f.time||'') + '] ' + (f.content||''); }).join('\n') : esc(fullClient.followUp||'')) + '</textarea>' +
+            '<textarea class="input-simple edit-follow-input" placeholder="跟进情况" style="width:100%;min-height:60px;padding:8px;font-size:0.78rem;resize:vertical;box-sizing:border-box;">' + esc(fullClient.followUp||'') + '</textarea>' +
             '<div style="display:flex;justify-content:flex-end;gap:8px;border-top:1px dashed var(--card-border);padding-top:8px;">' +
               '<button class="save-timeline-client-btn btn-add" style="font-size:0.75rem;padding:6px 16px;background:var(--accent-wechat);color:white;border:none;border-radius:6px;font-weight:700;">保存</button>' +
               '<button class="cancel-timeline-client-btn btn-add" style="font-size:0.75rem;padding:6px 16px;background:var(--btn-bg);color:var(--text-soft);border:1px solid var(--card-border);border-radius:6px;font-weight:700;">取消</button>' +
@@ -6251,20 +6124,7 @@ export default {
             const fund = card.querySelector('.edit-fund-input').value.trim();
             const label = (card.querySelector('.edit-label-input')||{}).value||'';
             const nt = card.querySelector('.edit-note-input').value.trim();
-            const fuRaw = card.querySelector('.edit-follow-input').value.trim();
-            var newFollowUps = [];
-            if (fuRaw) {
-              /* Parse [date time] content lines or use as single record */
-              var lines = fuRaw.split('\n');
-              lines.forEach(function(line) {
-                var m = line.match(/^\[([^\]]+)\s+([^\]]+)\]\s*(.*)/);
-                if (m) {
-                  newFollowUps.push({ date: m[1].trim(), time: m[2].trim(), content: m[3].trim() });
-                } else if (line.trim()) {
-                  newFollowUps.push({ date: getTodayStr(), time: getCurrentTime(), content: line.trim() });
-                }
-              });
-            }
+            const fu = card.querySelector('.edit-follow-input').value.trim();
             // Read new detail fields
             const age = (card.querySelector('.edit-age-input')||{}).value||''; const ageV = age.trim();
             const ms = (card.querySelector('.edit-marital-input')||{}).value||'';
@@ -6305,8 +6165,9 @@ export default {
               (ti.time ? item.time === ti.time : true));
             const updatedClient = {
               date: ds, time: fullClient.time || ti.time || getCurrentTime(),
-              name: n, phone: p, company: comp, fund: fund, label: label, note: nt,
-              followUps: newFollowUps,
+              name: n, phone: p, company: comp, fund: fund, label: label, note: nt, followUp: fu,
+              followUpTime: fu !== (fullClient.followUp || '') ? getCurrentTime() : (fullClient.followUpTime || ''),
+              followUpDate: fu !== (fullClient.followUp || '') ? getTodayStr() : (fullClient.followUpDate || ds),
               age: ageV, maritalStatus: ms, isShenzhenHukou: sh, socialSecurity: ssV,
               avgSalary: asV, tax2yr: txV, salaryBank: sbV, education: ed, property: pr,
               propertyType: pt, propertyAddress: paV, propertyArea: pArV, propertyMortgageBank: pmbV, propertyMortgageAmount: pmaV, propertyOther: poV,
@@ -6575,7 +6436,7 @@ export default {
       if (addBtn) { addBtn.textContent = '+ 添加'; addBtn.style.background = 'var(--accent-wechat)'; }
     }
 
-    var newClient={name:n,phone:p,company:c,fund:f,label:label,note:nt,followUps:fu?[{date:today,time:time,content:fu}]:[],date:today,time:time,
+    var newClient={name:n,phone:p,company:c,fund:f,label:label,note:nt,followUp:fu,date:today,time:time,
       age,maritalStatus,isShenzhenHukou,socialSecurity,avgSalary,tax2yr,salaryBank,
       education,property:propertyVal,propertyType,propertyAddress,propertyArea,propertyMortgageBank,propertyMortgageAmount,propertyOther,
       bankDebt,creditCardDebt,query3m,onlineLoanCount,demand,fundUsage,
@@ -7817,6 +7678,14 @@ const rid=Math.floor(Math.random()*1000);
     }
   }
 
+  function migrateClientFollowUps(c) {
+    if (!c.followUps && c.followUp) {
+      c.followUps = [{ date: c.followUpDate || c.date, time: c.followUpTime || '', content: c.followUp }];
+    }
+    if (!c.followUps) c.followUps = [];
+    return c;
+  }
+
   function updateAllClientsStats(clients) {
     var total = clients.length;
     var unmarked = 0, success = 0, failed = 0;
@@ -7833,17 +7702,8 @@ const rid=Math.floor(Math.random()*1000);
     el.querySelector('#statsFailed').textContent = failed;
   }
 
-  function migrateClientFollowUps(c) {
-    /* Backward compat: migrate old followUp to followUps array */
-    if (!c.followUps && c.followUp) {
-      c.followUps = [{ date: c.followUpDate || c.date, time: c.followUpTime || '', content: c.followUp }];
-    }
-    if (!c.followUps) c.followUps = [];
-    return c;
-  }
-
   function renderAllClientsCards(clients) {
-    const container = document.getElementById('allClientsCardList');
+    var container = document.getElementById('allClientsCardList');
     if (!container) return;
     if (clients.length === 0) {
       container.innerHTML = '<div style="text-align:center;color:var(--text-light);padding:40px;font-size:0.9rem;">暂无数据</div>';
@@ -7851,43 +7711,37 @@ const rid=Math.floor(Math.random()*1000);
       return;
     }
 
-    /* Migrate old data */
-    clients.forEach(c => migrateClientFollowUps(c));
+    clients.forEach(function(c) { migrateClientFollowUps(c); });
 
-    /* Sinking sort: clients without followUps at top, with followUps at bottom */
-    /* Within each group, sort by date descending */
-    clients.sort((a, b) => {
+    clients.sort(function(a, b) {
       var aHas = a.followUps && a.followUps.length > 0;
       var bHas = b.followUps && b.followUps.length > 0;
-      if (aHas && !bHas) return 1;   /* a sinks to bottom */
-      if (!aHas && bHas) return -1;  /* b sinks to bottom */
-      /* Both have or both don't, sort by date desc */
+      if (aHas && !bHas) return 1;
+      if (!aHas && bHas) return -1;
       return (b.date || '').localeCompare(a.date || '');
     });
 
-    /* Update stats bar */
     updateAllClientsStats(clients);
 
-    /* Build followUp HTML helper */
     function buildFollowUpsHtml(c) {
       if (!c.followUps || c.followUps.length === 0) return '';
       var parts = [];
       c.followUps.forEach(function(fu) {
         parts.push(
           '<div class="follow-up-record">' +
-            '<div class="follow-up-record-header">跟进记录 ' + esc(fu.date || '') + ' ' + esc(fu.time || '') + '</div>' +
+            '<div class="follow-up-record-header">' + esc(fu.date || '') + ' ' + esc(fu.time || '') + '</div>' +
             '<div class="follow-up-record-text">' + esc(fu.content || '') + '</div>' +
           '</div>'
         );
       });
       return '<div class="client-card-content-block follow-up">' +
-        '<span class="client-card-label">跟进情况 (' + c.followUps.length + '条)</span>' +
+        '<span class="client-card-label">' + c.followUps.length + '</span>' +
         '<div class="follow-up-list">' + parts.join('') + '</div>' +
       '</div>';
     }
 
-    let html = '';
-    clients.forEach((c, idx) => {
+    var html = '';
+    clients.forEach(function(c, idx) {
       html += '<div class="client-card-item all-client-card' + (c.status ? ' ' + STATUS_CLASSES[c.status] : '') + '" data-date="' + esc(c.date) + '" data-name="' + esc(c.name) + '" data-phone="' + esc(c.phone) + '" data-time="' + esc(c.time || '') + '">' +
         '<div class="client-card-top">' +
           '<div class="client-card-primary">' +
@@ -7902,13 +7756,13 @@ const rid=Math.floor(Math.random()*1000);
         '<div class="client-card-tags">' +
           (c.label ? '<span class="client-card-tag client-card-tag-grade-' + esc(c.label).toLowerCase() + '">' + esc(c.label) + '类客户</span>' : '') +
           (c.company ? getWhitelistTagHtml(c.company, false) : '') +
-          (c.fund ? '<span class="client-card-tag client-card-tag-fund">公积金: ' + esc(c.fund) + '</span>' : '') +
+          (c.fund ? '<span class="client-card-tag client-card-tag-fund">' + esc(c.fund) + '</span>' : '') +
           getClientDetailTags(c) +
-          (c.visitTime ? '<span class="client-card-tag client-card-tag-detail">上门:' + esc(c.visitTime) + '</span>' : '') +
+          (c.visitTime ? '<span class="client-card-tag client-card-tag-detail">' + esc(c.visitTime) + '</span>' : '') +
         '</div>' +
         '<div class="client-card-body">' +
           '<div class="client-card-content-block">' +
-            '<span class="client-card-label">沟通记录 <span class="client-card-time-inline">' + esc(c.date) + ' ' + esc(c.time || '') + '</span></span>' +
+            '<span class="client-card-label">' + esc(c.date) + ' ' + esc(c.time || '') + '</span>' +
             '<span class="client-card-text">' + esc(c.note || '') + '</span>' +
           '</div>' +
           buildFollowUpsHtml(c) +
@@ -7925,12 +7779,12 @@ const rid=Math.floor(Math.random()*1000);
           (c.status === 'success' ?
             '<div class="client-card-content-block" style="border-left-color:#27ae60;">' +
               '<span class="client-card-label">办理成功</span>' +
-              '<span class="client-card-text">批款银行: ' + esc(c.approvedBank||'') + ' | 金额: ' + esc(c.approvedAmount||'') + ' | 利率年限: ' + esc(c.rateTerm||'') + '</span>' +
+              '<span class="client-card-text">' + esc(c.approvedBank||'') + ' | ' + esc(c.approvedAmount||'') + ' | ' + esc(c.rateTerm||'') + '</span>' +
             '</div>' : '') +
           (c.status === 'failed' ?
             '<div class="client-card-content-block" style="border-left-color:#e67e22;">' +
               '<span class="client-card-label">办理未成功</span>' +
-              '<span class="client-card-text">拒绝银行: ' + esc(c.rejectedBank||'') + ' | 原因: ' + esc(c.rejectReason||'') + '</span>' +
+              '<span class="client-card-text">' + esc(c.rejectedBank||'') + ' | ' + esc(c.rejectReason||'') + '</span>' +
             '</div>' : '') +
         '</div>' +
         '<div class="client-card-actions-top">' +
@@ -8090,11 +7944,7 @@ const rid=Math.floor(Math.random()*1000);
         '<textarea class="input-simple edit-demand-input" placeholder="客户大致需求" style="width:100%;min-height:50px;padding:8px;font-size:0.78rem;resize:vertical;box-sizing:border-box;">' + esc(c.demand||'') + '</textarea>' +
         '<textarea class="input-simple edit-fusage-input" placeholder="资金用途和时间" style="width:100%;min-height:50px;padding:8px;font-size:0.78rem;resize:vertical;box-sizing:border-box;">' + esc(c.fundUsage||'') + '</textarea>' +
         '<textarea class="input-simple edit-note-input" placeholder="沟通记录" style="width:100%;min-height:70px;padding:8px;font-size:0.78rem;resize:vertical;box-sizing:border-box;">' + esc(c.note || '') + '</textarea>' +
-        '<div class="edit-followups-container" style="margin-top:6px;">' +
-          '<div style="font-size:0.72rem;font-weight:800;color:var(--text-soft);margin-bottom:4px;">跟进记录</div>' +
-          '<div class="edit-followups-list"></div>' +
-          '<button type="button" class="follow-up-add-btn edit-add-followup-btn" style="margin-top:4px;">+ 新增跟进记录</button>' +
-        '</div>' +
+        '<textarea class="input-simple edit-follow-input" placeholder="跟进情况" style="width:100%;min-height:60px;padding:8px;font-size:0.78rem;resize:vertical;box-sizing:border-box;">' + esc(c.followUp || '') + '</textarea>' +
         '<div style="display:flex;justify-content:flex-end;gap:8px;border-top:1px dashed var(--card-border);padding-top:8px;">' +
           '<button type="button" class="save-all-client-btn btn-add" style="font-size:0.75rem;padding:6px 16px;background:var(--accent-wechat);color:white;border:none;border-radius:6px;font-weight:700;">保存</button>' +
           '<button type="button" class="cancel-all-client-btn btn-add" style="font-size:0.75rem;padding:6px 16px;background:var(--btn-bg);color:var(--text-soft);border:1px solid var(--card-border);border-radius:6px;font-weight:700;">取消</button>' +
@@ -8108,41 +7958,6 @@ const rid=Math.floor(Math.random()*1000);
         if (ff) ff.style.display = this.value === 'failed' ? 'flex' : 'none';
       });
 
-      /* Populate followUps list */
-      var followUpsList = card.querySelector('.edit-followups-list');
-      var followUpsData = (c.followUps && c.followUps.length > 0) ? c.followUps.slice() : [];
-      function renderFollowUpsEditList() {
-        if (!followUpsList) return;
-        var h = '';
-        followUpsData.forEach(function(fu, fi) {
-          h += '<div class="follow-up-edit-row" data-fuidx="' + fi + '" style="margin-bottom:6px;">' +
-            '<textarea class="edit-fu-content" placeholder="跟进内容" style="flex:1;min-height:44px;padding:6px 8px;font-size:0.78rem;resize:vertical;border:1px solid var(--card-border);border-radius:6px;background:var(--input-bg);color:var(--text-main);font-family:inherit;">' + esc(fu.content || '') + '</textarea>' +
-            '<button type="button" class="follow-up-remove-btn edit-fu-remove" title="删除此跟进记录">✕</button>' +
-          '</div>';
-        });
-        followUpsList.innerHTML = h;
-        /* Bind remove buttons */
-        followUpsList.querySelectorAll('.edit-fu-remove').forEach(function(btn) {
-          btn.addEventListener('click', function() {
-            var row = btn.closest('.follow-up-edit-row');
-            var fi = parseInt(row.dataset.fuidx);
-            if (!isNaN(fi) && fi >= 0 && fi < followUpsData.length) {
-              followUpsData.splice(fi, 1);
-              renderFollowUpsEditList();
-            }
-          });
-        });
-      }
-      renderFollowUpsEditList();
-      /* Bind add followup button */
-      var addFuBtn = card.querySelector('.edit-add-followup-btn');
-      if (addFuBtn) {
-        addFuBtn.addEventListener('click', function() {
-          followUpsData.push({ date: getTodayStr(), time: getCurrentTime(), content: '' });
-          renderFollowUpsEditList();
-        });
-      }
-
       // Bind Save
       card.querySelector('.save-all-client-btn').onclick = async () => {
         const n = card.querySelector('.edit-name-input').value.trim();
@@ -8151,22 +7966,7 @@ const rid=Math.floor(Math.random()*1000);
         const fund = card.querySelector('.edit-fund-input').value.trim();
         const label = (card.querySelector('.edit-label-input')||{}).value||'';
         const nt = card.querySelector('.edit-note-input').value.trim();
-        /* Collect followUps from dynamic list */
-        var newFollowUps = [];
-        var fuContents = card.querySelectorAll('.edit-fu-content');
-        fuContents.forEach(function(el) {
-          var content = el.value.trim();
-          if (content) {
-            var row = el.closest('.follow-up-edit-row');
-            var fi = parseInt(row.dataset.fuidx);
-            var existing = (fi >= 0 && fi < followUpsData.length) ? followUpsData[fi] : {};
-            newFollowUps.push({
-              date: existing.date || getTodayStr(),
-              time: existing.time || getCurrentTime(),
-              content: content
-            });
-          }
-        });
+        const fu = card.querySelector('.edit-follow-input').value.trim();
         // Read new detail fields
         const age = (card.querySelector('.edit-age-input')||{}).value||''; const ageV = age.trim();
         const ms = (card.querySelector('.edit-marital-input')||{}).value||'';
@@ -8207,8 +8007,9 @@ const rid=Math.floor(Math.random()*1000);
           (time ? item.time === time : true));
         const updatedClient = {
           date: date, time: c.time || getCurrentTime(),
-          name: n, phone: p, company: comp, fund: fund, label: label, note: nt,
-          followUps: newFollowUps,
+          name: n, phone: p, company: comp, fund: fund, label: label, note: nt, followUp: fu,
+          followUpTime: fu !== (c.followUp || '') ? getCurrentTime() : (c.followUpTime || ''),
+          followUpDate: fu !== (c.followUp || '') ? getTodayStr() : (c.followUpDate || c.date),
           age: ageV, maritalStatus: ms, isShenzhenHukou: sh, socialSecurity: ssV,
           avgSalary: asV, tax2yr: txV, salaryBank: sbV, education: ed, property: pr,
           propertyType: pt, propertyAddress: paV, propertyArea: pArV, propertyMortgageBank: pmbV, propertyMortgageAmount: pmaV, propertyOther: poV,
@@ -8409,7 +8210,7 @@ const rid=Math.floor(Math.random()*1000);
           if (!label) { alert('请选择客户等级（A/B/C 类），此项为必选！'); return; }
           if (!nt) { alert('沟通记录为必填项，请填写完整！'); return; }
 
-          const newClient = { name: n, phone: p, company: comp, fund: fund, label: label, note: nt, followUps: fu ? [{ date: d, time: getCurrentTime(), content: fu }] : [], date: d, time: getCurrentTime(),
+          const newClient = { name: n, phone: p, company: comp, fund: fund, label: label, note: nt, followUp: fu, date: d, time: getCurrentTime(), followUpTime: fu ? getCurrentTime() : '', followUpDate: fu ? getTodayStr() : '',
             age: ageV, maritalStatus: ms, isShenzhenHukou: sh, socialSecurity: ssV,
             avgSalary: asV, tax2yr: txV, salaryBank: sbV, education: ed, property: pr,
             propertyType: pt, propertyAddress: paV, propertyArea: pArV, propertyMortgageBank: pmbV, propertyMortgageAmount: pmaV, propertyOther: poV,
