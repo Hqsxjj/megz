@@ -7211,13 +7211,15 @@ const rid=Math.floor(Math.random()*1000);
   function setPinFailState(s){localStorage.setItem(PIN_FAIL_K,JSON.stringify(s));}
   function startPinCooldown(seconds){
     pi.disabled=true;pib.disabled=true;clearInterval(pinLockoutTimer);
+    var until=Date.now()+seconds*1000;localStorage.setItem('pin_lockout_until',until);
     function tick(){
-      if(seconds<=0){clearInterval(pinLockoutTimer);pinLockoutTimer=null;pi.disabled=false;pib.disabled=false;pib.textContent='解锁进入';pie.innerText='';pi.value='';pi.focus();return;}
-      var m=Math.floor(seconds/60),s=seconds%60;
+      var remain=Math.ceil((until-Date.now())/1000);
+      if(remain<=0){clearInterval(pinLockoutTimer);pinLockoutTimer=null;pi.disabled=false;pib.disabled=false;pib.textContent='解锁进入';pie.innerText='';pi.value='';pi.focus();localStorage.removeItem('pin_lockout_until');return;}
+      var m=Math.floor(remain/60),s=remain%60;
       pie.innerText='PIN 错误次数过多，请 '+(m>0?m+'分':'')+s+'秒 后重试';
-      pib.textContent=m>0?m+'分'+s+'秒':s+'秒';seconds--;
+      pib.textContent=m>0?m+'分'+s+'秒':s+'秒';
     }
-    tick();pinLockoutTimer=setInterval(tick,1000);
+    tick();pinLockoutTimer=setInterval(tick,250);
   }
   function au(){
     if(pinLockoutTimer)return;
@@ -7227,7 +7229,7 @@ const rid=Math.floor(Math.random()*1000);
     if(hashPinSimple(e)===getPinHash()){
       localStorage.removeItem(PIN_FAIL_K);
       clearInterval(pinLockoutTimer);pinLockoutTimer=null;
-      localStorage.setItem(UNLOCK_TS_K,Date.now());setLocked(false);pi.value='';pie.innerText='';refreshAll();
+      localStorage.removeItem('pin_lockout_until');localStorage.setItem(UNLOCK_TS_K,Date.now());setLocked(false);pi.value='';pie.innerText='';refreshAll();
     }else{
       fs.count=(fs.count||0)+1;fs.lastAttempt=Date.now();setPinFailState(fs);
       var cd2=fs.count>=4?600:(fs.count>=3?300:(fs.count>=2?60:0));
@@ -8490,7 +8492,9 @@ const rid=Math.floor(Math.random()*1000);
     dropdown.querySelectorAll('.menu-item').forEach(item=>item.addEventListener('click',()=>dropdown.classList.remove('show')));
   })();
   const UNLOCK_TS_K='unlock_ts';
-  if((Date.now()-parseInt(localStorage.getItem(UNLOCK_TS_K)||'0'))<3600000){setLocked(false);}else{setLocked(true);}  // 首次加载：先补发上次未完成的操作，再从云端拉取最新状态
+  if((Date.now()-parseInt(localStorage.getItem(UNLOCK_TS_K)||'0'))<3600000){setLocked(false);}else{setLocked(true);}
+  var _savedUntil=parseInt(localStorage.getItem('pin_lockout_until')||'0');
+  if(_savedUntil>Date.now()){setTimeout(function(){startPinCooldown(Math.ceil((_savedUntil-Date.now())/1000));},200);}  // 首次加载：先补发上次未完成的操作，再从云端拉取最新状态
   (async()=>{
     try {
       // 1. 先补发上次关页前没有发成功的操作（Office 式离线队列）
