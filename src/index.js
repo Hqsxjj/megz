@@ -4185,7 +4185,11 @@ export default {
           <div class="card-title">临时登记 (待晚回访)</div>
           <div class="register-block">
             <div class="form-line"><input type="text" class="input-simple" id="tempCustName" placeholder="姓名" autocomplete="off"><input type="text" class="input-simple" id="tempCustPhone" placeholder="电话/联系方式" autocomplete="off"></div>
-            <textarea class="input-simple note-textarea" id="tempCustNote" placeholder="回访备注/待聊内容" rows="2"></textarea>
+            <div style="display:flex;gap:4px;align-items:center;">
+              <textarea class="input-simple note-textarea" id="tempCustNote" placeholder="回访备注/待聊内容" rows="2" style="flex:1;"></textarea>
+              <button type="button" id="boldBtn" title="加粗 (Alt+B)" style="height:28px;width:28px;font-weight:900;font-size:0.7rem;border:1px solid var(--card-border);background:var(--btn-bg);color:var(--text-main);cursor:pointer;border-radius:3px;padding:0;line-height:1;">B</button>
+              <button type="button" id="delBtn" title="删除线 (Alt+D)" style="height:28px;width:28px;font-weight:700;font-size:0.6rem;border:1px solid var(--card-border);background:var(--btn-bg);color:var(--text-main);cursor:pointer;border-radius:3px;padding:0;line-height:1;text-decoration:line-through;">D</button>
+            </div>
             <button class="btn-add" id="addTempCustBtn" style="background:var(--accent-wechat);">+ 登记</button>
             <div class="client-scroll" id="tempClientList"></div>
           </div>
@@ -7572,6 +7576,10 @@ const rid=Math.floor(Math.random()*1000);
   ['custName','custPhone','custCompany','custFund','custAge','custSocialSecurity','custAvgSalary','custTax2yr','custSalaryBank','custBankDebt','custCreditCardDebt','custQuery3m','custOnlineLoanCount'].forEach(id=>{const el=document.getElementById(id);if(el)el.addEventListener('keypress',e=>{if(e.key==='Enter')addClient();});});
   document.getElementById('addTempCustBtn').addEventListener('click',addTempClient);
   ['tempCustName','tempCustPhone'].forEach(id=>document.getElementById(id).addEventListener('keypress',e=>{if(e.key==='Enter')addTempClient();}));
+  function doWrap(tag){var ta=document.getElementById('tempCustNote');var s=ta.selectionStart,e=ta.selectionEnd;var v=ta.value;if(s===e){var i=tag.indexOf('|');var o=i>=0?tag.slice(0,i):tag,c=i>=0?tag.slice(i+1):tag;ta.value=v.slice(0,s)+o+c+v.slice(e);ta.selectionStart=ta.selectionEnd=s+o.length;}else{var i2=tag.indexOf('|');var o2=i2>=0?tag.slice(0,i2):tag,c2=i2>=0?tag.slice(i2+1):tag;ta.value=v.slice(0,s)+o2+v.slice(s,e)+c2+v.slice(e);ta.selectionStart=s+o2.length;ta.selectionEnd=e+o2.length;}ta.focus();}
+  document.getElementById('boldBtn').addEventListener('click',function(){doWrap('**|**');});
+  document.getElementById('delBtn').addEventListener('click',function(){doWrap('~~|~~');});
+  document.addEventListener('keydown',function(e){if(e.altKey&&e.key==='b'){e.preventDefault();doWrap('**|**');}else if(e.altKey&&e.key==='d'){e.preventDefault();doWrap('~~|~~');}});
   document.getElementById('closeModalBtn').addEventListener('click',()=>document.getElementById('dateModal').classList.remove('active'));
   document.getElementById('dateModal').addEventListener('click',e=>{if(e.target===document.getElementById('dateModal'))document.getElementById('dateModal').classList.remove('active');});
 
