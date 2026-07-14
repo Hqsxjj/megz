@@ -7241,8 +7241,8 @@ const rid=Math.floor(Math.random()*1000);
     }
   }
   pib.addEventListener('click',au);pi.addEventListener('keypress',e=>{if(e.key==='Enter')au();});
-  document.getElementById('hideBtn').addEventListener('click',()=>{clearInterval(pinLockoutTimer);pinLockoutTimer=null;pi.disabled=false;pib.disabled=false;pib.textContent='解锁进入';setLocked(true);pi.value='';pie.innerText='';});
-  window.addEventListener('keydown',e=>{if(e.ctrlKey&&e.key==='z'){const a=document.activeElement;if(a&&(a.tagName==='INPUT'||a.tagName==='TEXTAREA'))return;e.preventDefault();if(document.body.classList.contains('page-hidden'))pie.innerText='请使用PIN解锁';else{setLocked(true);pi.value='';pie.innerText='';}}});
+  document.getElementById('hideBtn').addEventListener('click',()=>{clearInterval(pinLockoutTimer);pinLockoutTimer=null;pi.disabled=false;pib.disabled=false;pib.textContent='解锁进入';localStorage.removeItem(UNLOCK_TS_K);setLocked(true);pi.value='';pie.innerText='';});
+  window.addEventListener('keydown',e=>{if(e.ctrlKey&&e.key==='z'){const a=document.activeElement;if(a&&(a.tagName==='INPUT'||a.tagName==='TEXTAREA'))return;e.preventDefault();if(document.body.classList.contains('page-hidden'))pie.innerText='请使用PIN解锁';else{localStorage.removeItem(UNLOCK_TS_K);setLocked(true);pi.value='';pie.innerText='';}}});
   window.addEventListener('keydown',e=>{if(e.ctrlKey&&e.key.toLowerCase()==='q'){if(!document.body.classList.contains('page-hidden'))return;const a=document.activeElement;if(a&&(a.tagName==='INPUT'||a.tagName==='TEXTAREA'))return;e.preventDefault();const tc=document.getElementById('timerContainer');if(tc)tc.classList.toggle('show');}});
   window.addEventListener('keydown',e=>{const a=document.activeElement;if(a&&(a.tagName==='INPUT'||a.tagName==='TEXTAREA'||a.isContentEditable))return;if(e.key==='+'||e.key==='='){e.preventDefault();modCounter(WECHAT_K,1,'incWechat');}else if(e.key==='-'||e.key==='_'){e.preventDefault();modCounter(WECHAT_K,-1,'incWechat');}else if(e.key==='ArrowUp'){e.preventDefault();modCounter(REVISIT_K,1,'incRevisit');}else if(e.key==='ArrowDown'){e.preventDefault();modCounter(REVISIT_K,-1,'incRevisit');}});
 
