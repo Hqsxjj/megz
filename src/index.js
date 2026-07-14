@@ -3345,9 +3345,9 @@ export default {
     .cal-day.past { background: rgba(128,138,150,0.08); color: var(--text-soft); }
     body.dark-mode .cal-day.past { background: rgba(255,255,255,0.03); }
     .day-number { font-size: 0.78rem; font-weight: 800; }
-    .day-badge { display: flex; gap: 3px; font-size: 0.5rem; margin-top: 2px; color: var(--text-soft); font-weight: 700; }
+    .day-badge { display: flex; flex-wrap: wrap; justify-content: center; gap: 2px; font-size: 0.42rem; margin-top: 2px; color: var(--text-soft); font-weight: 700; line-height: 1.2; }
     .cal-day.today .day-badge { color: rgba(255,255,255,0.9); }
-    .day-badge span { background: rgba(100,110,130,0.15); padding: 0px 3px; border-radius: var(--radius-xs); }
+    .day-badge span { background: rgba(100,110,130,0.15); padding: 0px 2px; border-radius: var(--radius-xs); }
     .cal-day.today .day-badge span { background: rgba(255,255,255,0.3); }
     .tooltip-simple { position: fixed; background: var(--tooltip-bg); color: var(--tooltip-text); padding: 6px 14px; border-radius: var(--radius-xs); font-size: 0.7rem; pointer-events: none; z-index: 1100; opacity: 0; transition: 0.1s; white-space: nowrap; box-shadow: 0 2px 8px rgba(0,0,0,0.1); font-weight: 600; }
     .tooltip-simple.show { opacity: 1; }
@@ -3475,8 +3475,8 @@ export default {
       .cal-weekday { font-size: 0.8rem; padding: 6px 0; }
       .cal-day { font-size: 0.82rem; }
       .day-number { font-size: 0.94rem; }
-      .day-badge { font-size: 0.65rem; margin-top: 4px; gap: 4px; }
-      .day-badge span { padding: 1px 4px; }
+      .day-badge { font-size: 0.6rem; margin-top: 4px; gap: 3px; }
+      .day-badge span { padding: 1px 3px; }
     }
     @media (min-width: 1024px) {
       .right-area {
@@ -3525,7 +3525,10 @@ export default {
       .stat-block { padding: 6px 2px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; }
       .stat-block .label { font-size: 0.62rem; }
       .stat-block .number { font-size: 1rem; margin-left: 0; }
-      .cal-day { aspect-ratio: auto; min-height: 38px; padding: 4px 2px; }
+      .cal-day { aspect-ratio: auto; min-height: 38px; padding: 3px 1px; overflow: hidden; }
+      .cal-grid { gap: 2px; }
+      .day-badge { font-size: 0.38rem; gap: 1px; }
+      .day-number { font-size: 0.68rem; }
       .todo-input-row { flex-wrap: wrap; gap: 8px; }
       .todo-input { flex: 1 1 100%; }
       .time-input-compact { flex: 1 !important; min-width: 0 !important; }
