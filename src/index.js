@@ -5884,17 +5884,24 @@ export default {
                   '<div class="tbl-note-text" style="cursor:pointer;">'+(e.note?esc(e.note):'<span class="tbl-note-empty">点击添加沟通记录…</span>')+'</div>'+
                 '</div>'+
               '</div>'+
-              (e.followUps && e.followUps.length > 0 ?
-                '<div class="client-card-content-block follow-up">'+
-                  '<span class="client-card-label">跟进记录('+e.followUps.length+')</span>'+
+              '<div class="client-card-content-block follow-up">'+
+                '<div style="display:flex;justify-content:space-between;align-items:center;">'+
+                  '<span class="client-card-label">跟进记录('+(e.followUps?e.followUps.length:0)+')</span>'+
+                  '<button class="tl-add-followup-btn" data-idx="'+e.idx+'" title="新增跟进记录" style="font-size:0.9rem;width:24px;height:24px;border-radius:50%;border:1.5px dashed var(--accent-wechat);background:transparent;color:var(--accent-wechat);cursor:pointer;font-weight:700;line-height:1;display:flex;align-items:center;justify-content:center;">+</button>'+
+                '</div>'+
+                (e.followUps && e.followUps.length > 0 ?
                   '<div class="follow-up-list">'+
                     e.followUps.map(function(fu){ return '<div class="follow-up-record"><div class="follow-up-record-header">'+esc(fu.date||'')+' '+esc(fu.time||'')+'</div><div class="follow-up-record-text">'+esc(fu.content||'')+'</div></div>'; }).join('')+
+                  '</div>' : (e.followUp ?
+                  '<span class="client-card-text">'+esc(e.followUp)+'</span>' : ''))+
+                '<div class="tl-followup-inline-form" style="display:none;margin-top:6px;">'+
+                  '<textarea class="tl-followup-inline-input" placeholder="新增跟进记录..." style="width:100%;min-height:44px;padding:6px 8px;font-size:0.78rem;resize:vertical;border:1px solid var(--card-border);border-radius:6px;background:var(--input-bg);color:var(--text-main);font-family:inherit;box-sizing:border-box;"></textarea>'+
+                  '<div style="display:flex;justify-content:flex-end;gap:6px;margin-top:4px;">'+
+                    '<button class="tl-followup-save-btn" data-idx="'+e.idx+'" style="font-size:0.7rem;padding:3px 10px;background:var(--accent-wechat);color:#fff;border:none;border-radius:4px;font-weight:700;cursor:pointer;">保存</button>'+
+                    '<button class="tl-followup-cancel-btn" style="font-size:0.7rem;padding:3px 10px;background:var(--btn-bg);color:var(--text-soft);border:1px solid var(--card-border);border-radius:4px;font-weight:700;cursor:pointer;">取消</button>'+
                   '</div>'+
-                '</div>' : (e.followUp ?
-                '<div class="client-card-content-block follow-up">'+
-                  '<span class="client-card-label">跟进情况</span>'+
-                  '<span class="client-card-text">'+esc(e.followUp)+'</span>'+
-                '</div>' : ''))+
+                '</div>'+
+              '</div>'+
               (e.demand ?
                 '<div class="client-card-content-block">'+
                   '<span class="client-card-label">客户需求</span>'+
@@ -5962,6 +5969,7 @@ export default {
 
       bindEditBtns();
       bindDeleteBtns();
+      bindFollowupBtns();
       // Bind Status toggle for timeline cards
       document.querySelectorAll('#modalClientList .status-toggle-btn').forEach(b=>b.addEventListener('click',async e=>{
         e.stopPropagation();
@@ -6232,6 +6240,52 @@ export default {
 
           // Bind Cancel
           card.querySelector('.cancel-timeline-client-btn').onclick = () => { renderTl(); };
+        };
+      });
+    }
+    function bindFollowupBtns(){
+      document.querySelectorAll('.tl-add-followup-btn').forEach(function(btn){
+        btn.onclick = function(){
+          var card = btn.closest('.client-card-item');
+          var form = card.querySelector('.tl-followup-inline-form');
+          var input = card.querySelector('.tl-followup-inline-input');
+          if (form.style.display === 'none' || !form.style.display) {
+            form.style.display = 'block';
+            input.value = '';
+            input.focus();
+          } else {
+            form.style.display = 'none';
+          }
+        };
+      });
+      document.querySelectorAll('.tl-followup-save-btn').forEach(function(btn){
+        btn.onclick = async function(){
+          var idx = parseInt(this.dataset.idx);
+          var ti = timeline.find(function(t){ return t.type === 'client' && t.idx === idx; });
+          if (!ti) return;
+          var card = btn.closest('.client-card-item');
+          var input = card.querySelector('.tl-followup-inline-input');
+          var content = input.value.trim();
+          if (!content) { alert('请输入跟进内容'); return; }
+          var allList = JSON.parse(localStorage.getItem(CLIENTS_K) || '[]');
+          var matchIdx = allList.findIndex(function(c){
+            return c.date === ds && c.name === ti.name && c.phone === ti.phone && (ti.time ? c.time === ti.time : true);
+          });
+          if (matchIdx < 0) return;
+          var client = allList[matchIdx];
+          if (!client.followUps) client.followUps = [];
+          client.followUps.push({ date: getTodayStr(), time: getCurrentTime(), content: content });
+          allList[matchIdx] = client;
+          localStorage.setItem(CLIENTS_K, JSON.stringify(allList));
+          await syncOp('updateClient', { matchName: ti.name, matchPhone: ti.phone, matchTime: ti.time || '', client: client }, ds);
+          renderTl();
+        };
+      });
+      document.querySelectorAll('.tl-followup-cancel-btn').forEach(function(btn){
+        btn.onclick = function(){
+          var card = btn.closest('.client-card-item');
+          var form = card.querySelector('.tl-followup-inline-form');
+          form.style.display = 'none';
         };
       });
     }
