@@ -1,4 +1,4 @@
-﻿// 每日工作 - Cloudflare Worker 版本
+// 每日工作 - Cloudflare Worker 版本
 // 部署后绑定 DATA_KV 即可使用
 
 import { createSupabaseClient } from './supabase.js';
