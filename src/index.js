@@ -7205,9 +7205,37 @@ const rid=Math.floor(Math.random()*1000);
     return (hash >>> 0).toString(16);
   }
   const pi=document.getElementById('pinInput'),pib=document.getElementById('pinUnlockBtn'),pie=document.getElementById('pinError');
-  function au(){const e=pi.value.trim();if(hashPinSimple(e)===getPinHash()){localStorage.setItem(UNLOCK_TS_K,Date.now());setLocked(false);pi.value='';pie.innerText='';refreshAll();}else{pie.innerText='PIN码错误';pi.value='';setTimeout(function(){pi.focus();},50);}}
+  const PIN_FAIL_K='pin_fail_v1';
+  var pinLockoutTimer=null;
+  function getPinFailState(){try{return JSON.parse(localStorage.getItem(PIN_FAIL_K))||{count:0,lastAttempt:0};}catch(e){return{count:0,lastAttempt:0};}}
+  function setPinFailState(s){localStorage.setItem(PIN_FAIL_K,JSON.stringify(s));}
+  function startPinCooldown(seconds){
+    pi.disabled=true;pib.disabled=true;clearInterval(pinLockoutTimer);
+    function tick(){
+      if(seconds<=0){clearInterval(pinLockoutTimer);pinLockoutTimer=null;pi.disabled=false;pib.disabled=false;pib.textContent='解锁进入';pie.innerText='';pi.value='';pi.focus();return;}
+      var m=Math.floor(seconds/60),s=seconds%60;
+      pie.innerText='PIN 错误次数过多，请 '+(m>0?m+'分':'')+s+'秒 后重试';
+      pib.textContent=m>0?m+'分'+s+'秒':s+'秒';seconds--;
+    }
+    tick();pinLockoutTimer=setInterval(tick,1000);
+  }
+  function au(){
+    if(pinLockoutTimer)return;
+    var e=pi.value.trim();
+    var fs=getPinFailState();
+    if(fs.count>=2){var cd=fs.count>=4?600:(fs.count===3?300:60);var elapsed=(Date.now()-fs.lastAttempt)/1000;if(elapsed<cd){startPinCooldown(Math.ceil(cd-elapsed));return;}}
+    if(hashPinSimple(e)===getPinHash()){
+      localStorage.removeItem(PIN_FAIL_K);
+      clearInterval(pinLockoutTimer);pinLockoutTimer=null;
+      localStorage.setItem(UNLOCK_TS_K,Date.now());setLocked(false);pi.value='';pie.innerText='';refreshAll();
+    }else{
+      fs.count=(fs.count||0)+1;fs.lastAttempt=Date.now();setPinFailState(fs);
+      var cd2=fs.count>=4?600:(fs.count>=3?300:(fs.count>=2?60:0));
+      if(cd2>0){startPinCooldown(cd2);}else{pie.innerText='PIN码错误';pi.value='';setTimeout(function(){pi.focus();},50);}
+    }
+  }
   pib.addEventListener('click',au);pi.addEventListener('keypress',e=>{if(e.key==='Enter')au();});
-  document.getElementById('hideBtn').addEventListener('click',()=>{setLocked(true);pi.value='';pie.innerText='';});
+  document.getElementById('hideBtn').addEventListener('click',()=>{clearInterval(pinLockoutTimer);pinLockoutTimer=null;pi.disabled=false;pib.disabled=false;pib.textContent='解锁进入';setLocked(true);pi.value='';pie.innerText='';});
   window.addEventListener('keydown',e=>{if(e.ctrlKey&&e.key==='z'){const a=document.activeElement;if(a&&(a.tagName==='INPUT'||a.tagName==='TEXTAREA'))return;e.preventDefault();if(document.body.classList.contains('page-hidden'))pie.innerText='请使用PIN解锁';else{setLocked(true);pi.value='';pie.innerText='';}}});
   window.addEventListener('keydown',e=>{if(e.ctrlKey&&e.key.toLowerCase()==='q'){if(!document.body.classList.contains('page-hidden'))return;const a=document.activeElement;if(a&&(a.tagName==='INPUT'||a.tagName==='TEXTAREA'))return;e.preventDefault();const tc=document.getElementById('timerContainer');if(tc)tc.classList.toggle('show');}});
   window.addEventListener('keydown',e=>{const a=document.activeElement;if(a&&(a.tagName==='INPUT'||a.tagName==='TEXTAREA'||a.isContentEditable))return;if(e.key==='+'||e.key==='='){e.preventDefault();modCounter(WECHAT_K,1,'incWechat');}else if(e.key==='-'||e.key==='_'){e.preventDefault();modCounter(WECHAT_K,-1,'incWechat');}else if(e.key==='ArrowUp'){e.preventDefault();modCounter(REVISIT_K,1,'incRevisit');}else if(e.key==='ArrowDown'){e.preventDefault();modCounter(REVISIT_K,-1,'incRevisit');}});
