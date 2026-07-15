@@ -3939,6 +3939,7 @@ export default {
     .follow-up-remove-btn{font-size:0.8rem;background:none;border:none;color:#e74c3c;cursor:pointer;font-weight:700;padding:4px 6px}
     .client-card-actions {
       display: flex;
+      align-items: center;
       justify-content: flex-end;
       gap: 8px;
       margin-top: 4px;
@@ -3950,6 +3951,7 @@ export default {
       top: 8px;
       right: 10px;
       display: flex;
+      align-items: center;
       gap: 4px;
       z-index: 2;
     }
