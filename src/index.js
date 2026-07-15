@@ -3956,9 +3956,19 @@ export default {
       z-index: 2;
     }
     .client-card-actions-top .card-action-btn {
-      font-size: 0.68rem;
-      padding: 3px 8px;
-      opacity: 0.6;
+      height: 28px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      padding: 0 8px;
+      border: none;
+      background: none;
+      color: var(--text-soft);
+      cursor: pointer;
+      border-radius: var(--radius-xs);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0.65;
       transition: opacity 0.15s;
     }
     .all-client-card:hover .client-card-actions-top .card-action-btn {
@@ -8007,8 +8017,8 @@ const rid=Math.floor(Math.random()*1000);
         '<div class="client-card-actions-top">' +
           getFlagDotHtml(c) +
           getStatusToggleHtml(c) +
-          '<button class="all-edit-btn card-action-btn" data-date="' + esc(c.date) + '" data-name="' + esc(c.name) + '" data-phone="' + esc(c.phone) + '" data-time="' + esc(c.time || '') + '" title="编辑">编辑</button>' +
-          '<button class="all-export-btn card-action-btn" data-date="' + esc(c.date) + '" data-name="' + esc(c.name) + '" data-phone="' + esc(c.phone) + '" data-time="' + esc(c.time || '') + '" title="导出">导出</button>' +
+          '<button class="all-edit-btn card-action-btn" data-date="' + esc(c.date) + '" data-name="' + esc(c.name) + '" data-phone="' + esc(c.phone) + '" data-time="' + esc(c.time || '') + '" title="编辑">编</button>' +
+          '<button class="all-export-btn card-action-btn" data-date="' + esc(c.date) + '" data-name="' + esc(c.name) + '" data-phone="' + esc(c.phone) + '" data-time="' + esc(c.time || '') + '" title="导出">出</button>' +
         '</div>' +
       '</div>';
     });
