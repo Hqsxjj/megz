@@ -23,6 +23,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `⏳` — 加载进度指示
 - `🔌` — 连接状态指示
 
+## ⛔ 模板字符串中的转义规则（关键！多次踩坑）
+
+**所有客户端 JS 代码都在一个模板字符串（backtick `` ` ``）里（`const HTML = \`...\`` 第 3126 行起）。模板字符串会处理转义序列：**
+
+- `\n` → 真正的换行符 → JS 字符串中出现未转义换行 → **`Uncaught SyntaxError: Invalid or unexpected token`**
+- `\\n` → 模板处理后变成 `\n` → JS 解析器看到的是合法的换行转义 ✓
+- `\t` → 真正的 tab 符（同理，需要用 `\\t`）
+
+**规则：在模板字符串内编写客户端 JS 时，所有字符串字面量中的 `\n`、`\t` 等都要双写反斜杠：`'\\n'`、`'\\t'`。**
+
+`node --check` 无法发现此问题，因为模板字符串在运行时才求值。
+
 ## Commands
 
 - **Deploy**: `npx wrangler deploy`

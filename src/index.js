@@ -5593,8 +5593,8 @@ export default {
             '</div>' : '')+
         '</div>'+
         '<div class="client-card-actions">'+
-          getStatusToggleHtml(c) +
           getFlagDotHtml(c) +
+          getStatusToggleHtml(c) +
           '<button class="export-single-btn" data-name="'+esc(c.name)+'" data-phone="'+esc(c.phone)+'" data-time="'+esc(c.time||'')+'" title="导出">出</button>'+
           '<button class="edit-icon" data-name="'+esc(c.name)+'" data-phone="'+esc(c.phone)+'" data-time="'+esc(c.time||'')+'" title="编辑">编</button>'+
           '<button class="del-icon" data-name="'+esc(c.name)+'" data-phone="'+esc(c.phone)+'" data-time="'+esc(c.time||'')+'" title="删除">×</button>'+
@@ -6007,8 +6007,8 @@ export default {
                 '</div>' : '')+
             '</div>'+
             '<div class="client-card-actions">'+
-              getStatusToggleHtml(e) +
               getFlagDotHtml(e) +
+              getStatusToggleHtml(e) +
               '<button class="export-timeline-single-btn" data-idx="'+e.idx+'" title="导出">出</button>'+
               '<button class="edit-note-btn" title="编辑客户信息" data-idx="'+e.idx+'">编</button>'+
               '<button class="delete-timeline-client-btn" title="删除客户" data-idx="'+e.idx+'">删</button>'+
@@ -8003,8 +8003,8 @@ const rid=Math.floor(Math.random()*1000);
             '</div>' : '') +
         '</div>' +
         '<div class="client-card-actions-top">' +
-          getStatusToggleHtml(c) +
           getFlagDotHtml(c) +
+          getStatusToggleHtml(c) +
           '<button class="all-edit-btn card-action-btn" data-date="' + esc(c.date) + '" data-name="' + esc(c.name) + '" data-phone="' + esc(c.phone) + '" data-time="' + esc(c.time || '') + '" title="编辑">编辑</button>' +
           '<button class="all-export-btn card-action-btn" data-date="' + esc(c.date) + '" data-name="' + esc(c.name) + '" data-phone="' + esc(c.phone) + '" data-time="' + esc(c.time || '') + '" title="导出">导出</button>' +
         '</div>' +
