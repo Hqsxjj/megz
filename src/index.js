@@ -1,4 +1,4 @@
-﻿// 每日工作 - Cloudflare Worker 版本
+﻿// 生活记事录 - Cloudflare Worker 版本
 // 部署后绑定 DATA_KV 即可使用
 
 import { createSupabaseClient } from './supabase.js';
@@ -209,7 +209,7 @@ async function callAIChatWithTools(env, messages, temperature = 0.5, fromUser = 
       type: "function",
       function: {
         name: "get_intent_clients",
-        description: "从 Cloudflare KV 中读取指定日期的每日工作汇报与今日意向客户登记列表（包含电话、时间、跟进情况/备注等）。",
+        description: "从 Cloudflare KV 中读取指定日期的工作记录与客户登记列表（包含电话、时间、跟进情况/备注等）。",
         parameters: {
           type: "object",
           properties: {
@@ -2363,9 +2363,9 @@ export default {
     // 4. 服务 PWA manifest
     if (path === '/manifest.json') {
       const manifest = {
-        name: '每日工作',
-        short_name: '每日工作',
-        description: '每日工作追踪：微信、意向、上门、回款、待办',
+        name: '生活记事录',
+        short_name: '生活记事录',
+        description: '生活记事录：日常记录与追踪',
         start_url: '/',
         display: 'standalone',
         background_color: '#ededed',
@@ -3128,7 +3128,7 @@ export default {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes, viewport-fit=cover, shrink-to-fit=no">
-  <title>每日工作</title>
+  <title>生活记事录</title>
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -3283,17 +3283,10 @@ export default {
     .header-bar { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 20px; padding-bottom: 6px; border-bottom: 1px solid var(--border-light); flex-shrink: 0; }
     .title-section { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
     h3 { font-size: 1.45rem; font-weight: 800; letter-spacing: -0.2px; color: var(--text-main); }
-    .app-logo { display: flex; align-items: center; gap: 10px; }
-    .app-icon { width: 40px; height: 40px; border-radius: 10px; background: linear-gradient(135deg, #4a6cf7 0%, #6b8dff 40%, #07c160 100%); box-shadow: 0 0 24px rgba(74,108,247,0.3), 0 4px 16px rgba(7,193,96,0.2); position: relative; flex-shrink: 0; animation: iconPulse 4s ease-in-out infinite; }
-    .app-icon svg { width: 100%; height: 100%; }
-    @keyframes iconPulse { 0%, 100% { box-shadow: 0 0 24px rgba(74,108,247,0.3), 0 4px 16px rgba(7,193,96,0.2); } 50% { box-shadow: 0 0 36px rgba(74,108,247,0.45), 0 6px 24px rgba(7,193,96,0.3); } }
-    body.dark-mode .app-icon { box-shadow: 0 0 20px rgba(74,108,247,0.4), 0 4px 16px rgba(7,193,96,0.25); }
-    body.dark-mode .app-icon { animation: iconPulseDark 4s ease-in-out infinite; }
-    @keyframes iconPulseDark { 0%, 100% { box-shadow: 0 0 20px rgba(74,108,247,0.4), 0 4px 16px rgba(7,193,96,0.25); } 50% { box-shadow: 0 0 32px rgba(74,108,247,0.55), 0 6px 24px rgba(7,193,96,0.35); } }
-    /* PWA safe area for iOS notch & home indicator */
+
     .app-shell { padding-top: constant(safe-area-inset-top); padding-top: env(safe-area-inset-top); }
     .container { padding-bottom: 0; }
-    @media (max-width: 760px) { .app-icon { width: 34px; height: 34px; border-radius: 8px; } .app-logo { gap: 8px; } }
+
     .date-chip { background: var(--card-bg); padding: 4px 12px; border-radius: var(--radius-xs); font-size: 0.75rem; font-weight: 700; color: var(--text-soft); border: 1px solid var(--card-border); }
     .goal-chips { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
     .goal-chip { background: var(--card-bg); padding: 4px 12px; border-radius: var(--radius-xs); font-size: 0.75rem; font-weight: 700; border: 1px solid var(--card-border); color: var(--text-soft); white-space: nowrap; cursor: default; }
@@ -3917,7 +3910,7 @@ export default {
       background: rgba(230,126,34,0.16);
       color: #f0a04b;
     }
-    .flag-dot{width:16px;height:16px;border-radius:50%;border:2px solid #e74c3c;background:transparent;cursor:pointer;padding:0;margin:0 4px;flex-shrink:0;transition:all .15s;touch-action:manipulation;min-width:16px}
+    .flag-dot{width:20px;height:20px;border-radius:50%;border:2px solid #e74c3c;background:transparent;cursor:pointer;padding:0;margin:0;flex-shrink:0;transition:all .15s;touch-action:manipulation;min-width:20px}
     .flag-dot-active{background:#e74c3c;box-shadow:0 0 6px rgba(231,76,60,0.6)}
     body.dark-mode .flag-dot-active{box-shadow:0 0 8px rgba(231,76,60,0.8)}
     .all-clients-stats{display:flex;gap:8px;padding:10px 16px;margin:0 -4px;background:var(--card-bg);border-bottom:1px solid var(--border-light);flex-wrap:wrap;position:sticky;top:0;z-index:5}
@@ -3968,7 +3961,7 @@ export default {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      opacity: 0.65;
+      opacity: 1;
       transition: opacity 0.15s;
     }
     .all-client-card:hover .client-card-actions-top .card-action-btn {
@@ -4143,7 +4136,7 @@ export default {
 <div class="app-shell">
   <div class="container">
     <div class="header-bar">
-      <div class="title-section"><div class="app-logo"><div class="app-icon"><svg viewBox="0 0 48 48" fill="none"><rect x="6" y="8" width="36" height="34" rx="5" fill="none" stroke="white" stroke-width="2.5"/><line x1="6" y1="18" x2="42" y2="18" stroke="white" stroke-width="2.5"/><rect x="12" y="4" width="4" height="8" rx="2" fill="white"/><rect x="32" y="4" width="4" height="8" rx="2" fill="white"/><circle cx="16" cy="27" r="2.5" fill="white"/><circle cx="24" cy="27" r="2.5" fill="white"/><circle cx="32" cy="27" r="2.5" fill="white"/><circle cx="16" cy="35" r="2.5" fill="white"/><circle cx="24" cy="35" r="2.5" fill="white"/></svg></div><h3>每日工作</h3></div><div class="date-chip" id="liveDate"></div><button class="goal-eye eye-off" id="goalEyeBtn" title="显示目标数字">👁</button><div class="goal-chips" id="goalChips"></div></div>
+      <div class="title-section"><h3>生活记事录</h3></div><div class="date-chip" id="liveDate"></div><button class="goal-eye eye-off" id="goalEyeBtn" title="显示目标数字">👁</button><div class="goal-chips" id="goalChips"></div></div>
       <div class="action-group">
         <button class="icon-simple" id="loanCalcBtn" title="贷款利息计算器">计算器</button>
         <button class="sync-indicator" id="syncBtn" title="点击手动同步"><span class="sync-icon" id="syncIcon">⇅</span><span id="syncLabel">同步中</span><div class="sync-tooltip" id="syncTooltip">正在连接...</div></button>
@@ -9055,7 +9048,7 @@ const rid=Math.floor(Math.random()*1000);
         const messages = [{
           role: 'system',
           content:
-            '你是「每日工作」助手的微信机器人，通过微信为用户提供贷款销售相关的AI辅助。\n' +
+            '你是「生活记事录」助手的微信机器人，通过微信为用户提供贷款销售相关的AI辅助。\n' +
             '你的能力包括：回答贷款业务问题、查询客户信息、提炼学习知识、查询白名单企业、搜索话术库和知识库。\n' +
             '你是专业的贷款销售助手，用中文回复。简洁直接，适合微信阅读。'
         }];
@@ -9079,7 +9072,7 @@ const rid=Math.floor(Math.random()*1000);
           const toolMessages = [{
             role: 'system',
             content:
-              '你是「每日工作」助手的微信机器人。\n' +
+              '你是「生活记事录」助手的微信机器人。\n' +
               '可用工具：search_customers（查客户）、check_company_whitelist（查白名单）、' +
               'search_knowledge_and_speech（查知识库/话术/贷款案例）、get_intent_clients（查今日工作数据）、' +
               'add_learning_material（提炼学习材料）。\n' +
