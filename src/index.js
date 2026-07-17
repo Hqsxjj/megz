@@ -6784,15 +6784,13 @@ export default {
   }
 
   // ==================== 壁纸 ====================
-  const FW=['https://images.pexels.com/photos/36717/amazing-animal-beautiful-beautifull.jpg','https://images.pexels.com/photos/3244513/pexels-photo-3244513.jpeg','https://images.pexels.com/photos/1366919/pexels-photo-1366919.jpeg','https://images.pexels.com/photos/147411/italy-mountains-dawn-daybreak-147411.jpeg','https://images.pexels.com/photos/1671325/pexels-photo-1671325.jpeg'];
+  const FW=["https://www.loliapi.com/acg/pe/","https://www.loliapi.com/acg/"];
   function getWpCache(){try{const c=JSON.parse(localStorage.getItem(WALLPAPER_K));if(c&&c.date===getTodayStr()&&c.url)return c;}catch(e){}return null;}
   function saveWpCache(url){localStorage.setItem(WALLPAPER_K,JSON.stringify({date:getTodayStr(),url}));}
   function rndWp(){return FW[Math.floor(Math.random()*FW.length)];}
   async function fetchWp(){
-    const w=Math.floor(screen.width*devicePixelRatio),h=Math.floor(screen.height*devicePixelRatio);
-const rid=Math.floor(Math.random()*1000);
-    try{const r=await fetch('https://picsum.photos/id/'+rid+'/info');if(r.ok){const d=await r.json();return 'https://picsum.photos/id/'+d.id+'/'+w+'/'+h;}}catch(e){}
-    return 'https://picsum.photos/'+w+'/'+h+'?random='+Date.now();
+    try{const r=await fetch("https://api.waifu.pics/sfw/waifu");if(r.ok){const d=await r.json();return d.url;}}catch(e){}
+    return rndWp();
   }
   function applyWp(url){
     if(!url)return;const img=new Image();
