@@ -3315,16 +3315,16 @@ export default {
     .card { background: var(--card-bg); backdrop-filter: blur(25px) saturate(160%); -webkit-backdrop-filter: blur(25px) saturate(160%); border-radius: var(--radius-ios); border: 1px solid var(--card-border); box-shadow: var(--shadow-card); padding: 18px 20px; }
     .counter-row { display: flex; gap: 14px; }
     .counter-card { flex: 1; border-radius: var(--radius-sm); padding: 12px; border: 1px solid var(--card-border); position: relative; overflow: hidden; }
-    .counter-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0; opacity: 0.15; z-index: 0; border-radius: var(--radius-sm); }
-    .wechat-fill { background: rgba(7,193,96,0.35); backdrop-filter: blur(15px) saturate(140%); -webkit-backdrop-filter: blur(15px) saturate(140%); color: white; }
+    .counter-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0; opacity: 0.4; z-index: 0; border-radius: var(--radius-sm); }
+    .wechat-fill { background: rgba(7,193,96,0.55); backdrop-filter: blur(8px) saturate(180%); -webkit-backdrop-filter: blur(8px) saturate(180%); color: white; }
     .wechat-fill::before { background: var(--wechat-gradient); }
-    .intent-fill { background: rgba(74,108,247,0.35); backdrop-filter: blur(15px) saturate(140%); -webkit-backdrop-filter: blur(15px) saturate(140%); color: white; }
+    .intent-fill { background: rgba(74,108,247,0.55); backdrop-filter: blur(8px) saturate(180%); -webkit-backdrop-filter: blur(8px) saturate(180%); color: white; }
     .intent-fill::before { background: var(--intent-gradient); }
-    .revisit-fill { background: rgba(240,160,75,0.35); backdrop-filter: blur(15px) saturate(140%); -webkit-backdrop-filter: blur(15px) saturate(140%); color: white; }
+    .revisit-fill { background: rgba(240,160,75,0.55); backdrop-filter: blur(8px) saturate(180%); -webkit-backdrop-filter: blur(8px) saturate(180%); color: white; }
     .revisit-fill::before { background: var(--revisit-gradient); }
-    .visit-fill { background: rgba(56,142,60,0.3); backdrop-filter: blur(15px) saturate(140%); -webkit-backdrop-filter: blur(15px) saturate(140%); color: white; }
+    .visit-fill { background: rgba(56,142,60,0.45); backdrop-filter: blur(8px) saturate(180%); -webkit-backdrop-filter: blur(8px) saturate(180%); color: white; }
     .visit-fill::before { background: var(--visit-gradient); }
-    .payment-fill { background: rgba(249,168,37,0.3); backdrop-filter: blur(15px) saturate(140%); -webkit-backdrop-filter: blur(15px) saturate(140%); color: white; }
+    .payment-fill { background: rgba(249,168,37,0.45); backdrop-filter: blur(8px) saturate(180%); -webkit-backdrop-filter: blur(8px) saturate(180%); color: white; }
     .payment-fill::before { background: var(--payment-gradient); }
     .counter-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; position: relative; z-index: 1; }
     .counter-header .button-group { display: flex; gap: 6px; margin-top: 0; }
