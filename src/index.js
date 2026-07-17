@@ -2388,6 +2388,14 @@ export default {
       });
     }
 
+    // 6. favicon.ico 兼容
+    if (path === '/favicon.ico') {
+      const svg2 = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><defs><linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#f9a8d4"/><stop offset="50%" stop-color="#c4b5fd"/><stop offset="100%" stop-color="#93c5fd"/></linearGradient><linearGradient id="hair" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#4a5568"/><stop offset="100%" stop-color="#2d3748"/></linearGradient></defs><rect width="512" height="512" rx="120" fill="url(#bg)"/><circle cx="256" cy="185" r="70" fill="#fce4ec"/><ellipse cx="256" cy="205" rx="52" ry="44" fill="#fff5f5"/><ellipse cx="238" cy="218" rx="12" ry="16" fill="#1a202c"/><ellipse cx="274" cy="218" rx="12" ry="16" fill="#1a202c"/><circle cx="242" cy="213" r="4" fill="white"/><circle cx="278" cy="213" r="4" fill="white"/><ellipse cx="256" cy="236" rx="8" ry="5" fill="#f8a0a0"/><path d="M 246 250 Q 256 262 266 250" stroke="#e08080" stroke-width="3" fill="none" stroke-linecap="round"/><ellipse cx="220" cy="170" rx="35" ry="40" fill="url(#hair)" transform="rotate(-15,220,170)"/><ellipse cx="292" cy="170" rx="35" ry="40" fill="url(#hair)" transform="rotate(15,292,170)"/><ellipse cx="256" cy="155" rx="58" ry="38" fill="url(#hair)"/><path d="M 290 320 L 296 314 L 302 320 L 296 326 Z" fill="#fbbf24"/><circle cx="296" cy="320" r="12" fill="none" stroke="#fbbf24" stroke-width="3" stroke-dasharray="6,4"/><rect x="118" y="360" width="276" height="46" rx="23" fill="white" opacity="0.85"/><text x="256" y="392" text-anchor="middle" font-family="system-ui,sans-serif" font-size="28" font-weight="900" fill="#7c3aed">记事录</text></svg>`;
+      return new Response(svg2, {
+        headers: { 'Content-Type': 'image/svg+xml', 'Cache-Control': 'public, max-age=86400', 'Access-Control-Allow-Origin': '*' }
+      });
+    }
+
     // ==================== API 接口 ====================
     
     // 获取数据
@@ -3134,6 +3142,7 @@ export default {
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="theme-color" content="#ededed">
   <link rel="manifest" href="/manifest.json">
+  <link rel="icon" href="/icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="/icon.svg">
   <link rel="icon" href="/icon.svg" type="image/svg+xml">
   <style>
