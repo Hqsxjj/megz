@@ -3299,7 +3299,7 @@ export default {
     .goal-eye { background: none; border: none; cursor: pointer; font-size: 0.85rem; padding: 2px 4px; opacity: 0.5; transition: opacity 0.2s; line-height: 1; }
     .goal-eye:hover { opacity: 1; }
     .goal-eye.eye-off { opacity: 0.25; }
-    .icon-simple { background: var(--btn-bg); border: 1.5px solid rgba(0,0,0,0.12); color: var(--text-main); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); min-width: 32px; height: 28px; padding: 0 8px; border-radius: var(--radius-xs); display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 0.72rem; color: var(--text-soft); transition: all 0.2s cubic-bezier(0.34,1.56,0.64,1); user-select: none; font-weight: 600; position: relative; white-space: nowrap; }
+    .icon-simple { background: var(--btn-bg); border: 1.5px solid rgba(0,0,0,0.12); color: var(--text-main); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); min-width: 32px; height: 28px; padding: 0 8px; border-radius: var(--radius-xs); display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 0.72rem; transition: all 0.2s cubic-bezier(0.34,1.56,0.64,1); user-select: none; font-weight: 600; position: relative; white-space: nowrap; }
     .icon-simple:hover { background: rgba(255,255,255,0.4); transform: translateY(-1px); box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
     .icon-simple:active { transform: translateY(0px) scale(0.98); }
 	    .log-list { max-height: 50vh; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; font-size: 0.8rem; font-weight: 600; color: var(--text-main); margin-top: 10px; }
@@ -3451,7 +3451,7 @@ export default {
     .todo-text { flex: 1; word-break: break-word; line-height: 1.4; }
     .todo-input-row { display: flex; gap: 8px; align-items: center; width: 100%; }
     .todo-del-btn { background: none; border: none; color: #c97a7a; cursor: pointer; font-size: 0.85rem; padding: 0 4px; }
-    .sync-indicator { display: flex; align-items: center; gap: 4px; background: var(--btn-bg); border: 1.5px solid rgba(0,0,0,0.12); color: var(--text-main); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); height: 28px; border-radius: var(--radius-xs); padding: 0 8px; cursor: pointer; font-size: 0.68rem; color: var(--text-soft); transition: all 0.2s cubic-bezier(0.34,1.56,0.64,1); user-select: none; font-weight: 700; white-space: nowrap; position: relative; }
+    .sync-indicator { display: flex; align-items: center; gap: 4px; background: var(--btn-bg); border: 1.5px solid rgba(0,0,0,0.12); color: var(--text-main); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); height: 28px; border-radius: var(--radius-xs); padding: 0 8px; cursor: pointer; font-size: 0.68rem; transition: all 0.2s cubic-bezier(0.34,1.56,0.64,1); user-select: none; font-weight: 700; white-space: nowrap; position: relative; }
     .sync-indicator:hover { background: rgba(255,255,255,0.4); transform: translateY(-1px); box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
     .sync-indicator:active { transform: translateY(0px) scale(0.97); }
     .sync-indicator .sync-icon { font-size: 1rem; display: inline-block; transition: transform 0.3s; }
