@@ -3206,17 +3206,17 @@ export default {
     body.dark-mode .wallpaper-background { opacity: 0.12; }
     .wallpaper-fallback { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; background: linear-gradient(135deg, #a8e6cf 0%, #dcedc1 100%); opacity: 0.15; pointer-events: none; }
     body.dark-mode .wallpaper-fallback { background: linear-gradient(180deg, #0a0a0a 0%, #141414 50%, #0d0d0d 100%); opacity: 0.6; }
-    .privacy-mask { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.3); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); z-index: 9999; flex-direction: column; justify-content: center; align-items: center; gap: 2rem; color: var(--text-main); font-weight: 600; pointer-events: none; }
+    .privacy-mask { display: none; position: fixed; inset: 0; background: transparent; z-index: 9999; flex-direction: column; justify-content: center; align-items: center; gap: 2rem; color: var(--text-main); font-weight: 600; pointer-events: none; }
     .privacy-wallpaper { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 9998; background-image: var(--wallpaper-url); background-size: cover; background-position: center; background-repeat: no-repeat; opacity: 0; transition: opacity 0.5s ease; pointer-events: none; }
-    body.page-hidden .privacy-wallpaper { opacity: 0.85; pointer-events: auto; }
-    body.dark-mode.page-hidden .privacy-wallpaper { opacity: 0.70; }
+    body.page-hidden .privacy-wallpaper { opacity: 1; pointer-events: auto; }
+    body.dark-mode.page-hidden .privacy-wallpaper { opacity: 1; }
     body.page-hidden .privacy-mask { display: flex; pointer-events: auto; }
     body.page-hidden .app-shell { display: none; }
-    .pin-box { display: flex; flex-direction: column; align-items: center; gap: 22px; background: #ffffff; padding: 45px 56px; border-radius: var(--radius-ios); box-shadow: 0 8px 30px rgba(0,0,0,0.08); border: 1px solid rgba(0,0,0,0.04); min-width: 448px; max-width: 588px; transition: all 0.3s ease; z-index: 45; position: absolute; top: 60%; left: 50%; transform: translate(-50%, -50%); }
-    body.dark-mode .pin-box { background: rgba(26,26,26,0.9); border: 1px solid rgba(255,255,255,0.06); box-shadow: 0 25px 60px rgba(0,0,0,0.55); }
+    .pin-box { display: flex; flex-direction: column; align-items: center; gap: 22px; background: rgba(255,255,255,0.22); backdrop-filter: blur(50px) saturate(180%); -webkit-backdrop-filter: blur(50px) saturate(180%); padding: 45px 56px; border-radius: 28px; box-shadow: 0 8px 32px rgba(0,0,0,0.12), inset 0 0.5px 0 rgba(255,255,255,0.5); border: 1px solid rgba(255,255,255,0.3); min-width: 448px; max-width: 588px; z-index: 45; position: absolute; top: 60%; left: 50%; transform: translate(-50%, -50%); }
+    body.dark-mode .pin-box { background: rgba(20,20,20,0.4); backdrop-filter: blur(50px) saturate(180%); -webkit-backdrop-filter: blur(50px) saturate(180%); border: 1px solid rgba(255,255,255,0.12); box-shadow: 0 8px 32px rgba(0,0,0,0.35), inset 0 0.5px 0 rgba(255,255,255,0.1); }
     .pin-stats { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; }
-    .pin-stat-item { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px 16px; background: #fafafa; border-radius: var(--radius-sm); border: 1px solid rgba(0,0,0,0.04); min-width: 110px; flex: 1; }
-    body.dark-mode .pin-stat-item { background: rgba(38,38,38,0.7); border: 1px solid rgba(255,255,255,0.06); }
+    .pin-stat-item { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px 16px; background: rgba(255,255,255,0.12); border-radius: var(--radius-sm); border: 1px solid rgba(255,255,255,0.15); min-width: 110px; flex: 1; }
+    body.dark-mode .pin-stat-item { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.06); }
     .pin-stat-label { font-size: 0.82rem; font-weight: 700; color: var(--text-soft); letter-spacing: 0.3px; white-space: nowrap; }
     .pin-stat-value { font-size: 2.2rem; font-weight: 900; line-height: 1; }
     .pin-wechat-value { background: var(--wechat-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
@@ -3224,9 +3224,9 @@ export default {
     .pin-revisit-value { background: var(--revisit-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
     .pin-visit-value { background: var(--visit-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
     .pin-payment-value { background: var(--payment-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
-    .pin-input { width: 196px; padding: 11px 20px; border-radius: var(--radius-xs); border: 1.5px solid rgba(0,0,0,0.08); background: #fafafa; text-align: center; font-size: 1.4rem; letter-spacing: 7px; color: var(--text-main); outline: none; font-weight: 700; transition: all 0.3s; }
-    body.dark-mode .pin-input { background: rgba(38,38,38,0.6); border-color: rgba(255,255,255,0.08); }
-    .pin-input:focus { border-color: var(--accent-wechat); box-shadow: 0 0 0 4px rgba(7,193,96,0.25); background: #ffffff; }
+    .pin-input { width: 196px; padding: 11px 20px; border-radius: var(--radius-xs); border: 1.5px solid rgba(0,0,0,0.08); background: rgba(255,255,255,0.25); text-align: center; font-size: 1.4rem; letter-spacing: 7px; color: var(--text-main); outline: none; font-weight: 700; transition: all 0.3s; }
+    body.dark-mode .pin-input { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.1); }
+    .pin-input:focus { border-color: var(--accent-wechat); box-shadow: 0 0 0 4px rgba(7,193,96,0.25); background: rgba(255,255,255,0.35); }
     .pin-btn { background: var(--accent-wechat); border: none; color: white; padding: 11px 45px; border-radius: var(--radius-xs); font-weight: 700; cursor: pointer; font-size: 1.12rem; letter-spacing: 1px; transition: all 0.2s; box-shadow: 0 4px 15px rgba(7,193,96,0.25); }
     .pin-btn:hover { opacity: 0.9; transform: translateY(-2px); box-shadow: 0 6px 20px rgba(7,193,96,0.35); }
     .pin-btn:active { transform: translateY(0); }
@@ -4001,7 +4001,7 @@ export default {
     /* Android backdrop-filter 性能差，降低或关闭 */
     body.android .card { backdrop-filter: none; -webkit-backdrop-filter: none; }
     body.android .menu-dropdown { backdrop-filter: none; -webkit-backdrop-filter: none; }
-    body.android .pin-box { backdrop-filter: none; -webkit-backdrop-filter: none; }
+    body.android .pin-box { backdrop-filter: none; -webkit-backdrop-filter: none; background: rgba(255,255,255,0.85); }
     body.android .privacy-mask { backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px); }
     body.android .modal-overlay { backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px); }
     body.android .circle-btn { backdrop-filter: none; }
