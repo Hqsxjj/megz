@@ -3280,7 +3280,7 @@ export default {
     .script-item-text { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-right: 8px; }
     .app-shell { height: 100%; height: 100dvh; width: 100%; display: flex; flex-direction: column; overflow: hidden; position: relative; z-index: 1; }
     .container { flex: 1; display: flex; flex-direction: column; padding: 14px 18px 12px; overflow-y: auto; scrollbar-width: thin; -webkit-overflow-scrolling: touch; }
-    .header-bar { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 20px; padding-bottom: 6px; border-bottom: 1px solid var(--border-light); flex-shrink: 0; }
+    .header-bar { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; padding-bottom: 4px; border-bottom: 1px solid var(--border-light); flex-shrink: 0; }
     .title-section { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
     h3 { font-size: 1.45rem; font-weight: 800; letter-spacing: -0.2px; color: var(--text-main); }
 
