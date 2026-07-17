@@ -3279,10 +3279,9 @@ export default {
     .script-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: var(--btn-bg); border-radius: var(--radius-xs); border: 1px solid var(--card-border); font-size: 0.78rem; color: var(--text-main); font-weight: 600; }
     .script-item-text { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-right: 8px; }
     .app-shell { height: 100%; height: 100dvh; width: 100%; display: flex; flex-direction: column; overflow: hidden; position: relative; z-index: 1; }
-    .container { flex: 1; display: flex; flex-direction: column; padding: 14px 18px 12px; overflow-y: auto; scrollbar-width: thin; -webkit-overflow-scrolling: touch; }
-    .header-bar { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; padding-bottom: 4px; border-bottom: 1px solid var(--border-light); flex-shrink: 0; }
-    .title-section { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
-    h3 { font-size: 1.45rem; font-weight: 800; letter-spacing: -0.2px; color: var(--text-main); }
+    .container { flex: 1; display: flex; flex-direction: column; padding: 8px 14px 8px; overflow-y: auto; scrollbar-width: thin; -webkit-overflow-scrolling: touch; }
+    .header-bar { display: flex; justify-content: space-between; align-items: center; gap: 6px; flex-shrink: 0; flex-wrap: wrap; margin-bottom: 8px; }
+    h3 { font-size: 1.35rem; font-weight: 800; letter-spacing: -0.2px; color: var(--text-main); white-space: nowrap; }
 
     .app-shell { padding-top: constant(safe-area-inset-top); padding-top: env(safe-area-inset-top); }
     .container { padding-bottom: 0; }
@@ -3300,9 +3299,8 @@ export default {
     .goal-eye { background: none; border: none; cursor: pointer; font-size: 0.85rem; padding: 2px 4px; opacity: 0.5; transition: opacity 0.2s; line-height: 1; }
     .goal-eye:hover { opacity: 1; }
     .goal-eye.eye-off { opacity: 0.25; }
-    .action-group { display: flex; gap: 10px; align-items: center; padding: 2px; position: relative; }
-    .icon-simple { background: #f5f5f5; border: 1px solid rgba(0,0,0,0.04); min-width: 38px; height: 38px; padding: 0 6px; border-radius: var(--radius-xs); display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 0.78rem; color: var(--text-soft); transition: all 0.2s cubic-bezier(0.34,1.56,0.64,1); user-select: none; font-weight: 600; position: relative; white-space: nowrap; }
-    .icon-simple:hover { background: #e8e8e8; transform: translateY(-2px) scale(1.06); box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+    .icon-simple { background: #f5f5f5; border: 1px solid rgba(0,0,0,0.04); min-width: 32px; height: 28px; padding: 0 8px; border-radius: var(--radius-xs); display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 0.72rem; color: var(--text-soft); transition: all 0.2s cubic-bezier(0.34,1.56,0.64,1); user-select: none; font-weight: 600; position: relative; white-space: nowrap; }
+    .icon-simple:hover { background: #e8e8e8; transform: translateY(-1px); box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
     .icon-simple:active { transform: translateY(0px) scale(0.98); }
 	    .log-list { max-height: 50vh; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; font-size: 0.8rem; font-weight: 600; color: var(--text-main); margin-top: 10px; }
 	    .log-item { background: var(--btn-bg); padding: 10px 14px; border-radius: var(--radius-xs); border: 1px solid var(--card-border); display: flex; flex-direction: column; gap: 6px; }
@@ -3451,8 +3449,8 @@ export default {
     .todo-text { flex: 1; word-break: break-word; line-height: 1.4; }
     .todo-input-row { display: flex; gap: 8px; align-items: center; width: 100%; }
     .todo-del-btn { background: none; border: none; color: #c97a7a; cursor: pointer; font-size: 0.85rem; padding: 0 4px; }
-    .sync-indicator { display: flex; align-items: center; gap: 5px; background: #f5f5f5; border: 1px solid rgba(0,0,0,0.04); height: 38px; border-radius: var(--radius-xs); padding: 0 12px; cursor: pointer; font-size: 0.72rem; color: var(--text-soft); transition: all 0.2s cubic-bezier(0.34,1.56,0.64,1); user-select: none; font-weight: 700; white-space: nowrap; position: relative; }
-    .sync-indicator:hover { background: #e8e8e8; transform: translateY(-2px) scale(1.02); box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+    .sync-indicator { display: flex; align-items: center; gap: 4px; background: #f5f5f5; border: 1px solid rgba(0,0,0,0.04); height: 28px; border-radius: var(--radius-xs); padding: 0 8px; cursor: pointer; font-size: 0.68rem; color: var(--text-soft); transition: all 0.2s cubic-bezier(0.34,1.56,0.64,1); user-select: none; font-weight: 700; white-space: nowrap; position: relative; }
+    .sync-indicator:hover { background: #e8e8e8; transform: translateY(-1px); box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
     .sync-indicator:active { transform: translateY(0px) scale(0.97); }
     .sync-indicator .sync-icon { font-size: 1rem; display: inline-block; transition: transform 0.3s; }
     .sync-indicator.syncing .sync-icon { animation: sync-spin 1.2s ease-in-out infinite; }
@@ -3506,9 +3504,9 @@ export default {
       .two-columns { flex-direction: column; gap: 20px; flex: none; }
       .left-area, .right-area { flex: none; width: 100%; }
       .right-area { order: 1; } .left-area { order: 2; }
-      .container { padding: 10px 12px 10px; }
-      .header-bar { margin-bottom: 4px; padding-bottom: 4px; flex-wrap: wrap; gap: 8px; align-items: center; }
-      .title-section h3 { font-size: 1.2rem; }
+      .container { padding: 6px 10px 6px; }
+      .header-bar { margin-bottom: 6px; gap: 5px; }
+      h3 { font-size: 1.15rem; }
       .modal-card { padding: 16px 14px; gap: 12px; }
       .client-modal-list { overflow-x: auto; -webkit-overflow-scrolling: touch; }
       .pin-box { min-width: 320px; max-width: 92vw; padding: 28px 20px; gap: 14px; top: 35%; transform: translate(-50%, -35%); }
@@ -3548,8 +3546,8 @@ export default {
       .time-input-compact { flex: 1 !important; min-width: 0 !important; }
       .todo-add-btn { flex: 1; }
       .client-actions { flex-shrink: 0; }
-      .icon-simple { min-width: 32px; height: 32px; font-size: 0.72rem; padding: 0 4px; }
-      .sync-indicator { height: 32px; padding: 0 8px; font-size: 0.68rem; }
+      .icon-simple { min-width: 28px; height: 28px; font-size: 0.68rem; padding: 0 6px; }
+      .sync-indicator { height: 28px; padding: 0 6px; font-size: 0.65rem; }
       #logBtn { height: 32px !important; padding: 0 8px !important; font-size: 0.72rem !important; }
       .intent-table { font-size: 0.75rem; }
       .intent-table th, .intent-table td { padding: 8px 6px; }
@@ -4136,23 +4134,7 @@ export default {
 <div class="app-shell">
   <div class="container">
     <div class="header-bar">
-      <div class="title-section"><h3>生活记事录</h3></div><div class="date-chip" id="liveDate"></div><button class="goal-eye eye-off" id="goalEyeBtn" title="显示目标数字">👁</button><div class="goal-chips" id="goalChips"></div></div>
-      <div class="action-group">
-        <button class="icon-simple" id="loanCalcBtn" title="贷款利息计算器">计算器</button>
-        <button class="sync-indicator" id="syncBtn" title="点击手动同步"><span class="sync-icon" id="syncIcon">⇅</span><span id="syncLabel">同步中</span><div class="sync-tooltip" id="syncTooltip">正在连接...</div></button>
-        <button class="icon-simple" id="allClientsBtn" title="意向客户全量表">全量</button>
-        <button class="icon-simple" id="hideBtn" title="一键隐藏 (Ctrl+Z)">锁屏</button>
-        <button class="icon-simple" id="menuToggleBtn" title="菜单">≡</button>
-        <div class="menu-dropdown" id="menuDropdown">
-          <button class="menu-item" id="logBtn">同步日志</button>
-          <button class="menu-item" id="scriptBtn">话术管理</button>
-          <button class="menu-item" id="learnBtn">学习管理</button>
-          <button class="menu-item" id="exportBtn">导出数据</button>
-          <button class="menu-item" id="goalBtn">目标设定</button>
-          <button class="menu-item" id="whitelistMenuBtn">白名单管理</button>
-          <button class="menu-item" id="darkToggleBtn">深色模式</button>
-        </div>
-      </div>
+      <h3>生活记事录</h3><div class="date-chip" id="liveDate"></div><button class="goal-eye eye-off" id="goalEyeBtn" title="显示目标数字">👁</button><div class="goal-chips" id="goalChips"></div><button class="icon-simple" id="loanCalcBtn" title="贷款利息计算器">计算器</button><button class="sync-indicator" id="syncBtn" title="点击手动同步"><span class="sync-icon" id="syncIcon">⇅</span><span id="syncLabel">同步中</span><div class="sync-tooltip" id="syncTooltip">正在连接...</div></button><button class="icon-simple" id="allClientsBtn" title="意向客户全量表">全量</button><button class="icon-simple" id="hideBtn" title="一键隐藏 (Ctrl+Z)">锁屏</button><button class="icon-simple" id="menuToggleBtn" title="菜单">≡</button><div class="menu-dropdown" id="menuDropdown"><button class="menu-item" id="logBtn">同步日志</button><button class="menu-item" id="scriptBtn">话术管理</button><button class="menu-item" id="learnBtn">学习管理</button><button class="menu-item" id="exportBtn">导出数据</button><button class="menu-item" id="goalBtn">目标设定</button><button class="menu-item" id="whitelistMenuBtn">白名单管理</button><button class="menu-item" id="darkToggleBtn">深色模式</button></div>
     </div>
     <div class="two-columns">
       <div class="left-area">
