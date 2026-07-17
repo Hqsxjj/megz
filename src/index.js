@@ -3140,20 +3140,20 @@ export default {
     * { margin: 0; padding: 0; box-sizing: border-box; }
     :root {
       --bg-app: rgba(237,237,237,0.6);
-      --card-bg: rgba(255,255,255,0.25);
+      --card-bg: rgba(255,255,255,0.4);
       --card-border: rgba(0,0,0,0.06);
       --text-main: #191919;
       --text-soft: #5e5e5e;
       --text-light: #8e8e8e;
-      --accent-wechat: #c8cdd4;
-      --accent-intent: #c8cdd4;
+      --accent-wechat: #ffffff;
+      --accent-intent: #ffffff;
       --accent-wechat-bg: #f2f3f5;
       --accent-intent-bg: #f2f3f5;
-      --btn-bg: rgba(255,255,255,0.2);
+      --btn-bg: rgba(255,255,255,0.7);
       --btn-hover: #e5e5e5;
       --shadow-card: 0 1px 3px rgba(0,0,0,0.04);
       --cal-hover: #f5f5f5;
-      --cal-today: rgba(255,255,255,0.2);
+      --cal-today: rgba(255,255,255,0.3);
       --border-light: #e5e5e5;
       --tooltip-bg: #191919;
       --tooltip-text: #ffffff;
@@ -3179,14 +3179,14 @@ export default {
       --text-main: #e5e5e5;
       --text-soft: #a0a0a0;
       --text-light: #6b6b6b;
-      --accent-wechat: #c8cdd4;
-      --accent-intent: #c8cdd4;
+      --accent-wechat: #ffffff;
+      --accent-intent: #ffffff;
       --accent-wechat-bg: #1a1d22;
       --accent-intent-bg: #1a1d22;
-      --btn-bg: rgba(255,255,255,0.06);
+      --btn-bg: rgba(255,255,255,0.12);
       --btn-hover: #2c2c2c;
       --cal-hover: #222222;
-      --cal-today: rgba(255,255,255,0.25);
+      --cal-today: rgba(255,255,255,0.4);
       --border-light: #262626;
       --tooltip-bg: #e5e5e5;
       --tooltip-text: #111111;
@@ -3224,11 +3224,11 @@ export default {
     .pin-revisit-value { background: var(--revisit-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
     .pin-visit-value { background: var(--visit-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
     .pin-payment-value { background: var(--payment-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
-    .pin-input { width: 196px; padding: 11px 20px; border-radius: var(--radius-xs); border: 1.5px solid rgba(0,0,0,0.08); background: rgba(255,255,255,0.25); text-align: center; font-size: 1.4rem; letter-spacing: 7px; color: var(--text-main); outline: none; font-weight: 700; transition: all 0.3s; }
+    .pin-input { width: 196px; padding: 11px 20px; border-radius: var(--radius-xs); border: 1.5px solid rgba(0,0,0,0.08); background: rgba(255,255,255,0.4); text-align: center; font-size: 1.4rem; letter-spacing: 7px; color: var(--text-main); outline: none; font-weight: 700; transition: all 0.3s; }
     body.dark-mode .pin-input { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.1); }
-    .pin-input:focus { border-color: var(--accent-wechat); box-shadow: 0 0 0 4px rgba(255,255,255,0.55); background: rgba(255,255,255,0.35); }
-    .pin-btn { background: var(--accent-wechat); border: none; color: white; padding: 11px 45px; border-radius: var(--radius-xs); font-weight: 700; cursor: pointer; font-size: 1.12rem; letter-spacing: 1px; transition: all 0.2s; box-shadow: 0 4px 15px rgba(255,255,255,0.55); }
-    .pin-btn:hover { opacity: 0.9; transform: translateY(-2px); box-shadow: 0 6px 20px rgba(255,255,255,0.45); }
+    .pin-input:focus { border-color: var(--accent-wechat); box-shadow: 0 0 0 4px rgba(255,255,255,0.7); background: rgba(255,255,255,0.35); }
+    .pin-btn { background: var(--accent-wechat); border: none; color: white; padding: 11px 45px; border-radius: var(--radius-xs); font-weight: 700; cursor: pointer; font-size: 1.12rem; letter-spacing: 1px; transition: all 0.2s; box-shadow: 0 4px 15px rgba(255,255,255,0.7); }
+    .pin-btn:hover { opacity: 0.9; transform: translateY(-2px); box-shadow: 0 6px 20px rgba(255,255,255,0.6); }
     .pin-btn:active { transform: translateY(0); }
     .pin-error { color: #e74c3c; font-size: 1.26rem; min-height: 24px; font-weight: 600; letter-spacing: 0.5px; }
     .timer-container { position: absolute; top: 18%; left: 50%; margin-left: -160px; width: 320px; z-index: 20000; display: none; cursor: grab; user-select: none; }
@@ -3241,18 +3241,18 @@ export default {
     .timer-input-group { display: flex; flex-direction: column; gap: 4px; align-items: center; }
     .timer-input { width: 50px; padding: 8px 6px; text-align: center; font-size: 1rem; font-weight: 700; border: 1.5px solid rgba(0,0,0,0.08); border-radius: var(--radius-xs); background: var(--btn-bg); color: var(--text-main); outline: none; transition: all 0.2s; }
     body.dark-mode .timer-input { background: rgba(38,38,38,0.6); border-color: rgba(255,255,255,0.08); }
-    .timer-input:focus { border-color: var(--accent-wechat); box-shadow: 0 0 0 3px rgba(255,255,255,0.55); background: rgba(255,255,255,0.4); }
+    .timer-input:focus { border-color: var(--accent-wechat); box-shadow: 0 0 0 3px rgba(255,255,255,0.7); background: rgba(255,255,255,0.4); }
     .timer-label { font-size: 0.75rem; font-weight: 600; color: var(--text-soft); }
     .timer-separator { font-size: 1.2rem; font-weight: 700; color: var(--text-main); margin-bottom: 12px; }
     .timer-buttons { display: flex; gap: 8px; justify-content: center; transition: all 0.3s ease; }
     .timer-btn { padding: 8px 16px; border: none; border-radius: var(--radius-xs); font-weight: 700; cursor: pointer; font-size: 0.9rem; transition: all 0.2s; }
-    .timer-btn-start { background: var(--accent-wechat); color: white; box-shadow: 0 4px 12px rgba(255,255,255,0.55); }
+    .timer-btn-start { background: var(--accent-wechat); color: white; box-shadow: 0 4px 12px rgba(255,255,255,0.7); }
     .timer-btn-start:hover { opacity: 0.9; transform: translateY(-2px); }
     .timer-btn-start:active { transform: translateY(0); }
     .timer-btn-reset { background: rgba(0,0,0,0.04); color: var(--text-main); }
     body.dark-mode .timer-btn-reset { background: rgba(255,255,255,0.06); }
-    body.dark-mode .icon-simple { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.06); color: var(--text-main); }
-    body.dark-mode .icon-simple:hover { background: rgba(255,255,255,0.1); box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+    body.dark-mode .icon-simple { background: var(--btn-bg); border-color: rgba(255,255,255,0.2); color: var(--text-main); }
+    body.dark-mode .icon-simple:hover { background: rgba(255,255,255,0.2); box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
     body.dark-mode .goal-chip.goal-met { background: rgba(255,255,255,0.3); color: #2ecc71; }
     body.dark-mode .goal-chip.goal-half { background: rgba(245,124,0,0.12); color: #f0a04b; }
     body.dark-mode .goal-chip.goal-low { background: rgba(74,108,247,0.1); color: #7b9ff5; }
@@ -3293,13 +3293,13 @@ export default {
     .goal-actual:hover { color: var(--accent-wechat); border-bottom-color: var(--accent-wechat); }
     .goal-target { cursor: pointer; font-style: italic; font-weight: 400; border-bottom: 1px dotted var(--text-light); }
     .goal-target:hover { color: var(--accent-intent); border-bottom-color: var(--accent-intent); }
-    .goal-chip.goal-met { background: rgba(255,255,255,0.2); color: var(--accent-wechat); }
+    .goal-chip.goal-met { background: rgba(255,255,255,0.3); color: var(--accent-wechat); }
     .goal-chip.goal-half { background: rgba(245,124,0,0.08); color: #e67e22; }
     .goal-chip.goal-low { background: rgba(74,108,247,0.06); color: #4a6cf7; }
     .goal-eye { background: none; border: none; cursor: pointer; font-size: 0.85rem; padding: 2px 4px; opacity: 0.5; transition: opacity 0.2s; line-height: 1; }
     .goal-eye:hover { opacity: 1; }
     .goal-eye.eye-off { opacity: 0.25; }
-    .icon-simple { background: var(--btn-bg); border: 1px solid var(--card-border); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); min-width: 32px; height: 28px; padding: 0 8px; border-radius: var(--radius-xs); display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 0.72rem; color: var(--text-soft); transition: all 0.2s cubic-bezier(0.34,1.56,0.64,1); user-select: none; font-weight: 600; position: relative; white-space: nowrap; }
+    .icon-simple { background: var(--btn-bg); border: 1.5px solid rgba(0,0,0,0.12); color: var(--text-main); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); min-width: 32px; height: 28px; padding: 0 8px; border-radius: var(--radius-xs); display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 0.72rem; color: var(--text-soft); transition: all 0.2s cubic-bezier(0.34,1.56,0.64,1); user-select: none; font-weight: 600; position: relative; white-space: nowrap; }
     .icon-simple:hover { background: rgba(255,255,255,0.4); transform: translateY(-1px); box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
     .icon-simple:active { transform: translateY(0px) scale(0.98); }
 	    .log-list { max-height: 50vh; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; font-size: 0.8rem; font-weight: 600; color: var(--text-main); margin-top: 10px; }
@@ -3337,7 +3337,7 @@ export default {
     .button-group { display: flex; gap: 12px; margin-top: 12px; position: relative; z-index: 1; }
     .circle-btn { width: 40px; height: 40px; border-radius: var(--radius-xs); background: rgba(255,255,255,0.35); border: 1px solid rgba(255,255,255,0.5); font-size: 1.5rem; display: flex; align-items: center; justify-content: center; cursor: pointer; color: white; font-weight: 700; backdrop-filter: blur(4px); transition: 0.2s; }
     .circle-btn:hover { background: rgba(255,255,255,0.5); }
-    .btn-special { background: rgba(255,255,255,0.45); }
+    .btn-special { background: rgba(255,255,255,0.6); }
     .stats-row { display: flex; gap: 10px; }
     .stat-block { flex: 1; text-align: center; border-radius: var(--radius-sm); padding: 10px 4px; border: 1px solid var(--card-border); color: white; text-shadow: 0 1px 2px rgba(0,0,0,0.1); box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
     .stat-wechat { background: var(--wechat-gradient); }
@@ -3376,7 +3376,7 @@ export default {
     .client-modal-list { overflow-y: auto; display: flex; flex-direction: column; gap: 16px; max-height: 75vh; padding-top: 2px; position: relative; }
     /* ===== 意向客户表格 ===== */
     .intent-table { width: 100%; border-collapse: collapse; font-size: 0.83rem; table-layout: auto; }
-    .intent-table thead tr { background: linear-gradient(90deg, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0.1) 100%); border-bottom: 2px solid rgba(255,255,255,0.25); }
+    .intent-table thead tr { background: linear-gradient(90deg, rgba(255,255,255,0.3) 0%, rgba(255,255,255,0.1) 100%); border-bottom: 2px solid rgba(255,255,255,0.4); }
     body.dark-mode .intent-table thead tr { background: linear-gradient(90deg, rgba(255,255,255,0.3) 0%, rgba(255,255,255,0.15) 100%); }
     .intent-table th { padding: 9px 14px; font-size: 0.72rem; font-weight: 800; color: var(--accent-intent); letter-spacing: 0.4px; text-align: left; white-space: nowrap; }
     .intent-table td { padding: 11px 14px; border-bottom: 1px solid var(--border-light); vertical-align: top; color: var(--text-main); font-weight: 600; }
@@ -3389,7 +3389,7 @@ export default {
     .tbl-name { font-weight: 800; font-size: 0.88rem; white-space: nowrap; }
     .tbl-phone-wrap { display: inline-flex; align-items: center; gap: 5px; font-family: monospace; font-size: 0.8rem; color: var(--text-soft); white-space: nowrap; }
     .tbl-tag { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 0.68rem; font-weight: 700; white-space: nowrap; }
-    .tbl-tag-company { background: rgba(255,255,255,0.2); color: var(--accent-wechat); }
+    .tbl-tag-company { background: rgba(255,255,255,0.3); color: var(--accent-wechat); }
     .tbl-tag-fund { background: rgba(255,154,60,0.15); color: #c97a00; }
     body.dark-mode .tbl-tag-fund { color: #d4933a; }
     /* 沟通记录列 — 最大宽度优先，文字完整换行显示 */
@@ -3402,7 +3402,7 @@ export default {
     .edit-note-btn:hover { background: var(--accent-wechat); color: #fff; transform: scale(1.1); }
     .tbl-note-edit-wrap { display: flex; flex-direction: column; gap: 6px; }
     .tbl-note-edit-wrap textarea { width: 100%; min-height: 90px; background: var(--btn-bg); border: 1.5px solid var(--accent-wechat); border-radius: 6px; padding: 8px 10px; font-size: 0.86rem; color: var(--text-main); outline: none; font-weight: 600; resize: vertical; line-height: 1.7; }
-    .tbl-note-edit-wrap textarea:focus { box-shadow: 0 0 0 3px rgba(255,255,255,0.55); }
+    .tbl-note-edit-wrap textarea:focus { box-shadow: 0 0 0 3px rgba(255,255,255,0.7); }
     .tbl-note-edit-btns { display: flex; gap: 5px; }
     .tbl-save-btn { font-size: 0.65rem; background: var(--accent-wechat); color: #fff; border: none; border-radius: 6px; cursor: pointer; padding: 4px 12px; font-weight: 700; }
     .tbl-cancel-btn { font-size: 0.65rem; background: var(--btn-bg); border: 1px solid var(--card-border); color: var(--text-soft); border-radius: 6px; cursor: pointer; padding: 4px 12px; font-weight: 700; }
@@ -3418,7 +3418,7 @@ export default {
     .register-block { display: flex; flex-direction: column; gap: 8px; }
     .form-line { display: flex; gap: 8px; align-items: center; width: 100%; }
     .input-simple, .todo-input { flex: 1; width: 100%; height: 38px; padding: 0 12px; font-size: 0.85rem; background: var(--btn-bg); border: 0.5px solid var(--card-border); border-radius: var(--radius-xs); color: var(--text-main); outline: none; min-width: 0; font-weight: 600; box-sizing: border-box; transition: all 0.2s; }
-    .input-simple:focus, .todo-input:focus { border-color: var(--accent-wechat); box-shadow: 0 0 0 2px rgba(255,255,255,0.55); }
+    .input-simple:focus, .todo-input:focus { border-color: var(--accent-wechat); box-shadow: 0 0 0 2px rgba(255,255,255,0.7); }
     textarea.input-simple, .note-textarea { height: auto; min-height: 68px; padding: 10px 12px; resize: vertical; line-height: 1.6; }
     .note-textarea { font-family: inherit; }
     .btn-add, .todo-add-btn { height: 38px; padding: 0 18px; font-size: 0.85rem; font-weight: 700; border: none; border-radius: var(--radius-xs); color: white; cursor: pointer; white-space: nowrap; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; transition: all 0.2s; }
@@ -3451,7 +3451,7 @@ export default {
     .todo-text { flex: 1; word-break: break-word; line-height: 1.4; }
     .todo-input-row { display: flex; gap: 8px; align-items: center; width: 100%; }
     .todo-del-btn { background: none; border: none; color: #c97a7a; cursor: pointer; font-size: 0.85rem; padding: 0 4px; }
-    .sync-indicator { display: flex; align-items: center; gap: 4px; background: var(--btn-bg); border: 1px solid var(--card-border); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); height: 28px; border-radius: var(--radius-xs); padding: 0 8px; cursor: pointer; font-size: 0.68rem; color: var(--text-soft); transition: all 0.2s cubic-bezier(0.34,1.56,0.64,1); user-select: none; font-weight: 700; white-space: nowrap; position: relative; }
+    .sync-indicator { display: flex; align-items: center; gap: 4px; background: var(--btn-bg); border: 1.5px solid rgba(0,0,0,0.12); color: var(--text-main); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); height: 28px; border-radius: var(--radius-xs); padding: 0 8px; cursor: pointer; font-size: 0.68rem; color: var(--text-soft); transition: all 0.2s cubic-bezier(0.34,1.56,0.64,1); user-select: none; font-weight: 700; white-space: nowrap; position: relative; }
     .sync-indicator:hover { background: rgba(255,255,255,0.4); transform: translateY(-1px); box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
     .sync-indicator:active { transform: translateY(0px) scale(0.97); }
     .sync-indicator .sync-icon { font-size: 1rem; display: inline-block; transition: transform 0.3s; }
@@ -3929,7 +3929,7 @@ export default {
     .follow-up-record-header{font-size:0.68rem;font-weight:800;color:var(--accent-wechat);margin-bottom:3px}
     .follow-up-record-text{font-size:0.78rem;font-weight:600;color:var(--text-main);line-height:1.4;word-break:break-all}
     .follow-up-add-btn{font-size:0.7rem;font-weight:700;padding:5px 12px;border:1px dashed var(--accent-wechat);color:var(--accent-wechat);background:transparent;border-radius:6px;cursor:pointer;transition:all .15s;margin-top:4px}
-    .follow-up-add-btn:hover{background:rgba(255,255,255,0.2)}
+    .follow-up-add-btn:hover{background:rgba(255,255,255,0.3)}
     .follow-up-edit-row{display:flex;gap:8px;align-items:flex-start}
     .follow-up-remove-btn{font-size:0.8rem;background:none;border:none;color:#e74c3c;cursor:pointer;font-weight:700;padding:4px 6px}
     .client-card-actions {
@@ -4069,7 +4069,7 @@ export default {
     .loan-compare-table td { padding: 8px 10px; border-bottom: 1px solid var(--border-light); text-align: center; font-weight: 600; }
     .loan-compare-table tr:last-child td { border-bottom: none; }
     .loan-compare-table .highlight { background: rgba(90,106,126,0.05); }
-    body.dark-mode .loan-compare-table .highlight { background: rgba(255,255,255,0.2); }
+    body.dark-mode .loan-compare-table .highlight { background: rgba(255,255,255,0.3); }
     .loan-schedule-wrap { max-height: 280px; overflow-y: auto; border: 1px solid var(--card-border); border-radius: var(--radius-xs); margin-top: 8px; }
     .loan-schedule-table { width: 100%; border-collapse: collapse; font-size: 0.7rem; }
     .loan-schedule-table th { position: sticky; top: 0; background: var(--btn-bg); padding: 6px 8px; font-weight: 800; color: var(--text-soft); border-bottom: 2px solid var(--card-border); text-align: center; z-index: 1; }
@@ -6021,7 +6021,7 @@ export default {
               '<span class="client-card-time">'+esc(e.time||'')+'</span>'+
             '</div>'+
             '<div class="client-card-tags">'+
-              '<span class="client-card-tag" style="background:rgba(255,255,255,0.2);color:var(--accent-wechat);">电话: '+esc(e.phone)+'</span>'+
+              '<span class="client-card-tag" style="background:rgba(255,255,255,0.3);color:var(--accent-wechat);">电话: '+esc(e.phone)+'</span>'+
             '</div>'+
             (e.note ? '<div class="client-card-body"><div class="client-card-content-block"><span class="client-card-label">回访备注</span><span class="client-card-text">'+esc(e.note)+'</span></div></div>' : '')+
           '</div>';
@@ -6819,7 +6819,7 @@ const rid=Math.floor(Math.random()*1000);
   function getSourceTypeColor(type) {
     switch(type) {
       case '微信聊天':
-        return 'background:rgba(255,255,255,0.2); color:#5a6a7e;';
+        return 'background:rgba(255,255,255,0.3); color:#5a6a7e;';
       case '电话录音':
         return 'background:rgba(74,108,247,0.1); color:#4a6cf7;';
       case '客户案例':
