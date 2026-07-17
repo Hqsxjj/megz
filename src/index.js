@@ -4047,9 +4047,11 @@ export default {
 
     /* ==================== 贷款利息计算器 ==================== */
     #loanModal .modal-card { overflow-y: auto; }
-    .loan-input-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 10px; }
-    .loan-input-row label { font-size: 0.75rem; font-weight: 700; color: var(--text-soft); min-width: 70px; }
-    .loan-unit { font-size: 0.7rem; color: var(--text-light); font-weight: 700; min-width: 20px; }
+    .loan-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px; }
+    .loan-input-row { display: flex; gap: 6px; align-items: center; }
+    .loan-input-row label { font-size: 0.72rem; font-weight: 700; color: var(--text-soft); white-space: nowrap; min-width: 56px; }
+    .loan-input-row .input-simple { width: 90px; min-width: 0; flex: none; }
+    .loan-unit { font-size: 0.65rem; color: var(--text-light); font-weight: 700; white-space: nowrap; }
     .loan-rate-toggle { display: inline-flex; border: 1px solid var(--card-border); border-radius: var(--radius-xs); overflow: hidden; }
     .loan-rate-toggle button { padding: 4px 14px; font-size: 0.72rem; font-weight: 700; border: none; background: var(--btn-bg); color: var(--text-soft); cursor: pointer; transition: 0.15s; }
     .loan-rate-toggle button.active { background: var(--accent-wechat); color: #fff; }
@@ -4078,10 +4080,11 @@ export default {
     .loan-schedule-table tr:hover { background: var(--btn-hover); }
     .loan-method-field { display: none; }
     .loan-method-field.visible { display: flex; }
+    .loan-input-desc { font-size: 0.62rem; color: var(--text-light); grid-column: 1 / -1; }
     @media (max-width: 760px) {
+      .loan-grid { grid-template-columns: 1fr; }
       .loan-results { grid-template-columns: repeat(2, 1fr); }
-      .loan-input-row { flex-direction: column; align-items: stretch; }
-      .loan-input-row label { min-width: auto; }
+      .loan-input-row .input-simple { width: 80px; }
       .loan-tab { padding: 6px 10px; font-size: 0.72rem; }
       #loanModal .modal-card { padding: 14px; }
       .loan-compare-table { font-size: 0.68rem; }
@@ -4469,49 +4472,51 @@ export default {
       <button class="loan-tab" data-method="sjjh">随借随还</button>
     </div>
 
-    <!-- Input Section -->
-    <div class="loan-input-row">
-      <label>贷款金额</label>
-      <input type="number" class="input-simple" id="loanPrincipal" placeholder="100000" min="0" step="1000" style="flex:1;min-width:80px;">
-      <span class="loan-unit">元</span>
+    <!-- Input Section (2-column grid) -->
+    <div class="loan-grid">
+      <div class="loan-input-row">
+        <label>贷款金额</label>
+        <input type="number" class="input-simple" id="loanPrincipal" placeholder="100000" min="0" step="1000">
+        <span class="loan-unit">元</span>
+      </div>
+
+      <div class="loan-input-row">
+        <label>月息</label>
+        <input type="number" class="input-simple" id="loanMonthlyRate" placeholder="0.35" min="0" step="0.01">
+        <span class="loan-unit">%/月</span>
+      </div>
+
+      <div class="loan-input-row">
+        <label>年化利率</label>
+        <input type="number" class="input-simple" id="loanAnnualRate" placeholder="4.20" min="0" step="0.01">
+        <span class="loan-unit">%/年</span>
+      </div>
+
+      <div class="loan-input-row">
+        <label>贷款期限</label>
+        <input type="number" class="input-simple" id="loanTerm" placeholder="12" min="1" max="480" step="1">
+        <span class="loan-unit">个月</span>
+      </div>
+
+      <div class="loan-input-row">
+        <label>月息差</label>
+        <input type="number" class="input-simple" id="loanRateSpread" placeholder="0.00" min="0" step="0.01">
+        <span class="loan-unit">%/月</span>
+      </div>
+
+      <div class="loan-input-row">
+        <label>融资成本</label>
+        <input type="number" class="input-simple" id="loanFinanceCost" placeholder="0.00" min="0" step="0.01">
+        <span class="loan-unit">%</span>
+      </div>
     </div>
 
-    <div class="loan-input-row">
-      <label>月息</label>
-      <input type="number" class="input-simple" id="loanMonthlyRate" placeholder="0.35" min="0" step="0.01" style="flex:1;min-width:80px;">
-      <span class="loan-unit">% / 月</span>
-    </div>
-
-    <div class="loan-input-row">
-      <label>年化利率</label>
-      <input type="number" class="input-simple" id="loanAnnualRate" placeholder="4.20" min="0" step="0.01" style="flex:1;min-width:80px;">
-      <span class="loan-unit">% / 年</span>
-    </div>
-
-    <div class="loan-input-row">
-      <label>贷款期限</label>
-      <input type="number" class="input-simple" id="loanTerm" placeholder="12" min="1" max="480" step="1" style="flex:1;min-width:80px;">
-      <span class="loan-unit">个月</span>
-    </div>
-
-    <div class="loan-input-row">
-      <label>月息差</label>
-      <input type="number" class="input-simple" id="loanRateSpread" placeholder="0.00" min="0" step="0.01" style="flex:1;min-width:80px;">
-      <span class="loan-unit">% / 月</span>
-      <span style="font-size:0.62rem;color:var(--text-light);">(实际−基准)</span>
-    </div>
-
-    <div class="loan-input-row">
-      <label>融资成本</label>
-      <input type="number" class="input-simple" id="loanFinanceCost" placeholder="0.00" min="0" step="0.01" style="flex:1;min-width:80px;">
-      <span class="loan-unit">%</span>
-      <span style="font-size:0.62rem;color:var(--text-light);">(借款额的百分比)</span>
-    </div>
-
-    <div class="loan-input-row loan-method-field" id="loanDaysField">
-      <label>计息天数</label>
-      <input type="number" class="input-simple" id="loanDays" placeholder="30" min="1" max="3650" step="1" style="flex:1;min-width:80px;">
-      <span class="loan-unit">天</span>
+    <div class="loan-method-field" id="loanDaysField">
+      <div class="loan-input-row">
+        <label>计息天数</label>
+        <input type="number" class="input-simple" id="loanDays" placeholder="30" min="1" max="3650" step="1" style="width:90px;">
+        <span class="loan-unit">天</span>
+      </div>
     </div>
 
     <!-- Result Cards -->
