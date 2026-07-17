@@ -6799,9 +6799,9 @@ export default {
     img.src=url;
   }
   async function loadWp(force=false){
-    if(!force){const c=getWpCache();if(c){applyWp(c.url);return;}}
+    if(!force){const c=getWpCache();if(c){applyWp(c.url);}}
     let u=null;try{u=await fetchWp();}catch(e){}
-    if(!u)u=rndWp();
+    if(!u){u=rndWp();if(!u){const c=getWpCache();if(c){applyWp(c.url);return;}}}
     if(u){applyWp(u);saveWpCache(u);}
   }
   function initWp(){
