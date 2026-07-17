@@ -4046,7 +4046,18 @@ export default {
     }
 
     /* ==================== 贷款利息计算器 ==================== */
-    #loanModal .modal-card { overflow-y: auto; }
+    #loanModal .modal-card { overflow-y: auto; background: rgba(255,255,255,0.92); backdrop-filter: none; -webkit-backdrop-filter: none; border: 1px solid rgba(0,0,0,0.08); box-shadow: 0 16px 48px rgba(0,0,0,0.15); }
+    body.dark-mode #loanModal .modal-card { background: rgba(26,26,26,0.95); border-color: rgba(255,255,255,0.08); }
+    #loanModal .input-simple { background: rgba(0,0,0,0.04); border-color: rgba(0,0,0,0.1); }
+    body.dark-mode #loanModal .input-simple { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.1); }
+    #loanModal .loan-result-card { background: rgba(0,0,0,0.03); border-color: rgba(0,0,0,0.06); }
+    body.dark-mode #loanModal .loan-result-card { background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.06); }
+    #loanModal .loan-compare-table th { background: rgba(0,0,0,0.04); }
+    body.dark-mode #loanModal .loan-compare-table th { background: rgba(255,255,255,0.06); }
+    #loanModal .loan-schedule-table th { background: rgba(0,0,0,0.04); }
+    body.dark-mode #loanModal .loan-schedule-table th { background: rgba(255,255,255,0.06); }
+    #loanModal .loan-rate-toggle button { background: rgba(0,0,0,0.04); }
+    body.dark-mode #loanModal .loan-rate-toggle button { background: rgba(255,255,255,0.06); }
     .loan-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px; }
     .loan-input-row { display: flex; gap: 6px; align-items: center; }
     .loan-input-row label { font-size: 0.72rem; font-weight: 700; color: var(--text-soft); white-space: nowrap; min-width: 56px; }
