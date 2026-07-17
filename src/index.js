@@ -3162,9 +3162,9 @@ export default {
       --radius-ios: 10px;
       --radius-sm: 8px;
       --radius-xs: 6px;
-      --wechat-gradient: linear-gradient(135deg, #c8cdd5 0%, #8a94a5 50%, #5a6a7e 100%);
-      --intent-gradient: linear-gradient(135deg, #d0d4da 0%, #9ea6b2 50%, #6e7a8c 100%);
-      --revisit-gradient: linear-gradient(135deg, #d4d8de 0%, #a4acb8 50%, #788494 100%);
+      --wechat-gradient: linear-gradient(135deg, #b7f0ce 0%, #6be89d 50%, #1aad5a 100%);
+      --intent-gradient: linear-gradient(135deg, #ffe0b2 0%, #ffb74d 50%, #f57c00 100%);
+      --revisit-gradient: linear-gradient(135deg, #d1e0ff 0%, #7b9ff5 50%, #4a6cf7 100%);
       --visit-gradient: linear-gradient(135deg, #c8e6c9 0%, #66bb6a 50%, #388e3c 100%);
       --payment-gradient: linear-gradient(135deg, #fff9c4 0%, #ffd54f 50%, #f9a825 100%);
       --today-gradient: linear-gradient(135deg, #ffe0cc 0%, #ffab7a 50%, #ff7744 100%);
@@ -3192,9 +3192,9 @@ export default {
       --tooltip-text: #111111;
       --modal-bg: rgba(0,0,0,0.4);
       --modal-card: rgba(20,20,20,0.4);
-      --wechat-gradient: linear-gradient(135deg, #1a1d24 0%, #2a303a 50%, #3a4250 100%);
-      --intent-gradient: linear-gradient(135deg, #1e2128 0%, #303640 50%, #424b58 100%);
-      --revisit-gradient: linear-gradient(135deg, #1c2028 0%, #2e3440 50%, #404858 100%);
+      --wechat-gradient: linear-gradient(135deg, #0d3320 0%, #144d2e 50%, #1a6b3a 100%);
+      --intent-gradient: linear-gradient(135deg, #332010 0%, #4d2e14 50%, #6b3a1a 100%);
+      --revisit-gradient: linear-gradient(135deg, #1a2233 0%, #2a354d 50%, #3a4d6b 100%);
       --visit-gradient: linear-gradient(135deg, #1b3320 0%, #2d5a30 50%, #3d7a40 100%);
       --payment-gradient: linear-gradient(135deg, #332b10 0%, #5a4a1a 50%, #7a6a20 100%);
       --today-gradient: linear-gradient(135deg, #2a1a0d 0%, #3d2614 50%, #52331a 100%);
@@ -3316,11 +3316,11 @@ export default {
     .counter-row { display: flex; gap: 14px; }
     .counter-card { flex: 1; border-radius: var(--radius-sm); padding: 12px; border: 1px solid var(--card-border); position: relative; overflow: hidden; }
     .counter-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0; opacity: 0.4; z-index: 0; border-radius: var(--radius-sm); }
-    .wechat-fill { background: rgba(90,106,126,0.55); backdrop-filter: blur(8px) saturate(180%); -webkit-backdrop-filter: blur(8px) saturate(180%); color: white; }
+    .wechat-fill { background: rgba(7,193,96,0.55); backdrop-filter: blur(8px) saturate(180%); -webkit-backdrop-filter: blur(8px) saturate(180%); color: white; }
     .wechat-fill::before { background: var(--wechat-gradient); }
-    .intent-fill { background: rgba(100,110,125,0.55); backdrop-filter: blur(8px) saturate(180%); -webkit-backdrop-filter: blur(8px) saturate(180%); color: white; }
+    .intent-fill { background: rgba(74,108,247,0.55); backdrop-filter: blur(8px) saturate(180%); -webkit-backdrop-filter: blur(8px) saturate(180%); color: white; }
     .intent-fill::before { background: var(--intent-gradient); }
-    .revisit-fill { background: rgba(130,138,148,0.55); backdrop-filter: blur(8px) saturate(180%); -webkit-backdrop-filter: blur(8px) saturate(180%); color: white; }
+    .revisit-fill { background: rgba(240,160,75,0.55); backdrop-filter: blur(8px) saturate(180%); -webkit-backdrop-filter: blur(8px) saturate(180%); color: white; }
     .revisit-fill::before { background: var(--revisit-gradient); }
     .visit-fill { background: rgba(56,142,60,0.45); backdrop-filter: blur(8px) saturate(180%); -webkit-backdrop-filter: blur(8px) saturate(180%); color: white; }
     .visit-fill::before { background: var(--visit-gradient); }
