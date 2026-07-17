@@ -3376,6 +3376,13 @@ export default {
     .modal-overlay.active { visibility: visible; opacity: 1; }
     .modal-card { background: rgba(255,255,255,0.94); border-radius: var(--radius-ios); width: 1100px; max-width: 98vw; max-height: 90vh; padding: 24px 32px; box-shadow: 0 24px 60px rgba(0,0,0,0.2); border: 1px solid rgba(0,0,0,0.08); display: flex; flex-direction: column; gap: 16px; color: var(--text-main); }
     body.dark-mode .modal-card { background: rgba(26,26,26,0.96); border-color: rgba(255,255,255,0.08); }
+    /* 弹窗内表单元素 — 白色实底高对比 */
+    .modal-card .input-simple, .modal-card .todo-input { background: #fff; border: 1.5px solid #d0d0d0; color: #111; font-weight: 600; }
+    body.dark-mode .modal-card .input-simple, body.dark-mode .modal-card .todo-input { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.2); color: #ddd; }
+    .modal-card .input-simple:focus, .modal-card .todo-input:focus { border-color: var(--accent-wechat); box-shadow: 0 0 0 3px rgba(16,185,129,0.15); outline: none; }
+    .modal-card textarea.input-simple, .modal-card .note-textarea { background: #fff; border: 1.5px solid #d0d0d0; color: #111; }
+    body.dark-mode .modal-card textarea.input-simple, body.dark-mode .modal-card .note-textarea { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.2); color: #ddd; }
+    .modal-card .btn-add, .modal-card .todo-add-btn { font-weight: 800; }
     .modal-header { display: flex; justify-content: space-between; align-items: center; font-weight: 700; font-size: 1.1rem; border-bottom: 1px solid var(--border-light); padding-bottom: 10px; }
     .modal-header button { background: none; border: none; font-size: 1.2rem; cursor: pointer; color: var(--text-soft); font-weight: 700; }
     .modal-header-meta { display: flex; align-items: center; gap: 14px; }
