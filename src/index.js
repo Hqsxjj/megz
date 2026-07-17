@@ -3226,7 +3226,7 @@ export default {
     .pin-payment-value { background: var(--payment-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
     .pin-input { width: 196px; padding: 11px 20px; border-radius: var(--radius-xs); border: 1.5px solid rgba(0,0,0,0.08); background: rgba(255,255,255,0.4); text-align: center; font-size: 1.4rem; letter-spacing: 7px; color: var(--text-main); outline: none; font-weight: 700; transition: all 0.3s; }
     body.dark-mode .pin-input { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.1); }
-    .pin-input:focus { border-color: var(--accent-wechat); box-shadow: 0 0 0 4px rgba(255,255,255,0.7); background: rgba(255,255,255,0.35); }
+    .pin-input:focus { background: rgba(255,255,255,0.35); }
     .pin-btn { background: var(--accent-wechat); border: none; color: white; padding: 11px 45px; border-radius: var(--radius-xs); font-weight: 700; cursor: pointer; font-size: 1.12rem; letter-spacing: 1px; transition: all 0.2s; box-shadow: 0 4px 15px rgba(255,255,255,0.7); }
     .pin-btn:hover { opacity: 0.9; transform: translateY(-2px); box-shadow: 0 6px 20px rgba(255,255,255,0.6); }
     .pin-btn:active { transform: translateY(0); }
@@ -4181,7 +4181,7 @@ export default {
           <div class="register-block">
             <div class="form-line"><input type="text" class="input-simple" id="custName" placeholder="姓名" autocomplete="off"><input type="text" class="input-simple" id="custPhone" placeholder="电话" autocomplete="off"></div>
             <div class="form-line"><input type="text" class="input-simple" id="custCompany" placeholder="单位" autocomplete="off"><input type="text" class="input-simple" id="custFund" placeholder="公积金基数" autocomplete="off"></div>
-            <div class="form-line"><select class="input-simple input-select" id="custLabel" required style="background:linear-gradient(135deg,rgba(39,174,96,0.06),rgba(52,152,219,0.06));border:1.5px solid rgba(39,174,96,0.5);font-weight:700;font-size:0.85rem;color:var(--text-main);padding:8px 10px;border-radius:var(--radius-xs);width:100%;cursor:pointer;"><option value="">客户等级 *</option><option value="A">A 类 — 重点跟进</option><option value="B">B 类 — 常规跟进</option><option value="C">C 类 — 低优先级</option></select></div>
+            <div class="form-line"><select class="input-simple input-select" id="custLabel" required style="font-weight:700;font-size:0.85rem;color:var(--text-main);padding:8px 10px;border-radius:var(--radius-xs);width:100%;cursor:pointer;"><option value="">客户等级 *</option><option value="A">A 类 — 重点跟进</option><option value="B">B 类 — 常规跟进</option><option value="C">C 类 — 低优先级</option></select></div>
             <!-- Collapsible detail panel toggle -->
             <div class="detail-toggle-wrap">
               <button type="button" class="detail-toggle-btn" id="detailToggleBtn">
@@ -6184,7 +6184,7 @@ export default {
               '<input type="text" class="input-simple edit-fund-input" placeholder="公积金基数" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.fund||'') + '">' +
             '</div>' +
             '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
-              '<select class="input-simple input-select edit-label-input" required style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;height:auto;border:1.5px solid rgba(39,174,96,0.35);"><option value="">客户等级 *</option><option value="A"' + (fullClient.label==='A'?' selected':'') + '>A 类 — 重点跟进</option><option value="B"' + (fullClient.label==='B'?' selected':'') + '>B 类 — 常规跟进</option><option value="C"' + (fullClient.label==='C'?' selected':'') + '>C 类 — 低优先级</option></select>' +
+              '<select class="input-simple input-select edit-label-input" required style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;height:auto;border:1.5px solid var(--card-border);"><option value="">客户等级 *</option><option value="A"' + (fullClient.label==='A'?' selected':'') + '>A 类 — 重点跟进</option><option value="B"' + (fullClient.label==='B'?' selected':'') + '>B 类 — 常规跟进</option><option value="C"' + (fullClient.label==='C'?' selected':'') + '>C 类 — 低优先级</option></select>' +
             '</div>' +
             '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
               '<input type="text" class="input-simple edit-age-input" placeholder="年龄" style="flex:1;min-width:60px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.age||'') + '">' +
@@ -8149,7 +8149,7 @@ export default {
           '<input type="text" class="input-simple edit-fund-input" placeholder="公积金基数" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.fund || '') + '">' +
         '</div>' +
         '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
-          '<select class="input-simple input-select edit-label-input" required style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;height:auto;border:1.5px solid rgba(39,174,96,0.35);"><option value="">客户等级 *</option><option value="A"' + (c.label==='A'?' selected':'') + '>A 类 — 重点跟进</option><option value="B"' + (c.label==='B'?' selected':'') + '>B 类 — 常规跟进</option><option value="C"' + (c.label==='C'?' selected':'') + '>C 类 — 低优先级</option></select>' +
+          '<select class="input-simple input-select edit-label-input" required style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;height:auto;border:1.5px solid var(--card-border);"><option value="">客户等级 *</option><option value="A"' + (c.label==='A'?' selected':'') + '>A 类 — 重点跟进</option><option value="B"' + (c.label==='B'?' selected':'') + '>B 类 — 常规跟进</option><option value="C"' + (c.label==='C'?' selected':'') + '>C 类 — 低优先级</option></select>' +
         '</div>' +
         '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
           '<input type="text" class="input-simple edit-age-input" placeholder="年龄" style="flex:1;min-width:60px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.age||'') + '">' +
@@ -8399,7 +8399,7 @@ export default {
             '<input type="text" class="input-simple new-fund-input" placeholder="公积金基数" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;">' +
           '</div>' +
           '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
-            '<select class="input-simple input-select new-label-input" required style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;height:auto;border:1.5px solid rgba(39,174,96,0.35);"><option value="">客户等级 *</option><option value="A">A 类 — 重点跟进</option><option value="B">B 类 — 常规跟进</option><option value="C">C 类 — 低优先级</option></select>' +
+            '<select class="input-simple input-select new-label-input" required style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;height:auto;border:1.5px solid var(--card-border);"><option value="">客户等级 *</option><option value="A">A 类 — 重点跟进</option><option value="B">B 类 — 常规跟进</option><option value="C">C 类 — 低优先级</option></select>' +
             '<span style="flex:1;"></span>' +
           '</div>' +
           '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
