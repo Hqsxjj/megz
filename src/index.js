@@ -3507,7 +3507,7 @@ export default {
       .left-area, .right-area { flex: none; width: 100%; }
       .right-area { order: 1; } .left-area { order: 2; }
       .container { padding: 10px 12px 10px; }
-      .header-bar { margin-bottom: 12px; padding-bottom: 8px; flex-wrap: wrap; gap: 8px; align-items: center; }
+      .header-bar { margin-bottom: 4px; padding-bottom: 4px; flex-wrap: wrap; gap: 8px; align-items: center; }
       .title-section h3 { font-size: 1.2rem; }
       .modal-card { padding: 16px 14px; gap: 12px; }
       .client-modal-list { overflow-x: auto; -webkit-overflow-scrolling: touch; }
