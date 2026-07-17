@@ -3145,8 +3145,8 @@ export default {
       --text-main: #191919;
       --text-soft: #5e5e5e;
       --text-light: #8e8e8e;
-      --accent-wechat: #6b7d94;
-      --accent-intent: #6b7d94;
+      --accent-wechat: #3a3a3a;
+      --accent-intent: #3a3a3a;
       --accent-wechat-bg: #f2f3f5;
       --accent-intent-bg: #f2f3f5;
       --btn-bg: rgba(255,255,255,0.7);
@@ -3179,8 +3179,8 @@ export default {
       --text-main: #e5e5e5;
       --text-soft: #a0a0a0;
       --text-light: #6b6b6b;
-      --accent-wechat: #6b7d94;
-      --accent-intent: #6b7d94;
+      --accent-wechat: #b0b0b0;
+      --accent-intent: #b0b0b0;
       --accent-wechat-bg: #1a1d22;
       --accent-intent-bg: #1a1d22;
       --btn-bg: rgba(255,255,255,0.15);
