@@ -3374,9 +3374,8 @@ export default {
     .tooltip-simple.show { opacity: 1; }
     .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--modal-bg); backdrop-filter: blur(10px); z-index: 2000; display: flex; align-items: center; justify-content: center; visibility: hidden; opacity: 0; transition: 0.2s; }
     .modal-overlay.active { visibility: visible; opacity: 1; }
-    .modal-card { background: var(--modal-card); backdrop-filter: blur(30px) saturate(160%); -webkit-backdrop-filter: blur(30px) saturate(160%); border-radius: var(--radius-ios); width: 1100px; max-width: 98vw; max-height: 90vh; padding: 24px 32px; box-shadow: 0 24px 60px rgba(0,0,0,0.25); border: 1px solid var(--card-border); display: flex; flex-direction: column; gap: 16px; color: var(--text-main); }
-    #allClientsModal .modal-card, #dateModal .modal-card { background: rgba(255,255,255,0.92); backdrop-filter: none; -webkit-backdrop-filter: none; }
-    body.dark-mode #allClientsModal .modal-card, body.dark-mode #dateModal .modal-card { background: rgba(26,26,26,0.95); }
+    .modal-card { background: rgba(255,255,255,0.94); border-radius: var(--radius-ios); width: 1100px; max-width: 98vw; max-height: 90vh; padding: 24px 32px; box-shadow: 0 24px 60px rgba(0,0,0,0.2); border: 1px solid rgba(0,0,0,0.08); display: flex; flex-direction: column; gap: 16px; color: var(--text-main); }
+    body.dark-mode .modal-card { background: rgba(26,26,26,0.96); border-color: rgba(255,255,255,0.08); }
     .modal-header { display: flex; justify-content: space-between; align-items: center; font-weight: 700; font-size: 1.1rem; border-bottom: 1px solid var(--border-light); padding-bottom: 10px; }
     .modal-header button { background: none; border: none; font-size: 1.2rem; cursor: pointer; color: var(--text-soft); font-weight: 700; }
     .modal-header-meta { display: flex; align-items: center; gap: 14px; }
@@ -3565,8 +3564,6 @@ export default {
       .tbl-note-cell { min-width: 200px; }
 
       /* Mobile: 全量客户弹窗卡片适配 */
-      #allClientsModal .modal-card, #dateModal .modal-card { background: rgba(255,255,255,0.92); backdrop-filter: none; -webkit-backdrop-filter: none; }
-      body.dark-mode #allClientsModal .modal-card, body.dark-mode #dateModal .modal-card { background: rgba(26,26,26,0.95); }
       #allClientsModal .modal-card { max-height: 93vh !important; max-width: 100vw !important; margin-top: 7vh !important; border-radius: 16px 16px 0 0 !important; }
       .all-client-card .card-action-btn { font-size: 0.7rem !important; padding: 4px 10px !important; }
     }
