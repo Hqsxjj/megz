@@ -4046,55 +4046,60 @@ export default {
     }
 
     /* ==================== 贷款利息计算器 ==================== */
-    #loanModal .modal-card { overflow-y: auto; background: rgba(255,255,255,0.94); backdrop-filter: none; -webkit-backdrop-filter: none; border: 1px solid rgba(0,0,0,0.08); box-shadow: 0 16px 48px rgba(0,0,0,0.15); max-width: 600px; width: 95%; }
-    body.dark-mode #loanModal .modal-card { background: rgba(26,26,26,0.96); border-color: rgba(255,255,255,0.08); }
-    #loanModal .input-simple { background: #fff; border: 1.5px solid rgba(0,0,0,0.15); font-size: 0.95rem; padding: 10px 14px; height: auto; }
-    body.dark-mode #loanModal .input-simple { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.15); }
-    #loanModal .input-simple:focus { border-color: var(--accent-wechat); box-shadow: 0 0 0 3px rgba(16,185,129,0.15); }
-    .loan-grid { display: flex; flex-direction: column; gap: 12px; }
-    .loan-input-row { display: flex; gap: 10px; align-items: center; }
-    .loan-input-row label { font-size: 0.85rem; font-weight: 700; color: var(--text-main); white-space: nowrap; min-width: 72px; }
-    .loan-input-row .input-simple { flex: 1; min-width: 0; width: auto; }
-    .loan-unit { font-size: 0.78rem; color: var(--text-soft); font-weight: 600; white-space: nowrap; }
-    .loan-rate-toggle { display: inline-flex; border: 1.5px solid rgba(0,0,0,0.12); border-radius: var(--radius-xs); overflow: hidden; }
-    .loan-rate-toggle button { padding: 6px 18px; font-size: 0.82rem; font-weight: 700; border: none; background: #fff; color: var(--text-soft); cursor: pointer; transition: 0.15s; }
-    body.dark-mode .loan-rate-toggle button { background: rgba(255,255,255,0.06); }
-    .loan-rate-toggle button.active { background: var(--accent-wechat); color: #fff; }
-    .loan-rate-toggle button:not(:last-child) { border-right: 1.5px solid rgba(0,0,0,0.12); }
-    body.dark-mode .loan-rate-toggle button:not(:last-child) { border-right-color: rgba(255,255,255,0.12); }
-    .loan-tabs { display: flex; gap: 0; border-bottom: 2px solid var(--card-border); margin-bottom: 16px; }
-    .loan-tab { padding: 10px 20px; font-size: 0.88rem; font-weight: 700; cursor: pointer; border: none; background: transparent; color: var(--text-soft); border-bottom: 2px solid transparent; margin-bottom: -2px; transition: 0.15s; }
+    #loanModal .modal-card { overflow-y: auto; background: rgba(255,255,255,0.94); backdrop-filter: none; -webkit-backdrop-filter: none; border: 1px solid rgba(0,0,0,0.06); box-shadow: 0 8px 40px rgba(0,0,0,0.12); max-width: 640px; width: 95%; gap: 20px; }
+    body.dark-mode #loanModal .modal-card { background: rgba(30,30,30,0.96); border-color: rgba(255,255,255,0.06); }
+    /* Tabs */
+    .loan-tabs { display: flex; gap: 0; border-bottom: 2px solid rgba(0,0,0,0.06); margin-bottom: 4px; }
+    body.dark-mode .loan-tabs { border-bottom-color: rgba(255,255,255,0.08); }
+    .loan-tab { padding: 10px 22px; font-size: 0.85rem; font-weight: 700; cursor: pointer; border: none; background: transparent; color: var(--text-soft); border-bottom: 2px solid transparent; margin-bottom: -2px; transition: 0.15s; }
     .loan-tab:hover { color: var(--text-main); }
     .loan-tab.active { color: var(--accent-wechat); border-bottom-color: var(--accent-wechat); }
-    .loan-results { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 16px 0; }
-    .loan-result-card { background: #fff; border-radius: var(--radius-xs); padding: 16px 12px; text-align: center; border: 1.5px solid rgba(0,0,0,0.08); }
-    body.dark-mode .loan-result-card { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.08); }
-    .loan-result-card .label { font-size: 0.78rem; color: var(--text-soft); font-weight: 700; margin-bottom: 4px; }
-    .loan-result-card .value { font-size: 1.25rem; font-weight: 900; color: var(--text-main); }
-    .loan-result-card .value.positive { color: var(--accent-wechat); }
-    .loan-result-card .value.warning { color: #e67e22; }
-    .loan-compare-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; margin: 12px 0; }
-    .loan-compare-table th { background: rgba(0,0,0,0.04); padding: 10px 12px; font-weight: 800; color: var(--text-main); border-bottom: 2px solid rgba(0,0,0,0.1); text-align: center; font-size: 0.8rem; }
-    body.dark-mode .loan-compare-table th { background: rgba(255,255,255,0.06); border-bottom-color: rgba(255,255,255,0.1); }
-    .loan-compare-table td { padding: 10px 12px; border-bottom: 1px solid var(--border-light); text-align: center; font-weight: 600; }
-    .loan-compare-table tr:last-child td { border-bottom: none; }
-    .loan-schedule-wrap { max-height: 320px; overflow-y: auto; border: 1.5px solid rgba(0,0,0,0.1); border-radius: var(--radius-xs); margin-top: 10px; }
-    body.dark-mode .loan-schedule-wrap { border-color: rgba(255,255,255,0.1); }
-    .loan-schedule-table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
-    .loan-schedule-table th { position: sticky; top: 0; background: rgba(0,0,0,0.04); padding: 8px 10px; font-weight: 800; color: var(--text-main); border-bottom: 2px solid rgba(0,0,0,0.1); text-align: center; z-index: 1; font-size: 0.75rem; }
-    body.dark-mode .loan-schedule-table th { background: rgba(255,255,255,0.06); border-bottom-color: rgba(255,255,255,0.1); }
-    .loan-schedule-table td { padding: 7px 10px; border-bottom: 1px solid var(--border-light); text-align: center; font-weight: 600; }
-    .loan-schedule-table tr:last-child td { border-bottom: none; }
-    .loan-schedule-table tr:hover { background: var(--btn-hover); }
-    .loan-method-field { display: none; }
+    /* Input area */
+    .loan-grid { display: flex; flex-direction: column; gap: 10px; background: rgba(0,0,0,0.02); border-radius: var(--radius-xs); padding: 16px; }
+    body.dark-mode .loan-grid { background: rgba(255,255,255,0.02); }
+    .loan-input-row { display: flex; gap: 10px; align-items: center; }
+    .loan-input-row label { font-size: 0.82rem; font-weight: 700; color: var(--text-main); white-space: nowrap; min-width: 70px; }
+    .loan-input-row .input-simple { flex: 1; min-width: 0; width: auto; background: #fff; border: 1.5px solid rgba(0,0,0,0.1); border-radius: 8px; padding: 9px 12px; font-size: 0.9rem; height: 40px; }
+    body.dark-mode .loan-input-row .input-simple { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.1); }
+    .loan-input-row .input-simple:focus { border-color: var(--accent-wechat); box-shadow: 0 0 0 3px rgba(16,185,129,0.12); }
+    .loan-unit { font-size: 0.78rem; color: var(--text-soft); font-weight: 600; white-space: nowrap; }
+    .loan-input-desc { font-size: 0.68rem; color: var(--text-light); margin-left: 4px; }
+    /* 计息天数 (conditional) */
+    .loan-method-field { display: none; margin-top: 4px; }
     .loan-method-field.visible { display: block; }
+    /* Result cards */
+    .loan-results { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+    .loan-result-card { background: #fff; border-radius: 10px; padding: 14px 10px; text-align: center; border: 1px solid rgba(0,0,0,0.06); }
+    body.dark-mode .loan-result-card { background: rgba(255,255,255,0.04); border-color: rgba(255,255,255,0.06); }
+    .loan-result-card .label { font-size: 0.72rem; color: var(--text-soft); font-weight: 700; margin-bottom: 6px; letter-spacing: 0.3px; }
+    .loan-result-card .value { font-size: 1.15rem; font-weight: 900; color: var(--text-main); }
+    .loan-result-card .value.positive { color: #10b981; }
+    .loan-result-card .value.warning { color: #e67e22; }
+    /* Section titles */
+    #loanModal .modal-section-title { font-size: 0.82rem; font-weight: 800; margin-top: 4px; }
+    /* Comparison table */
+    .loan-compare-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+    .loan-compare-table th { background: rgba(0,0,0,0.03); padding: 9px 10px; font-weight: 800; color: var(--text-main); border-bottom: 2px solid rgba(0,0,0,0.08); text-align: center; font-size: 0.75rem; }
+    body.dark-mode .loan-compare-table th { background: rgba(255,255,255,0.04); border-bottom-color: rgba(255,255,255,0.08); }
+    .loan-compare-table td { padding: 8px 10px; border-bottom: 1px solid rgba(0,0,0,0.04); text-align: center; font-weight: 600; background: #fff; }
+    body.dark-mode .loan-compare-table td { background: transparent; border-bottom-color: rgba(255,255,255,0.04); }
+    .loan-compare-table tr:last-child td { border-bottom: none; }
+    /* Schedule table */
+    .loan-schedule-wrap { max-height: 300px; overflow-y: auto; border: 1px solid rgba(0,0,0,0.08); border-radius: 8px; }
+    body.dark-mode .loan-schedule-wrap { border-color: rgba(255,255,255,0.08); }
+    .loan-schedule-table { width: 100%; border-collapse: collapse; font-size: 0.76rem; }
+    .loan-schedule-table th { position: sticky; top: 0; background: rgba(0,0,0,0.03); padding: 8px 8px; font-weight: 800; color: var(--text-main); border-bottom: 2px solid rgba(0,0,0,0.08); text-align: center; z-index: 1; font-size: 0.72rem; }
+    body.dark-mode .loan-schedule-table th { background: rgba(255,255,255,0.04); border-bottom-color: rgba(255,255,255,0.08); }
+    .loan-schedule-table td { padding: 6px 8px; border-bottom: 1px solid rgba(0,0,0,0.04); text-align: center; font-weight: 600; }
+    body.dark-mode .loan-schedule-table td { border-bottom-color: rgba(255,255,255,0.04); }
+    .loan-schedule-table tr:last-child td { border-bottom: none; }
+    .loan-schedule-table tr:nth-child(even) td { background: rgba(0,0,0,0.015); }
+    body.dark-mode .loan-schedule-table tr:nth-child(even) td { background: rgba(255,255,255,0.015); }
     @media (max-width: 760px) {
       .loan-results { grid-template-columns: repeat(2, 1fr); }
-      .loan-input-row label { min-width: 60px; font-size: 0.8rem; }
       .loan-tab { padding: 8px 12px; font-size: 0.78rem; }
       #loanModal .modal-card { padding: 16px 14px; }
-      .loan-result-card { padding: 12px 8px; }
-      .loan-result-card .value { font-size: 1.1rem; }
+      .loan-grid { padding: 12px; }
     }
   </style>
   <script src="/xlsx.full.min.js"></script>
