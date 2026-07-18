@@ -3154,10 +3154,10 @@ export default {
       --text-main: #191919;
       --text-soft: #5e5e5e;
       --text-light: #8e8e8e;
-      --accent-wechat: #10b981;
-      --accent-intent: #10b981;
-      --accent-wechat-bg: #ecfdf5;
-      --accent-intent-bg: #ecfdf5;
+      --accent-wechat: #53809F;
+      --accent-intent: #53809F;
+      --accent-wechat-bg: #eef4f8;
+      --accent-intent-bg: #eef4f8;
       --btn-bg: rgba(255,255,255,0.7);
       --btn-hover: #e5e5e5;
       --shadow-card: 0 1px 3px rgba(0,0,0,0.04);
@@ -3171,7 +3171,7 @@ export default {
       --radius-ios: 10px;
       --radius-sm: 8px;
       --radius-xs: 6px;
-      --wechat-gradient: linear-gradient(135deg, #b7f0ce 0%, #6be89d 50%, #1aad5a 100%);
+      --wechat-gradient: linear-gradient(135deg, #c8dbe8 0%, #8db3cc 50%, #53809F 100%);
       --intent-gradient: linear-gradient(135deg, #ffe0b2 0%, #ffb74d 50%, #f57c00 100%);
       --revisit-gradient: linear-gradient(135deg, #d1e0ff 0%, #7b9ff5 50%, #4a6cf7 100%);
       --visit-gradient: linear-gradient(135deg, #c8e6c9 0%, #66bb6a 50%, #388e3c 100%);
@@ -3188,10 +3188,10 @@ export default {
       --text-main: #e5e5e5;
       --text-soft: #a0a0a0;
       --text-light: #6b6b6b;
-      --accent-wechat: #34d399;
-      --accent-intent: #34d399;
-      --accent-wechat-bg: #064e3b;
-      --accent-intent-bg: #064e3b;
+      --accent-wechat: #7BA8C9;
+      --accent-intent: #7BA8C9;
+      --accent-wechat-bg: #1a2630;
+      --accent-intent-bg: #1a2630;
       --btn-bg: rgba(255,255,255,0.15);
       --btn-hover: #2c2c2c;
       --cal-hover: #222222;
@@ -3201,7 +3201,7 @@ export default {
       --tooltip-text: #111111;
       --modal-bg: rgba(0,0,0,0.4);
       --modal-card: rgba(20,20,20,0.4);
-      --wechat-gradient: linear-gradient(135deg, #0d3320 0%, #144d2e 50%, #1a6b3a 100%);
+      --wechat-gradient: linear-gradient(135deg, #16222b 0%, #1e3040 50%, #28455a 100%);
       --intent-gradient: linear-gradient(135deg, #332010 0%, #4d2e14 50%, #6b3a1a 100%);
       --revisit-gradient: linear-gradient(135deg, #1a2233 0%, #2a354d 50%, #3a4d6b 100%);
       --visit-gradient: linear-gradient(135deg, #1b3320 0%, #2d5a30 50%, #3d7a40 100%);
