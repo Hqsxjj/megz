@@ -3236,6 +3236,7 @@ export default {
     .pin-input { width: 196px; padding: 11px 20px; border-radius: var(--radius-xs); border: 1.5px solid rgba(0,0,0,0.08); background: rgba(255,255,255,0.4); text-align: center; font-size: 1.4rem; letter-spacing: 7px; color: var(--text-main); outline: none; font-weight: 700; transition: all 0.3s; }
     body.dark-mode .pin-input { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.1); }
     .pin-input:focus { background: rgba(255,255,255,0.35); }
+    .pin-mask { -webkit-text-security: disc; }
     .pin-btn { background: var(--accent-wechat); border: none; color: white; padding: 11px 45px; border-radius: var(--radius-xs); font-weight: 700; cursor: pointer; font-size: 1.12rem; letter-spacing: 1px; transition: all 0.2s; box-shadow: 0 4px 15px rgba(255,255,255,0.7); }
     .pin-btn:hover { opacity: 0.9; transform: translateY(-2px); box-shadow: 0 6px 20px rgba(255,255,255,0.6); }
     .pin-btn:active { transform: translateY(0); }
@@ -4148,7 +4149,7 @@ export default {
       <div class="pin-stat-item"><span class="pin-stat-label">今日意向</span><span class="pin-stat-value pin-intent-value" id="pinIntentNum">0</span></div>
       <div class="pin-stat-item"><span class="pin-stat-label">今日回访</span><span class="pin-stat-value pin-revisit-value" id="pinRevisitNum">0</span></div>
     </div>
-    <input type="password" class="pin-input" id="pinInput" placeholder="" maxlength="6" inputmode="numeric" autofocus>
+    <input type="text" class="pin-input pin-mask" id="pinInput" placeholder="" maxlength="6" inputmode="numeric" autocomplete="off" spellcheck="false" data-lpignore="true" readonly onfocus="this.removeAttribute('readonly');" autofocus>
     <button class="pin-btn" id="pinUnlockBtn">解锁进入</button>
     <div class="pin-error" id="pinError"></div>
   </div>
