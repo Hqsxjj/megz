@@ -3149,7 +3149,7 @@ export default {
     * { margin: 0; padding: 0; box-sizing: border-box; }
     :root {
       --bg-app: rgba(237,237,237,0.6);
-      --card-bg: rgba(255,255,255,0.4);
+      --card-bg: rgba(255,255,255,0.5);
       --card-border: rgba(0,0,0,0.06);
       --text-main: #191919;
       --text-soft: #5e5e5e;
