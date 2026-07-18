@@ -8186,8 +8186,8 @@ export default {
           '</div>' +
           '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
             '<input type="date" class="input-simple new-date-input" autocomplete="off" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + getTodayStr() + '">' +
-            '<input type="text" class="input-simple new-name-input" placeholder="姓名" autocomplete="off" readonly onfocus="this.removeAttribute(\'readonly\');" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.8rem;font-weight:700;">' +
-            '<input type="text" class="input-simple new-phone-input" placeholder="电话" autocomplete="off" readonly onfocus="this.removeAttribute(\'readonly\');" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.8rem;">' +
+            '<input type="text" class="input-simple new-name-input" placeholder="姓名" autocomplete="off" readonly onfocus="this.removeAttribute(\\'readonly\\');" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.8rem;font-weight:700;">' +
+            '<input type="text" class="input-simple new-phone-input" placeholder="电话" autocomplete="off" readonly onfocus="this.removeAttribute(\\'readonly\\');" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.8rem;">' +
           '</div>' +
           '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
             '<input type="text" class="input-simple new-company-input" placeholder="单位" autocomplete="off" style="flex:2;min-width:120px;padding:6px 8px;font-size:0.78rem;">' +
