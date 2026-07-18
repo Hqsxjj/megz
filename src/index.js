@@ -7656,11 +7656,13 @@ export default {
       const r = await fetch('/api/all-clients');
       if (r.ok) {
         const data = await r.json();
+        _allClientsCache = data;
         renderAllClientsCards(data);
       }
     } catch(e) {
       const local = JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
       local.sort((a,b) => (b.date||'').localeCompare(a.date||''));
+      _allClientsCache = local;
       renderAllClientsCards(local);
     }
   }
@@ -7690,7 +7692,6 @@ export default {
   }
 
   function renderAllClientsCards(clients) {
-    _allClientsCache = clients;
     var container = document.getElementById('allClientsCardList');
     if (!container) return;
     if (clients.length === 0) {
