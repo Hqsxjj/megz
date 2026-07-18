@@ -3154,8 +3154,8 @@ export default {
       --text-main: #191919;
       --text-soft: #5e5e5e;
       --text-light: #8e8e8e;
-      --accent-wechat: #53809F;
-      --accent-intent: #53809F;
+      --accent-wechat: rgba(83,128,159,0.75);
+      --accent-intent: rgba(83,128,159,0.75);
       --accent-wechat-bg: #eef4f8;
       --accent-intent-bg: #eef4f8;
       --btn-bg: rgba(255,255,255,0.7);
@@ -3188,8 +3188,8 @@ export default {
       --text-main: #e5e5e5;
       --text-soft: #a0a0a0;
       --text-light: #6b6b6b;
-      --accent-wechat: #7BA8C9;
-      --accent-intent: #7BA8C9;
+      --accent-wechat: rgba(123,168,201,0.7);
+      --accent-intent: rgba(123,168,201,0.7);
       --accent-wechat-bg: #1a2630;
       --accent-intent-bg: #1a2630;
       --btn-bg: rgba(255,255,255,0.15);
@@ -4233,7 +4233,7 @@ export default {
         <div class="card">
           <div class="card-title">临时登记 (待晚回访)</div>
           <div class="register-block">
-            <div class="form-line"><input type="text" class="input-simple" id="tempCustName" placeholder="姓名" autocomplete="off"><input type="text" class="input-simple" id="tempCustPhone" placeholder="电话/联系方式" autocomplete="off"></div>
+            <div class="form-line"><input type="text" class="input-simple" id="tempCustName" placeholder="姓名" autocomplete="off" readonly onfocus="this.removeAttribute('readonly');"><input type="text" class="input-simple" id="tempCustPhone" placeholder="电话/联系方式" autocomplete="off" readonly onfocus="this.removeAttribute('readonly');"></div>
             <div style="display:flex;gap:4px;align-items:center;">
               <textarea class="input-simple note-textarea" id="tempCustNote" placeholder="回访备注/待聊内容" rows="2" style="flex:1;"></textarea>
               <button type="button" id="boldBtn" title="加粗 (Alt+B)" style="height:28px;width:28px;font-weight:900;font-size:0.7rem;border:1px solid var(--card-border);background:var(--btn-bg);color:var(--text-main);cursor:pointer;border-radius:3px;padding:0;line-height:1;">B</button>
@@ -8186,8 +8186,8 @@ export default {
           '</div>' +
           '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
             '<input type="date" class="input-simple new-date-input" autocomplete="off" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + getTodayStr() + '">' +
-            '<input type="text" class="input-simple new-name-input" placeholder="姓名" autocomplete="off" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.8rem;font-weight:700;">' +
-            '<input type="text" class="input-simple new-phone-input" placeholder="电话" autocomplete="off" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.8rem;">' +
+            '<input type="text" class="input-simple new-name-input" placeholder="姓名" autocomplete="off" readonly onfocus="this.removeAttribute(\'readonly\');" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.8rem;font-weight:700;">' +
+            '<input type="text" class="input-simple new-phone-input" placeholder="电话" autocomplete="off" readonly onfocus="this.removeAttribute(\'readonly\');" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.8rem;">' +
           '</div>' +
           '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
             '<input type="text" class="input-simple new-company-input" placeholder="单位" autocomplete="off" style="flex:2;min-width:120px;padding:6px 8px;font-size:0.78rem;">' +
