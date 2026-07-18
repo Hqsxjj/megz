@@ -3350,9 +3350,9 @@ export default {
     .btn-special { background: rgba(255,255,255,0.6); }
     .stats-row { display: flex; gap: 10px; }
     .stat-block { flex: 1; text-align: center; border-radius: var(--radius-sm); padding: 10px 4px; border: 1px solid var(--card-border); color: white; text-shadow: 0 1px 2px rgba(0,0,0,0.1); box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
-    .stat-wechat { background: var(--wechat-gradient); }
-    .stat-intent { background: var(--intent-gradient); }
-    .stat-revisit { background: var(--revisit-gradient); }
+    .stat-wechat { background: rgba(91,184,240,0.5); }
+    .stat-intent { background: rgba(255,149,0,0.45); }
+    .stat-revisit { background: rgba(74,108,247,0.45); }
     .stat-block .label { font-size: 0.7rem; font-weight: 600; opacity: 0.9; }
     .stat-block .number { font-size: 1.35rem; font-weight: 800; margin-left: 4px; }
     .calendar-compact { padding: 10px 12px; }
