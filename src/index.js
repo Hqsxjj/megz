@@ -7623,7 +7623,7 @@ export default {
     if(syncTimer)clearTimeout(syncTimer);
     syncTimer=setTimeout(async function(){
       if(!document.hidden && navigator.onLine){
-        try{await drainQueue();await pullLatest();}catch(e){}
+        try{await drainQueue();const q=loadOpQueue();if(q.length===0)await pullLatest();}catch(e){}
       }
       scheduleNextTick();
     },PULL_INTERVAL);
@@ -7632,7 +7632,7 @@ export default {
   window.triggerFastSync=function(){
     if(syncTimer)clearTimeout(syncTimer);
     drainQueue().then(function(){
-      pullLatest().catch(function(){});
+      var q=loadOpQueue();if(q.length===0)return pullLatest().catch(function(){});
     }).finally(function(){
       scheduleNextTick();
     });
