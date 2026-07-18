@@ -4438,7 +4438,7 @@ export default {
 </div>
 <div id="allClientsModal" class="modal-overlay">
   <div class="modal-card" style="width:100vw;height:100vh;max-width:100vw;max-height:100vh;margin:0;border-radius:0;border:none;box-sizing:border-box;">
-    <div class="modal-header"><div style="display:flex;align-items:center;gap:12px;"><span>意向客户全量登记表</span><button id="allClientsAddBtn" class="btn-add" style="font-size:0.75rem;padding:4px 12px;height:28px;">+ 新增意向</button><button id="allClientsExportBtn" class="btn-add" style="font-size:0.75rem;padding:4px 12px;height:28px;background:var(--intent-gradient);">导出</button></div><button id="closeAllClientsModalBtn">✕</button></div>
+    <div class="modal-header"><div style="display:flex;align-items:center;gap:12px;"><span>意向客户全量登记表</span><button id="allClientsAddBtn" class="btn-add" style="font-size:0.75rem;padding:4px 12px;height:28px;">+ 新增意向</button><input type="text" id="allClientsSearchInput" class="search-input" placeholder="模糊搜索姓名/电话/单位..." autocomplete="off" style="height:28px;font-size:0.72rem;border-radius:var(--radius-xs);padding:0 8px;border:1px solid var(--card-border);background:var(--btn-bg);color:var(--text-main);font-weight:700;width:180px;"></div><button id="closeAllClientsModalBtn">✕</button></div>
     <div class="all-clients-stats" id="allClientsStatsBar">
       <span class="stats-item stats-total">总计 <strong id="statsTotal">0</strong></span>
       <span class="stats-item stats-unmarked">未标记 <strong id="statsUnmarked">0</strong></span>
@@ -4600,6 +4600,7 @@ export default {
   const VISIT_K='visit_v1', PAYMENT_K='payment_v1', GOALS_K='goals_v1';
   const DARK_K='dark_mode', LOCK_K='locked', TODAY_TODO_K='today_todo_v2', TOMORROW_TODO_K='tomorrow_todo_v2';
   const LAST_LOAD_DATE_K='last_load_date_v1', WALLPAPER_K='wp_cache', SCRIPTS_K='scripts_v1', LEARN_K='learn_v1', LOCAL_TS_K='local_ts_v1';
+  let _allClientsCache=[];
   const TEMP_CLIENTS_K='temp_clients_v1', PIN_HASH_K='pin_hash_v1';
   const DEFAULT_PIN_HASH = hashPinSimple('8520'); // '7c78e7fa'
   function getPinHash() { return localStorage.getItem(PIN_HASH_K) || DEFAULT_PIN_HASH; }
@@ -7689,6 +7690,7 @@ export default {
   }
 
   function renderAllClientsCards(clients) {
+    _allClientsCache = clients;
     var container = document.getElementById('allClientsCardList');
     if (!container) return;
     if (clients.length === 0) {
@@ -8349,24 +8351,18 @@ export default {
       });
     }
 
-    // 一键导出全量意向
-    const exportBtn = document.getElementById('allClientsExportBtn');
-    if (exportBtn) {
-      exportBtn.addEventListener('click', async () => {
-        const webhookUrl = (localStorage.getItem('webhook_url') || '').trim();
-        if (!webhookUrl) { alert('请先在主菜单 → 导出数据 中配置企业微信 Webhook URL'); return; }
-        exportBtn.textContent = '发送中...';
-        exportBtn.disabled = true;
-        try {
-          const r = await fetch('/api/export', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'all_clients', webhookUrl }) });
-          if (r.ok) { alert('已发送到企业微信'); }
-          else {
-            try { const err = await r.json(); alert('发送失败: ' + (err.error || r.statusText)); }
-            catch(_) { alert('发送失败，请检查 Webhook URL'); }
-          }
-        } catch(e) { alert('网络错误: ' + e.message); }
-        exportBtn.textContent = '导出';
-        exportBtn.disabled = false;
+    // 全量意向模糊搜索
+    const searchInput = document.getElementById('allClientsSearchInput');
+    if (searchInput) {
+      searchInput.addEventListener('input', function() {
+        const q = this.value.trim().toLowerCase();
+        if (!q) { renderAllClientsCards(_allClientsCache); return; }
+        const filtered = _allClientsCache.filter(function(c) {
+          return (c.name||'').toLowerCase().includes(q) ||
+            (c.phone||'').toLowerCase().includes(q) ||
+            (c.company||'').toLowerCase().includes(q);
+        });
+        renderAllClientsCards(filtered);
       });
     }
   }
