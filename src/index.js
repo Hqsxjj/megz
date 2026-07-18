@@ -4120,17 +4120,17 @@ export default {
     <div class="timer-display" id="timerDisplay">00:00:00</div>
     <div class="timer-inputs">
       <div class="timer-input-group">
-        <input type="number" class="timer-input" id="timerHours" min="0" max="23" value="0" placeholder="0">
+        <input type="number" class="timer-input" id="timerHours" min="0" max="23" value="0" placeholder="0" autocomplete="off">
         <span class="timer-label">时</span>
       </div>
       <span class="timer-separator">:</span>
       <div class="timer-input-group">
-        <input type="number" class="timer-input" id="timerMinutes" min="0" max="59" value="1" placeholder="0">
+        <input type="number" class="timer-input" id="timerMinutes" min="0" max="59" value="1" placeholder="0" autocomplete="off">
         <span class="timer-label">分</span>
       </div>
       <span class="timer-separator">:</span>
       <div class="timer-input-group">
-        <input type="number" class="timer-input" id="timerSeconds" min="0" max="59" value="0" placeholder="0">
+        <input type="number" class="timer-input" id="timerSeconds" min="0" max="59" value="0" placeholder="0" autocomplete="off">
         <span class="timer-label">秒</span>
       </div>
     </div>
@@ -4252,7 +4252,7 @@ export default {
             </div>
           </div>
           <div class="register-block">
-            <div class="todo-input-row"><input type="text" class="todo-input" id="todoInput" placeholder="添加待办..." autocomplete="off"><input type="time" class="todo-input time-input-compact" id="todoRemindTime"><button class="todo-add-btn" id="addTodoBtn">+ 添加</button></div>
+            <div class="todo-input-row"><input type="text" class="todo-input" id="todoInput" placeholder="添加待办..." autocomplete="off"><input type="time" class="todo-input time-input-compact" id="todoRemindTime" autocomplete="off"><button class="todo-add-btn" id="addTodoBtn">+ 添加</button></div>
             <div class="todo-list" id="todoList"></div>
           </div>
         </div>
@@ -4316,15 +4316,15 @@ export default {
         </div>
         <div style="display:flex; align-items:center; gap:6px;">
           <span style="font-size:0.65rem; color:var(--text-soft); width:50px; font-weight:700;">API Key:</span>
-          <input type="password" class="input-simple" id="aiApiKeyInput" placeholder="输入 API Key / 密钥" style="flex:1; font-size:0.7rem; height:28px; padding:0 8px;">
+          <input type="password" class="input-simple" id="aiApiKeyInput" placeholder="输入 API Key / 密钥" style="flex:1; font-size:0.7rem; height:28px; padding:0 8px;" autocomplete="off" spellcheck="false" data-lpignore="true">
         </div>
         <div style="display:flex; align-items:center; gap:6px;">
           <span style="font-size:0.65rem; color:var(--text-soft); width:50px; font-weight:700;">接口地址:</span>
-          <input type="text" class="input-simple" id="aiApiBaseInput" placeholder="默认地址" style="flex:1; font-size:0.7rem; height:28px; padding:0 8px;">
+          <input type="text" class="input-simple" id="aiApiBaseInput" placeholder="默认地址" style="flex:1; font-size:0.7rem; height:28px; padding:0 8px;" autocomplete="off">
         </div>
         <div style="display:flex; align-items:center; gap:6px;">
           <span style="font-size:0.65rem; color:var(--text-soft); width:50px; font-weight:700;">模型名称:</span>
-          <input type="text" class="input-simple" id="aiModelInput" placeholder="默认模型" style="flex:1; font-size:0.7rem; height:28px; padding:0 8px;">
+          <input type="text" class="input-simple" id="aiModelInput" placeholder="默认模型" style="flex:1; font-size:0.7rem; height:28px; padding:0 8px;" autocomplete="off">
         </div>
         <div style="display:flex; justify-content:flex-end; margin-top:2px;">
           <button id="saveAiConfigBtn" class="btn-add" style="padding:0 16px; font-size:0.7rem; height:28px; margin:0; background:var(--accent-wechat); color:white; border:none; border-radius:var(--radius-xs); font-weight:700;">保存配置</button>
@@ -4346,7 +4346,7 @@ export default {
       <div style="display:flex;gap:8px;"><button class="btn-add" id="exportSoloBtn" style="flex:1;background:var(--revisit-gradient);">逐条导出全量</button></div>
       
       <div style="border-top: 1px solid var(--card-border); padding-top: 10px; margin-top: 5px;">
-        <input type="text" class="input-simple" id="webhookUrlInput" placeholder="企业微信群 Webhook URL" style="margin-bottom: 4px;">
+        <input type="text" class="input-simple" id="webhookUrlInput" placeholder="企业微信群 Webhook URL" style="margin-bottom: 4px;" autocomplete="off">
         <div style="font-size:0.65rem;color:var(--text-light);">用于数据主动导出推送的群机器人 Webhook 地址</div>
       </div>
 
@@ -4367,8 +4367,8 @@ export default {
           <div style="font-size:0.7rem; color:var(--text-soft); line-height:1.4;">
             配置 Gemini API Key 后，本地 Tesseract OCR 提取的联系人数据将自动通过 Gemini 整理分类（智能排齐姓名、公司、备注等）并修正识别错别字。<br>免费获取 Key: <a href="https://aistudio.google.com/apikey" target="_blank" style="color:#4285f4;font-weight:700;">aistudio.google.com/apikey</a>
           </div>
-          <input type="password" class="input-simple" id="visionApiKeyInput" placeholder="Gemini API Key (支持逗号分隔多个key)" style="font-size:0.7rem; height:28px; padding:0 8px;">
-          <input type="text" class="input-simple" id="visionApiBaseInput" placeholder="API Base (可选，默认 Gemini 官方)" style="font-size:0.7rem; height:28px; padding:0 8px;">
+          <input type="password" class="input-simple" id="visionApiKeyInput" placeholder="Gemini API Key (支持逗号分隔多个key)" style="font-size:0.7rem; height:28px; padding:0 8px;" autocomplete="off" spellcheck="false" data-lpignore="true">
+          <input type="text" class="input-simple" id="visionApiBaseInput" placeholder="API Base (可选，默认 Gemini 官方)" style="font-size:0.7rem; height:28px; padding:0 8px;" autocomplete="off">
           <div style="display:flex; gap:6px;">
             <button id="saveVisionConfigBtn" class="btn-add" style="font-size:0.7rem; height:28px; flex:1; margin:0; background:linear-gradient(135deg,#4285f4,#0d47a1); color:white; border:none; font-weight:700;">保存</button>
             <button id="testVisionBtn" class="btn-add" style="font-size:0.7rem; height:28px; flex:1; margin:0; background:linear-gradient(135deg,#36d1dc,#5b86e5); color:white; border:none; font-weight:700;">测试连接</button>
@@ -4422,7 +4422,7 @@ export default {
     <!-- Search in Whitelist -->
     <div style="display:flex; flex-direction:column; gap:6px; border-top: 1px dashed var(--border-light); padding-top:12px; margin-top:4px;">
       <label style="font-size:0.65rem; color:var(--text-light); font-weight:800;">搜索白名单列表</label>
-      <input type="text" id="whitelistModalSearchInput" class="search-input" placeholder="输入企业名称进行搜索..." style="height:28px; font-size:0.72rem; border-radius:var(--radius-xs); padding:0 8px; border:1px solid var(--card-border); background:var(--btn-bg); color:var(--text-main); font-weight:700; width:100%;">
+      <input type="text" id="whitelistModalSearchInput" class="search-input" placeholder="输入企业名称进行搜索..." autocomplete="off" style="height:28px; font-size:0.72rem; border-radius:var(--radius-xs); padding:0 8px; border:1px solid var(--card-border); background:var(--btn-bg); color:var(--text-main); font-weight:700; width:100%;">
     </div>
 
     <div class="modal-section-title" style="margin-top:4px;">企业白名单列表</div>
@@ -4461,12 +4461,12 @@ export default {
     <div class="modal-header"><span>目标设定</span><button id="closeGoalModalBtn">×</button></div>
     <div style="display:flex;flex-direction:column;gap:12px;">
       <div style="font-size:0.75rem;font-weight:800;color:var(--text-soft);border-bottom:1px solid var(--border-light);padding-bottom:4px;">每周目标</div>
-      <div style="display:flex;gap:8px;align-items:center;"><label style="font-size:0.8rem;font-weight:600;min-width:60px;">上门</label><input type="number" class="input-simple" id="goalWeeklyVisit" min="0" placeholder="0" style="flex:1;"></div>
-      <div style="display:flex;gap:8px;align-items:center;"><label style="font-size:0.8rem;font-weight:600;min-width:60px;">微信</label><input type="number" class="input-simple" id="goalWeeklyWechat" min="0" placeholder="0" style="flex:1;"></div>
+      <div style="display:flex;gap:8px;align-items:center;"><label style="font-size:0.8rem;font-weight:600;min-width:60px;">上门</label><input type="number" class="input-simple" id="goalWeeklyVisit" min="0" placeholder="0" style="flex:1;" autocomplete="off"></div>
+      <div style="display:flex;gap:8px;align-items:center;"><label style="font-size:0.8rem;font-weight:600;min-width:60px;">微信</label><input type="number" class="input-simple" id="goalWeeklyWechat" min="0" placeholder="0" style="flex:1;" autocomplete="off"></div>
       <div style="font-size:0.75rem;font-weight:800;color:var(--text-soft);border-bottom:1px solid var(--border-light);padding-bottom:4px;margin-top:4px;">每月目标</div>
-      <div style="display:flex;gap:8px;align-items:center;"><label style="font-size:0.8rem;font-weight:600;min-width:60px;">微信</label><input type="number" class="input-simple" id="goalMonthlyWechat" min="0" placeholder="0" style="flex:1;"></div>
-      <div style="display:flex;gap:8px;align-items:center;"><label style="font-size:0.8rem;font-weight:600;min-width:60px;">上门</label><input type="number" class="input-simple" id="goalMonthlyVisit" min="0" placeholder="0" style="flex:1;"></div>
-      <div style="display:flex;gap:8px;align-items:center;"><label style="font-size:0.8rem;font-weight:600;min-width:60px;">回款</label><input type="number" class="input-simple" id="goalMonthlyPayment" min="0" placeholder="0" style="flex:1;"></div>
+      <div style="display:flex;gap:8px;align-items:center;"><label style="font-size:0.8rem;font-weight:600;min-width:60px;">微信</label><input type="number" class="input-simple" id="goalMonthlyWechat" min="0" placeholder="0" style="flex:1;" autocomplete="off"></div>
+      <div style="display:flex;gap:8px;align-items:center;"><label style="font-size:0.8rem;font-weight:600;min-width:60px;">上门</label><input type="number" class="input-simple" id="goalMonthlyVisit" min="0" placeholder="0" style="flex:1;" autocomplete="off"></div>
+      <div style="display:flex;gap:8px;align-items:center;"><label style="font-size:0.8rem;font-weight:600;min-width:60px;">回款</label><input type="number" class="input-simple" id="goalMonthlyPayment" min="0" placeholder="0" style="flex:1;" autocomplete="off"></div>
       <button class="btn-add" id="saveGoalBtn" style="width:100%;margin-top:4px;">保存目标</button>
       <div id="goalStatus" style="font-size:0.75rem;text-align:center;min-height:20px;color:var(--text-soft);"></div>
     </div>
@@ -4492,37 +4492,37 @@ export default {
     <div class="loan-grid">
       <div class="loan-input-row">
         <label>贷款金额</label>
-        <input type="number" class="input-simple" id="loanPrincipal" placeholder="100000" min="0" step="1000">
+        <input type="number" class="input-simple" id="loanPrincipal" placeholder="100000" min="0" step="1000" autocomplete="off">
         <span class="loan-unit">元</span>
       </div>
 
       <div class="loan-input-row">
         <label>月息</label>
-        <input type="number" class="input-simple" id="loanMonthlyRate" placeholder="0.35" min="0" step="0.01">
+        <input type="number" class="input-simple" id="loanMonthlyRate" placeholder="0.35" min="0" step="0.01" autocomplete="off">
         <span class="loan-unit">% / 月</span>
       </div>
 
       <div class="loan-input-row">
         <label>年化利率</label>
-        <input type="number" class="input-simple" id="loanAnnualRate" placeholder="4.20" min="0" step="0.01">
+        <input type="number" class="input-simple" id="loanAnnualRate" placeholder="4.20" min="0" step="0.01" autocomplete="off">
         <span class="loan-unit">% / 年</span>
       </div>
 
       <div class="loan-input-row">
         <label>贷款期限</label>
-        <input type="number" class="input-simple" id="loanTerm" placeholder="12" min="1" max="480" step="1">
+        <input type="number" class="input-simple" id="loanTerm" placeholder="12" min="1" max="480" step="1" autocomplete="off">
         <span class="loan-unit">个月</span>
       </div>
 
       <div class="loan-input-row">
         <label>月息差</label>
-        <input type="number" class="input-simple" id="loanRateSpread" placeholder="0.00" min="0" step="0.01">
+        <input type="number" class="input-simple" id="loanRateSpread" placeholder="0.00" min="0" step="0.01" autocomplete="off">
         <span class="loan-unit">% / 月</span>
       </div>
 
       <div class="loan-input-row">
         <label>融资成本</label>
-        <input type="number" class="input-simple" id="loanFinanceCost" placeholder="0.00" min="0" step="0.01">
+        <input type="number" class="input-simple" id="loanFinanceCost" placeholder="0.00" min="0" step="0.01" autocomplete="off">
         <span class="loan-unit">%</span>
       </div>
     </div>
@@ -4530,7 +4530,7 @@ export default {
     <div class="loan-method-field" id="loanDaysField">
       <div class="loan-input-row">
         <label>计息天数</label>
-        <input type="number" class="input-simple" id="loanDays" placeholder="30" min="1" max="3650" step="1">
+        <input type="number" class="input-simple" id="loanDays" placeholder="30" min="1" max="3650" step="1" autocomplete="off">
         <span class="loan-unit">天</span>
       </div>
     </div>
@@ -6196,28 +6196,28 @@ export default {
               '<span style="font-size:0.75rem;font-weight:700;color:var(--accent-wechat);">编辑客户信息</span>' +
             '</div>' +
             '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
-              '<input type="text" class="input-simple edit-name-input" placeholder="姓名" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.8rem;font-weight:700;" value="' + esc(fullClient.name||ti.name) + '">' +
-              '<input type="text" class="input-simple edit-phone-input" placeholder="电话" readonly style="flex:1;min-width:100px;padding:6px 8px;font-size:0.8rem;background:var(--input-disabled-bg, #e9ecef);color:var(--text-soft);cursor:not-allowed;" value="' + esc(fullClient.phone||ti.phone) + '">' +
+              '<input type="text" class="input-simple edit-name-input" placeholder="姓名" autocomplete="off" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.8rem;font-weight:700;" value="' + esc(fullClient.name||ti.name) + '">' +
+              '<input type="text" class="input-simple edit-phone-input" placeholder="电话" readonly autocomplete="off" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.8rem;background:var(--input-disabled-bg, #e9ecef);color:var(--text-soft);cursor:not-allowed;" value="' + esc(fullClient.phone||ti.phone) + '">' +
             '</div>' +
             '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
-              '<input type="text" class="input-simple edit-company-input" placeholder="单位" style="flex:2;min-width:120px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.company||'') + '">' +
-              '<input type="text" class="input-simple edit-fund-input" placeholder="公积金基数" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.fund||'') + '">' +
+              '<input type="text" class="input-simple edit-company-input" placeholder="单位" autocomplete="off" style="flex:2;min-width:120px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.company||'') + '">' +
+              '<input type="text" class="input-simple edit-fund-input" placeholder="公积金基数" autocomplete="off" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.fund||'') + '">' +
             '</div>' +
             '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
               '<select class="input-simple input-select edit-label-input" required style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;height:auto;border:1.5px solid var(--card-border);"><option value="">客户等级 *</option><option value="A"' + (fullClient.label==='A'?' selected':'') + '>A 类 — 重点跟进</option><option value="B"' + (fullClient.label==='B'?' selected':'') + '>B 类 — 常规跟进</option><option value="C"' + (fullClient.label==='C'?' selected':'') + '>C 类 — 低优先级</option></select>' +
             '</div>' +
             '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
-              '<input type="text" class="input-simple edit-age-input" placeholder="年龄" style="flex:1;min-width:60px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.age||'') + '">' +
+              '<input type="text" class="input-simple edit-age-input" placeholder="年龄" autocomplete="off" style="flex:1;min-width:60px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.age||'') + '">' +
               '<select class="input-simple input-select edit-marital-input" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;height:auto;"><option value="">婚姻状况</option><option value="未婚"' + (fullClient.maritalStatus==='未婚'?' selected':'') + '>未婚</option><option value="已婚"' + (fullClient.maritalStatus==='已婚'?' selected':'') + '>已婚</option><option value="离异"' + (fullClient.maritalStatus==='离异'?' selected':'') + '>离异</option><option value="丧偶"' + (fullClient.maritalStatus==='丧偶'?' selected':'') + '>丧偶</option></select>' +
               '<select class="input-simple input-select edit-hukou-input" style="flex:1;min-width:70px;padding:6px 8px;font-size:0.78rem;height:auto;"><option value="">是否深户</option><option value="是"' + (fullClient.isShenzhenHukou==='是'?' selected':'') + '>是</option><option value="否"' + (fullClient.isShenzhenHukou==='否'?' selected':'') + '>否</option></select>' +
             '</div>' +
             '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
-              '<input type="text" class="input-simple edit-ss-input" placeholder="社保养老基数" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.socialSecurity||'') + '">' +
-              '<input type="text" class="input-simple edit-salary-input" placeholder="月均工资" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.avgSalary||'') + '">' +
+              '<input type="text" class="input-simple edit-ss-input" placeholder="社保养老基数" autocomplete="off" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.socialSecurity||'') + '">' +
+              '<input type="text" class="input-simple edit-salary-input" placeholder="月均工资" autocomplete="off" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.avgSalary||'') + '">' +
             '</div>' +
             '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
-              '<input type="text" class="input-simple edit-tax-input" placeholder="近2年个税" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.tax2yr||'') + '">' +
-              '<input type="text" class="input-simple edit-sbank-input" placeholder="代发工资银行" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.salaryBank||'') + '">' +
+              '<input type="text" class="input-simple edit-tax-input" placeholder="近2年个税" autocomplete="off" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.tax2yr||'') + '">' +
+              '<input type="text" class="input-simple edit-sbank-input" placeholder="代发工资银行" autocomplete="off" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.salaryBank||'') + '">' +
             '</div>' +
             '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
               '<select class="input-simple input-select edit-edu-input" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;height:auto;"><option value="">学历</option><option value="初中及以下"' + (fullClient.education==='初中及以下'?' selected':'') + '>初中及以下</option><option value="高中"' + (fullClient.education==='高中'?' selected':'') + '>高中</option><option value="大专"' + (fullClient.education==='大专'?' selected':'') + '>大专</option><option value="本科"' + (fullClient.education==='本科'?' selected':'') + '>本科</option><option value="硕士"' + (fullClient.education==='硕士'?' selected':'') + '>硕士</option><option value="博士"' + (fullClient.education==='博士'?' selected':'') + '>博士</option></select>' +
@@ -6225,44 +6225,44 @@ export default {
             '</div>' +
             '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
               '<select class="input-simple input-select edit-proptype-input" style="flex:1;min-width:90px;padding:6px 8px;font-size:0.78rem;height:auto;"><option value="">深房/外地房</option><option value="深房"' + (fullClient.propertyType==='深房'?' selected':'') + '>深房</option><option value="外地房"' + (fullClient.propertyType==='外地房'?' selected':'') + '>外地房</option></select>' +
-              '<input type="text" class="input-simple edit-proparea-input" placeholder="面积" style="flex:1;min-width:70px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.propertyArea||'') + '">' +
+              '<input type="text" class="input-simple edit-proparea-input" placeholder="面积" autocomplete="off" style="flex:1;min-width:70px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.propertyArea||'') + '">' +
             '</div>' +
             '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
-              '<input type="text" class="input-simple edit-propaddr-input" placeholder="房产地址" style="flex:1;min-width:120px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.propertyAddress||'') + '">' +
+              '<input type="text" class="input-simple edit-propaddr-input" placeholder="房产地址" autocomplete="off" style="flex:1;min-width:120px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.propertyAddress||'') + '">' +
             '</div>' +
             '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
-              '<input type="text" class="input-simple edit-propmbank-input" placeholder="抵押银行" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.propertyMortgageBank||'') + '">' +
-              '<input type="text" class="input-simple edit-propmamt-input" placeholder="还欠多少" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.propertyMortgageAmount||'') + '">' +
+              '<input type="text" class="input-simple edit-propmbank-input" placeholder="抵押银行" autocomplete="off" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.propertyMortgageBank||'') + '">' +
+              '<input type="text" class="input-simple edit-propmamt-input" placeholder="还欠多少" autocomplete="off" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.propertyMortgageAmount||'') + '">' +
             '</div>' +
             '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
-              '<input type="text" class="input-simple edit-propother-input" placeholder="房产其他情况" style="flex:1;min-width:120px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.propertyOther||'') + '">' +
+              '<input type="text" class="input-simple edit-propother-input" placeholder="房产其他情况" autocomplete="off" style="flex:1;min-width:120px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.propertyOther||'') + '">' +
             '</div>' +
             '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
-              '<input type="text" class="input-simple edit-bankdebt-input" placeholder="银行信贷负债" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.bankDebt||'') + '">' +
-              '<input type="text" class="input-simple edit-ccdebt-input" placeholder="信用卡负债" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.creditCardDebt||'') + '">' +
+              '<input type="text" class="input-simple edit-bankdebt-input" placeholder="银行信贷负债" autocomplete="off" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.bankDebt||'') + '">' +
+              '<input type="text" class="input-simple edit-ccdebt-input" placeholder="信用卡负债" autocomplete="off" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.creditCardDebt||'') + '">' +
             '</div>' +
             '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
-              '<input type="text" class="input-simple edit-query-input" placeholder="近3个月查询次数" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.query3m||'') + '">' +
-              '<input type="text" class="input-simple edit-onlineloan-input" placeholder="小额网贷笔数" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.onlineLoanCount||'') + '">' +
+              '<input type="text" class="input-simple edit-query-input" placeholder="近3个月查询次数" autocomplete="off" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.query3m||'') + '">' +
+              '<input type="text" class="input-simple edit-onlineloan-input" placeholder="小额网贷笔数" autocomplete="off" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.onlineLoanCount||'') + '">' +
             '</div>' +
             '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
-              '<input type="text" class="input-simple edit-visittime-input" placeholder="上门办理时间" style="flex:1;min-width:120px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.visitTime||'') + '">' +
+              '<input type="text" class="input-simple edit-visittime-input" placeholder="上门办理时间" autocomplete="off" style="flex:1;min-width:120px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.visitTime||'') + '">' +
               '<select class="input-simple input-select edit-status-input" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;height:auto;"><option value="">状态</option><option value="success"' + (fullClient.status==='success'?' selected':'') + '>已办理成功</option><option value="failed"' + (fullClient.status==='failed'?' selected':'') + '>未办理成功</option></select>' +
             '</div>' +
             '<div class="edit-success-fields" style="display:' + (fullClient.status==='success'?'flex':'none') + ';flex-direction:column;gap:8px;">' +
               '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
-                '<input type="text" class="input-simple edit-approvedbank-input" placeholder="批款银行" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.approvedBank||'') + '">' +
-                '<input type="text" class="input-simple edit-approvedamount-input" placeholder="批款金额" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.approvedAmount||'') + '">' +
+                '<input type="text" class="input-simple edit-approvedbank-input" placeholder="批款银行" autocomplete="off" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.approvedBank||'') + '">' +
+                '<input type="text" class="input-simple edit-approvedamount-input" placeholder="批款金额" autocomplete="off" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.approvedAmount||'') + '">' +
               '</div>' +
               '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
-                '<input type="text" class="input-simple edit-rateterm-input" placeholder="利率年限" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.rateTerm||'') + '">' +
+                '<input type="text" class="input-simple edit-rateterm-input" placeholder="利率年限" autocomplete="off" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.rateTerm||'') + '">' +
                 '<span style="flex:1;"></span>' +
               '</div>' +
             '</div>' +
             '<div class="edit-failed-fields" style="display:' + (fullClient.status==='failed'?'flex':'none') + ';flex-direction:column;gap:8px;">' +
               '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
-                '<input type="text" class="input-simple edit-rejectedbank-input" placeholder="拒绝银行" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.rejectedBank||'') + '">' +
-                '<input type="text" class="input-simple edit-rejectreason-input" placeholder="拒绝原因" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.rejectReason||'') + '">' +
+                '<input type="text" class="input-simple edit-rejectedbank-input" placeholder="拒绝银行" autocomplete="off" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.rejectedBank||'') + '">' +
+                '<input type="text" class="input-simple edit-rejectreason-input" placeholder="拒绝原因" autocomplete="off" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + esc(fullClient.rejectReason||'') + '">' +
               '</div>' +
             '</div>' +
             '<textarea class="input-simple edit-demand-input" placeholder="客户大致需求" style="width:100%;min-height:50px;padding:8px;font-size:0.78rem;resize:vertical;box-sizing:border-box;">' + esc(fullClient.demand||'') + '</textarea>' +
@@ -7101,7 +7101,7 @@ export default {
     }));
     document.querySelectorAll('#scriptList .edit-icon').forEach(b=>b.addEventListener('click',e=>{
       const i=parseInt(b.dataset.si);const a=loadScripts();const old=a[i];const item=document.querySelector('#scriptList .script-item[data-si="'+i+'"]');
-      item.innerHTML='<input class="input-simple" id="editScriptInput_'+i+'" value="'+esc(old).replace(/"/g,'&quot;')+'" style="flex:1;font-size:0.75rem;padding:6px 10px;min-width:0;"><div style="display:flex;gap:4px;flex-shrink:0;"><button class="btn-add" id="saveScriptEdit_'+i+'" style="font-size:0.7rem;padding:6px 12px;">保存</button><button class="del-icon" id="cancelScriptEdit_'+i+'" style="color:var(--text-soft);">取消</button></div>';
+      item.innerHTML='<input class="input-simple" id="editScriptInput_'+i+'" value="'+esc(old).replace(/"/g,'&quot;')+'" style="flex:1;font-size:0.75rem;padding:6px 10px;min-width:0;" autocomplete="off"><div style="display:flex;gap:4px;flex-shrink:0;"><button class="btn-add" id="saveScriptEdit_'+i+'" style="font-size:0.7rem;padding:6px 12px;">保存</button><button class="del-icon" id="cancelScriptEdit_'+i+'" style="color:var(--text-soft);">取消</button></div>';
       document.getElementById('saveScriptEdit_'+i).addEventListener('click',async ()=>{
         const v=document.getElementById('editScriptInput_'+i).value.trim();if(!v)return;
         a[i]=v;saveScripts(a);renderScriptList();renderLockScripts();
@@ -7936,28 +7936,28 @@ export default {
           '<span style="font-size:0.75rem;font-weight:700;color:var(--accent-wechat);">' + esc(date) + ' · 编辑中</span>' +
         '</div>' +
         '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
-          '<input type="text" class="input-simple edit-name-input" placeholder="姓名" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.8rem;font-weight:700;" value="' + esc(c.name) + '">' +
-          '<input type="text" class="input-simple edit-phone-input" placeholder="电话" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.8rem;" value="' + esc(c.phone) + '">' +
+          '<input type="text" class="input-simple edit-name-input" placeholder="姓名" autocomplete="off" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.8rem;font-weight:700;" value="' + esc(c.name) + '">' +
+          '<input type="text" class="input-simple edit-phone-input" placeholder="电话" autocomplete="off" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.8rem;" value="' + esc(c.phone) + '">' +
         '</div>' +
         '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
-          '<input type="text" class="input-simple edit-company-input" placeholder="单位" style="flex:2;min-width:120px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.company || '') + '">' +
-          '<input type="text" class="input-simple edit-fund-input" placeholder="公积金基数" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.fund || '') + '">' +
+          '<input type="text" class="input-simple edit-company-input" placeholder="单位" autocomplete="off" style="flex:2;min-width:120px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.company || '') + '">' +
+          '<input type="text" class="input-simple edit-fund-input" placeholder="公积金基数" autocomplete="off" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.fund || '') + '">' +
         '</div>' +
         '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
           '<select class="input-simple input-select edit-label-input" required style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;height:auto;border:1.5px solid var(--card-border);"><option value="">客户等级 *</option><option value="A"' + (c.label==='A'?' selected':'') + '>A 类 — 重点跟进</option><option value="B"' + (c.label==='B'?' selected':'') + '>B 类 — 常规跟进</option><option value="C"' + (c.label==='C'?' selected':'') + '>C 类 — 低优先级</option></select>' +
         '</div>' +
         '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
-          '<input type="text" class="input-simple edit-age-input" placeholder="年龄" style="flex:1;min-width:60px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.age||'') + '">' +
+          '<input type="text" class="input-simple edit-age-input" placeholder="年龄" autocomplete="off" style="flex:1;min-width:60px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.age||'') + '">' +
           '<select class="input-simple input-select edit-marital-input" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;height:auto;"><option value="">婚姻状况</option><option value="未婚"' + (c.maritalStatus==='未婚'?' selected':'') + '>未婚</option><option value="已婚"' + (c.maritalStatus==='已婚'?' selected':'') + '>已婚</option><option value="离异"' + (c.maritalStatus==='离异'?' selected':'') + '>离异</option><option value="丧偶"' + (c.maritalStatus==='丧偶'?' selected':'') + '>丧偶</option></select>' +
           '<select class="input-simple input-select edit-hukou-input" style="flex:1;min-width:70px;padding:6px 8px;font-size:0.78rem;height:auto;"><option value="">是否深户</option><option value="是"' + (c.isShenzhenHukou==='是'?' selected':'') + '>是</option><option value="否"' + (c.isShenzhenHukou==='否'?' selected':'') + '>否</option></select>' +
         '</div>' +
         '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
-          '<input type="text" class="input-simple edit-ss-input" placeholder="社保养老基数" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.socialSecurity||'') + '">' +
-          '<input type="text" class="input-simple edit-salary-input" placeholder="月均工资" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.avgSalary||'') + '">' +
+          '<input type="text" class="input-simple edit-ss-input" placeholder="社保养老基数" autocomplete="off" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.socialSecurity||'') + '">' +
+          '<input type="text" class="input-simple edit-salary-input" placeholder="月均工资" autocomplete="off" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.avgSalary||'') + '">' +
         '</div>' +
         '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
-          '<input type="text" class="input-simple edit-tax-input" placeholder="近2年个税" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.tax2yr||'') + '">' +
-          '<input type="text" class="input-simple edit-sbank-input" placeholder="代发工资银行" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.salaryBank||'') + '">' +
+          '<input type="text" class="input-simple edit-tax-input" placeholder="近2年个税" autocomplete="off" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.tax2yr||'') + '">' +
+          '<input type="text" class="input-simple edit-sbank-input" placeholder="代发工资银行" autocomplete="off" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.salaryBank||'') + '">' +
         '</div>' +
         '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
           '<select class="input-simple input-select edit-edu-input" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;height:auto;"><option value="">学历</option><option value="初中及以下"' + (c.education==='初中及以下'?' selected':'') + '>初中及以下</option><option value="高中"' + (c.education==='高中'?' selected':'') + '>高中</option><option value="大专"' + (c.education==='大专'?' selected':'') + '>大专</option><option value="本科"' + (c.education==='本科'?' selected':'') + '>本科</option><option value="硕士"' + (c.education==='硕士'?' selected':'') + '>硕士</option><option value="博士"' + (c.education==='博士'?' selected':'') + '>博士</option></select>' +
@@ -7965,44 +7965,44 @@ export default {
         '</div>' +
         '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
           '<select class="input-simple input-select edit-proptype-input" style="flex:1;min-width:90px;padding:6px 8px;font-size:0.78rem;height:auto;"><option value="">深房/外地房</option><option value="深房"' + (c.propertyType==='深房'?' selected':'') + '>深房</option><option value="外地房"' + (c.propertyType==='外地房'?' selected':'') + '>外地房</option></select>' +
-          '<input type="text" class="input-simple edit-proparea-input" placeholder="面积" style="flex:1;min-width:70px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.propertyArea||'') + '">' +
+          '<input type="text" class="input-simple edit-proparea-input" placeholder="面积" autocomplete="off" style="flex:1;min-width:70px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.propertyArea||'') + '">' +
         '</div>' +
         '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
-          '<input type="text" class="input-simple edit-propaddr-input" placeholder="房产地址" style="flex:1;min-width:120px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.propertyAddress||'') + '">' +
+          '<input type="text" class="input-simple edit-propaddr-input" placeholder="房产地址" autocomplete="off" style="flex:1;min-width:120px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.propertyAddress||'') + '">' +
         '</div>' +
         '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
-          '<input type="text" class="input-simple edit-propmbank-input" placeholder="抵押银行" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.propertyMortgageBank||'') + '">' +
-          '<input type="text" class="input-simple edit-propmamt-input" placeholder="还欠多少" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.propertyMortgageAmount||'') + '">' +
+          '<input type="text" class="input-simple edit-propmbank-input" placeholder="抵押银行" autocomplete="off" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.propertyMortgageBank||'') + '">' +
+          '<input type="text" class="input-simple edit-propmamt-input" placeholder="还欠多少" autocomplete="off" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.propertyMortgageAmount||'') + '">' +
         '</div>' +
         '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
-          '<input type="text" class="input-simple edit-propother-input" placeholder="房产其他情况" style="flex:1;min-width:120px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.propertyOther||'') + '">' +
+          '<input type="text" class="input-simple edit-propother-input" placeholder="房产其他情况" autocomplete="off" style="flex:1;min-width:120px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.propertyOther||'') + '">' +
         '</div>' +
         '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
-          '<input type="text" class="input-simple edit-bankdebt-input" placeholder="银行信贷负债" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.bankDebt||'') + '">' +
-          '<input type="text" class="input-simple edit-ccdebt-input" placeholder="信用卡负债" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.creditCardDebt||'') + '">' +
+          '<input type="text" class="input-simple edit-bankdebt-input" placeholder="银行信贷负债" autocomplete="off" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.bankDebt||'') + '">' +
+          '<input type="text" class="input-simple edit-ccdebt-input" placeholder="信用卡负债" autocomplete="off" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.creditCardDebt||'') + '">' +
         '</div>' +
         '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
-          '<input type="text" class="input-simple edit-query-input" placeholder="近3个月查询次数" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.query3m||'') + '">' +
-          '<input type="text" class="input-simple edit-onlineloan-input" placeholder="小额网贷笔数" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.onlineLoanCount||'') + '">' +
+          '<input type="text" class="input-simple edit-query-input" placeholder="近3个月查询次数" autocomplete="off" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.query3m||'') + '">' +
+          '<input type="text" class="input-simple edit-onlineloan-input" placeholder="小额网贷笔数" autocomplete="off" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.onlineLoanCount||'') + '">' +
         '</div>' +
         '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
-          '<input type="text" class="input-simple edit-visittime-input" placeholder="上门办理时间" style="flex:1;min-width:120px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.visitTime||'') + '">' +
+          '<input type="text" class="input-simple edit-visittime-input" placeholder="上门办理时间" autocomplete="off" style="flex:1;min-width:120px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.visitTime||'') + '">' +
           '<select class="input-simple input-select edit-status-input" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;height:auto;"><option value="">状态</option><option value="success"' + (c.status==='success'?' selected':'') + '>已办理成功</option><option value="failed"' + (c.status==='failed'?' selected':'') + '>未办理成功</option></select>' +
         '</div>' +
         '<div class="edit-success-fields" style="display:' + (c.status==='success'?'flex':'none') + ';flex-direction:column;gap:8px;">' +
           '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
-            '<input type="text" class="input-simple edit-approvedbank-input" placeholder="批款银行" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.approvedBank||'') + '">' +
-            '<input type="text" class="input-simple edit-approvedamount-input" placeholder="批款金额" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.approvedAmount||'') + '">' +
+            '<input type="text" class="input-simple edit-approvedbank-input" placeholder="批款银行" autocomplete="off" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.approvedBank||'') + '">' +
+            '<input type="text" class="input-simple edit-approvedamount-input" placeholder="批款金额" autocomplete="off" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.approvedAmount||'') + '">' +
           '</div>' +
           '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
-            '<input type="text" class="input-simple edit-rateterm-input" placeholder="利率年限" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.rateTerm||'') + '">' +
+            '<input type="text" class="input-simple edit-rateterm-input" placeholder="利率年限" autocomplete="off" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.rateTerm||'') + '">' +
             '<span style="flex:1;"></span>' +
           '</div>' +
         '</div>' +
         '<div class="edit-failed-fields" style="display:' + (c.status==='failed'?'flex':'none') + ';flex-direction:column;gap:8px;">' +
           '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
-            '<input type="text" class="input-simple edit-rejectedbank-input" placeholder="拒绝银行" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.rejectedBank||'') + '">' +
-            '<input type="text" class="input-simple edit-rejectreason-input" placeholder="拒绝原因" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.rejectReason||'') + '">' +
+            '<input type="text" class="input-simple edit-rejectedbank-input" placeholder="拒绝银行" autocomplete="off" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.rejectedBank||'') + '">' +
+            '<input type="text" class="input-simple edit-rejectreason-input" placeholder="拒绝原因" autocomplete="off" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.rejectReason||'') + '">' +
           '</div>' +
         '</div>' +
         '<textarea class="input-simple edit-demand-input" placeholder="客户大致需求" style="width:100%;min-height:50px;padding:8px;font-size:0.78rem;resize:vertical;box-sizing:border-box;">' + esc(c.demand||'') + '</textarea>' +
@@ -8185,30 +8185,30 @@ export default {
             '<span style="font-size:0.8rem;font-weight:800;color:var(--accent-wechat);">新增意向客户</span>' +
           '</div>' +
           '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
-            '<input type="date" class="input-simple new-date-input" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + getTodayStr() + '">' +
-            '<input type="text" class="input-simple new-name-input" placeholder="姓名" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.8rem;font-weight:700;">' +
-            '<input type="text" class="input-simple new-phone-input" placeholder="电话" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.8rem;">' +
+            '<input type="date" class="input-simple new-date-input" autocomplete="off" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + getTodayStr() + '">' +
+            '<input type="text" class="input-simple new-name-input" placeholder="姓名" autocomplete="off" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.8rem;font-weight:700;">' +
+            '<input type="text" class="input-simple new-phone-input" placeholder="电话" autocomplete="off" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.8rem;">' +
           '</div>' +
           '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
-            '<input type="text" class="input-simple new-company-input" placeholder="单位" style="flex:2;min-width:120px;padding:6px 8px;font-size:0.78rem;">' +
-            '<input type="text" class="input-simple new-fund-input" placeholder="公积金基数" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;">' +
+            '<input type="text" class="input-simple new-company-input" placeholder="单位" autocomplete="off" style="flex:2;min-width:120px;padding:6px 8px;font-size:0.78rem;">' +
+            '<input type="text" class="input-simple new-fund-input" placeholder="公积金基数" autocomplete="off" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;">' +
           '</div>' +
           '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
             '<select class="input-simple input-select new-label-input" required style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;height:auto;border:1.5px solid var(--card-border);"><option value="">客户等级 *</option><option value="A">A 类 — 重点跟进</option><option value="B">B 类 — 常规跟进</option><option value="C">C 类 — 低优先级</option></select>' +
             '<span style="flex:1;"></span>' +
           '</div>' +
           '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
-            '<input type="text" class="input-simple new-age-input" placeholder="年龄" style="flex:1;min-width:60px;padding:6px 8px;font-size:0.78rem;">' +
+            '<input type="text" class="input-simple new-age-input" placeholder="年龄" autocomplete="off" style="flex:1;min-width:60px;padding:6px 8px;font-size:0.78rem;">' +
             '<select class="input-simple input-select new-marital-input" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;height:auto;"><option value="">婚姻状况</option><option value="未婚">未婚</option><option value="已婚">已婚</option><option value="离异">离异</option><option value="丧偶">丧偶</option></select>' +
             '<select class="input-simple input-select new-hukou-input" style="flex:1;min-width:70px;padding:6px 8px;font-size:0.78rem;height:auto;"><option value="">是否深户</option><option value="是">是</option><option value="否">否</option></select>' +
           '</div>' +
           '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
-            '<input type="text" class="input-simple new-ss-input" placeholder="社保养老基数" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;">' +
-            '<input type="text" class="input-simple new-salary-input" placeholder="月均工资" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;">' +
+            '<input type="text" class="input-simple new-ss-input" placeholder="社保养老基数" autocomplete="off" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;">' +
+            '<input type="text" class="input-simple new-salary-input" placeholder="月均工资" autocomplete="off" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;">' +
           '</div>' +
           '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
-            '<input type="text" class="input-simple new-tax-input" placeholder="近2年个税" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;">' +
-            '<input type="text" class="input-simple new-sbank-input" placeholder="代发工资银行" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;">' +
+            '<input type="text" class="input-simple new-tax-input" placeholder="近2年个税" autocomplete="off" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;">' +
+            '<input type="text" class="input-simple new-sbank-input" placeholder="代发工资银行" autocomplete="off" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;">' +
           '</div>' +
           '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
             '<select class="input-simple input-select new-edu-input" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;height:auto;"><option value="">学历</option><option value="初中及以下">初中及以下</option><option value="高中">高中</option><option value="大专">大专</option><option value="本科">本科</option><option value="硕士">硕士</option><option value="博士">博士</option></select>' +
@@ -8216,44 +8216,44 @@ export default {
           '</div>' +
           '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
             '<select class="input-simple input-select new-proptype-input" style="flex:1;min-width:90px;padding:6px 8px;font-size:0.78rem;height:auto;"><option value="">深房/外地房</option><option value="深房">深房</option><option value="外地房">外地房</option></select>' +
-            '<input type="text" class="input-simple new-proparea-input" placeholder="面积" style="flex:1;min-width:70px;padding:6px 8px;font-size:0.78rem;">' +
+            '<input type="text" class="input-simple new-proparea-input" placeholder="面积" autocomplete="off" style="flex:1;min-width:70px;padding:6px 8px;font-size:0.78rem;">' +
           '</div>' +
           '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
-            '<input type="text" class="input-simple new-propaddr-input" placeholder="房产地址" style="flex:1;min-width:120px;padding:6px 8px;font-size:0.78rem;">' +
+            '<input type="text" class="input-simple new-propaddr-input" placeholder="房产地址" autocomplete="off" style="flex:1;min-width:120px;padding:6px 8px;font-size:0.78rem;">' +
           '</div>' +
           '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
-            '<input type="text" class="input-simple new-propmbank-input" placeholder="抵押银行" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;">' +
-            '<input type="text" class="input-simple new-propmamt-input" placeholder="还欠多少" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;">' +
+            '<input type="text" class="input-simple new-propmbank-input" placeholder="抵押银行" autocomplete="off" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;">' +
+            '<input type="text" class="input-simple new-propmamt-input" placeholder="还欠多少" autocomplete="off" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;">' +
           '</div>' +
           '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
-            '<input type="text" class="input-simple new-propother-input" placeholder="房产其他情况" style="flex:1;min-width:120px;padding:6px 8px;font-size:0.78rem;">' +
+            '<input type="text" class="input-simple new-propother-input" placeholder="房产其他情况" autocomplete="off" style="flex:1;min-width:120px;padding:6px 8px;font-size:0.78rem;">' +
           '</div>' +
           '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
-            '<input type="text" class="input-simple new-bankdebt-input" placeholder="银行信贷负债" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;">' +
-            '<input type="text" class="input-simple new-ccdebt-input" placeholder="信用卡负债" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;">' +
+            '<input type="text" class="input-simple new-bankdebt-input" placeholder="银行信贷负债" autocomplete="off" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;">' +
+            '<input type="text" class="input-simple new-ccdebt-input" placeholder="信用卡负债" autocomplete="off" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;">' +
           '</div>' +
           '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
-            '<input type="text" class="input-simple new-query-input" placeholder="近3个月查询次数" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;">' +
-            '<input type="text" class="input-simple new-onlineloan-input" placeholder="小额网贷笔数" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;">' +
+            '<input type="text" class="input-simple new-query-input" placeholder="近3个月查询次数" autocomplete="off" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;">' +
+            '<input type="text" class="input-simple new-onlineloan-input" placeholder="小额网贷笔数" autocomplete="off" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;">' +
           '</div>' +
           '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
-            '<input type="text" class="input-simple new-visittime-input" placeholder="上门办理时间" style="flex:1;min-width:120px;padding:6px 8px;font-size:0.78rem;">' +
+            '<input type="text" class="input-simple new-visittime-input" placeholder="上门办理时间" autocomplete="off" style="flex:1;min-width:120px;padding:6px 8px;font-size:0.78rem;">' +
             '<select class="input-simple input-select new-status-input" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;height:auto;"><option value="">状态</option><option value="success">已办理成功</option><option value="failed">未办理成功</option></select>' +
           '</div>' +
           '<div class="new-success-fields" style="display:none;flex-direction:column;gap:8px;">' +
             '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
-              '<input type="text" class="input-simple new-approvedbank-input" placeholder="批款银行" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;">' +
-              '<input type="text" class="input-simple new-approvedamount-input" placeholder="批款金额" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;">' +
+              '<input type="text" class="input-simple new-approvedbank-input" placeholder="批款银行" autocomplete="off" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;">' +
+              '<input type="text" class="input-simple new-approvedamount-input" placeholder="批款金额" autocomplete="off" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.78rem;">' +
             '</div>' +
             '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
-              '<input type="text" class="input-simple new-rateterm-input" placeholder="利率年限" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;">' +
+              '<input type="text" class="input-simple new-rateterm-input" placeholder="利率年限" autocomplete="off" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;">' +
               '<span style="flex:1;"></span>' +
             '</div>' +
           '</div>' +
           '<div class="new-failed-fields" style="display:none;flex-direction:column;gap:8px;">' +
             '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
-              '<input type="text" class="input-simple new-rejectedbank-input" placeholder="拒绝银行" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;">' +
-              '<input type="text" class="input-simple new-rejectreason-input" placeholder="拒绝原因" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;">' +
+              '<input type="text" class="input-simple new-rejectedbank-input" placeholder="拒绝银行" autocomplete="off" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;">' +
+              '<input type="text" class="input-simple new-rejectreason-input" placeholder="拒绝原因" autocomplete="off" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;">' +
             '</div>' +
           '</div>' +
           '<textarea class="input-simple new-demand-input" placeholder="客户大致需求" style="width:100%;min-height:50px;padding:8px;font-size:0.78rem;resize:vertical;box-sizing:border-box;"></textarea>' +
