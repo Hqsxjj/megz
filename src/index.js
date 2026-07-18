@@ -3154,10 +3154,11 @@ export default {
       --text-main: #191919;
       --text-soft: #5e5e5e;
       --text-light: #8e8e8e;
-      --accent-wechat: rgba(83,128,159,0.75);
-      --accent-intent: rgba(83,128,159,0.75);
+      --accent-wechat: #53809F;
+      --accent-intent: #53809F;
       --accent-wechat-bg: #eef4f8;
       --accent-intent-bg: #eef4f8;
+      --accent-btn: rgba(83,128,159,0.7);
       --btn-bg: rgba(255,255,255,0.7);
       --btn-hover: #e5e5e5;
       --shadow-card: 0 1px 3px rgba(0,0,0,0.04);
@@ -3188,10 +3189,11 @@ export default {
       --text-main: #e5e5e5;
       --text-soft: #a0a0a0;
       --text-light: #6b6b6b;
-      --accent-wechat: rgba(123,168,201,0.7);
-      --accent-intent: rgba(123,168,201,0.7);
+      --accent-wechat: #7BA8C9;
+      --accent-intent: #7BA8C9;
       --accent-wechat-bg: #1a2630;
       --accent-intent-bg: #1a2630;
+      --accent-btn: rgba(123,168,201,0.55);
       --btn-bg: rgba(255,255,255,0.15);
       --btn-hover: #2c2c2c;
       --cal-hover: #222222;
@@ -3237,7 +3239,7 @@ export default {
     body.dark-mode .pin-input { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.1); }
     .pin-input:focus { background: rgba(255,255,255,0.35); }
     .pin-mask { -webkit-text-security: disc; }
-    .pin-btn { background: var(--accent-wechat); border: none; color: white; padding: 11px 45px; border-radius: var(--radius-xs); font-weight: 700; cursor: pointer; font-size: 1.12rem; letter-spacing: 1px; transition: all 0.2s; box-shadow: 0 4px 15px rgba(255,255,255,0.7); }
+    .pin-btn { background: var(--accent-btn); border: none; color: white; padding: 11px 45px; border-radius: var(--radius-xs); font-weight: 700; cursor: pointer; font-size: 1.12rem; letter-spacing: 1px; transition: all 0.2s; box-shadow: 0 4px 15px rgba(255,255,255,0.7); }
     .pin-btn:hover { opacity: 0.9; transform: translateY(-2px); box-shadow: 0 6px 20px rgba(255,255,255,0.6); }
     .pin-btn:active { transform: translateY(0); }
     .pin-error { color: #e74c3c; font-size: 1.26rem; min-height: 24px; font-weight: 600; letter-spacing: 0.5px; }
@@ -3256,7 +3258,7 @@ export default {
     .timer-separator { font-size: 1.2rem; font-weight: 700; color: var(--text-main); margin-bottom: 12px; }
     .timer-buttons { display: flex; gap: 8px; justify-content: center; transition: all 0.3s ease; }
     .timer-btn { padding: 8px 16px; border: none; border-radius: var(--radius-xs); font-weight: 700; cursor: pointer; font-size: 0.9rem; transition: all 0.2s; }
-    .timer-btn-start { background: var(--accent-wechat); color: white; box-shadow: 0 4px 12px rgba(255,255,255,0.7); }
+    .timer-btn-start { background: var(--accent-btn); color: white; box-shadow: 0 4px 12px rgba(255,255,255,0.7); }
     .timer-btn-start:hover { opacity: 0.9; transform: translateY(-2px); }
     .timer-btn-start:active { transform: translateY(0); }
     .timer-btn-reset { background: rgba(0,0,0,0.04); color: var(--text-main); }
@@ -3269,7 +3271,7 @@ export default {
     .timer-btn-reset:hover { background: rgba(0,0,0,0.08); }
     .timer-display.completed { animation: pulse 0.6s ease-in-out; }
     @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
-    .notify-bar { position: fixed; top: 0; left: 0; right: 0; background: var(--accent-intent); color: #fff; padding: 12px 20px; font-size: 0.85rem; font-weight: 700; z-index: 10000; transform: translateY(-100%); transition: transform 0.3s ease; text-align: center; box-shadow: 0 4px 20px rgba(0,0,0,0.2); cursor: pointer; }
+    .notify-bar { position: fixed; top: 0; left: 0; right: 0; background: var(--accent-btn); color: #fff; padding: 12px 20px; font-size: 0.85rem; font-weight: 700; z-index: 10000; transform: translateY(-100%); transition: transform 0.3s ease; text-align: center; box-shadow: 0 4px 20px rgba(0,0,0,0.2); cursor: pointer; }
     .notify-bar.show { transform: translateY(0); }
     .notify-bar .notify-close { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); font-size: 1.1rem; opacity: 0.7; }
     .script-container { position: absolute; left: 20px; top: 80px; display: flex; flex-direction: column; gap: 10px; max-width: 420px; z-index: 1; }
@@ -3413,12 +3415,12 @@ export default {
     .tbl-time { font-size: 0.7rem; color: var(--text-light); white-space: nowrap; }
     .tbl-action { text-align: center; white-space: nowrap; }
     .edit-note-btn { font-size: 0.78rem; background: transparent; border: 1px solid var(--accent-wechat); color: var(--accent-wechat); border-radius: 50%; cursor: pointer; width: 26px; height: 26px; padding: 0; display: inline-flex; justify-content: center; align-items: center; font-weight: 700; transition: all 0.2s; }
-    .edit-note-btn:hover { background: var(--accent-wechat); color: #fff; transform: scale(1.1); }
+    .edit-note-btn:hover { background: var(--accent-btn); color: #fff; transform: scale(1.1); }
     .tbl-note-edit-wrap { display: flex; flex-direction: column; gap: 6px; }
     .tbl-note-edit-wrap textarea { width: 100%; min-height: 90px; background: var(--btn-bg); border: 1.5px solid var(--accent-wechat); border-radius: 6px; padding: 8px 10px; font-size: 0.86rem; color: var(--text-main); outline: none; font-weight: 600; resize: vertical; line-height: 1.7; }
     .tbl-note-edit-wrap textarea:focus { box-shadow: 0 0 0 3px rgba(255,255,255,0.7); }
     .tbl-note-edit-btns { display: flex; gap: 5px; }
-    .tbl-save-btn { font-size: 0.65rem; background: var(--accent-wechat); color: #fff; border: none; border-radius: 6px; cursor: pointer; padding: 4px 12px; font-weight: 700; }
+    .tbl-save-btn { font-size: 0.65rem; background: var(--accent-btn); color: #fff; border: none; border-radius: 6px; cursor: pointer; padding: 4px 12px; font-weight: 700; }
     .tbl-cancel-btn { font-size: 0.65rem; background: var(--btn-bg); border: 1px solid var(--card-border); color: var(--text-soft); border-radius: 6px; cursor: pointer; padding: 4px 12px; font-weight: 700; }
     /* ===== 待办卡片（保留原样式） ===== */
     .todo-card-item { display: flex; align-items: flex-start; gap: 10px; padding: 10px 14px; background: var(--btn-bg); border-radius: var(--radius-xs); border: 1px solid var(--card-border); font-size: 0.82rem; font-weight: 600; color: var(--text-main); }
@@ -3436,8 +3438,8 @@ export default {
     textarea.input-simple, .note-textarea { height: auto; min-height: 68px; padding: 10px 12px; resize: vertical; line-height: 1.6; }
     .note-textarea { font-family: inherit; }
     .btn-add, .todo-add-btn { height: 38px; padding: 0 18px; font-size: 0.85rem; font-weight: 700; border: none; border-radius: var(--radius-xs); color: white; cursor: pointer; white-space: nowrap; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; transition: all 0.2s; }
-    .btn-add { background: var(--accent-intent); }
-    .todo-add-btn { background: var(--accent-wechat); }
+    .btn-add { background: var(--accent-btn); }
+    .todo-add-btn { background: var(--accent-btn); }
     .btn-add:hover, .todo-add-btn:hover { opacity: 0.92; transform: translateY(-1px); }
     .btn-add:active, .todo-add-btn:active { transform: translateY(0); }
     .btn-add:disabled, .todo-add-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
@@ -3455,7 +3457,7 @@ export default {
     .edit-icon { background: none; border: none; font-size: 0.9rem; color: var(--accent-wechat); cursor: pointer; width: 28px; height: 28px; border-radius: var(--radius-xs); font-weight: 700; margin-right: 4px; }
     .export-single-btn { background: none; border: none; font-size: 0.9rem; color: var(--accent-intent); cursor: pointer; width: 28px; height: 28px; border-radius: var(--radius-xs); font-weight: 700; margin-right: 4px; }
     .export-timeline-single-btn { font-size: 0.78rem; background: transparent; border: 1px solid var(--accent-intent); color: var(--accent-intent); border-radius: 50%; cursor: pointer; width: 26px; height: 26px; padding: 0; display: inline-flex; justify-content: center; align-items: center; font-weight: 700; transition: all 0.2s; margin-right: 4px; }
-    .export-timeline-single-btn:hover { background: var(--accent-intent); color: #fff; transform: scale(1.1); }
+    .export-timeline-single-btn:hover { background: var(--accent-btn); color: #fff; transform: scale(1.1); }
     .client-actions { display: flex; align-items: center; gap: 4px; }
     .todo-list { display: flex; flex-direction: column; gap: 8px; max-height: 200px; overflow-y: auto; }
     .todo-item { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: var(--btn-bg); border-radius: var(--radius-xs); border: 0.5px solid var(--card-border); font-size: 0.8rem; font-weight: 600; color: var(--text-main); }
@@ -3576,7 +3578,7 @@ export default {
     .todo-time-tag { background: var(--card-border); color: var(--text-soft); padding: 1px 4px; border-radius: 4px; font-size: 0.65rem; margin-left: 6px; font-weight: 700; }
     .todo-tab-switch { display: inline-flex; background: var(--btn-bg); border-radius: var(--radius-xs); padding: 2px; gap: 2px; }
     .todo-tab-btn { padding: 3px 14px; font-size: 0.75rem; font-weight: 700; border: none; border-radius: 4px; cursor: pointer; background: transparent; color: var(--text-soft); transition: all 0.2s; }
-    .todo-tab-btn.active { background: var(--accent-wechat); color: white; }
+    .todo-tab-btn.active { background: var(--accent-btn); color: white; }
     .todo-tab-btn:not(.active):hover { color: var(--text-main); }
 
     /* ===== 客户端卡片排版样式 ===== */
@@ -4239,7 +4241,7 @@ export default {
               <button type="button" id="boldBtn" title="加粗 (Alt+B)" style="height:28px;width:28px;font-weight:900;font-size:0.7rem;border:1px solid var(--card-border);background:var(--btn-bg);color:var(--text-main);cursor:pointer;border-radius:3px;padding:0;line-height:1;">B</button>
               <button type="button" id="delBtn" title="删除线 (Alt+D)" style="height:28px;width:28px;font-weight:700;font-size:0.6rem;border:1px solid var(--card-border);background:var(--btn-bg);color:var(--text-main);cursor:pointer;border-radius:3px;padding:0;line-height:1;text-decoration:line-through;">D</button>
             </div>
-            <button class="btn-add" id="addTempCustBtn" style="background:var(--accent-wechat);">+ 登记</button>
+            <button class="btn-add" id="addTempCustBtn" style="background:var(--accent-btn);">+ 登记</button>
             <div class="client-scroll" id="tempClientList"></div>
           </div>
         </div>
@@ -4327,7 +4329,7 @@ export default {
           <input type="text" class="input-simple" id="aiModelInput" placeholder="默认模型" style="flex:1; font-size:0.7rem; height:28px; padding:0 8px;" autocomplete="off">
         </div>
         <div style="display:flex; justify-content:flex-end; margin-top:2px;">
-          <button id="saveAiConfigBtn" class="btn-add" style="padding:0 16px; font-size:0.7rem; height:28px; margin:0; background:var(--accent-wechat); color:white; border:none; border-radius:var(--radius-xs); font-weight:700;">保存配置</button>
+          <button id="saveAiConfigBtn" class="btn-add" style="padding:0 16px; font-size:0.7rem; height:28px; margin:0; background:var(--accent-btn); color:white; border:none; border-radius:var(--radius-xs); font-weight:700;">保存配置</button>
         </div>
         <div style="font-size:0.6rem; color:var(--text-light); line-height:1.4; border-top:1px dashed var(--card-border); padding-top:4px; margin-top:2px;">
           配置 API Key 后将使用真实 AI 接口进行知识提取与回复（Gemini 使用其 OpenAI 兼容接口，留空使用内置模拟 AI）。
@@ -4354,7 +4356,7 @@ export default {
         <div style="font-size:0.75rem;font-weight:700;color:var(--text-main);margin-bottom:6px;">修改解锁密码</div>
         <div style="display:flex;gap:8px;">
           <input type="text" class="input-simple" id="newPinInput" placeholder="新密码 (4-6位数字)" maxlength="6" inputmode="numeric" pattern="[0-9]*" autocomplete="off" style="flex:2;font-size:0.7rem;height:28px;padding:0 8px;">
-          <button id="savePinBtn" class="btn-add" style="flex:1;font-size:0.7rem;height:28px;margin:0;background:var(--accent-wechat);color:white;border:none;">保存</button>
+          <button id="savePinBtn" class="btn-add" style="flex:1;font-size:0.7rem;height:28px;margin:0;background:var(--accent-btn);color:white;border:none;">保存</button>
         </div>
         <div id="pinStatus" style="font-size:0.62rem;padding:4px 0;min-height:18px;"></div>
         <div style="font-size:0.6rem;color:var(--text-light);">默认密码 8520，修改后立即生效，用于解锁页面和删除客户验证</div>
@@ -5588,7 +5590,7 @@ export default {
             '<div class="cl-followup-inline-form" style="display:none;margin-top:6px;">'+
               '<textarea class="cl-followup-inline-input" placeholder="新增跟进记录..." style="width:100%;min-height:44px;padding:6px 8px;font-size:0.78rem;resize:vertical;border:1px solid var(--card-border);border-radius:6px;background:var(--input-bg);color:var(--text-main);font-family:inherit;box-sizing:border-box;"></textarea>'+
               '<div style="display:flex;justify-content:flex-end;gap:6px;margin-top:4px;">'+
-                '<button class="cl-followup-save-btn" data-idx="'+idx+'" style="font-size:0.7rem;padding:3px 10px;background:var(--accent-wechat);color:#fff;border:none;border-radius:4px;font-weight:700;cursor:pointer;">保存</button>'+
+                '<button class="cl-followup-save-btn" data-idx="'+idx+'" style="font-size:0.7rem;padding:3px 10px;background:var(--accent-btn);color:#fff;border:none;border-radius:4px;font-weight:700;cursor:pointer;">保存</button>'+
                 '<button class="cl-followup-cancel-btn" style="font-size:0.7rem;padding:3px 10px;background:var(--btn-bg);color:var(--text-soft);border:1px solid var(--card-border);border-radius:4px;font-weight:700;cursor:pointer;">取消</button>'+
               '</div>'+
             '</div>'+
@@ -5777,7 +5779,7 @@ export default {
       // Do NOT delete from list yet — keep data safe until "添加" saves the update
       // Mark the add button to show "保存修改" state
       var addBtn = document.getElementById('addClientBtn');
-      if (addBtn) { addBtn.textContent = '保存修改'; addBtn.style.background = 'var(--accent-intent)'; }
+      if (addBtn) { addBtn.textContent = '保存修改'; addBtn.style.background = 'var(--accent-btn)'; }
       document.getElementById('custName').focus();
     }));
     container.querySelectorAll('.export-single-btn').forEach(b=>b.addEventListener('click',async e=>{
@@ -5992,7 +5994,7 @@ export default {
                 '<div class="tl-followup-inline-form" style="display:none;margin-top:6px;">'+
                   '<textarea class="tl-followup-inline-input" placeholder="新增跟进记录..." style="width:100%;min-height:44px;padding:6px 8px;font-size:0.78rem;resize:vertical;border:1px solid var(--card-border);border-radius:6px;background:var(--input-bg);color:var(--text-main);font-family:inherit;box-sizing:border-box;"></textarea>'+
                   '<div style="display:flex;justify-content:flex-end;gap:6px;margin-top:4px;">'+
-                    '<button class="tl-followup-save-btn" data-idx="'+e.idx+'" style="font-size:0.7rem;padding:3px 10px;background:var(--accent-wechat);color:#fff;border:none;border-radius:4px;font-weight:700;cursor:pointer;">保存</button>'+
+                    '<button class="tl-followup-save-btn" data-idx="'+e.idx+'" style="font-size:0.7rem;padding:3px 10px;background:var(--accent-btn);color:#fff;border:none;border-radius:4px;font-weight:700;cursor:pointer;">保存</button>'+
                     '<button class="tl-followup-cancel-btn" style="font-size:0.7rem;padding:3px 10px;background:var(--btn-bg);color:var(--text-soft);border:1px solid var(--card-border);border-radius:4px;font-weight:700;cursor:pointer;">取消</button>'+
                   '</div>'+
                 '</div>'+
@@ -6271,7 +6273,7 @@ export default {
             '<textarea class="input-simple edit-note-input" placeholder="沟通记录（必填）" style="width:100%;min-height:70px;padding:8px;font-size:0.78rem;resize:vertical;box-sizing:border-box;">' + esc(fullClient.note||ti.note||'') + '</textarea>' +
             '<textarea class="input-simple edit-follow-input" placeholder="跟进情况" style="width:100%;min-height:60px;padding:8px;font-size:0.78rem;resize:vertical;box-sizing:border-box;">' + (fullClient.followUps && fullClient.followUps.length > 0 ? fullClient.followUps.map(function(f){ return '[' + (f.date||'') + ' ' + (f.time||'') + '] ' + (f.content||''); }).join('\\n') : esc(fullClient.followUp||'')) + '</textarea>' +
             '<div style="display:flex;justify-content:flex-end;gap:8px;border-top:1px dashed var(--card-border);padding-top:8px;">' +
-              '<button class="save-timeline-client-btn btn-add" style="font-size:0.75rem;padding:6px 16px;background:var(--accent-wechat);color:white;border:none;border-radius:6px;font-weight:700;">保存</button>' +
+              '<button class="save-timeline-client-btn btn-add" style="font-size:0.75rem;padding:6px 16px;background:var(--accent-btn);color:white;border:none;border-radius:6px;font-weight:700;">保存</button>' +
               '<button class="cancel-timeline-client-btn btn-add" style="font-size:0.75rem;padding:6px 16px;background:var(--btn-bg);color:var(--text-soft);border:1px solid var(--card-border);border-radius:6px;font-weight:700;">取消</button>' +
             '</div>';
 
@@ -6647,7 +6649,7 @@ export default {
       window._editingClientKey = null;
       // Reset add button
       var addBtn = document.getElementById('addClientBtn');
-      if (addBtn) { addBtn.textContent = '+ 添加'; addBtn.style.background = 'var(--accent-wechat)'; }
+      if (addBtn) { addBtn.textContent = '+ 添加'; addBtn.style.background = 'var(--accent-btn)'; }
     }
 
     var newClient={name:n,phone:p,company:c,fund:f,label:label,note:nt,followUps:fu?[{date:today,time:time,content:fu}]:[],date:today,time:time,
@@ -7735,7 +7737,7 @@ export default {
         '<div class="allcard-followup-inline-form" style="display:none;margin-top:6px;">' +
           '<textarea class="allcard-followup-inline-input" placeholder="新增跟进记录..." style="width:100%;min-height:44px;padding:6px 8px;font-size:0.78rem;resize:vertical;border:1px solid var(--card-border);border-radius:6px;background:var(--input-bg);color:var(--text-main);font-family:inherit;box-sizing:border-box;"></textarea>' +
           '<div style="display:flex;justify-content:flex-end;gap:6px;margin-top:4px;">' +
-            '<button class="allcard-followup-save-btn"' + idxAttr + ' style="font-size:0.7rem;padding:3px 10px;background:var(--accent-wechat);color:#fff;border:none;border-radius:4px;font-weight:700;cursor:pointer;">保存</button>' +
+            '<button class="allcard-followup-save-btn"' + idxAttr + ' style="font-size:0.7rem;padding:3px 10px;background:var(--accent-btn);color:#fff;border:none;border-radius:4px;font-weight:700;cursor:pointer;">保存</button>' +
             '<button class="allcard-followup-cancel-btn" style="font-size:0.7rem;padding:3px 10px;background:var(--btn-bg);color:var(--text-soft);border:1px solid var(--card-border);border-radius:4px;font-weight:700;cursor:pointer;">取消</button>' +
           '</div>' +
         '</div>' +
@@ -8017,7 +8019,7 @@ export default {
           '<button type="button" class="follow-up-add-btn edit-add-followup-btn" style="margin-top:4px;">+ 新增跟进记录</button>' +
         '</div>' +
         '<div style="display:flex;justify-content:flex-end;gap:8px;border-top:1px dashed var(--card-border);padding-top:8px;">' +
-          '<button type="button" class="save-all-client-btn btn-add" style="font-size:0.75rem;padding:6px 16px;background:var(--accent-wechat);color:white;border:none;border-radius:6px;font-weight:700;">保存</button>' +
+          '<button type="button" class="save-all-client-btn btn-add" style="font-size:0.75rem;padding:6px 16px;background:var(--accent-btn);color:white;border:none;border-radius:6px;font-weight:700;">保存</button>' +
           '<button type="button" class="cancel-all-client-btn btn-add" style="font-size:0.75rem;padding:6px 16px;background:var(--btn-bg);color:var(--text-soft);border:1px solid var(--card-border);border-radius:6px;font-weight:700;">取消</button>' +
         '</div>';
 
@@ -8264,7 +8266,7 @@ export default {
           '<textarea class="input-simple new-note-input" placeholder="沟通记录（必填）" style="width:100%;min-height:70px;padding:8px;font-size:0.78rem;resize:vertical;box-sizing:border-box;"></textarea>' +
           '<textarea class="input-simple new-follow-input" placeholder="跟进情况" style="width:100%;min-height:60px;padding:8px;font-size:0.78rem;resize:vertical;box-sizing:border-box;"></textarea>' +
           '<div style="display:flex;justify-content:flex-end;gap:8px;border-top:1px dashed var(--card-border);padding-top:8px;">' +
-            '<button class="save-new-client-btn btn-add" style="font-size:0.75rem;padding:6px 16px;background:var(--accent-wechat);color:white;border:none;border-radius:6px;font-weight:700;">保存</button>' +
+            '<button class="save-new-client-btn btn-add" style="font-size:0.75rem;padding:6px 16px;background:var(--accent-btn);color:white;border:none;border-radius:6px;font-weight:700;">保存</button>' +
             '<button class="cancel-new-client-btn btn-add" style="font-size:0.75rem;padding:6px 16px;background:var(--btn-bg);color:var(--text-soft);border:1px solid var(--card-border);border-radius:6px;font-weight:700;">取消</button>' +
           '</div>';
 
