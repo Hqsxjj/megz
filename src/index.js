@@ -3154,10 +3154,10 @@ export default {
       --text-main: #191919;
       --text-soft: #5e5e5e;
       --text-light: #8e8e8e;
-      --accent-wechat: #5BB8F0;
-      --accent-intent: #5BB8F0;
-      --accent-wechat-bg: #EDF7FD;
-      --accent-intent-bg: #EDF7FD;
+      --accent-wechat: #34D399;
+      --accent-intent: #FB8C00;
+      --accent-wechat-bg: #ECFDF5;
+      --accent-intent-bg: #FFF8F0;
       --accent-btn: rgba(91,184,240,0.4);
       --btn-bg: rgba(255,255,255,0.7);
       --btn-hover: #e5e5e5;
@@ -3172,7 +3172,7 @@ export default {
       --radius-ios: 10px;
       --radius-sm: 8px;
       --radius-xs: 6px;
-      --wechat-gradient: linear-gradient(135deg, #D4EEFD 0%, #9BD5F8 50%, #5BB8F0 100%);
+      --wechat-gradient: linear-gradient(135deg, #C8F5D8 0%, #7EE8A0 50%, #34D399 100%);
       --intent-gradient: linear-gradient(135deg, #FFE8C0 0%, #FFC870 50%, #FF9500 100%);
       --revisit-gradient: linear-gradient(135deg, #C8D8FF 0%, #7B9FF5 50%, #4A6CF7 100%);
       --visit-gradient: linear-gradient(135deg, #c8e6c9 0%, #66bb6a 50%, #388e3c 100%);
@@ -3189,10 +3189,10 @@ export default {
       --text-main: #e5e5e5;
       --text-soft: #a0a0a0;
       --text-light: #6b6b6b;
-      --accent-wechat: #7DC8F5;
-      --accent-intent: #7DC8F5;
-      --accent-wechat-bg: #1A2E3D;
-      --accent-intent-bg: #1A2E3D;
+      --accent-wechat: #34D399;
+      --accent-intent: #FBA95C;
+      --accent-wechat-bg: #064E3B;
+      --accent-intent-bg: #3D2A18;
       --accent-btn: rgba(125,200,245,0.35);
       --btn-bg: rgba(255,255,255,0.15);
       --btn-hover: #2c2c2c;
@@ -3203,7 +3203,7 @@ export default {
       --tooltip-text: #111111;
       --modal-bg: rgba(0,0,0,0.4);
       --modal-card: rgba(20,20,20,0.4);
-      --wechat-gradient: linear-gradient(135deg, #152E40 0%, #1E4860 50%, #2A6890 100%);
+      --wechat-gradient: linear-gradient(135deg, #0D3320 0%, #144D2E 50%, #1A6B3A 100%);
       --intent-gradient: linear-gradient(135deg, #3D2818 0%, #5D3A1C 50%, #804D20 100%);
       --revisit-gradient: linear-gradient(135deg, #1C2840 0%, #2A3D60 50%, #3A5280 100%);
       --visit-gradient: linear-gradient(135deg, #1b3320 0%, #2d5a30 50%, #3d7a40 100%);
@@ -3350,9 +3350,9 @@ export default {
     .btn-special { background: rgba(255,255,255,0.6); }
     .stats-row { display: flex; gap: 10px; }
     .stat-block { flex: 1; text-align: center; border-radius: var(--radius-sm); padding: 10px 4px; border: 1px solid var(--card-border); color: white; text-shadow: 0 1px 2px rgba(0,0,0,0.1); box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
-    .stat-wechat { background: rgba(91,184,240,0.5); }
-    .stat-intent { background: rgba(255,149,0,0.45); }
-    .stat-revisit { background: rgba(74,108,247,0.45); }
+    .stat-wechat { background: rgba(52,211,153,0.4); }
+    .stat-intent { background: rgba(255,149,0,0.4); }
+    .stat-revisit { background: rgba(74,108,247,0.35); }
     .stat-block .label { font-size: 0.7rem; font-weight: 600; opacity: 0.9; }
     .stat-block .number { font-size: 1.35rem; font-weight: 800; margin-left: 4px; }
     .calendar-compact { padding: 10px 12px; }
