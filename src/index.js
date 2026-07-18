@@ -3265,8 +3265,6 @@ export default {
     body.dark-mode .goal-chip.goal-met { background: rgba(255,255,255,0.3); color: #2ecc71; }
     body.dark-mode .goal-chip.goal-half { background: rgba(245,124,0,0.12); color: #f0a04b; }
     body.dark-mode .goal-chip.goal-low { background: rgba(74,108,247,0.1); color: #7b9ff5; }
-    body.dark-mode .sync-indicator { background: rgba(38,38,38,0.85); border-color: rgba(255,255,255,0.12); color: #e5e5e5; }
-    body.dark-mode .sync-indicator:hover { background: rgba(255,255,255,0.1); box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
     .timer-btn-reset:hover { background: rgba(0,0,0,0.08); }
     .timer-display.completed { animation: pulse 0.6s ease-in-out; }
     @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
@@ -3457,8 +3455,6 @@ export default {
     .export-single-btn { background: none; border: none; font-size: 0.9rem; color: var(--accent-intent); cursor: pointer; width: 28px; height: 28px; border-radius: var(--radius-xs); font-weight: 700; margin-right: 4px; }
     .export-timeline-single-btn { font-size: 0.78rem; background: transparent; border: 1px solid var(--accent-intent); color: var(--accent-intent); border-radius: 50%; cursor: pointer; width: 26px; height: 26px; padding: 0; display: inline-flex; justify-content: center; align-items: center; font-weight: 700; transition: all 0.2s; margin-right: 4px; }
     .export-timeline-single-btn:hover { background: var(--accent-intent); color: #fff; transform: scale(1.1); }
-    .sync-indicator.offline { border-color: rgba(231,76,60,0.6); background: rgba(231,76,60,0.05); }
-    body.dark-mode .sync-indicator.offline { border-color: rgba(231,76,60,0.7); background: rgba(231,76,60,0.1); }
     .client-actions { display: flex; align-items: center; gap: 4px; }
     .todo-list { display: flex; flex-direction: column; gap: 8px; max-height: 200px; overflow-y: auto; }
     .todo-item { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: var(--btn-bg); border-radius: var(--radius-xs); border: 0.5px solid var(--card-border); font-size: 0.8rem; font-weight: 600; color: var(--text-main); }
@@ -3466,20 +3462,6 @@ export default {
     .todo-text { flex: 1; word-break: break-word; line-height: 1.4; }
     .todo-input-row { display: flex; gap: 8px; align-items: center; width: 100%; }
     .todo-del-btn { background: none; border: none; color: #c97a7a; cursor: pointer; font-size: 0.85rem; padding: 0 4px; }
-    .sync-indicator { display: flex; align-items: center; gap: 4px; background: rgba(255,255,255,0.88); border: 1px solid rgba(0,0,0,0.1); color: #191919; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); height: 28px; border-radius: var(--radius-xs); padding: 0 8px; cursor: pointer; font-size: 0.68rem; transition: all 0.2s cubic-bezier(0.34,1.56,0.64,1); user-select: none; font-weight: 700; white-space: nowrap; position: relative; }
-    .sync-indicator:hover { background: rgba(255,255,255,0.4); transform: translateY(-1px); box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
-    .sync-indicator:active { transform: translateY(0px) scale(0.97); }
-    .sync-indicator .sync-icon { font-size: 1rem; display: inline-block; transition: transform 0.3s; }
-    .sync-indicator.syncing .sync-icon { animation: sync-spin 1.2s ease-in-out infinite; }
-    .sync-indicator.synced { border-color: rgba(90,106,126,0.3); }
-    .sync-indicator.pending { border-color: rgba(255,154,60,0.45); }
-    .sync-indicator.error { border-color: rgba(201,122,122,0.5); }
-    .sync-badge { display: inline-flex; align-items: center; justify-content: center; background: rgba(255,154,60,0.85); color: #fff; border-radius: 50%; min-width: 16px; height: 16px; font-size: 0.55rem; font-weight: 800; }
-    .sync-indicator.synced .sync-badge { background: rgba(90,106,126,0.8); }
-    .sync-indicator.error .sync-badge { background: rgba(201,122,122,0.85); }
-    .sync-tooltip { position: absolute; top: calc(100% + 8px); right: 0; background: var(--tooltip-bg); color: var(--tooltip-text); padding: 6px 12px; border-radius: var(--radius-xs); font-size: 0.62rem; white-space: nowrap; box-shadow: 0 4px 12px rgba(0,0,0,0.15); font-weight: 600; opacity: 0; pointer-events: none; transition: opacity 0.15s; z-index: 200; }
-    .sync-indicator:hover .sync-tooltip { opacity: 1; }
-    @keyframes sync-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
     @media (min-width: 761px) {
       .right-area { order: 2; } .left-area { order: 1; }
       .card { padding: 14px 16px; }
@@ -3564,7 +3546,6 @@ export default {
       .todo-add-btn { flex: 1; }
       .client-actions { flex-shrink: 0; }
       .icon-simple { min-width: 28px; height: 28px; font-size: 0.68rem; padding: 0 6px; }
-      .sync-indicator { height: 28px; padding: 0 6px; font-size: 0.65rem; }
       #logBtn { height: 32px !important; padding: 0 8px !important; font-size: 0.72rem !important; }
       .intent-table { font-size: 0.75rem; }
       .intent-table th, .intent-table td { padding: 8px 6px; }
@@ -4175,7 +4156,7 @@ export default {
 <div class="app-shell">
   <div class="container">
     <div class="header-bar">
-      <h3>生活记事录</h3><div class="date-chip" id="liveDate"></div><button class="goal-eye eye-off" id="goalEyeBtn" title="显示目标数字">👁</button><div class="goal-chips" id="goalChips"></div><button class="icon-simple" id="loanCalcBtn" title="贷款利息计算器" style="margin-left:auto">计算器</button><button class="sync-indicator" id="syncBtn" title="点击手动同步"><span class="sync-icon" id="syncIcon">⇅</span><span id="syncLabel">同步中</span><div class="sync-tooltip" id="syncTooltip">正在连接...</div></button><button class="icon-simple" id="allClientsBtn" title="意向客户全量表">全量</button><button class="icon-simple" id="hideBtn" title="一键隐藏 (Ctrl+Z)">锁屏</button><button class="icon-simple" id="menuToggleBtn" title="菜单">≡</button><div class="menu-dropdown" id="menuDropdown"><button class="menu-item" id="logBtn">同步日志</button><button class="menu-item" id="scriptBtn">话术管理</button><button class="menu-item" id="learnBtn">学习管理</button><button class="menu-item" id="exportBtn">导出数据</button><button class="menu-item" id="goalBtn">目标设定</button><button class="menu-item" id="whitelistMenuBtn">白名单管理</button><button class="menu-item" id="darkToggleBtn">深色模式</button></div>
+      <h3>生活记事录</h3><div class="date-chip" id="liveDate"></div><button class="goal-eye eye-off" id="goalEyeBtn" title="显示目标数字">👁</button><div class="goal-chips" id="goalChips"></div><button class="icon-simple" id="loanCalcBtn" title="贷款利息计算器" style="margin-left:auto">计算器</button><button class="icon-simple" id="allClientsBtn" title="意向客户全量表">全量</button><button class="icon-simple" id="hideBtn" title="一键隐藏 (Ctrl+Z)">锁屏</button><button class="icon-simple" id="menuToggleBtn" title="菜单">≡</button><div class="menu-dropdown" id="menuDropdown"><button class="menu-item" id="logBtn">同步日志</button><button class="menu-item" id="scriptBtn">话术管理</button><button class="menu-item" id="learnBtn">学习管理</button><button class="menu-item" id="exportBtn">导出数据</button><button class="menu-item" id="goalBtn">目标设定</button><button class="menu-item" id="whitelistMenuBtn">白名单管理</button><button class="menu-item" id="darkToggleBtn">深色模式</button></div>
     </div>
     <div class="two-columns">
       <div class="left-area">
@@ -7561,24 +7542,7 @@ export default {
   document.getElementById('wechatPlus').addEventListener('click',()=>modCounter(WECHAT_K,1,'incWechat'));
   document.getElementById('wechatMinus').addEventListener('click',()=>modCounter(WECHAT_K,-1,'incWechat'));
   document.getElementById('revisitPlus').addEventListener('click',()=>modCounter(REVISIT_K,1,'incRevisit'));
-  document.getElementById('revisitMinus').addEventListener('click',()=>modCounter(REVISIT_K,-1,'incRevisit'));  const syncBtn = document.getElementById('syncBtn');
-  if(syncBtn){
-    syncBtn.addEventListener('click',async()=>{
-      _syncStatus='syncing';updateSyncIndicator();
-      calendarMonth=getCurrentMonth();
-      try{
-        await drainQueue();
-        await saveFullState(true);
-        await pullLatest();
-        await syncAllClientsFromCloud();
-        await syncCalendarFromCloud();
-        refreshAll();
-      }catch(e){
-        _syncStatus='error';
-      }
-      updateSyncIndicator();
-    });
-  }
+  document.getElementById('revisitMinus').addEventListener('click',()=>modCounter(REVISIT_K,-1,'incRevisit'));
   document.getElementById('addClientBtn').addEventListener('click',addClient);
   // Status selector: toggle conditional fields
   document.getElementById('custStatus').addEventListener('change', function() {
