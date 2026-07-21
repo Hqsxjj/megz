@@ -2790,147 +2790,55 @@ export default {
       });
     }
 
-    // 账号认证 - 代理到 Supabase GoTrue
-    if (path === '/api/auth/signup' && request.method === 'POST') {
+    // 账号认证 - KV 存储（单用户账号密码）
+    async function authHash(s) {
+      const d = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s));
+      return Array.from(new Uint8Array(d)).map(function(b){return b.toString(16).padStart(2,'0');}).join('');
+    }
+    function authToken() {
+      var arr = new Uint8Array(32);
+      crypto.getRandomValues(arr);
+      return Array.from(arr).map(function(b){return b.toString(16).padStart(2,'0');}).join('');
+    }
+    if (path === '/api/auth/setup' && request.method === 'POST') {
       try {
-        const body = await request.json();
-        const email = body.email, password = body.password;
-        // 尝试 Admin API 创建用户（自动确认邮箱）
-        let r = await fetch(env.SUPABASE_URL + '/auth/v1/admin/users', {
-          method: 'POST',
-          headers: {
-            'apikey': env.SUPABASE_KEY,
-            'Authorization': 'Bearer ' + env.SUPABASE_KEY,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ email, password, email_confirm: true })
-        });
-        let d = await r.json();
-        // 用户已存在（之前的注册可能未确认邮箱）
-        if (!r.ok && d.msg && d.msg.indexOf('already') >= 0) {
-          // 查找已有用户 ID
-          const listR = await fetch(env.SUPABASE_URL + '/auth/v1/admin/users?per_page=100', {
-            headers: { 'apikey': env.SUPABASE_KEY, 'Authorization': 'Bearer ' + env.SUPABASE_KEY }
-          });
-          const listD = await listR.json();
-          const users = listD.users || listD || [];
-          const found = users.find(u => u.email === email);
-          if (found) {
-            // 确认邮箱
-            await fetch(env.SUPABASE_URL + '/auth/v1/admin/users/' + found.id, {
-              method: 'PUT',
-              headers: {
-                'apikey': env.SUPABASE_KEY,
-                'Authorization': 'Bearer ' + env.SUPABASE_KEY,
-                'Content-Type': 'application/json'
-              },
-              body: JSON.stringify({ email_confirm: true })
-            });
-          }
-        }
-        // 登录获取 token
-        const loginR = await fetch(env.SUPABASE_URL + '/auth/v1/token?grant_type=password', {
-          method: 'POST',
-          headers: { 'apikey': env.SUPABASE_KEY, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password })
-        });
-        const loginD = await loginR.json();
-        return new Response(JSON.stringify(loginD), {
-          status: loginR.status,
-          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-        });
-      } catch (e) {
-        return new Response(JSON.stringify({ error: e.message }), {
-          status: 500,
-          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-        });
-      }
+        var body = await request.json();
+        var existing = await env.DATA_KV.get('config:account_name');
+        if (existing) return new Response(JSON.stringify({error:'账号已存在，请直接登录'}), {status:400,headers:{'Content-Type':'application/json','Access-Control-Allow-Origin':'*'}});
+        await env.DATA_KV.put('config:account_name', body.username);
+        await env.DATA_KV.put('config:account_hash', await authHash(body.password));
+        var token = authToken();
+        await env.DATA_KV.put('auth:session:' + token, JSON.stringify({username:body.username,created_at:Date.now()}));
+        return new Response(JSON.stringify({access_token:token,username:body.username}), {headers:{'Content-Type':'application/json','Access-Control-Allow-Origin':'*'}});
+      } catch(e) { return new Response(JSON.stringify({error:e.message}), {status:500,headers:{'Content-Type':'application/json','Access-Control-Allow-Origin':'*'}}); }
     }
     if (path === '/api/auth/login' && request.method === 'POST') {
       try {
-        const body = await request.json();
-        const email = body.email, password = body.password;
-        let r = await fetch(env.SUPABASE_URL + '/auth/v1/token?grant_type=password', {
-          method: 'POST',
-          headers: { 'apikey': env.SUPABASE_KEY, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password })
-        });
-        let d = await r.json();
-        // 如果邮箱未确认，用 Admin API 确认后再重试登录
-        if (!r.ok && d.error === 'Email not confirmed') {
-          const listR = await fetch(env.SUPABASE_URL + '/auth/v1/admin/users?per_page=100', {
-            headers: { 'apikey': env.SUPABASE_KEY, 'Authorization': 'Bearer ' + env.SUPABASE_KEY }
-          });
-          const listD = await listR.json();
-          const users = listD.users || listD || [];
-          const found = users.find(u => u.email === email);
-          if (found) {
-            await fetch(env.SUPABASE_URL + '/auth/v1/admin/users/' + found.id, {
-              method: 'PUT',
-              headers: {
-                'apikey': env.SUPABASE_KEY,
-                'Authorization': 'Bearer ' + env.SUPABASE_KEY,
-                'Content-Type': 'application/json'
-              },
-              body: JSON.stringify({ email_confirm: true })
-            });
-            // 重试登录
-            r = await fetch(env.SUPABASE_URL + '/auth/v1/token?grant_type=password', {
-              method: 'POST',
-              headers: { 'apikey': env.SUPABASE_KEY, 'Content-Type': 'application/json' },
-              body: JSON.stringify({ email, password })
-            });
-            d = await r.json();
-          }
-        }
-        return new Response(JSON.stringify(d), {
-          status: r.status,
-          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-        });
-      } catch (e) {
-        return new Response(JSON.stringify({ error: e.message }), {
-          status: 500,
-          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-        });
-      }
-    }
-    if (path === '/api/auth/refresh' && request.method === 'POST') {
-      try {
-        const body = await request.json();
-        const r = await fetch(env.SUPABASE_URL + '/auth/v1/token?grant_type=refresh_token', {
-          method: 'POST',
-          headers: { 'apikey': env.SUPABASE_KEY, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ refresh_token: body.refresh_token })
-        });
-        const d = await r.json();
-        return new Response(JSON.stringify(d), {
-          status: r.status,
-          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-        });
-      } catch (e) {
-        return new Response(JSON.stringify({ error: e.message }), {
-          status: 500,
-          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-        });
-      }
+        var body = await request.json();
+        var name = await env.DATA_KV.get('config:account_name');
+        var hash = await env.DATA_KV.get('config:account_hash');
+        if (!name || body.username !== name) return new Response(JSON.stringify({error:'账号不存在'}), {status:401,headers:{'Content-Type':'application/json','Access-Control-Allow-Origin':'*'}});
+        if ((await authHash(body.password)) !== hash) return new Response(JSON.stringify({error:'密码错误'}), {status:401,headers:{'Content-Type':'application/json','Access-Control-Allow-Origin':'*'}});
+        var token = authToken();
+        await env.DATA_KV.put('auth:session:' + token, JSON.stringify({username:name,created_at:Date.now()}));
+        return new Response(JSON.stringify({access_token:token,username:name}), {headers:{'Content-Type':'application/json','Access-Control-Allow-Origin':'*'}});
+      } catch(e) { return new Response(JSON.stringify({error:e.message}), {status:500,headers:{'Content-Type':'application/json','Access-Control-Allow-Origin':'*'}}); }
     }
     if (path === '/api/auth/user' && request.method === 'GET') {
       try {
-        const auth = request.headers.get('Authorization') || '';
-        const r = await fetch(env.SUPABASE_URL + '/auth/v1/user', {
-          headers: { 'apikey': env.SUPABASE_KEY, 'Authorization': auth }
-        });
-        const d = await r.json();
-        return new Response(JSON.stringify(d), {
-          status: r.status,
-          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-        });
-      } catch (e) {
-        return new Response(JSON.stringify({ error: e.message }), {
-          status: 500,
-          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-        });
-      }
+        var auth = (request.headers.get('Authorization') || '').replace('Bearer ','');
+        if (!auth) return new Response(JSON.stringify({error:'no token'}), {status:401,headers:{'Content-Type':'application/json','Access-Control-Allow-Origin':'*'}});
+        var session = await env.DATA_KV.get('auth:session:' + auth);
+        if (!session) return new Response(JSON.stringify({error:'invalid token'}), {status:401,headers:{'Content-Type':'application/json','Access-Control-Allow-Origin':'*'}});
+        return new Response(session, {headers:{'Content-Type':'application/json','Access-Control-Allow-Origin':'*'}});
+      } catch(e) { return new Response(JSON.stringify({error:e.message}), {status:500,headers:{'Content-Type':'application/json','Access-Control-Allow-Origin':'*'}}); }
+    }
+    if (path === '/api/auth/logout' && request.method === 'POST') {
+      try {
+        var auth = (request.headers.get('Authorization') || '').replace('Bearer ','');
+        if (auth) await env.DATA_KV.delete('auth:session:' + auth);
+        return new Response(JSON.stringify({ok:true}), {headers:{'Content-Type':'application/json','Access-Control-Allow-Origin':'*'}});
+      } catch(e) { return new Response(JSON.stringify({error:e.message}), {status:500,headers:{'Content-Type':'application/json','Access-Control-Allow-Origin':'*'}}); }
     }
 
     // 获取全量意向客户
@@ -4393,16 +4301,16 @@ export default {
   <div class="auth-box">
     <h3 class="auth-title">生活记事录</h3>
     <div class="auth-form" id="authFormLogin">
-      <input type="email" class="auth-input" id="authEmail" placeholder="邮箱" autocomplete="email">
+      <input type="text" class="auth-input" id="authUsername" placeholder="账号" autocomplete="username">
       <input type="password" class="auth-input" id="authPassword" placeholder="密码" autocomplete="current-password">
       <button class="auth-btn" id="authLoginBtn">登录</button>
-      <div class="auth-switch">没有账号？<a id="authSwitchRegister">注册</a></div>
+      <div class="auth-switch">没有账号？<a id="authSwitchRegister">创建账号</a></div>
     </div>
     <div class="auth-form" id="authFormRegister" style="display:none">
-      <input type="email" class="auth-input" id="authRegEmail" placeholder="邮箱" autocomplete="email">
-      <input type="password" class="auth-input" id="authRegPassword" placeholder="密码（至少6位）" autocomplete="new-password">
+      <input type="text" class="auth-input" id="authRegUsername" placeholder="设置账号" autocomplete="username">
+      <input type="password" class="auth-input" id="authRegPassword" placeholder="设置密码（至少4位）" autocomplete="new-password">
       <input type="password" class="auth-input" id="authRegPassword2" placeholder="确认密码" autocomplete="new-password">
-      <button class="auth-btn" id="authRegisterBtn">注册</button>
+      <button class="auth-btn" id="authRegisterBtn">创建账号</button>
       <div class="auth-switch">已有账号？<a id="authSwitchLogin">登录</a></div>
     </div>
     <div class="auth-error" id="authError"></div>
@@ -7085,19 +6993,19 @@ export default {
   }
 
   // ==================== 账号认证 ====================
-  const AUTH_TOKEN_K='auth_token',AUTH_REFRESH_K='auth_refresh_token',AUTH_EMAIL_K='auth_email';
+  const AUTH_TOKEN_K='auth_token',AUTH_USER_K='auth_user';
   function showAuthGate(){
     document.body.classList.add('page-auth');
     document.body.classList.remove('page-hidden');
     document.getElementById('authError').innerText='';
-    document.getElementById('authEmail').value='';
+    document.getElementById('authUsername').value='';
     document.getElementById('authPassword').value='';
-    document.getElementById('authRegEmail').value='';
+    document.getElementById('authRegUsername').value='';
     document.getElementById('authRegPassword').value='';
     document.getElementById('authRegPassword2').value='';
     document.getElementById('authFormLogin').style.display='flex';
     document.getElementById('authFormRegister').style.display='none';
-    setTimeout(function(){document.getElementById('authEmail').focus();},100);
+    setTimeout(function(){document.getElementById('authUsername').focus();},100);
   }
   function hideAuthGate(){
     document.body.classList.remove('page-auth');
@@ -7106,21 +7014,20 @@ export default {
     document.getElementById('authError').innerText=msg;
     setTimeout(function(){document.getElementById('authError').innerText='';},5000);
   }
-  async function doLogin(email,password){
-    if(!email||!password){setAuthError('请输入邮箱和密码');return;}
+  async function doLogin(username,password){
+    if(!username||!password){setAuthError('请输入账号和密码');return;}
     var btn=document.getElementById('authLoginBtn');
     btn.disabled=true;btn.innerText='登录中...';
     try{
       var r=await fetch('/api/auth/login',{
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({email:email,password:password})
+        body:JSON.stringify({username:username,password:password})
       });
       var d=await r.json();
       if(r.ok&&d.access_token){
         localStorage.setItem(AUTH_TOKEN_K,d.access_token);
-        localStorage.setItem(AUTH_REFRESH_K,d.refresh_token);
-        localStorage.setItem(AUTH_EMAIL_K,email);
+        localStorage.setItem(AUTH_USER_K,username);
         hideAuthGate();
         localStorage.setItem(UNLOCK_TS_K,Date.now());
         setLocked(false);
@@ -7128,28 +7035,27 @@ export default {
         initWp();
         initSync();
       }else{
-        setAuthError(d.error_description||d.msg||d.error||'登录失败，请检查邮箱和密码');
+        setAuthError(d.error||'登录失败');
       }
     }catch(e){setAuthError('网络错误，请重试');}
     btn.disabled=false;btn.innerText='登录';
   }
-  async function doRegister(email,password,password2){
-    if(!email||!password){setAuthError('请输入邮箱和密码');return;}
-    if(password.length<6){setAuthError('密码至少6位');return;}
+  async function doRegister(username,password,password2){
+    if(!username||!password){setAuthError('请输入账号和密码');return;}
+    if(password.length<4){setAuthError('密码至少4位');return;}
     if(password!==password2){setAuthError('两次密码不一致');return;}
     var btn=document.getElementById('authRegisterBtn');
-    btn.disabled=true;btn.innerText='注册中...';
+    btn.disabled=true;btn.innerText='创建中...';
     try{
-      var r=await fetch('/api/auth/signup',{
+      var r=await fetch('/api/auth/setup',{
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({email:email,password:password})
+        body:JSON.stringify({username:username,password:password})
       });
       var d=await r.json();
       if(r.ok&&d.access_token){
         localStorage.setItem(AUTH_TOKEN_K,d.access_token);
-        localStorage.setItem(AUTH_REFRESH_K,d.refresh_token);
-        localStorage.setItem(AUTH_EMAIL_K,email);
+        localStorage.setItem(AUTH_USER_K,username);
         hideAuthGate();
         localStorage.setItem(UNLOCK_TS_K,Date.now());
         setLocked(false);
@@ -7157,19 +7063,16 @@ export default {
         initWp();
         initSync();
       }else{
-        var errMsg=d.msg||d.error||'注册失败';
-        if(errMsg.indexOf('already')>=0||errMsg.indexOf('registered')>=0||errMsg.indexOf('exists')>=0||errMsg.indexOf('已注册')>=0||errMsg.indexOf('duplicate')>=0){
-          errMsg='该邮箱已注册，请直接登录';
-        }
-        setAuthError(errMsg);
+        setAuthError(d.error||'创建失败');
       }
     }catch(e){setAuthError('网络错误，请重试');}
-    btn.disabled=false;btn.innerText='注册';
+    btn.disabled=false;btn.innerText='创建账号';
   }
   function doLogout(){
+    var token=localStorage.getItem(AUTH_TOKEN_K);
+    if(token){fetch('/api/auth/logout',{method:'POST',headers:{'Authorization':'Bearer '+token}}).catch(function(){});}
     localStorage.removeItem(AUTH_TOKEN_K);
-    localStorage.removeItem(AUTH_REFRESH_K);
-    localStorage.removeItem(AUTH_EMAIL_K);
+    localStorage.removeItem(AUTH_USER_K);
     localStorage.removeItem('unlock_ts');
     document.body.classList.remove('page-journal','page-auth');
     var lb=document.getElementById('loginBtn');if(lb)lb.style.display='';
@@ -7181,21 +7084,7 @@ export default {
     if(!token)return false;
     try{
       var r=await fetch('/api/auth/user',{headers:{'Authorization':'Bearer '+token}});
-      if(r.ok)return true;
-      var refresh=localStorage.getItem(AUTH_REFRESH_K);
-      if(!refresh)return false;
-      var rr=await fetch('/api/auth/refresh',{
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({refresh_token:refresh})
-      });
-      if(rr.ok){
-        var d=await rr.json();
-        localStorage.setItem(AUTH_TOKEN_K,d.access_token);
-        localStorage.setItem(AUTH_REFRESH_K,d.refresh_token);
-        return true;
-      }
-      return false;
+      return r.ok;
     }catch(e){return false;}
   }
 
@@ -7397,7 +7286,7 @@ export default {
     var h='<div class="journal-card">';
     h+='<div class="section-title">设置</div>';
     h+='<div style="display:flex;flex-direction:column;gap:12px;margin-top:8px">';
-    h+='<div style="padding:10px 0;color:var(--text-soft)">账号：'+ (localStorage.getItem(AUTH_EMAIL_K)||'') + '</div>';
+    h+='<div style="padding:10px 0;color:var(--text-soft)">账号：'+ (localStorage.getItem(AUTH_USER_K)||'') + '</div>';
     h+='<button class="journal-act-btn" style="color:#e74c3c;border-color:#e74c3c;width:fit-content" id="journalSettingsLogout">退出登录</button>';
     h+='</div></div>';
     main.innerHTML=h;
@@ -9387,26 +9276,26 @@ export default {
   })();
   // 账号认证 — 绑定按钮事件
   document.getElementById('authLoginBtn').addEventListener('click',function(){
-    doLogin(document.getElementById('authEmail').value.trim(),document.getElementById('authPassword').value);
+    doLogin(document.getElementById('authUsername').value.trim(),document.getElementById('authPassword').value);
   });
-  document.getElementById('authPassword').addEventListener('keydown',function(e){if(e.key==='Enter')doLogin(document.getElementById('authEmail').value.trim(),document.getElementById('authPassword').value);});
+  document.getElementById('authPassword').addEventListener('keydown',function(e){if(e.key==='Enter')doLogin(document.getElementById('authUsername').value.trim(),document.getElementById('authPassword').value);});
   document.getElementById('authRegisterBtn').addEventListener('click',function(){
-    doRegister(document.getElementById('authRegEmail').value.trim(),document.getElementById('authRegPassword').value,document.getElementById('authRegPassword2').value);
+    doRegister(document.getElementById('authRegUsername').value.trim(),document.getElementById('authRegPassword').value,document.getElementById('authRegPassword2').value);
   });
-  document.getElementById('authRegPassword2').addEventListener('keydown',function(e){if(e.key==='Enter')doRegister(document.getElementById('authRegEmail').value.trim(),document.getElementById('authRegPassword').value,document.getElementById('authRegPassword2').value);});
+  document.getElementById('authRegPassword2').addEventListener('keydown',function(e){if(e.key==='Enter')doRegister(document.getElementById('authRegUsername').value.trim(),document.getElementById('authRegPassword').value,document.getElementById('authRegPassword2').value);});
   document.getElementById('authSwitchRegister').addEventListener('click',function(){
     document.getElementById('authFormLogin').style.display='none';
     document.getElementById('authFormRegister').style.display='flex';
     document.getElementById('authError').innerText='';
-    document.getElementById('authRegEmail').value=document.getElementById('authEmail').value;
-    setTimeout(function(){document.getElementById('authRegEmail').focus();},100);
+    document.getElementById('authRegUsername').value=document.getElementById('authUsername').value;
+    setTimeout(function(){document.getElementById('authRegUsername').focus();},100);
   });
   document.getElementById('authSwitchLogin').addEventListener('click',function(){
     document.getElementById('authFormRegister').style.display='none';
     document.getElementById('authFormLogin').style.display='flex';
     document.getElementById('authError').innerText='';
-    document.getElementById('authEmail').value=document.getElementById('authRegEmail').value;
-    setTimeout(function(){document.getElementById('authEmail').focus();},100);
+    document.getElementById('authUsername').value=document.getElementById('authRegUsername').value;
+    setTimeout(function(){document.getElementById('authUsername').focus();},100);
   });
 
   setInterval(()=>{if(!document.body.classList.contains('page-hidden')&&!document.hidden)refreshAll();},60000);
