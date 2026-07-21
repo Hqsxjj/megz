@@ -2767,35 +2767,22 @@ export default {
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
       });
     }
-    // 壁纸代理 - 国风动漫
+    // 壁纸代理 - 国风动漫 / 二次元
+    // 注: birdpaper 已移除，因其仅支持 HTTP，Cloudflare Workers 禁止 outbound HTTP 请求。
     if (path === '/api/wallpaper' && request.method === 'GET') {
-      const WALLPAPER_FALLBACKS = [
+      const ALL = [
+        'https://t.alcy.cc/',                       // 次元动漫 PC 横屏
+        'https://t.alcy.cc/mp/',                     // 次元动漫 移动竖屏
+        'https://api.dujin.org/pic/yuanshen/',       // 原神 国漫
+        'https://api.paugram.com/wallpaper/',        // 保罗二次元
         'https://www.loliapi.com/acg/pe/',
         'https://www.loliapi.com/acg/',
         'https://t.mwm.moe/mp'
       ];
-      try {
-        // 随机选一页国漫壁纸
-        const page = Math.floor(Math.random() * 200) + 1;
-        const apiUrl = 'http://wp.birdpaper.com.cn/intf/GetListByHotTag?tag=国漫&pageno=' + page + '&count=20';
-        const r = await fetch(apiUrl, { headers: { 'User-Agent': 'Mozilla/5.0' } });
-        if (r.ok) {
-          const d = await r.json();
-          if (d.data && d.data.list && d.data.list.length > 0) {
-            const item = d.data.list[Math.floor(Math.random() * d.data.list.length)];
-            let imgUrl = item.url.replace(/^http:/, 'https:');
-            return new Response(JSON.stringify({ url: imgUrl }), {
-              headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-            });
-          }
-        }
-        throw new Error('birdpaper empty');
-      } catch (e) {
-        const fb = WALLPAPER_FALLBACKS[Math.floor(Math.random() * WALLPAPER_FALLBACKS.length)];
-        return new Response(JSON.stringify({ url: fb }), {
-          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-        });
-      }
+      const url = ALL[Math.floor(Math.random() * ALL.length)];
+      return new Response(JSON.stringify({ url }), {
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+      });
     }
 
     // 获取全量意向客户
@@ -6838,7 +6825,7 @@ export default {
   }
 
   // ==================== 壁纸 ====================
-  const FW=["https://www.loliapi.com/acg/pe/","https://www.loliapi.com/acg/","https://t.mwm.moe/mp"];
+  const FW=["https://t.alcy.cc/","https://t.alcy.cc/mp/","https://api.dujin.org/pic/yuanshen/","https://api.paugram.com/wallpaper/","https://www.loliapi.com/acg/pe/","https://www.loliapi.com/acg/","https://t.mwm.moe/mp"];
   function getWpCache(){try{const c=JSON.parse(localStorage.getItem(WALLPAPER_K));if(c&&c.date===getTodayStr()&&c.url)return c;}catch(e){}return null;}
   function saveWpCache(url){localStorage.setItem(WALLPAPER_K,JSON.stringify({date:getTodayStr(),url}));}
   function rndWp(){return FW[Math.floor(Math.random()*FW.length)];}
