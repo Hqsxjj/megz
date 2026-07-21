@@ -4426,7 +4426,7 @@ export default {
 <div class="app-shell">
   <div class="container">
     <div class="header-bar">
-      <h3>生活记事录</h3><div class="date-chip" id="liveDate"></div><button class="goal-eye eye-off" id="goalEyeBtn" title="显示目标数字">👁</button><div class="goal-chips" id="goalChips"></div><button class="icon-simple" id="loanCalcBtn" title="贷款利息计算器" style="margin-left:auto">计算器</button><button class="icon-simple" id="allClientsBtn" title="意向客户全量表">全量</button><button class="icon-simple" id="hideBtn" title="一键隐藏 (Ctrl+Z)">锁屏</button><button class="icon-simple" id="menuToggleBtn" title="菜单">≡</button><div class="menu-dropdown" id="menuDropdown"><button class="menu-item" id="logBtn">同步日志</button><button class="menu-item" id="scriptBtn">话术管理</button><button class="menu-item" id="learnBtn">学习管理</button><button class="menu-item" id="exportBtn">导出数据</button><button class="menu-item" id="goalBtn">目标设定</button><button class="menu-item" id="whitelistMenuBtn">白名单管理</button><button class="menu-item" id="darkToggleBtn">深色模式</button><button class="menu-item" id="logoutMenuBtn" style="color:#e74c3c">退出登录</button></div>
+      <h3>生活记事录</h3><div class="date-chip" id="liveDate"></div><button class="goal-eye eye-off" id="goalEyeBtn" title="显示目标数字">👁</button><div class="goal-chips" id="goalChips"></div><button class="icon-simple" id="loanCalcBtn" title="贷款利息计算器" style="margin-left:auto">计算器</button><button class="icon-simple" id="allClientsBtn" title="意向客户全量表">全量</button><button class="icon-simple" id="loginBtn" title="账号登录" style="display:none;">登录</button><button class="icon-simple" id="hideBtn" title="一键隐藏 (Ctrl+Z)">锁屏</button><button class="icon-simple" id="menuToggleBtn" title="菜单">≡</button><div class="menu-dropdown" id="menuDropdown"><button class="menu-item" id="logBtn">同步日志</button><button class="menu-item" id="scriptBtn">话术管理</button><button class="menu-item" id="learnBtn">学习管理</button><button class="menu-item" id="exportBtn">导出数据</button><button class="menu-item" id="goalBtn">目标设定</button><button class="menu-item" id="whitelistMenuBtn">白名单管理</button><button class="menu-item" id="darkToggleBtn">深色模式</button><button class="menu-item" id="logoutMenuBtn" style="color:#e74c3c">退出登录</button></div>
     </div>
     <div class="two-columns">
       <div class="left-area">
@@ -7160,8 +7160,10 @@ export default {
     localStorage.removeItem(AUTH_REFRESH_K);
     localStorage.removeItem(AUTH_EMAIL_K);
     localStorage.removeItem('unlock_ts');
-    setLocked(true);
-    showAuthGate();
+    document.body.classList.remove('page-journal','page-auth');
+    var lb=document.getElementById('loginBtn');if(lb)lb.style.display='';
+    setLocked(false);
+    refreshAll();
   }
   async function checkAuth(){
     var token=localStorage.getItem(AUTH_TOKEN_K);
@@ -7201,6 +7203,8 @@ export default {
     document.body.classList.remove('page-auth');
     var u=document.getElementById('journalUser');
     if(u)u.textContent=localStorage.getItem(AUTH_EMAIL_K)||'';
+    var lb=document.getElementById('loginBtn');if(lb)lb.style.display='none';
+    initJournal();
     loadJournalFromCloud(getTodayStr());
   }
 
@@ -9206,17 +9210,17 @@ export default {
   })();
   const UNLOCK_TS_K='unlock_ts';
   (async function(){
-    // 0. 先检查账号认证
-    if(!(await checkAuth())){
-      showAuthGate();
-      initWp();
-      return;
+    // 静默检查认证：已登录 → 日记页，未登录 → 旧主界面
+    var authed=await checkAuth();
+    var unlocked=(Date.now()-parseInt(localStorage.getItem(UNLOCK_TS_K)||'0'))<3600000;
+    if(authed){
+      if(unlocked){setLocked(false);showJournalShell();}else{setLocked(true);}
+    }else{
+      if(unlocked){setLocked(false);}else{setLocked(true);}
     }
-    // 认证通过，检查 PIN 锁屏状态
-    if((Date.now()-parseInt(localStorage.getItem(UNLOCK_TS_K)||'0'))<3600000){setLocked(false);showJournalShell();}else{setLocked(true);}
+    initWp();
     var _savedUntil=parseInt(localStorage.getItem('pin_lockout_until')||'0');
     if(_savedUntil>Date.now()){setTimeout(function(){startPinCooldown(Math.ceil((_savedUntil-Date.now())/1000));},200);}
-    initJournal();
     // 首次加载：先补发上次未完成的操作，再从云端拉取最新状态
     (async()=>{
     try {
@@ -9334,6 +9338,9 @@ export default {
     navigator.sendBeacon('/api/data',new Blob([payload],{type:'application/json'}));
   });
 })();
+  // 登录按钮（旧界面顶栏）
+  var loginBtn=document.getElementById('loginBtn');
+  if(loginBtn){loginBtn.addEventListener('click',function(){showAuthGate();});loginBtn.style.display=localStorage.getItem(AUTH_TOKEN_K)?'none':'';}
   // 退出登录按钮
   var logoutBtn=document.getElementById('logoutMenuBtn');
   if(logoutBtn)logoutBtn.addEventListener('click',function(){if(confirm('确定要退出登录吗？'))doLogout();});
