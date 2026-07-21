@@ -2785,6 +2785,86 @@ export default {
       });
     }
 
+    // 账号认证 - 代理到 Supabase GoTrue
+    if (path === '/api/auth/signup' && request.method === 'POST') {
+      try {
+        const body = await request.json();
+        const r = await fetch(env.SUPABASE_URL + '/auth/v1/signup', {
+          method: 'POST',
+          headers: { 'apikey': env.SUPABASE_KEY, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: body.email, password: body.password })
+        });
+        const d = await r.json();
+        return new Response(JSON.stringify(d), {
+          status: r.status,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ error: e.message }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+    }
+    if (path === '/api/auth/login' && request.method === 'POST') {
+      try {
+        const body = await request.json();
+        const r = await fetch(env.SUPABASE_URL + '/auth/v1/token?grant_type=password', {
+          method: 'POST',
+          headers: { 'apikey': env.SUPABASE_KEY, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: body.email, password: body.password })
+        });
+        const d = await r.json();
+        return new Response(JSON.stringify(d), {
+          status: r.status,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ error: e.message }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+    }
+    if (path === '/api/auth/refresh' && request.method === 'POST') {
+      try {
+        const body = await request.json();
+        const r = await fetch(env.SUPABASE_URL + '/auth/v1/token?grant_type=refresh_token', {
+          method: 'POST',
+          headers: { 'apikey': env.SUPABASE_KEY, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ refresh_token: body.refresh_token })
+        });
+        const d = await r.json();
+        return new Response(JSON.stringify(d), {
+          status: r.status,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ error: e.message }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+    }
+    if (path === '/api/auth/user' && request.method === 'GET') {
+      try {
+        const auth = request.headers.get('Authorization') || '';
+        const r = await fetch(env.SUPABASE_URL + '/auth/v1/user', {
+          headers: { 'apikey': env.SUPABASE_KEY, 'Authorization': auth }
+        });
+        const d = await r.json();
+        return new Response(JSON.stringify(d), {
+          status: r.status,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ error: e.message }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+    }
+
     // 获取全量意向客户
     if (path === '/api/all-clients' && request.method === 'GET') {
       const keys = await getAllKVKeys(env, 'work:');
@@ -3261,6 +3341,24 @@ export default {
     .pin-btn:hover { opacity: 0.9; transform: translateY(-2px); box-shadow: 0 6px 20px rgba(255,255,255,0.6); }
     .pin-btn:active { transform: translateY(0); }
     .pin-error { color: #e74c3c; font-size: 1.26rem; min-height: 24px; font-weight: 600; letter-spacing: 0.5px; }
+    .auth-gate { display: none; position: fixed; inset: 0; background: transparent; z-index: 10000; flex-direction: column; justify-content: center; align-items: center; }
+    body.page-auth .auth-gate { display: flex; }
+    body.page-auth .privacy-mask { display: none; }
+    body.page-auth .app-shell { display: none; }
+    .auth-box { display: flex; flex-direction: column; align-items: center; gap: 20px; background: rgba(255,255,255,0.22); backdrop-filter: blur(50px) saturate(180%); -webkit-backdrop-filter: blur(50px) saturate(180%); padding: 45px 50px; border-radius: 28px; box-shadow: 0 8px 32px rgba(0,0,0,0.12), inset 0 0.5px 0 rgba(255,255,255,0.5); border: 1px solid rgba(255,255,255,0.3); min-width: 380px; max-width: 460px; }
+    body.dark-mode .auth-box { background: rgba(20,20,20,0.4); backdrop-filter: blur(50px) saturate(180%); -webkit-backdrop-filter: blur(50px) saturate(180%); border: 1px solid rgba(255,255,255,0.12); box-shadow: 0 8px 32px rgba(0,0,0,0.35), inset 0 0.5px 0 rgba(255,255,255,0.1); }
+    .auth-title { font-size: 1.5rem; font-weight: 800; color: var(--text-main); letter-spacing: 1px; margin: 0; }
+    .auth-form { display: flex; flex-direction: column; gap: 14px; width: 100%; align-items: center; }
+    .auth-input { width: 100%; padding: 12px 16px; border-radius: 8px; border: 1.5px solid rgba(0,0,0,0.08); background: rgba(255,255,255,0.4); font-size: 1rem; color: var(--text-main); outline: none; transition: all 0.3s; box-sizing: border-box; }
+    body.dark-mode .auth-input { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.1); }
+    .auth-input:focus { background: rgba(255,255,255,0.35); border-color: var(--accent-main); box-shadow: 0 0 0 3px rgba(91,184,240,0.15); }
+    .auth-btn { width: 100%; background: var(--accent-btn); border: none; color: white; padding: 12px 20px; border-radius: 8px; font-weight: 700; cursor: pointer; font-size: 1.05rem; letter-spacing: 1px; transition: all 0.2s; box-shadow: 0 4px 15px rgba(255,255,255,0.7); }
+    .auth-btn:hover { opacity: 0.9; transform: translateY(-2px); box-shadow: 0 6px 20px rgba(255,255,255,0.6); }
+    .auth-btn:active { transform: translateY(0); }
+    .auth-switch { font-size: 0.88rem; color: var(--text-soft); }
+    .auth-switch a { color: var(--accent-main); cursor: pointer; text-decoration: none; font-weight: 600; }
+    .auth-switch a:hover { text-decoration: underline; }
+    .auth-error { color: #e74c3c; font-size: 0.95rem; min-height: 20px; font-weight: 600; text-align: center; }
     .timer-container { position: absolute; top: 18%; left: 50%; margin-left: -160px; width: 320px; z-index: 20000; display: none; cursor: grab; user-select: none; }
     .timer-container.show { display: block; }
     .timer-box { width: 100%; display: flex; flex-direction: column; gap: 12px; align-items: center; background: var(--card-bg); backdrop-filter: blur(25px) saturate(160%); -webkit-backdrop-filter: blur(25px) saturate(160%); padding: 24px 32px; border-radius: var(--radius-ios); box-shadow: 0 4px 20px rgba(0,0,0,0.06); border: 1px solid var(--card-border); }
@@ -4160,6 +4258,25 @@ export default {
     </div>
   </div>
 </div>
+<div class="auth-gate" id="authGate">
+  <div class="auth-box">
+    <h3 class="auth-title">生活记事录</h3>
+    <div class="auth-form" id="authFormLogin">
+      <input type="email" class="auth-input" id="authEmail" placeholder="邮箱" autocomplete="email">
+      <input type="password" class="auth-input" id="authPassword" placeholder="密码" autocomplete="current-password">
+      <button class="auth-btn" id="authLoginBtn">登录</button>
+      <div class="auth-switch">没有账号？<a id="authSwitchRegister">注册</a></div>
+    </div>
+    <div class="auth-form" id="authFormRegister" style="display:none">
+      <input type="email" class="auth-input" id="authRegEmail" placeholder="邮箱" autocomplete="email">
+      <input type="password" class="auth-input" id="authRegPassword" placeholder="密码（至少6位）" autocomplete="new-password">
+      <input type="password" class="auth-input" id="authRegPassword2" placeholder="确认密码" autocomplete="new-password">
+      <button class="auth-btn" id="authRegisterBtn">注册</button>
+      <div class="auth-switch">已有账号？<a id="authSwitchLogin">登录</a></div>
+    </div>
+    <div class="auth-error" id="authError"></div>
+  </div>
+</div>
 <div class="privacy-mask" id="privacyMask">
   <div class="script-container" id="scriptContainer"></div>
   <div class="learn-container" id="learnContainer"></div>
@@ -4177,7 +4294,7 @@ export default {
 <div class="app-shell">
   <div class="container">
     <div class="header-bar">
-      <h3>生活记事录</h3><div class="date-chip" id="liveDate"></div><button class="goal-eye eye-off" id="goalEyeBtn" title="显示目标数字">👁</button><div class="goal-chips" id="goalChips"></div><button class="icon-simple" id="loanCalcBtn" title="贷款利息计算器" style="margin-left:auto">计算器</button><button class="icon-simple" id="allClientsBtn" title="意向客户全量表">全量</button><button class="icon-simple" id="hideBtn" title="一键隐藏 (Ctrl+Z)">锁屏</button><button class="icon-simple" id="menuToggleBtn" title="菜单">≡</button><div class="menu-dropdown" id="menuDropdown"><button class="menu-item" id="logBtn">同步日志</button><button class="menu-item" id="scriptBtn">话术管理</button><button class="menu-item" id="learnBtn">学习管理</button><button class="menu-item" id="exportBtn">导出数据</button><button class="menu-item" id="goalBtn">目标设定</button><button class="menu-item" id="whitelistMenuBtn">白名单管理</button><button class="menu-item" id="darkToggleBtn">深色模式</button></div>
+      <h3>生活记事录</h3><div class="date-chip" id="liveDate"></div><button class="goal-eye eye-off" id="goalEyeBtn" title="显示目标数字">👁</button><div class="goal-chips" id="goalChips"></div><button class="icon-simple" id="loanCalcBtn" title="贷款利息计算器" style="margin-left:auto">计算器</button><button class="icon-simple" id="allClientsBtn" title="意向客户全量表">全量</button><button class="icon-simple" id="hideBtn" title="一键隐藏 (Ctrl+Z)">锁屏</button><button class="icon-simple" id="menuToggleBtn" title="菜单">≡</button><div class="menu-dropdown" id="menuDropdown"><button class="menu-item" id="logBtn">同步日志</button><button class="menu-item" id="scriptBtn">话术管理</button><button class="menu-item" id="learnBtn">学习管理</button><button class="menu-item" id="exportBtn">导出数据</button><button class="menu-item" id="goalBtn">目标设定</button><button class="menu-item" id="whitelistMenuBtn">白名单管理</button><button class="menu-item" id="darkToggleBtn">深色模式</button><button class="menu-item" id="logoutMenuBtn" style="color:#e74c3c">退出登录</button></div>
     </div>
     <div class="two-columns">
       <div class="left-area">
@@ -6824,6 +6941,115 @@ export default {
     await syncOp(isToday?'setTodayTodos':'setTomorrowTodos',{todos:t});
   }
 
+  // ==================== 账号认证 ====================
+  const AUTH_TOKEN_K='auth_token',AUTH_REFRESH_K='auth_refresh_token',AUTH_EMAIL_K='auth_email';
+  function showAuthGate(){
+    document.body.classList.add('page-auth');
+    document.body.classList.remove('page-hidden');
+    document.getElementById('authError').innerText='';
+    document.getElementById('authEmail').value='';
+    document.getElementById('authPassword').value='';
+    document.getElementById('authRegEmail').value='';
+    document.getElementById('authRegPassword').value='';
+    document.getElementById('authRegPassword2').value='';
+    document.getElementById('authFormLogin').style.display='flex';
+    document.getElementById('authFormRegister').style.display='none';
+    setTimeout(function(){document.getElementById('authEmail').focus();},100);
+  }
+  function hideAuthGate(){
+    document.body.classList.remove('page-auth');
+  }
+  function setAuthError(msg){
+    document.getElementById('authError').innerText=msg;
+    setTimeout(function(){document.getElementById('authError').innerText='';},5000);
+  }
+  async function doLogin(email,password){
+    if(!email||!password){setAuthError('请输入邮箱和密码');return;}
+    var btn=document.getElementById('authLoginBtn');
+    btn.disabled=true;btn.innerText='登录中...';
+    try{
+      var r=await fetch('/api/auth/login',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({email:email,password:password})
+      });
+      var d=await r.json();
+      if(r.ok&&d.access_token){
+        localStorage.setItem(AUTH_TOKEN_K,d.access_token);
+        localStorage.setItem(AUTH_REFRESH_K,d.refresh_token);
+        localStorage.setItem(AUTH_EMAIL_K,email);
+        hideAuthGate();
+        setLocked(true);
+        initWp();
+        initSync();
+      }else{
+        setAuthError(d.error_description||d.msg||d.error||'登录失败，请检查邮箱和密码');
+      }
+    }catch(e){setAuthError('网络错误，请重试');}
+    btn.disabled=false;btn.innerText='登录';
+  }
+  async function doRegister(email,password,password2){
+    if(!email||!password){setAuthError('请输入邮箱和密码');return;}
+    if(password.length<6){setAuthError('密码至少6位');return;}
+    if(password!==password2){setAuthError('两次密码不一致');return;}
+    var btn=document.getElementById('authRegisterBtn');
+    btn.disabled=true;btn.innerText='注册中...';
+    try{
+      var r=await fetch('/api/auth/signup',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({email:email,password:password})
+      });
+      var d=await r.json();
+      if(r.ok&&d.access_token){
+        localStorage.setItem(AUTH_TOKEN_K,d.access_token);
+        localStorage.setItem(AUTH_REFRESH_K,d.refresh_token);
+        localStorage.setItem(AUTH_EMAIL_K,email);
+        hideAuthGate();
+        setLocked(true);
+        initWp();
+        initSync();
+      }else{
+        var errMsg=d.msg||d.error||'注册失败';
+        if(errMsg.indexOf('already')>=0||errMsg.indexOf('registered')>=0||errMsg.indexOf('exists')>=0||errMsg.indexOf('已注册')>=0||errMsg.indexOf('duplicate')>=0){
+          errMsg='该邮箱已注册，请直接登录';
+        }
+        setAuthError(errMsg);
+      }
+    }catch(e){setAuthError('网络错误，请重试');}
+    btn.disabled=false;btn.innerText='注册';
+  }
+  function doLogout(){
+    localStorage.removeItem(AUTH_TOKEN_K);
+    localStorage.removeItem(AUTH_REFRESH_K);
+    localStorage.removeItem(AUTH_EMAIL_K);
+    localStorage.removeItem('unlock_ts');
+    setLocked(true);
+    showAuthGate();
+  }
+  async function checkAuth(){
+    var token=localStorage.getItem(AUTH_TOKEN_K);
+    if(!token)return false;
+    try{
+      var r=await fetch('/api/auth/user',{headers:{'Authorization':'Bearer '+token}});
+      if(r.ok)return true;
+      var refresh=localStorage.getItem(AUTH_REFRESH_K);
+      if(!refresh)return false;
+      var rr=await fetch('/api/auth/refresh',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({refresh_token:refresh})
+      });
+      if(rr.ok){
+        var d=await rr.json();
+        localStorage.setItem(AUTH_TOKEN_K,d.access_token);
+        localStorage.setItem(AUTH_REFRESH_K,d.refresh_token);
+        return true;
+      }
+      return false;
+    }catch(e){return false;}
+  }
+
   // ==================== 壁纸 ====================
   const FW=["https://t.alcy.cc/","https://t.alcy.cc/mp/","https://api.dujin.org/pic/yuanshen/","https://api.paugram.com/wallpaper/","https://www.loliapi.com/acg/pe/","https://www.loliapi.com/acg/","https://t.mwm.moe/mp"];
   function getWpCache(){try{const c=JSON.parse(localStorage.getItem(WALLPAPER_K));if(c&&c.date===getTodayStr()&&c.url)return c;}catch(e){}return null;}
@@ -8688,10 +8914,19 @@ export default {
     dropdown.querySelectorAll('.menu-item').forEach(item=>item.addEventListener('click',()=>dropdown.classList.remove('show')));
   })();
   const UNLOCK_TS_K='unlock_ts';
-  if((Date.now()-parseInt(localStorage.getItem(UNLOCK_TS_K)||'0'))<3600000){setLocked(false);}else{setLocked(true);}
-  var _savedUntil=parseInt(localStorage.getItem('pin_lockout_until')||'0');
-  if(_savedUntil>Date.now()){setTimeout(function(){startPinCooldown(Math.ceil((_savedUntil-Date.now())/1000));},200);}  // 首次加载：先补发上次未完成的操作，再从云端拉取最新状态
-  (async()=>{
+  (async function(){
+    // 0. 先检查账号认证
+    if(!(await checkAuth())){
+      showAuthGate();
+      initWp();
+      return;
+    }
+    // 认证通过，检查 PIN 锁屏状态
+    if((Date.now()-parseInt(localStorage.getItem(UNLOCK_TS_K)||'0'))<3600000){setLocked(false);}else{setLocked(true);}
+    var _savedUntil=parseInt(localStorage.getItem('pin_lockout_until')||'0');
+    if(_savedUntil>Date.now()){setTimeout(function(){startPinCooldown(Math.ceil((_savedUntil-Date.now())/1000));},200);}
+    // 首次加载：先补发上次未完成的操作，再从云端拉取最新状态
+    (async()=>{
     try {
       // 1. 先补发上次关页前没有发成功的操作（Office 式离线队列）
       await drainQueue();
@@ -8751,6 +8986,30 @@ export default {
     refreshAll();
     startSyncTimer();
   })();
+  })();
+  // 账号认证 — 绑定按钮事件
+  document.getElementById('authLoginBtn').addEventListener('click',function(){
+    doLogin(document.getElementById('authEmail').value.trim(),document.getElementById('authPassword').value);
+  });
+  document.getElementById('authPassword').addEventListener('keydown',function(e){if(e.key==='Enter')doLogin(document.getElementById('authEmail').value.trim(),document.getElementById('authPassword').value);});
+  document.getElementById('authRegisterBtn').addEventListener('click',function(){
+    doRegister(document.getElementById('authRegEmail').value.trim(),document.getElementById('authRegPassword').value,document.getElementById('authRegPassword2').value);
+  });
+  document.getElementById('authRegPassword2').addEventListener('keydown',function(e){if(e.key==='Enter')doRegister(document.getElementById('authRegEmail').value.trim(),document.getElementById('authRegPassword').value,document.getElementById('authRegPassword2').value);});
+  document.getElementById('authSwitchRegister').addEventListener('click',function(){
+    document.getElementById('authFormLogin').style.display='none';
+    document.getElementById('authFormRegister').style.display='flex';
+    document.getElementById('authError').innerText='';
+    document.getElementById('authRegEmail').value=document.getElementById('authEmail').value;
+    setTimeout(function(){document.getElementById('authRegEmail').focus();},100);
+  });
+  document.getElementById('authSwitchLogin').addEventListener('click',function(){
+    document.getElementById('authFormRegister').style.display='none';
+    document.getElementById('authFormLogin').style.display='flex';
+    document.getElementById('authError').innerText='';
+    document.getElementById('authEmail').value=document.getElementById('authRegEmail').value;
+    setTimeout(function(){document.getElementById('authEmail').focus();},100);
+  });
 
   setInterval(()=>{if(!document.body.classList.contains('page-hidden')&&!document.hidden)refreshAll();},60000);
 
@@ -8783,6 +9042,9 @@ export default {
     navigator.sendBeacon('/api/data',new Blob([payload],{type:'application/json'}));
   });
 })();
+  // 退出登录按钮
+  var logoutBtn=document.getElementById('logoutMenuBtn');
+  if(logoutBtn)logoutBtn.addEventListener('click',function(){if(confirm('确定要退出登录吗？'))doLogout();});
 </script>
 <!-- 蜜罐陷阱 — 爬虫会跟随，正常用户不可见 -->
 <a href="/api/trap" style="display:none" aria-hidden="true" rel="nofollow"></a>
