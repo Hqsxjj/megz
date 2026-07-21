@@ -4409,7 +4409,7 @@ export default {
     <input class="topbar-search" id="journalSearch" placeholder="搜索记录...">
     <button class="topbar-btn" id="journalNewBtn">新建记录</button>
     <button class="topbar-btn" id="journalLockBtn" style="background:rgba(0,0,0,0.06);color:var(--text-main)">锁屏</button>
-    <span class="topbar-user" id="journalUser"></span>
+    <button class="topbar-btn" id="journalLogoutBtn" style="background:rgba(0,0,0,0.06);color:#e74c3c">退出</button>
   </div>
   <div class="journal-body">
     <nav class="sidebar">
@@ -7206,8 +7206,6 @@ export default {
   function showJournalShell(){
     document.body.classList.add('page-journal');
     document.body.classList.remove('page-auth');
-    var u=document.getElementById('journalUser');
-    if(u)u.textContent=localStorage.getItem(AUTH_EMAIL_K)||'';
     var lb=document.getElementById('loginBtn');if(lb)lb.style.display='none';
     initJournal();
     loadJournalFromCloud(getTodayStr());
@@ -7341,6 +7339,9 @@ export default {
     // 锁屏按钮
     var jlb=document.getElementById('journalLockBtn');
     if(jlb)jlb.addEventListener('click',function(){localStorage.removeItem(UNLOCK_TS_K);setLocked(true);pi.value='';pie.innerText='';});
+    // 退出按钮
+    var jlo=document.getElementById('journalLogoutBtn');
+    if(jlo)jlo.addEventListener('click',function(){if(confirm('确定要退出账号吗？'))doLogout();});
     // 搜索
     var sj=document.getElementById('journalSearch');
     if(sj)sj.addEventListener('input',function(){
