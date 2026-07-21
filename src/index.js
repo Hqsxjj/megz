@@ -2435,6 +2435,8 @@ export default {
       data.visionApiBase = await env.DATA_KV.get('config:vision_api_base') || '';
       // Inject goals
       data.goals = JSON.parse(await env.DATA_KV.get('config:goals') || '{}');
+      // Inject journal
+      data.journal = JSON.parse(await env.DATA_KV.get('journal:' + date) || '[]');
       return new Response(JSON.stringify(data), {
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
       });
@@ -2659,6 +2661,9 @@ export default {
           break;
         case 'setGoals':
           await env.DATA_KV.put('config:goals', JSON.stringify(body.goals || {}));
+          break;
+        case 'setJournal':
+          await env.DATA_KV.put('journal:' + body.date, JSON.stringify(body.entries || []));
           break;
         case 'setMap':
           // 更新指定日期的计数（从目标 chip 编辑触发）
@@ -3422,6 +3427,52 @@ export default {
     .auth-switch a { color: var(--accent-main); cursor: pointer; text-decoration: none; font-weight: 600; }
     .auth-switch a:hover { text-decoration: underline; }
     .auth-error { color: #e74c3c; font-size: 0.95rem; min-height: 20px; font-weight: 600; text-align: center; }
+    /* ====== 日记首页 ====== */
+    .journal-shell { display: none; height: 100%; height: 100dvh; width: 100%; flex-direction: column; overflow: hidden; position: relative; z-index: 1; }
+    body.page-journal .journal-shell { display: flex; }
+    body.page-journal .app-shell { display: none; }
+    body.page-work .journal-shell { display: none; }
+    body.page-work .app-shell { display: flex; }
+    .topbar { display: flex; align-items: center; gap: 16px; padding: 0 20px; height: 56px; flex-shrink: 0; background: rgba(255,255,255,0.35); backdrop-filter: blur(20px) saturate(160%); -webkit-backdrop-filter: blur(20px) saturate(160%); border-bottom: 1px solid rgba(0,0,0,0.06); z-index: 10; }
+    body.dark-mode .topbar { background: rgba(20,20,20,0.5); border-bottom: 1px solid rgba(255,255,255,0.08); }
+    .topbar-logo { font-size: 1.1rem; font-weight: 800; color: var(--text-main); letter-spacing: 0.5px; white-space: nowrap; }
+    .topbar-search { flex: 1; max-width: 360px; padding: 8px 14px; border-radius: 20px; border: 1px solid rgba(0,0,0,0.08); background: rgba(255,255,255,0.5); font-size: 0.9rem; color: var(--text-main); outline: none; transition: all 0.2s; }
+    body.dark-mode .topbar-search { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.1); }
+    .topbar-search:focus { border-color: var(--accent-main); box-shadow: 0 0 0 3px rgba(91,184,240,0.12); }
+    .topbar-btn { padding: 8px 18px; border-radius: 20px; border: none; background: var(--accent-btn); color: white; font-weight: 700; font-size: 0.9rem; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
+    .topbar-btn:hover { opacity: 0.9; transform: translateY(-1px); }
+    .topbar-user { font-size: 0.85rem; color: var(--text-soft); white-space: nowrap; cursor: pointer; }
+    .journal-body { display: flex; flex: 1; min-height: 0; overflow: hidden; }
+    .sidebar { width: 170px; flex-shrink: 0; display: flex; flex-direction: column; gap: 2px; padding: 16px 10px; background: rgba(255,255,255,0.18); backdrop-filter: blur(20px) saturate(160%); -webkit-backdrop-filter: blur(20px) saturate(160%); border-right: 1px solid rgba(0,0,0,0.05); overflow-y: auto; }
+    body.dark-mode .sidebar { background: rgba(20,20,20,0.3); border-right: 1px solid rgba(255,255,255,0.06); }
+    .sidebar-item { display: block; padding: 10px 14px; border-radius: 8px; font-size: 0.92rem; font-weight: 600; color: var(--text-soft); text-decoration: none; cursor: pointer; transition: all 0.15s; }
+    .sidebar-item:hover { background: rgba(0,0,0,0.04); color: var(--text-main); }
+    body.dark-mode .sidebar-item:hover { background: rgba(255,255,255,0.06); }
+    .sidebar-item.active { background: var(--accent-btn); color: white; }
+    body.dark-mode .sidebar-item.active { background: var(--accent-btn); color: white; }
+    .journal-main { flex: 1; overflow-y: auto; padding: 24px 28px; display: flex; flex-direction: column; gap: 20px; }
+    .journal-main .section-title { font-size: 1.1rem; font-weight: 700; color: var(--text-main); margin: 0; }
+    .journal-card { background: rgba(255,255,255,0.5); backdrop-filter: blur(20px) saturate(160%); -webkit-backdrop-filter: blur(20px) saturate(160%); border-radius: 12px; border: 1px solid rgba(0,0,0,0.06); padding: 20px 24px; display: flex; flex-direction: column; gap: 14px; }
+    body.dark-mode .journal-card { background: rgba(30,30,30,0.5); border: 1px solid rgba(255,255,255,0.08); }
+    .journal-meta { display: flex; gap: 16px; flex-wrap: wrap; align-items: center; }
+    .journal-meta-tag { padding: 6px 12px; border-radius: 14px; background: rgba(0,0,0,0.04); font-size: 0.85rem; color: var(--text-main); font-weight: 600; }
+    body.dark-mode .journal-meta-tag { background: rgba(255,255,255,0.08); }
+    .journal-meta-tag select { border: none; background: transparent; font: inherit; color: inherit; outline: none; cursor: pointer; }
+    .journal-content { font-size: 0.98rem; color: var(--text-main); line-height: 1.8; white-space: pre-wrap; word-break: break-word; }
+    .journal-media-row { display: flex; gap: 10px; flex-wrap: wrap; }
+    .journal-media-thumb { width: 80px; height: 80px; border-radius: 8px; object-fit: cover; cursor: pointer; border: 1px solid rgba(0,0,0,0.06); }
+    .journal-actions { display: flex; gap: 10px; }
+    .journal-act-btn { padding: 6px 14px; border-radius: 14px; border: 1px solid rgba(0,0,0,0.1); background: rgba(255,255,255,0.4); font-size: 0.82rem; color: var(--text-soft); cursor: pointer; transition: all 0.15s; }
+    body.dark-mode .journal-act-btn { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.1); }
+    .journal-act-btn:hover { background: rgba(0,0,0,0.06); color: var(--text-main); }
+    .journal-editor { background: rgba(255,255,255,0.5); backdrop-filter: blur(20px) saturate(160%); -webkit-backdrop-filter: blur(20px) saturate(160%); border-radius: 12px; border: 1px solid rgba(0,0,0,0.06); padding: 20px 24px; display: flex; flex-direction: column; gap: 14px; }
+    body.dark-mode .journal-editor { background: rgba(30,30,30,0.5); border: 1px solid rgba(255,255,255,0.08); }
+    .journal-editor textarea { width: 100%; min-height: 120px; padding: 12px; border-radius: 8px; border: 1px solid rgba(0,0,0,0.1); background: rgba(255,255,255,0.6); font: inherit; font-size: 0.95rem; color: var(--text-main); outline: none; resize: vertical; line-height: 1.7; box-sizing: border-box; }
+    body.dark-mode .journal-editor textarea { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.1); }
+    .journal-editor-row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+    .journal-editor-row select { padding: 6px 10px; border-radius: 14px; border: 1px solid rgba(0,0,0,0.1); background: rgba(255,255,255,0.5); font-size: 0.85rem; color: var(--text-main); outline: none; }
+    body.dark-mode .journal-editor-row select { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.1); }
+    .journal-empty { text-align: center; padding: 60px 20px; color: var(--text-soft); font-size: 1rem; }
     .timer-container { position: absolute; top: 18%; left: 50%; margin-left: -160px; width: 320px; z-index: 20000; display: none; cursor: grab; user-select: none; }
     .timer-container.show { display: block; }
     .timer-box { width: 100%; display: flex; flex-direction: column; gap: 12px; align-items: center; background: var(--card-bg); backdrop-filter: blur(25px) saturate(160%); -webkit-backdrop-filter: blur(25px) saturate(160%); padding: 24px 32px; border-radius: var(--radius-ios); box-shadow: 0 4px 20px rgba(0,0,0,0.06); border: 1px solid var(--card-border); }
@@ -4352,6 +4403,27 @@ export default {
     <input type="text" class="pin-input pin-mask" id="pinInput" placeholder="" maxlength="6" inputmode="numeric" autocomplete="off" spellcheck="false" data-lpignore="true" readonly onfocus="this.removeAttribute('readonly');" autofocus>
     <button class="pin-btn" id="pinUnlockBtn">解锁进入</button>
     <div class="pin-error" id="pinError"></div>
+  </div>
+</div>
+<div class="journal-shell" id="journalShell">
+  <div class="topbar">
+    <span class="topbar-logo">生活记事录</span>
+    <input class="topbar-search" id="journalSearch" placeholder="搜索记录...">
+    <button class="topbar-btn" id="journalNewBtn">新建记录</button>
+    <span class="topbar-user" id="journalUser"></span>
+  </div>
+  <div class="journal-body">
+    <nav class="sidebar">
+      <a class="sidebar-item active" data-page="home">首页</a>
+      <a class="sidebar-item" data-page="work">生活记录</a>
+      <a class="sidebar-item" data-page="calendar">日历</a>
+      <a class="sidebar-item" data-page="mood">心情统计</a>
+      <a class="sidebar-item" data-page="tags">标签</a>
+      <a class="sidebar-item" data-page="settings">设置</a>
+    </nav>
+    <main class="journal-main" id="journalMain">
+      <div class="journal-empty">还没有今天的记录<br>点击「新建记录」开始写日记吧</div>
+    </main>
   </div>
 </div>
 <div class="app-shell">
@@ -7044,6 +7116,7 @@ export default {
         hideAuthGate();
         localStorage.setItem(UNLOCK_TS_K,Date.now());
         setLocked(false);
+        showJournalShell();
         initWp();
         initSync();
       }else{
@@ -7072,6 +7145,7 @@ export default {
         hideAuthGate();
         localStorage.setItem(UNLOCK_TS_K,Date.now());
         setLocked(false);
+        showJournalShell();
         initWp();
         initSync();
       }else{
@@ -7113,6 +7187,168 @@ export default {
       }
       return false;
     }catch(e){return false;}
+  }
+
+  // ==================== 日记 ====================
+  const JOURNAL_K='journal_v1', MOODS=['','开心','平静','疲惫','焦虑','兴奋','难过','感恩'], WEATHERS=['','晴','多云','阴','雨','雪','风'];
+  function loadJournalMap(){try{return JSON.parse(localStorage.getItem(JOURNAL_K))||{};}catch(e){return{};}}
+  function saveJournalMap(m){localStorage.setItem(JOURNAL_K,JSON.stringify(m));}
+  function getJournalEntries(date){var m=loadJournalMap();return m[date]||[];}
+  function setJournalEntries(date,entries){var m=loadJournalMap();m[date]=entries;saveJournalMap(m);}
+  function journalSaveOp(date){var entries=getJournalEntries(date);syncOp('setJournal',{date:date,entries:entries});}
+  function journalGetMoodLabel(v){return v||'心情';}
+  function journalGetWeatherLabel(v){return v||'天气';}
+
+  function showJournalShell(){
+    document.body.classList.add('page-journal');
+    document.body.classList.remove('page-work','page-auth');
+    var u=document.getElementById('journalUser');
+    if(u)u.textContent=localStorage.getItem(AUTH_EMAIL_K)||'';
+    loadJournalFromCloud(getTodayStr());
+  }
+  function showWorkShell(){
+    document.body.classList.add('page-work');
+    document.body.classList.remove('page-journal','page-auth');
+    document.body.classList.remove('page-hidden');
+    refreshAll();
+  }
+
+  async function loadJournalFromCloud(date){
+    try{
+      var r=await fetch('/api/data?date='+date);
+      if(r.ok){
+        var d=await r.json();
+        if(d.journal&&d.journal.length>0){setJournalEntries(date,d.journal);}
+      }
+    }catch(e){}
+    renderJournalMain(date);
+  }
+
+  function renderJournalMain(date){
+    var main=document.getElementById('journalMain');
+    if(!main)return;
+    var entries=getJournalEntries(date);
+    if(!entries.length){
+      main.innerHTML='<div class="journal-empty">还没有今天的记录<br>点击「新建记录」开始写日记吧</div>';
+      return;
+    }
+    var h='';
+    for(var i=entries.length-1;i>=0;i--){
+      h+=renderJournalCard(entries[i],i);
+    }
+    main.innerHTML=h;
+    // bind delete handlers
+    var dels=main.querySelectorAll('.journal-act-del');
+    for(var j=0;j<dels.length;j++){
+      (function(idx){dels[j].onclick=function(){deleteJournalEntry(date,idx);};})(parseInt(dels[j].getAttribute('data-idx')));
+    }
+  }
+
+  function renderJournalCard(entry,idx){
+    var mood=entry.mood||'', weather=entry.weather||'', loc=entry.location||'';
+    var meta='';
+    if(mood)meta+='<span class="journal-meta-tag">'+mood+'</span>';
+    if(weather)meta+='<span class="journal-meta-tag">'+weather+'</span>';
+    if(loc)meta+='<span class="journal-meta-tag">'+loc+'</span>';
+    meta+='<span class="journal-meta-tag" style="opacity:0.6">'+formatTs(entry.createdAt||'')+'</span>';
+    var media='';
+    if(entry.media&&entry.media.length>0){
+      media='<div class="journal-media-row">';
+      for(var j=0;j<entry.media.length;j++){
+        media+='<img class="journal-media-thumb" src="'+entry.media[j].url+'" loading="lazy">';
+      }
+      media+='</div>';
+    }
+    var h='<div class="journal-card">';
+    h+='<div class="journal-meta">'+meta+'</div>';
+    h+='<div class="journal-content">'+(entry.content||'')+'</div>';
+    h+=media;
+    h+='<div class="journal-actions">';
+    h+='<button class="journal-act-btn journal-act-del" data-idx="'+idx+'">删除</button>';
+    h+='</div>';
+    h+='</div>';
+    return h;
+  }
+
+  function deleteJournalEntry(date,idx){
+    if(!confirm('确定删除这条记录？'))return;
+    var entries=getJournalEntries(date);
+    entries.splice(idx,1);
+    setJournalEntries(date,entries);
+    journalSaveOp(date);
+    renderJournalMain(date);
+  }
+
+  function openNewRecord(){
+    var main=document.getElementById('journalMain');
+    if(!main)return;
+    var ed='<div class="journal-editor" id="journalEditor">';
+    ed+='<textarea id="journalEditorContent" placeholder="今天发生了什么..."></textarea>';
+    ed+='<div class="journal-editor-row">';
+    ed+='<select id="journalEditorMood">';
+    for(var i=0;i<MOODS.length;i++){ed+='<option value="'+(i===0?'':MOODS[i])+'">'+(i===0?'选择心情':MOODS[i])+'</option>';}
+    ed+='</select>';
+    ed+='<select id="journalEditorWeather">';
+    for(var j=0;j<WEATHERS.length;j++){ed+='<option value="'+(j===0?'':WEATHERS[j])+'">'+(j===0?'选择天气':WEATHERS[j])+'</option>';}
+    ed+='</select>';
+    ed+='<input type="text" id="journalEditorLoc" placeholder="位置" style="padding:6px 10px;border-radius:14px;border:1px solid rgba(0,0,0,0.1);background:rgba(255,255,255,0.5);font-size:0.85rem;outline:none;width:120px;">';
+    ed+='<button class="topbar-btn" id="journalEditorSave">保存</button>';
+    ed+='<button class="journal-act-btn" id="journalEditorCancel">取消</button>';
+    ed+='</div></div>';
+    main.innerHTML=ed+main.innerHTML;
+    document.getElementById('journalEditorContent').focus();
+    document.getElementById('journalEditorSave').onclick=function(){saveNewRecord();};
+    document.getElementById('journalEditorCancel').onclick=function(){
+      var edEl=document.getElementById('journalEditor');if(edEl)edEl.remove();
+    };
+  }
+
+  function saveNewRecord(){
+    var content=document.getElementById('journalEditorContent').value.trim();
+    if(!content)return;
+    var mood=document.getElementById('journalEditorMood').value;
+    var weather=document.getElementById('journalEditorWeather').value;
+    var loc=document.getElementById('journalEditorLoc').value.trim();
+    var date=getTodayStr();
+    var entries=getJournalEntries(date);
+    entries.push({
+      id:Date.now().toString(36)+Math.random().toString(36).slice(2),
+      mood:mood, weather:weather, location:loc,
+      content:content, media:[], tags:[], favorite:false,
+      createdAt:new Date().toISOString()
+    });
+    setJournalEntries(date,entries);
+    journalSaveOp(date);
+    renderJournalMain(date);
+  }
+
+  function initJournal(){
+    // 侧边栏导航
+    var items=document.querySelectorAll('.sidebar-item');
+    for(var i=0;i<items.length;i++){
+      items[i].addEventListener('click',function(){
+        var page=this.getAttribute('data-page');
+        // update active state
+        for(var k=0;k<items.length;k++)items[k].classList.remove('active');
+        this.classList.add('active');
+        if(page==='home'){showJournalShell();}
+        else if(page==='work'){showWorkShell();}
+        // 其他页面暂未实现，保持在当前页
+      });
+    }
+    // 新建记录按钮
+    var nb=document.getElementById('journalNewBtn');
+    if(nb)nb.addEventListener('click',function(){openNewRecord();});
+    // 搜索
+    var sj=document.getElementById('journalSearch');
+    if(sj)sj.addEventListener('input',function(){
+      var q=this.value.trim().toLowerCase();
+      var cards=document.querySelectorAll('.journal-card');
+      for(var c=0;c<cards.length;c++){
+        var text=cards[c].textContent.toLowerCase();
+        cards[c].style.display=q?((text.indexOf(q)>=0)?'':'none'):'';
+      }
+    });
   }
 
   // ==================== 壁纸 ====================
@@ -8987,9 +9223,10 @@ export default {
       return;
     }
     // 认证通过，检查 PIN 锁屏状态
-    if((Date.now()-parseInt(localStorage.getItem(UNLOCK_TS_K)||'0'))<3600000){setLocked(false);}else{setLocked(true);}
+    if((Date.now()-parseInt(localStorage.getItem(UNLOCK_TS_K)||'0'))<3600000){setLocked(false);showJournalShell();}else{setLocked(true);}
     var _savedUntil=parseInt(localStorage.getItem('pin_lockout_until')||'0');
     if(_savedUntil>Date.now()){setTimeout(function(){startPinCooldown(Math.ceil((_savedUntil-Date.now())/1000));},200);}
+    initJournal();
     // 首次加载：先补发上次未完成的操作，再从云端拉取最新状态
     (async()=>{
     try {
