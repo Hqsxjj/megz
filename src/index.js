@@ -4408,6 +4408,7 @@ export default {
     <span class="topbar-logo">生活记事录</span>
     <input class="topbar-search" id="journalSearch" placeholder="搜索记录...">
     <button class="topbar-btn" id="journalNewBtn">新建记录</button>
+    <button class="topbar-btn" id="journalLockBtn" style="background:rgba(0,0,0,0.06);color:var(--text-main)">锁屏</button>
     <span class="topbar-user" id="journalUser"></span>
   </div>
   <div class="journal-body">
@@ -7198,6 +7199,10 @@ export default {
   function journalGetMoodLabel(v){return v||'心情';}
   function journalGetWeatherLabel(v){return v||'天气';}
 
+  function showWorkShell(){
+    document.body.classList.remove('page-journal','page-auth','page-hidden');
+    refreshAll();
+  }
   function showJournalShell(){
     document.body.classList.add('page-journal');
     document.body.classList.remove('page-auth');
@@ -7333,6 +7338,9 @@ export default {
     // 新建记录按钮
     var nb=document.getElementById('journalNewBtn');
     if(nb)nb.addEventListener('click',function(){openNewRecord();});
+    // 锁屏按钮
+    var jlb=document.getElementById('journalLockBtn');
+    if(jlb)jlb.addEventListener('click',function(){localStorage.removeItem(UNLOCK_TS_K);setLocked(true);pi.value='';pie.innerText='';});
     // 搜索
     var sj=document.getElementById('journalSearch');
     if(sj)sj.addEventListener('input',function(){
@@ -7995,12 +8003,22 @@ export default {
   function au(){
     if(pinLockoutTimer)return;
     var e=pi.value.trim();
+    // 空 PIN：直接进入日记首页
+    if(!e){
+      localStorage.removeItem(PIN_FAIL_K);
+      clearInterval(pinLockoutTimer);pinLockoutTimer=null;
+      localStorage.removeItem('pin_lockout_until');localStorage.setItem(UNLOCK_TS_K,Date.now());
+      setLocked(false);pi.value='';pie.innerText='';
+      showJournalShell();return;
+    }
     var fs=getPinFailState();
     if(fs.count>=2){var cd=fs.count>=4?600:(fs.count===3?300:60);var elapsed=(Date.now()-fs.lastAttempt)/1000;if(elapsed<cd){startPinCooldown(Math.ceil(cd-elapsed));return;}}
     if(hashPinSimple(e)===getPinHash()){
       localStorage.removeItem(PIN_FAIL_K);
       clearInterval(pinLockoutTimer);pinLockoutTimer=null;
-      localStorage.removeItem('pin_lockout_until');localStorage.setItem(UNLOCK_TS_K,Date.now());setLocked(false);pi.value='';pie.innerText='';refreshAll();
+      localStorage.removeItem('pin_lockout_until');localStorage.setItem(UNLOCK_TS_K,Date.now());
+      setLocked(false);pi.value='';pie.innerText='';
+      showWorkShell();return;
     }else{
       fs.count=(fs.count||0)+1;fs.lastAttempt=Date.now();setPinFailState(fs);
       var cd2=fs.count>=4?600:(fs.count>=3?300:(fs.count>=2?60:0));
