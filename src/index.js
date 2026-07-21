@@ -2789,32 +2789,49 @@ export default {
     if (path === '/api/auth/signup' && request.method === 'POST') {
       try {
         const body = await request.json();
-        // 使用 Admin API 创建用户（自动确认邮箱，无需验证邮件）
-        const r = await fetch(env.SUPABASE_URL + '/auth/v1/admin/users', {
+        const email = body.email, password = body.password;
+        // 尝试 Admin API 创建用户（自动确认邮箱）
+        let r = await fetch(env.SUPABASE_URL + '/auth/v1/admin/users', {
           method: 'POST',
           headers: {
             'apikey': env.SUPABASE_KEY,
             'Authorization': 'Bearer ' + env.SUPABASE_KEY,
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify({ email: body.email, password: body.password, email_confirm: true })
+          body: JSON.stringify({ email, password, email_confirm: true })
         });
-        const d = await r.json();
-        if (r.ok) {
-          // 创建成功后自动登录获取 token
-          const loginR = await fetch(env.SUPABASE_URL + '/auth/v1/token?grant_type=password', {
-            method: 'POST',
-            headers: { 'apikey': env.SUPABASE_KEY, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email: body.email, password: body.password })
+        let d = await r.json();
+        // 用户已存在（之前的注册可能未确认邮箱）
+        if (!r.ok && d.msg && d.msg.indexOf('already') >= 0) {
+          // 查找已有用户 ID
+          const listR = await fetch(env.SUPABASE_URL + '/auth/v1/admin/users?per_page=100', {
+            headers: { 'apikey': env.SUPABASE_KEY, 'Authorization': 'Bearer ' + env.SUPABASE_KEY }
           });
-          const loginD = await loginR.json();
-          return new Response(JSON.stringify(loginD), {
-            status: loginR.status,
-            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-          });
+          const listD = await listR.json();
+          const users = listD.users || listD || [];
+          const found = users.find(u => u.email === email);
+          if (found) {
+            // 确认邮箱
+            await fetch(env.SUPABASE_URL + '/auth/v1/admin/users/' + found.id, {
+              method: 'PUT',
+              headers: {
+                'apikey': env.SUPABASE_KEY,
+                'Authorization': 'Bearer ' + env.SUPABASE_KEY,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({ email_confirm: true })
+            });
+          }
         }
-        return new Response(JSON.stringify(d), {
-          status: r.status,
+        // 登录获取 token
+        const loginR = await fetch(env.SUPABASE_URL + '/auth/v1/token?grant_type=password', {
+          method: 'POST',
+          headers: { 'apikey': env.SUPABASE_KEY, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+        });
+        const loginD = await loginR.json();
+        return new Response(JSON.stringify(loginD), {
+          status: loginR.status,
           headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
         });
       } catch (e) {
@@ -2827,12 +2844,40 @@ export default {
     if (path === '/api/auth/login' && request.method === 'POST') {
       try {
         const body = await request.json();
-        const r = await fetch(env.SUPABASE_URL + '/auth/v1/token?grant_type=password', {
+        const email = body.email, password = body.password;
+        let r = await fetch(env.SUPABASE_URL + '/auth/v1/token?grant_type=password', {
           method: 'POST',
           headers: { 'apikey': env.SUPABASE_KEY, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: body.email, password: body.password })
+          body: JSON.stringify({ email, password })
         });
-        const d = await r.json();
+        let d = await r.json();
+        // 如果邮箱未确认，用 Admin API 确认后再重试登录
+        if (!r.ok && d.error === 'Email not confirmed') {
+          const listR = await fetch(env.SUPABASE_URL + '/auth/v1/admin/users?per_page=100', {
+            headers: { 'apikey': env.SUPABASE_KEY, 'Authorization': 'Bearer ' + env.SUPABASE_KEY }
+          });
+          const listD = await listR.json();
+          const users = listD.users || listD || [];
+          const found = users.find(u => u.email === email);
+          if (found) {
+            await fetch(env.SUPABASE_URL + '/auth/v1/admin/users/' + found.id, {
+              method: 'PUT',
+              headers: {
+                'apikey': env.SUPABASE_KEY,
+                'Authorization': 'Bearer ' + env.SUPABASE_KEY,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({ email_confirm: true })
+            });
+            // 重试登录
+            r = await fetch(env.SUPABASE_URL + '/auth/v1/token?grant_type=password', {
+              method: 'POST',
+              headers: { 'apikey': env.SUPABASE_KEY, 'Content-Type': 'application/json' },
+              body: JSON.stringify({ email, password })
+            });
+            d = await r.json();
+          }
+        }
         return new Response(JSON.stringify(d), {
           status: r.status,
           headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
