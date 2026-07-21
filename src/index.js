@@ -4359,7 +4359,7 @@ export default {
   </style>
   <script src="/xlsx.full.min.js"></script>
 </head>
-<body>
+<body class="page-hidden">
 <div class="notify-bar" id="notifyBar" onclick="this.classList.remove('show')"><span id="notifyText"></span><span class="notify-close">✕</span></div>
 <div class="wallpaper-fallback"></div>
 <div class="wallpaper-background" id="wallpaperBackground"></div>
