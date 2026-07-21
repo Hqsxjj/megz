@@ -4323,7 +4323,6 @@ export default {
     <input type="text" class="pin-input pin-mask" id="pinInput" placeholder="" maxlength="6" inputmode="numeric" autocomplete="off" spellcheck="false" data-lpignore="true" readonly onfocus="this.removeAttribute('readonly');" autofocus>
     <button class="pin-btn" id="pinUnlockBtn">解锁进入</button>
     <div class="pin-error" id="pinError"></div>
-    <div style="margin-top:4px"><a id="pinToAuth" style="font-size:0.82rem;color:var(--text-soft);cursor:pointer">账号登录</a></div>
   </div>
 </div>
 <div class="journal-shell" id="journalShell">
@@ -9327,9 +9326,6 @@ export default {
     navigator.sendBeacon('/api/data',new Blob([payload],{type:'application/json'}));
   });
 })();
-  // PIN 锁屏 → 账号登录入口
-  var pinToAuth=document.getElementById('pinToAuth');
-  if(pinToAuth)pinToAuth.addEventListener('click',function(){pi.value='';showAuthGate();});
   // 退出登录按钮
   var logoutBtn=document.getElementById('logoutMenuBtn');
   if(logoutBtn)logoutBtn.addEventListener('click',function(){if(confirm('确定要退出登录吗？'))doLogout();});
