@@ -7075,9 +7075,8 @@ export default {
     localStorage.removeItem(AUTH_TOKEN_K);
     localStorage.removeItem(AUTH_USER_K);
     localStorage.removeItem('unlock_ts');
-    document.body.classList.remove('page-journal','page-auth');
-    setLocked(false);
-    showAuthGate();
+    document.body.className='page-auth';
+    setTimeout(function(){document.getElementById('authUsername').focus();},100);
   }
   async function checkAuth(){
     var token=localStorage.getItem(AUTH_TOKEN_K);
