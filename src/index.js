@@ -3471,6 +3471,25 @@ export default {
     .journal-editor-row select { padding: 6px 10px; border-radius: 14px; border: 1px solid rgba(0,0,0,0.1); background: rgba(255,255,255,0.5); font-size: 0.85rem; color: var(--text-main); outline: none; }
     body.dark-mode .journal-editor-row select { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.1); }
     .journal-empty { text-align: center; padding: 60px 20px; color: var(--text-soft); font-size: 1rem; }
+    .cal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+    .cal-title { font-size: 1.1rem; font-weight: 700; color: var(--text-main); }
+    .cal-nav { width: 36px; height: 36px; border: 1px solid rgba(0,0,0,0.1); border-radius: 50%; background: rgba(255,255,255,0.4); cursor: pointer; font-size: 1rem; color: var(--text-main); display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
+    body.dark-mode .cal-nav { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.1); }
+    .cal-nav:hover { background: rgba(0,0,0,0.08); }
+    .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+    .cal-wd { text-align: center; font-size: 0.78rem; font-weight: 700; color: var(--text-soft); padding: 6px 0; }
+    .cal-cell { position: relative; text-align: center; padding: 10px 2px; cursor: pointer; border-radius: 8px; transition: background 0.15s; min-height: 40px; display: flex; flex-direction: column; align-items: center; gap: 3px; }
+    .cal-cell:hover { background: rgba(0,0,0,0.04); }
+    body.dark-mode .cal-cell:hover { background: rgba(255,255,255,0.06); }
+    .cal-cell.cal-empty { cursor: default; }
+    .cal-dnum { font-size: 0.92rem; font-weight: 600; color: var(--text-main); }
+    .cal-weekend .cal-dnum { color: #c0392b; }
+    .cal-today { background: var(--accent-btn); }
+    .cal-today .cal-dnum { color: white; font-weight: 800; }
+    .cal-today:hover { background: var(--accent-btn); opacity: 0.85; }
+    .cal-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--accent-intent); }
+    .cal-today .cal-dot { background: white; }
+    .cal-has { font-weight: 700; }
     .timer-container { position: absolute; top: 18%; left: 50%; margin-left: -160px; width: 320px; z-index: 20000; display: none; cursor: grab; user-select: none; }
     .timer-container.show { display: block; }
     .timer-box { width: 100%; display: flex; flex-direction: column; gap: 12px; align-items: center; background: var(--card-bg); backdrop-filter: blur(25px) saturate(160%); -webkit-backdrop-filter: blur(25px) saturate(160%); padding: 24px 32px; border-radius: var(--radius-ios); box-shadow: 0 4px 20px rgba(0,0,0,0.06); border: 1px solid var(--card-border); }
@@ -7319,30 +7338,56 @@ export default {
     renderJournalMain(date);
   }
 
-  function renderJournalCalendar(){
+  function renderJournalCalendar(offset){
     var main=document.getElementById('journalMain');
     if(!main)return;
-    var now=new Date(), y=now.getFullYear(), m=now.getMonth()+1, today=getTodayStr();
+    if(typeof offset==='undefined')offset=0;
+    if(typeof _journalCalOffset==='undefined')_journalCalOffset=0;
+    if(typeof offset==='number')_journalCalOffset+=offset;
+    var now=new Date();
+    var y=now.getFullYear(), m=now.getMonth()+1+_journalCalOffset;
+    while(m>12){y++;m-=12;}while(m<1){y--;m+=12;}
+    var today=getTodayStr();
     var mn=['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
     var fd=new Date(y,m-1,1), si=(fd.getDay()+6)%7;
     var dim=new Date(y,m,0).getDate();
-    var h='<div class="journal-card"><div class="section-title">'+y+'年 '+mn[m-1]+'</div>';
-    h+='<div class="cal-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center">';
+    // 收集当月有日记的日期
+    var hasEntry={};
+    var jm=loadJournalMap();
+    for(var d=1;d<=dim;d++){
+      var ds=y+'-'+String(m).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+      var entries=jm[ds]||[];
+      if(entries.length>0)hasEntry[ds]=entries.length;
+    }
     var wd=['一','二','三','四','五','六','日'];
-    for(var i=0;i<7;i++)h+='<div style="font-size:0.8rem;color:var(--text-soft);padding:4px">'+wd[i]+'</div>';
-    for(var j=0;j<si;j++)h+='<div></div>';
+    var h='<div class="journal-card"><div class="cal-header">';
+    h+='<button class="cal-nav" id="calPrev">←</button>';
+    h+='<span class="cal-title">'+y+'年 '+mn[m-1]+'</span>';
+    h+='<button class="cal-nav" id="calNext">→</button>';
+    h+='</div>';
+    h+='<div class="cal-grid">';
+    for(var i=0;i<7;i++)h+='<div class="cal-wd">'+wd[i]+'</div>';
+    for(var j=0;j<si;j++)h+='<div class="cal-cell cal-empty"></div>';
     for(var d=1;d<=dim;d++){
       var ds=y+'-'+String(m).padStart(2,'0')+'-'+String(d).padStart(2,'0');
       var isToday=ds===today;
-      var cls=isToday?' style="background:var(--accent-btn);color:white;border-radius:6px;font-weight:700"':'';
-      h+='<div'+cls+' data-ds="'+ds+'" class="cal-click-day" style="padding:8px 4px;cursor:pointer;border-radius:6px">'+d+'</div>';
+      var isWeekend=(si+d-1)%7>=5;
+      var n=hasEntry[ds]||0;
+      var cls='cal-cell'+(isToday?' cal-today':'')+(isWeekend?' cal-weekend':'')+(n>0?' cal-has':'');
+      h+='<div class="'+cls+'" data-ds="'+ds+'">';
+      h+='<span class="cal-dnum">'+d+'</span>';
+      if(n>0)h+='<span class="cal-dot"></span>';
+      h+='</div>';
     }
     h+='</div></div>';
     main.innerHTML=h;
-    // 点击日期查看当日日记
-    var days=main.querySelectorAll('.cal-click-day');
-    for(var k=0;k<days.length;k++){
-      days[k].addEventListener('click',function(){
+    // 月份导航
+    document.getElementById('calPrev').onclick=function(){renderJournalCalendar(-1);};
+    document.getElementById('calNext').onclick=function(){renderJournalCalendar(1);};
+    // 点击日期
+    var cells=main.querySelectorAll('.cal-cell[data-ds]');
+    for(var k=0;k<cells.length;k++){
+      cells[k].addEventListener('click',function(){
         var ds=this.getAttribute('data-ds');
         var items=document.querySelectorAll('.sidebar-item');
         for(var x=0;x<items.length;x++)items[x].classList.remove('active');
@@ -7352,6 +7397,7 @@ export default {
       });
     }
   }
+  var _journalCalOffset=0;
 
   function renderJournalSettings(){
     var main=document.getElementById('journalMain');
