@@ -4267,7 +4267,7 @@ export default {
   </style>
   <script src="/xlsx.full.min.js"></script>
 </head>
-<body class="page-hidden">
+<body class="page-hidden" style="visibility:hidden">
 <div class="notify-bar" id="notifyBar" onclick="this.classList.remove('show')"><span id="notifyText"></span><span class="notify-close">✕</span></div>
 <div class="wallpaper-fallback"></div>
 <div class="wallpaper-background" id="wallpaperBackground"></div>
@@ -6995,6 +6995,7 @@ export default {
   // ==================== 账号认证 ====================
   const AUTH_TOKEN_K='auth_token',AUTH_USER_K='auth_user';
   function showAuthGate(){
+    document.body.style.visibility='visible';
     document.body.classList.add('page-auth');
     document.body.classList.remove('page-hidden');
     document.getElementById('authError').innerText='';
@@ -9203,6 +9204,7 @@ export default {
     var unlocked=(Date.now()-parseInt(localStorage.getItem(UNLOCK_TS_K)||'0'))<3600000;
     if(hasToken && unlocked){
       showJournalShell();localStorage.setItem(LOCK_K,'false');
+      document.body.style.visibility='visible';
     }
     // 后台异步验证 token 有效性
     checkAuth().then(function(valid){
@@ -9211,6 +9213,7 @@ export default {
         localStorage.removeItem(AUTH_TOKEN_K);
         localStorage.removeItem(AUTH_USER_K);
         document.body.className='page-hidden';
+        document.body.style.visibility='visible';
       }
     });
   })();
@@ -9219,6 +9222,7 @@ export default {
     if(!localStorage.getItem(AUTH_TOKEN_K)){
       var unlocked=(Date.now()-parseInt(localStorage.getItem(UNLOCK_TS_K)||'0'))<3600000;
       if(unlocked){setLocked(false);}else{setLocked(true);}
+      document.body.style.visibility='visible';
     }
     initWp();
     var _savedUntil=parseInt(localStorage.getItem('pin_lockout_until')||'0');
