@@ -4409,7 +4409,6 @@ export default {
     <input class="topbar-search" id="journalSearch" placeholder="搜索记录...">
     <button class="topbar-btn" id="journalNewBtn">新建记录</button>
     <button class="topbar-btn" id="journalLockBtn" style="background:rgba(0,0,0,0.06);color:var(--text-main)">锁屏</button>
-    <button class="topbar-btn" id="journalLogoutBtn" style="background:rgba(0,0,0,0.06);color:#e74c3c">退出</button>
   </div>
   <div class="journal-body">
     <nav class="sidebar">
@@ -7320,6 +7319,54 @@ export default {
     renderJournalMain(date);
   }
 
+  function renderJournalCalendar(){
+    var main=document.getElementById('journalMain');
+    if(!main)return;
+    var now=new Date(), y=now.getFullYear(), m=now.getMonth()+1, today=getTodayStr();
+    var mn=['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+    var fd=new Date(y,m-1,1), si=(fd.getDay()+6)%7;
+    var dim=new Date(y,m,0).getDate();
+    var h='<div class="journal-card"><div class="section-title">'+y+'年 '+mn[m-1]+'</div>';
+    h+='<div class="cal-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center">';
+    var wd=['一','二','三','四','五','六','日'];
+    for(var i=0;i<7;i++)h+='<div style="font-size:0.8rem;color:var(--text-soft);padding:4px">'+wd[i]+'</div>';
+    for(var j=0;j<si;j++)h+='<div></div>';
+    for(var d=1;d<=dim;d++){
+      var ds=y+'-'+String(m).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+      var isToday=ds===today;
+      var cls=isToday?' style="background:var(--accent-btn);color:white;border-radius:6px;font-weight:700"':'';
+      h+='<div'+cls+' data-ds="'+ds+'" class="cal-click-day" style="padding:8px 4px;cursor:pointer;border-radius:6px">'+d+'</div>';
+    }
+    h+='</div></div>';
+    main.innerHTML=h;
+    // 点击日期查看当日日记
+    var days=main.querySelectorAll('.cal-click-day');
+    for(var k=0;k<days.length;k++){
+      days[k].addEventListener('click',function(){
+        var ds=this.getAttribute('data-ds');
+        var items=document.querySelectorAll('.sidebar-item');
+        for(var x=0;x<items.length;x++)items[x].classList.remove('active');
+        var homeItem=document.querySelector('.sidebar-item[data-page="home"]');
+        if(homeItem)homeItem.classList.add('active');
+        renderJournalMain(ds);
+      });
+    }
+  }
+
+  function renderJournalSettings(){
+    var main=document.getElementById('journalMain');
+    if(!main)return;
+    var h='<div class="journal-card">';
+    h+='<div class="section-title">设置</div>';
+    h+='<div style="display:flex;flex-direction:column;gap:12px;margin-top:8px">';
+    h+='<div style="padding:10px 0;color:var(--text-soft)">账号：'+ (localStorage.getItem(AUTH_EMAIL_K)||'') + '</div>';
+    h+='<button class="journal-act-btn" style="color:#e74c3c;border-color:#e74c3c;width:fit-content" id="journalSettingsLogout">退出登录</button>';
+    h+='</div></div>';
+    main.innerHTML=h;
+    var btn=document.getElementById('journalSettingsLogout');
+    if(btn)btn.addEventListener('click',function(){if(confirm('确定要退出登录吗？'))doLogout();});
+  }
+
   function initJournal(){
     // 侧边栏导航
     var items=document.querySelectorAll('.sidebar-item');
@@ -7330,7 +7377,8 @@ export default {
         for(var k=0;k<items.length;k++)items[k].classList.remove('active');
         this.classList.add('active');
         if(page==='home'){showJournalShell();}
-        // 其他页面暂未实现，保持在当前页
+        else if(page==='calendar'){renderJournalCalendar();}
+        else if(page==='settings'){renderJournalSettings();}
       });
     }
     // 新建记录按钮
@@ -7339,9 +7387,6 @@ export default {
     // 锁屏按钮
     var jlb=document.getElementById('journalLockBtn');
     if(jlb)jlb.addEventListener('click',function(){localStorage.removeItem(UNLOCK_TS_K);setLocked(true);pi.value='';pie.innerText='';});
-    // 退出按钮
-    var jlo=document.getElementById('journalLogoutBtn');
-    if(jlo)jlo.addEventListener('click',function(){if(confirm('确定要退出账号吗？'))doLogout();});
     // 搜索
     var sj=document.getElementById('journalSearch');
     if(sj)sj.addEventListener('input',function(){
