@@ -4267,7 +4267,7 @@ export default {
   </style>
   <script src="/xlsx.full.min.js"></script>
 </head>
-<body class="page-hidden" style="visibility:hidden">
+<body class="page-hidden">
 <div class="notify-bar" id="notifyBar" onclick="this.classList.remove('show')"><span id="notifyText"></span><span class="notify-close">✕</span></div>
 <div class="wallpaper-fallback"></div>
 <div class="wallpaper-background" id="wallpaperBackground"></div>
@@ -4325,7 +4325,7 @@ export default {
     <div class="pin-error" id="pinError"></div>
   </div>
 </div>
-<div class="journal-shell" id="journalShell">
+<div class="journal-shell" id="journalShell" style="display:none">
   <div class="topbar">
     <span class="topbar-logo">生活记事录</span>
     <input class="topbar-search" id="journalSearch" placeholder="搜索记录...">
@@ -4345,7 +4345,7 @@ export default {
     </main>
   </div>
 </div>
-<div class="app-shell">
+<div class="app-shell" style="display:none">
   <div class="container">
     <div class="header-bar">
       <h3>生活记事录</h3><div class="date-chip" id="liveDate"></div><button class="goal-eye eye-off" id="goalEyeBtn" title="显示目标数字">👁</button><div class="goal-chips" id="goalChips"></div><button class="icon-simple" id="loanCalcBtn" title="贷款利息计算器" style="margin-left:auto">计算器</button><button class="icon-simple" id="allClientsBtn" title="意向客户全量表">全量</button><button class="icon-simple" id="hideBtn" title="一键隐藏 (Ctrl+Z)">锁屏</button><button class="icon-simple" id="menuToggleBtn" title="菜单">≡</button><div class="menu-dropdown" id="menuDropdown"><button class="menu-item" id="logBtn">同步日志</button><button class="menu-item" id="scriptBtn">话术管理</button><button class="menu-item" id="learnBtn">学习管理</button><button class="menu-item" id="exportBtn">导出数据</button><button class="menu-item" id="goalBtn">目标设定</button><button class="menu-item" id="whitelistMenuBtn">白名单管理</button><button class="menu-item" id="darkToggleBtn">深色模式</button><button class="menu-item" id="logoutMenuBtn" style="color:#e74c3c">退出登录</button></div>
@@ -6995,7 +6995,6 @@ export default {
   // ==================== 账号认证 ====================
   const AUTH_TOKEN_K='auth_token',AUTH_USER_K='auth_user';
   function showAuthGate(){
-    document.body.style.visibility='visible';
     document.body.classList.add('page-auth');
     document.body.classList.remove('page-hidden');
     document.getElementById('authError').innerText='';
@@ -7099,11 +7098,15 @@ export default {
 
   function showWorkShell(){
     document.body.classList.remove('page-journal','page-auth','page-hidden');
+    var app=document.querySelector('.app-shell');if(app)app.style.display='flex';
+    var js=document.getElementById('journalShell');if(js)js.style.display='none';
     refreshAll();
   }
   function showJournalShell(){
     document.body.classList.add('page-journal');
     document.body.classList.remove('page-auth','page-hidden');
+    var app=document.querySelector('.app-shell');if(app)app.style.display='none';
+    var js=document.getElementById('journalShell');if(js)js.style.display='flex';
     initJournal();
     loadJournalFromCloud(getTodayStr());
   }
@@ -7945,7 +7948,7 @@ export default {
     document.getElementById('closeLogModalBtn').addEventListener('click',()=>document.getElementById('logModal').classList.remove('active'));
     document.getElementById('logModal').addEventListener('click',e=>{if(e.target===document.getElementById('logModal'))document.getElementById('logModal').classList.remove('active');});
   }
-  function setLocked(l){if(l){localStorage.setItem(LOCK_K,'true');document.body.classList.add('page-hidden');setTimeout(()=>{const pi=document.getElementById('pinInput');if(pi)pi.focus();},100);}else{localStorage.setItem(LOCK_K,'false');document.body.classList.remove('page-hidden');const tc=document.getElementById('timerContainer');if(tc)tc.classList.remove('show');}}
+  function setLocked(l){if(l){localStorage.setItem(LOCK_K,'true');document.body.classList.add('page-hidden');var app=document.querySelector('.app-shell');if(app)app.style.display='none';var js=document.getElementById('journalShell');if(js)js.style.display='none';setTimeout(()=>{const pi=document.getElementById('pinInput');if(pi)pi.focus();},100);}else{localStorage.setItem(LOCK_K,'false');document.body.classList.remove('page-hidden');var app=document.querySelector('.app-shell');if(app)app.style.display='flex';var js=document.getElementById('journalShell');if(js)js.style.display='none';const tc=document.getElementById('timerContainer');if(tc)tc.classList.remove('show');}}
 
   function hashPinSimple(str){
     let hash = 5381;
@@ -9204,7 +9207,6 @@ export default {
     var unlocked=(Date.now()-parseInt(localStorage.getItem(UNLOCK_TS_K)||'0'))<3600000;
     if(hasToken && unlocked){
       showJournalShell();localStorage.setItem(LOCK_K,'false');
-      document.body.style.visibility='visible';
     }
     // 后台异步验证 token 有效性
     checkAuth().then(function(valid){
@@ -9213,7 +9215,6 @@ export default {
         localStorage.removeItem(AUTH_TOKEN_K);
         localStorage.removeItem(AUTH_USER_K);
         document.body.className='page-hidden';
-        document.body.style.visibility='visible';
       }
     });
   })();
@@ -9222,7 +9223,6 @@ export default {
     if(!localStorage.getItem(AUTH_TOKEN_K)){
       var unlocked=(Date.now()-parseInt(localStorage.getItem(UNLOCK_TS_K)||'0'))<3600000;
       if(unlocked){setLocked(false);}else{setLocked(true);}
-      document.body.style.visibility='visible';
     }
     initWp();
     var _savedUntil=parseInt(localStorage.getItem('pin_lockout_until')||'0');
