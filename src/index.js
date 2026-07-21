@@ -2789,12 +2789,30 @@ export default {
     if (path === '/api/auth/signup' && request.method === 'POST') {
       try {
         const body = await request.json();
-        const r = await fetch(env.SUPABASE_URL + '/auth/v1/signup', {
+        // 使用 Admin API 创建用户（自动确认邮箱，无需验证邮件）
+        const r = await fetch(env.SUPABASE_URL + '/auth/v1/admin/users', {
           method: 'POST',
-          headers: { 'apikey': env.SUPABASE_KEY, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: body.email, password: body.password })
+          headers: {
+            'apikey': env.SUPABASE_KEY,
+            'Authorization': 'Bearer ' + env.SUPABASE_KEY,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ email: body.email, password: body.password, email_confirm: true })
         });
         const d = await r.json();
+        if (r.ok) {
+          // 创建成功后自动登录获取 token
+          const loginR = await fetch(env.SUPABASE_URL + '/auth/v1/token?grant_type=password', {
+            method: 'POST',
+            headers: { 'apikey': env.SUPABASE_KEY, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: body.email, password: body.password })
+          });
+          const loginD = await loginR.json();
+          return new Response(JSON.stringify(loginD), {
+            status: loginR.status,
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
         return new Response(JSON.stringify(d), {
           status: r.status,
           headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
