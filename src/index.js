@@ -7042,7 +7042,8 @@ export default {
         localStorage.setItem(AUTH_REFRESH_K,d.refresh_token);
         localStorage.setItem(AUTH_EMAIL_K,email);
         hideAuthGate();
-        setLocked(true);
+        localStorage.setItem(UNLOCK_TS_K,Date.now());
+        setLocked(false);
         initWp();
         initSync();
       }else{
@@ -7069,7 +7070,8 @@ export default {
         localStorage.setItem(AUTH_REFRESH_K,d.refresh_token);
         localStorage.setItem(AUTH_EMAIL_K,email);
         hideAuthGate();
-        setLocked(true);
+        localStorage.setItem(UNLOCK_TS_K,Date.now());
+        setLocked(false);
         initWp();
         initSync();
       }else{
