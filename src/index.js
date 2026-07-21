@@ -2767,6 +2767,37 @@ export default {
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
       });
     }
+    // 壁纸代理 - 国风动漫
+    if (path === '/api/wallpaper' && request.method === 'GET') {
+      const WALLPAPER_FALLBACKS = [
+        'https://www.loliapi.com/acg/pe/',
+        'https://www.loliapi.com/acg/',
+        'https://t.mwm.moe/mp'
+      ];
+      try {
+        // 随机选一页国漫壁纸
+        const page = Math.floor(Math.random() * 200) + 1;
+        const apiUrl = 'http://wp.birdpaper.com.cn/intf/GetListByHotTag?tag=国漫&pageno=' + page + '&count=20';
+        const r = await fetch(apiUrl, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+        if (r.ok) {
+          const d = await r.json();
+          if (d.data && d.data.list && d.data.list.length > 0) {
+            const item = d.data.list[Math.floor(Math.random() * d.data.list.length)];
+            let imgUrl = item.url.replace(/^http:/, 'https:');
+            return new Response(JSON.stringify({ url: imgUrl }), {
+              headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+            });
+          }
+        }
+        throw new Error('birdpaper empty');
+      } catch (e) {
+        const fb = WALLPAPER_FALLBACKS[Math.floor(Math.random() * WALLPAPER_FALLBACKS.length)];
+        return new Response(JSON.stringify({ url: fb }), {
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+    }
+
     // 获取全量意向客户
     if (path === '/api/all-clients' && request.method === 'GET') {
       const keys = await getAllKVKeys(env, 'work:');
@@ -6807,12 +6838,12 @@ export default {
   }
 
   // ==================== 壁纸 ====================
-  const FW=["https://www.loliapi.com/acg/pe/","https://www.loliapi.com/acg/"];
+  const FW=["https://www.loliapi.com/acg/pe/","https://www.loliapi.com/acg/","https://t.mwm.moe/mp"];
   function getWpCache(){try{const c=JSON.parse(localStorage.getItem(WALLPAPER_K));if(c&&c.date===getTodayStr()&&c.url)return c;}catch(e){}return null;}
   function saveWpCache(url){localStorage.setItem(WALLPAPER_K,JSON.stringify({date:getTodayStr(),url}));}
   function rndWp(){return FW[Math.floor(Math.random()*FW.length)];}
   async function fetchWp(){
-    try{const r=await fetch("https://api.waifu.pics/sfw/waifu");if(r.ok){const d=await r.json();return d.url;}}catch(e){}
+    try{const r=await fetch("/api/wallpaper");if(r.ok){const d=await r.json();if(d.url)return d.url;}}catch(e){}
     return rndWp();
   }
   function applyWp(url){
