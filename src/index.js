@@ -3431,8 +3431,6 @@ export default {
     .journal-shell { display: none; height: 100%; height: 100dvh; width: 100%; flex-direction: column; overflow: hidden; position: relative; z-index: 1; }
     body.page-journal .journal-shell { display: flex; }
     body.page-journal .app-shell { display: none; }
-    body.page-work .journal-shell { display: none; }
-    body.page-work .app-shell { display: flex; }
     .topbar { display: flex; align-items: center; gap: 16px; padding: 0 20px; height: 56px; flex-shrink: 0; background: rgba(255,255,255,0.35); backdrop-filter: blur(20px) saturate(160%); -webkit-backdrop-filter: blur(20px) saturate(160%); border-bottom: 1px solid rgba(0,0,0,0.06); z-index: 10; }
     body.dark-mode .topbar { background: rgba(20,20,20,0.5); border-bottom: 1px solid rgba(255,255,255,0.08); }
     .topbar-logo { font-size: 1.1rem; font-weight: 800; color: var(--text-main); letter-spacing: 0.5px; white-space: nowrap; }
@@ -4415,7 +4413,6 @@ export default {
   <div class="journal-body">
     <nav class="sidebar">
       <a class="sidebar-item active" data-page="home">首页</a>
-      <a class="sidebar-item" data-page="work">生活记录</a>
       <a class="sidebar-item" data-page="calendar">日历</a>
       <a class="sidebar-item" data-page="mood">心情统计</a>
       <a class="sidebar-item" data-page="tags">标签</a>
@@ -7201,16 +7198,10 @@ export default {
 
   function showJournalShell(){
     document.body.classList.add('page-journal');
-    document.body.classList.remove('page-work','page-auth');
+    document.body.classList.remove('page-auth');
     var u=document.getElementById('journalUser');
     if(u)u.textContent=localStorage.getItem(AUTH_EMAIL_K)||'';
     loadJournalFromCloud(getTodayStr());
-  }
-  function showWorkShell(){
-    document.body.classList.add('page-work');
-    document.body.classList.remove('page-journal','page-auth');
-    document.body.classList.remove('page-hidden');
-    refreshAll();
   }
 
   async function loadJournalFromCloud(date){
@@ -7332,7 +7323,6 @@ export default {
         for(var k=0;k<items.length;k++)items[k].classList.remove('active');
         this.classList.add('active');
         if(page==='home'){showJournalShell();}
-        else if(page==='work'){showWorkShell();}
         // 其他页面暂未实现，保持在当前页
       });
     }
