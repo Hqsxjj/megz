@@ -9197,13 +9197,27 @@ export default {
     dropdown.querySelectorAll('.menu-item').forEach(item=>item.addEventListener('click',()=>dropdown.classList.remove('show')));
   })();
   const UNLOCK_TS_K='unlock_ts';
-  (async function(){
-    // 静默检查认证：已登录 → 日记页，未登录 → 旧主界面
-    var authed=await checkAuth();
+  (function(){
+    // 同步判断：本地有 token 且未锁 → 立即显示对应界面，消除刷新闪烁
+    var hasToken=!!localStorage.getItem(AUTH_TOKEN_K);
     var unlocked=(Date.now()-parseInt(localStorage.getItem(UNLOCK_TS_K)||'0'))<3600000;
-    if(authed){
-      if(unlocked){showJournalShell();localStorage.setItem(LOCK_K,'false');}else{setLocked(true);}
-    }else{
+    if(hasToken && unlocked){
+      showJournalShell();localStorage.setItem(LOCK_K,'false');
+    }
+    // 后台异步验证 token 有效性
+    checkAuth().then(function(valid){
+      if(!valid && hasToken){
+        // token 失效，清除并锁屏
+        localStorage.removeItem(AUTH_TOKEN_K);
+        localStorage.removeItem(AUTH_USER_K);
+        document.body.className='page-hidden';
+      }
+    });
+  })();
+  (async function(){
+    // 异步补充：无 token 时检查并显示锁屏或旧界面
+    if(!localStorage.getItem(AUTH_TOKEN_K)){
+      var unlocked=(Date.now()-parseInt(localStorage.getItem(UNLOCK_TS_K)||'0'))<3600000;
       if(unlocked){setLocked(false);}else{setLocked(true);}
     }
     initWp();
