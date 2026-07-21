@@ -4412,11 +4412,6 @@ export default {
   <div class="script-container" id="scriptContainer"></div>
   <div class="learn-container" id="learnContainer"></div>
   <div class="pin-box">
-    <div class="pin-stats" id="pinStatsContainer">
-      <div class="pin-stat-item"><span class="pin-stat-label">今日微信</span><span class="pin-stat-value pin-wechat-value" id="pinWechatNum">0</span></div>
-      <div class="pin-stat-item"><span class="pin-stat-label">今日意向</span><span class="pin-stat-value pin-intent-value" id="pinIntentNum">0</span></div>
-      <div class="pin-stat-item"><span class="pin-stat-label">今日回访</span><span class="pin-stat-value pin-revisit-value" id="pinRevisitNum">0</span></div>
-    </div>
     <input type="text" class="pin-input pin-mask" id="pinInput" placeholder="" maxlength="6" inputmode="numeric" autocomplete="off" spellcheck="false" data-lpignore="true" readonly onfocus="this.removeAttribute('readonly');" autofocus>
     <button class="pin-btn" id="pinUnlockBtn">解锁进入</button>
     <div class="pin-error" id="pinError"></div>
@@ -6847,9 +6842,6 @@ export default {
     document.getElementById('wechatNum').innerText=wm[today]||0;
     document.getElementById('intentNum').innerText=todayIntent;
     document.getElementById('revisitNum').innerText=rm[today]||0;
-    document.getElementById('pinWechatNum').innerText=wm[today]||0;
-    document.getElementById('pinIntentNum').innerText=todayIntent;
-    document.getElementById('pinRevisitNum').innerText=rm[today]||0;
     document.getElementById('weekWechat').innerText=getWeekTotal(wm);
     document.getElementById('monthWechat').innerText=getMonthTotal(wm);
     document.getElementById('weekIntent').innerText=getWeekTotal(im);
