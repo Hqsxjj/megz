@@ -7102,7 +7102,7 @@ export default {
   }
   function showJournalShell(){
     document.body.classList.add('page-journal');
-    document.body.classList.remove('page-auth');
+    document.body.classList.remove('page-auth','page-hidden');
     initJournal();
     loadJournalFromCloud(getTodayStr());
   }
@@ -9202,7 +9202,7 @@ export default {
     var authed=await checkAuth();
     var unlocked=(Date.now()-parseInt(localStorage.getItem(UNLOCK_TS_K)||'0'))<3600000;
     if(authed){
-      if(unlocked){setLocked(false);showJournalShell();}else{setLocked(true);}
+      if(unlocked){showJournalShell();localStorage.setItem(LOCK_K,'false');}else{setLocked(true);}
     }else{
       if(unlocked){setLocked(false);}else{setLocked(true);}
     }
