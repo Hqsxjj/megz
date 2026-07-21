@@ -4323,6 +4323,7 @@ export default {
     <input type="text" class="pin-input pin-mask" id="pinInput" placeholder="" maxlength="6" inputmode="numeric" autocomplete="off" spellcheck="false" data-lpignore="true" readonly onfocus="this.removeAttribute('readonly');" autofocus>
     <button class="pin-btn" id="pinUnlockBtn">解锁进入</button>
     <div class="pin-error" id="pinError"></div>
+    <div style="margin-top:4px"><a id="pinToAuth" style="font-size:0.82rem;color:var(--text-soft);cursor:pointer">账号登录</a></div>
   </div>
 </div>
 <div class="journal-shell" id="journalShell">
@@ -4348,7 +4349,7 @@ export default {
 <div class="app-shell">
   <div class="container">
     <div class="header-bar">
-      <h3>生活记事录</h3><div class="date-chip" id="liveDate"></div><button class="goal-eye eye-off" id="goalEyeBtn" title="显示目标数字">👁</button><div class="goal-chips" id="goalChips"></div><button class="icon-simple" id="loanCalcBtn" title="贷款利息计算器" style="margin-left:auto">计算器</button><button class="icon-simple" id="allClientsBtn" title="意向客户全量表">全量</button><button class="icon-simple" id="loginBtn" title="账号登录" style="display:none;">登录</button><button class="icon-simple" id="hideBtn" title="一键隐藏 (Ctrl+Z)">锁屏</button><button class="icon-simple" id="menuToggleBtn" title="菜单">≡</button><div class="menu-dropdown" id="menuDropdown"><button class="menu-item" id="logBtn">同步日志</button><button class="menu-item" id="scriptBtn">话术管理</button><button class="menu-item" id="learnBtn">学习管理</button><button class="menu-item" id="exportBtn">导出数据</button><button class="menu-item" id="goalBtn">目标设定</button><button class="menu-item" id="whitelistMenuBtn">白名单管理</button><button class="menu-item" id="darkToggleBtn">深色模式</button><button class="menu-item" id="logoutMenuBtn" style="color:#e74c3c">退出登录</button></div>
+      <h3>生活记事录</h3><div class="date-chip" id="liveDate"></div><button class="goal-eye eye-off" id="goalEyeBtn" title="显示目标数字">👁</button><div class="goal-chips" id="goalChips"></div><button class="icon-simple" id="loanCalcBtn" title="贷款利息计算器" style="margin-left:auto">计算器</button><button class="icon-simple" id="allClientsBtn" title="意向客户全量表">全量</button><button class="icon-simple" id="hideBtn" title="一键隐藏 (Ctrl+Z)">锁屏</button><button class="icon-simple" id="menuToggleBtn" title="菜单">≡</button><div class="menu-dropdown" id="menuDropdown"><button class="menu-item" id="logBtn">同步日志</button><button class="menu-item" id="scriptBtn">话术管理</button><button class="menu-item" id="learnBtn">学习管理</button><button class="menu-item" id="exportBtn">导出数据</button><button class="menu-item" id="goalBtn">目标设定</button><button class="menu-item" id="whitelistMenuBtn">白名单管理</button><button class="menu-item" id="darkToggleBtn">深色模式</button><button class="menu-item" id="logoutMenuBtn" style="color:#e74c3c">退出登录</button></div>
     </div>
     <div class="two-columns">
       <div class="left-area">
@@ -7075,9 +7076,8 @@ export default {
     localStorage.removeItem(AUTH_USER_K);
     localStorage.removeItem('unlock_ts');
     document.body.classList.remove('page-journal','page-auth');
-    var lb=document.getElementById('loginBtn');if(lb)lb.style.display='';
     setLocked(false);
-    refreshAll();
+    showAuthGate();
   }
   async function checkAuth(){
     var token=localStorage.getItem(AUTH_TOKEN_K);
@@ -7105,7 +7105,6 @@ export default {
   function showJournalShell(){
     document.body.classList.add('page-journal');
     document.body.classList.remove('page-auth');
-    var lb=document.getElementById('loginBtn');if(lb)lb.style.display='none';
     initJournal();
     loadJournalFromCloud(getTodayStr());
   }
@@ -9329,9 +9328,9 @@ export default {
     navigator.sendBeacon('/api/data',new Blob([payload],{type:'application/json'}));
   });
 })();
-  // 登录按钮（旧界面顶栏）
-  var loginBtn=document.getElementById('loginBtn');
-  if(loginBtn){loginBtn.addEventListener('click',function(){showAuthGate();});loginBtn.style.display=localStorage.getItem(AUTH_TOKEN_K)?'none':'';}
+  // PIN 锁屏 → 账号登录入口
+  var pinToAuth=document.getElementById('pinToAuth');
+  if(pinToAuth)pinToAuth.addEventListener('click',function(){pi.value='';showAuthGate();});
   // 退出登录按钮
   var logoutBtn=document.getElementById('logoutMenuBtn');
   if(logoutBtn)logoutBtn.addEventListener('click',function(){if(confirm('确定要退出登录吗？'))doLogout();});
