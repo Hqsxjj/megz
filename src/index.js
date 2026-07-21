@@ -3337,8 +3337,8 @@ export default {
     .auth-error { color: #e74c3c; font-size: 0.95rem; min-height: 20px; font-weight: 600; text-align: center; }
     /* ====== 日记首页 ====== */
     .journal-shell { display: none; height: 100%; height: 100dvh; width: 100%; flex-direction: column; overflow: hidden; position: relative; z-index: 1; }
-    body.page-journal .journal-shell { display: flex; }
-    body.page-journal .app-shell { display: none; }
+    body.page-journal .journal-shell { display: flex !important; }
+    body.page-journal .app-shell { display: none !important; }
     .topbar { display: flex; align-items: center; gap: 16px; padding: 0 20px; height: 56px; flex-shrink: 0; background: rgba(255,255,255,0.35); backdrop-filter: blur(20px) saturate(160%); -webkit-backdrop-filter: blur(20px) saturate(160%); border-bottom: 1px solid rgba(0,0,0,0.06); z-index: 10; }
     body.dark-mode .topbar { background: rgba(20,20,20,0.5); border-bottom: 1px solid rgba(255,255,255,0.08); }
     .topbar-logo { font-size: 1.1rem; font-weight: 800; color: var(--text-main); letter-spacing: 0.5px; white-space: nowrap; }
