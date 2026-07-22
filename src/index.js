@@ -3569,14 +3569,14 @@ export default {
     .tbl-note-empty { color: var(--text-light); font-size: 0.75rem; font-style: italic; }
     .tbl-time { font-size: 0.7rem; color: var(--text-light); white-space: nowrap; }
     .tbl-action { text-align: center; white-space: nowrap; }
-    .edit-note-btn { font-size: 0.78rem; background: transparent; border: 1px solid var(--accent-wechat); color: var(--accent-wechat); border-radius: 50%; cursor: pointer; width: 26px; height: 26px; padding: 0; display: inline-flex; justify-content: center; align-items: center; font-weight: 700; transition: all 0.2s; }
+    .edit-note-btn { font-size: 0.78rem; background: transparent; border: 1px solid var(--accent-wechat); color: var(--accent-wechat); border-radius: 50%; cursor: pointer; width: 26px; height: 26px; padding: 0; display: inline-flex; justify-content: center; align-items: center; font-weight: 500; transition: all 0.2s; }
     .edit-note-btn:hover { background: var(--accent-btn); color: #fff; transform: scale(1.1); }
     .tbl-note-edit-wrap { display: flex; flex-direction: column; gap: 6px; }
-    .tbl-note-edit-wrap textarea { width: 100%; min-height: 90px; background: var(--btn-bg); border: 1.5px solid var(--accent-wechat); border-radius: 6px; padding: 8px 10px; font-size: 0.86rem; color: var(--text-main); outline: none; font-weight: 600; resize: vertical; line-height: 1.7; }
+    .tbl-note-edit-wrap textarea { width: 100%; min-height: 90px; background: var(--btn-bg); border: 1.5px solid var(--accent-wechat); border-radius: 6px; padding: 8px 10px; font-size: 0.86rem; color: var(--text-main); outline: none; font-weight: 400; resize: vertical; line-height: 1.7; }
     .tbl-note-edit-wrap textarea:focus { box-shadow: 0 0 0 3px rgba(255,255,255,0.7); }
     .tbl-note-edit-btns { display: flex; gap: 5px; }
-    .tbl-save-btn { font-size: 0.65rem; background: var(--accent-btn); color: #fff; border: none; border-radius: 6px; cursor: pointer; padding: 4px 12px; font-weight: 700; }
-    .tbl-cancel-btn { font-size: 0.65rem; background: var(--btn-bg); border: 1px solid var(--card-border); color: var(--text-soft); border-radius: 6px; cursor: pointer; padding: 4px 12px; font-weight: 700; }
+    .tbl-save-btn { font-size: 0.65rem; background: var(--accent-btn); color: #fff; border: none; border-radius: 6px; cursor: pointer; padding: 4px 12px; font-weight: 500; }
+    .tbl-cancel-btn { font-size: 0.65rem; background: var(--btn-bg); border: 1px solid var(--card-border); color: var(--text-soft); border-radius: 6px; cursor: pointer; padding: 4px 12px; font-weight: 500; }
     /* ===== 待办卡片（保留原样式） ===== */
     .todo-card-item { display: flex; align-items: flex-start; gap: 10px; padding: 10px 14px; background: var(--btn-bg); border-radius: var(--radius-xs); border: 1px solid var(--card-border); font-size: 0.82rem; font-weight: 400; color: var(--text-main); }
     .todo-card-icon { font-size: 1rem; flex-shrink: 0; margin-top: 1px; }
@@ -3605,23 +3605,23 @@ export default {
     .btn-add:disabled, .todo-add-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
     .time-input-compact { flex: 0 0 92px !important; min-width: 92px !important; padding: 0 6px !important; text-align: center; }
     .client-scroll { max-height: 220px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
-    .client-row { background: var(--btn-bg); border-radius: var(--radius-sm); padding: 10px 14px; display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem; border: 0.5px solid var(--card-border); font-weight: 600; }
+    .client-row { background: var(--btn-bg); border-radius: var(--radius-sm); padding: 10px 14px; display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem; border: 0.5px solid var(--card-border); font-weight: 400; }
     .client-info { flex: 1; display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline; }
-    .client-name { font-weight: 700; }
-    .client-phone, .modal-client-phone { color: var(--text-soft) !important; font-size: 0.75rem; font-weight: 600; text-decoration: none !important; cursor: pointer; }
+    .client-name { font-weight: 500; }
+    .client-phone, .modal-client-phone { color: var(--text-soft) !important; font-size: 0.75rem; font-weight: 400; text-decoration: none !important; cursor: pointer; }
     .client-phone:hover, .modal-client-phone:hover { text-decoration: underline !important; }
     .phone-toggle { background: none; border: none; font-size: 0.8rem; cursor: pointer; padding: 0 2px; opacity: 0.5; transition: opacity 0.2s; vertical-align: middle; line-height: 1; }
     .phone-toggle:hover { opacity: 1; }
-    .client-note { color: var(--text-light); font-size: 0.75rem; font-weight: 600; }
-    .del-icon { background: none; border: none; font-size: 0.9rem; color: #c97a7a; cursor: pointer; width: 28px; height: 28px; border-radius: var(--radius-xs); font-weight: 700; }
-    .edit-icon { background: none; border: none; font-size: 0.9rem; color: var(--accent-wechat); cursor: pointer; width: 28px; height: 28px; border-radius: var(--radius-xs); font-weight: 700; margin-right: 4px; }
-    .export-single-btn { background: none; border: none; font-size: 0.9rem; color: var(--accent-intent); cursor: pointer; width: 28px; height: 28px; border-radius: var(--radius-xs); font-weight: 700; margin-right: 4px; }
-    .export-timeline-single-btn { font-size: 0.78rem; background: transparent; border: 1px solid var(--accent-intent); color: var(--accent-intent); border-radius: 50%; cursor: pointer; width: 26px; height: 26px; padding: 0; display: inline-flex; justify-content: center; align-items: center; font-weight: 700; transition: all 0.2s; margin-right: 4px; }
+    .client-note { color: var(--text-light); font-size: 0.75rem; font-weight: 400; }
+    .del-icon { background: none; border: none; font-size: 0.9rem; color: #c97a7a; cursor: pointer; width: 28px; height: 28px; border-radius: var(--radius-xs); font-weight: 500; }
+    .edit-icon { background: none; border: none; font-size: 0.9rem; color: var(--accent-wechat); cursor: pointer; width: 28px; height: 28px; border-radius: var(--radius-xs); font-weight: 500; margin-right: 4px; }
+    .export-single-btn { background: none; border: none; font-size: 0.9rem; color: var(--accent-intent); cursor: pointer; width: 28px; height: 28px; border-radius: var(--radius-xs); font-weight: 500; margin-right: 4px; }
+    .export-timeline-single-btn { font-size: 0.78rem; background: transparent; border: 1px solid var(--accent-intent); color: var(--accent-intent); border-radius: 50%; cursor: pointer; width: 26px; height: 26px; padding: 0; display: inline-flex; justify-content: center; align-items: center; font-weight: 500; transition: all 0.2s; margin-right: 4px; }
     .export-timeline-single-btn:hover { background: var(--accent-btn); color: #fff; transform: scale(1.1); }
     .client-actions { display: flex; align-items: center; gap: 4px; }
     .todo-list { display: flex; flex-direction: column; gap: 8px; max-height: 200px; overflow-y: auto; }
-    .todo-item { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: var(--btn-bg); border-radius: var(--radius-xs); border: 0.5px solid var(--card-border); font-size: 0.8rem; font-weight: 600; color: var(--text-main); }
-    .todo-number { font-weight: 800; color: var(--accent-wechat); min-width: 20px; font-size: 0.85rem; }
+    .todo-item { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: var(--btn-bg); border-radius: var(--radius-xs); border: 0.5px solid var(--card-border); font-size: 0.8rem; font-weight: 400; color: var(--text-main); }
+    .todo-number { font-weight: 600; color: var(--accent-wechat); min-width: 20px; font-size: 0.85rem; }
     .todo-text { flex: 1; word-break: break-word; line-height: 1.4; }
     .todo-input-row { display: flex; gap: 8px; align-items: center; width: 100%; }
     .todo-del-btn { background: none; border: none; color: #c97a7a; cursor: pointer; font-size: 0.85rem; padding: 0 4px; }
@@ -3630,7 +3630,7 @@ export default {
       .card { padding: 14px 16px; }
       .counter-card { padding: 16px 14px; }
       .counter-label { font-size: 0.85rem; }
-      .counter-value { font-size: 3.2rem; font-weight: 900; }
+      .counter-value { font-size: 3.2rem; font-weight: 600; }
       .circle-btn { width: 42px; height: 42px; font-size: 1.5rem; }
       .button-group { gap: 12px; margin-top: 14px; }
       .reset-mini { font-size: 0.75rem; }
@@ -3777,7 +3777,7 @@ export default {
     }
     .client-card-name {
       font-size: 0.88rem;
-      font-weight: 800;
+      font-weight: 600;
       color: var(--text-main);
     }
     .client-card-phone-wrap {
@@ -3790,14 +3790,14 @@ export default {
     }
     .client-card-phone {
       font-size: 0.78rem;
-      font-weight: 700;
+      font-weight: 400;
       color: var(--accent-intent);
       text-decoration: none;
     }
     .client-card-time {
       font-size: 0.72rem;
       color: var(--text-light);
-      font-weight: 600;
+      font-weight: 400;
     }
     .client-card-meta {
       display: flex;
@@ -3807,7 +3807,7 @@ export default {
     }
     .client-card-date-badge {
       font-size: 0.68rem;
-      font-weight: 700;
+      font-weight: 500;
       color: var(--accent-intent);
       background: var(--accent-intent-bg);
       padding: 2px 8px;
@@ -3821,7 +3821,7 @@ export default {
     }
     .client-card-tag {
       font-size: 0.72rem;
-      font-weight: 700;
+      font-weight: 500;
       padding: 3px 8px;
       border-radius: var(--radius-xs);
     }
@@ -3832,7 +3832,7 @@ export default {
     }
     .client-card-tag-bank {
       font-size: 0.7rem;
-      font-weight: 700;
+      font-weight: 500;
       padding: 3px 8px;
       border-radius: var(--radius-xs);
       border: 0.5px solid rgba(90,106,126,0.3);
@@ -3900,7 +3900,7 @@ export default {
       border-top: 1px dashed var(--border-light);
       padding: 6px 20px;
       font-size: 0.72rem;
-      font-weight: 700;
+      font-weight: 500;
       color: var(--accent-wechat);
       cursor: pointer;
       width: 100%;
@@ -3930,7 +3930,7 @@ export default {
     }
     .status-conditional-area { display: none; flex-direction: column; gap: 8px; padding: 4px 0; }
     .status-conditional-area.visible { display: flex; }
-    .status-field-separator { font-size: 0.65rem; font-weight: 800; color: var(--text-light); padding: 4px 0 2px 0; border-top: 1px dashed var(--border-light); margin-top: 2px; }
+    .status-field-separator { font-size: 0.65rem; font-weight: 600; color: var(--text-light); padding: 4px 0 2px 0; border-top: 1px dashed var(--border-light); margin-top: 2px; }
     .input-select {
       appearance: auto;
       -webkit-appearance: auto;
@@ -3964,13 +3964,13 @@ export default {
     }
     .client-card-label {
       font-size: 0.65rem;
-      font-weight: 800;
+      font-weight: 500;
       color: var(--text-light);
       letter-spacing: 0.5px;
     }
     .client-card-text {
       color: var(--text-soft);
-      font-weight: 600;
+      font-weight: 400;
       line-height: 1.45;
       word-break: break-all;
     }
@@ -4011,7 +4011,7 @@ export default {
     .client-card-status-badge {
       display: inline-block;
       font-size: 0.7rem;
-      font-weight: 900;
+      font-weight: 600;
       padding: 3px 10px;
       border-radius: 10px;
       letter-spacing: 0.4px;
@@ -4634,7 +4634,7 @@ export default {
 </div>
 <div id="allClientsModal" class="modal-overlay">
   <div class="modal-card" style="width:100vw;height:100vh;max-width:100vw;max-height:100vh;margin:0;border-radius:0;border:none;box-sizing:border-box;">
-    <div class="modal-header"><div style="display:flex;align-items:center;gap:12px;"><span>意向客户全量登记表</span><button id="allClientsAddBtn" class="btn-add" style="font-size:0.75rem;padding:4px 12px;height:28px;">+ 新增意向</button><input type="text" id="allClientsSearchInput" class="search-input" placeholder="模糊搜索姓名/电话/单位..." autocomplete="off" style="height:28px;font-size:0.72rem;border-radius:var(--radius-xs);padding:0 8px;border:1px solid var(--card-border);background:var(--btn-bg);color:var(--text-main);font-weight:700;width:180px;"></div><button id="closeAllClientsModalBtn">✕</button></div>
+    <div class="modal-header"><div style="display:flex;align-items:center;gap:12px;"><span>意向客户全量登记表</span><button id="allClientsAddBtn" class="btn-add" style="font-size:0.75rem;padding:4px 12px;height:28px;">+ 新增意向</button><input type="text" id="allClientsSearchInput" class="search-input" placeholder="模糊搜索姓名/电话/单位..." autocomplete="off" style="height:28px;font-size:0.72rem;border-radius:var(--radius-xs);padding:0 8px;border:1px solid var(--card-border);background:var(--btn-bg);color:var(--text-main);font-weight:400;width:180px;"></div><button id="closeAllClientsModalBtn">✕</button></div>
     <div class="all-clients-stats" id="allClientsStatsBar">
       <span class="stats-item stats-total">总计 <strong id="statsTotal">0</strong></span>
       <span class="stats-item stats-unmarked">未标记 <strong id="statsUnmarked">0</strong></span>
@@ -8267,14 +8267,14 @@ export default {
       return '<div class="client-card-content-block follow-up">' +
         '<div style="display:flex;justify-content:space-between;align-items:center;">' +
           '<span class="client-card-label">' + count + '</span>' +
-          '<button class="allcard-add-followup-btn"' + idxAttr + ' title="新增跟进记录" style="font-size:0.9rem;width:24px;height:24px;border-radius:50%;border:1.5px dashed var(--accent-wechat);background:transparent;color:var(--accent-wechat);cursor:pointer;font-weight:700;line-height:1;display:flex;align-items:center;justify-content:center;">+</button>' +
+          '<button class="allcard-add-followup-btn"' + idxAttr + ' title="新增跟进记录" style="font-size:0.9rem;width:24px;height:24px;border-radius:50%;border:1.5px dashed var(--accent-wechat);background:transparent;color:var(--accent-wechat);cursor:pointer;font-weight:500;line-height:1;display:flex;align-items:center;justify-content:center;">+</button>' +
         '</div>' +
         (parts.length > 0 ? '<div class="follow-up-list">' + parts.join('') + '</div>' : '') +
         '<div class="allcard-followup-inline-form" style="display:none;margin-top:6px;">' +
           '<textarea class="allcard-followup-inline-input" placeholder="新增跟进记录..." style="width:100%;min-height:44px;padding:6px 8px;font-size:0.78rem;resize:vertical;border:1px solid var(--card-border);border-radius:6px;background:var(--input-bg);color:var(--text-main);font-family:inherit;box-sizing:border-box;"></textarea>' +
           '<div style="display:flex;justify-content:flex-end;gap:6px;margin-top:4px;">' +
-            '<button class="allcard-followup-save-btn"' + idxAttr + ' style="font-size:0.7rem;padding:3px 10px;background:var(--accent-btn);color:#fff;border:none;border-radius:4px;font-weight:700;cursor:pointer;">保存</button>' +
-            '<button class="allcard-followup-cancel-btn" style="font-size:0.7rem;padding:3px 10px;background:var(--btn-bg);color:var(--text-soft);border:1px solid var(--card-border);border-radius:4px;font-weight:700;cursor:pointer;">取消</button>' +
+            '<button class="allcard-followup-save-btn"' + idxAttr + ' style="font-size:0.7rem;padding:3px 10px;background:var(--accent-btn);color:#fff;border:none;border-radius:4px;font-weight:500;cursor:pointer;">保存</button>' +
+            '<button class="allcard-followup-cancel-btn" style="font-size:0.7rem;padding:3px 10px;background:var(--btn-bg);color:var(--text-soft);border:1px solid var(--card-border);border-radius:4px;font-weight:500;cursor:pointer;">取消</button>' +
           '</div>' +
         '</div>' +
       '</div>';
@@ -8723,11 +8723,11 @@ export default {
         card.style.border = '2px dashed var(--accent-wechat)';
         card.innerHTML =
           '<div class="client-card-top">' +
-            '<span style="font-size:0.8rem;font-weight:800;color:var(--accent-wechat);">新增意向客户</span>' +
+            '<span style="font-size:0.8rem;font-weight:600;color:var(--accent-wechat);">新增意向客户</span>' +
           '</div>' +
           '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
             '<input type="date" class="input-simple new-date-input" autocomplete="off" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + getTodayStr() + '">' +
-            '<input type="text" class="input-simple new-name-input" placeholder="姓名" autocomplete="off" readonly onfocus="this.removeAttribute(\\'readonly\\');" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.8rem;font-weight:700;">' +
+            '<input type="text" class="input-simple new-name-input" placeholder="姓名" autocomplete="off" readonly onfocus="this.removeAttribute(\\'readonly\\');" style="flex:1;min-width:80px;padding:6px 8px;font-size:0.8rem;font-weight:400;">' +
             '<input type="text" class="input-simple new-phone-input" placeholder="电话" autocomplete="off" readonly onfocus="this.removeAttribute(\\'readonly\\');" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.8rem;">' +
           '</div>' +
           '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
