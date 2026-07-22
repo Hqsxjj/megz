@@ -4296,9 +4296,8 @@ export default {
 <script>
 (function(){
   var tk=localStorage.getItem('auth_token');
-  var ul=(Date.now()-parseInt(localStorage.getItem('unlock_ts')||'0'))<3600000;
-  if(tk&&ul){document.body.className='page-journal';}
-  else if(!tk&&ul){document.body.className='';}
+  if(!tk){document.body.className='page-auth';}
+  localStorage.removeItem('unlock_ts');
   document.body.style.visibility='visible';
 })();
 </script>
@@ -9437,7 +9436,6 @@ export default {
   // 注意：不在 visibilitychange 时调用 saveFullState，避免设备 B 切标签时
   // 用陈旧的本地数据覆盖云端（设备 A 刚同步上去的数据）
   window.addEventListener('beforeunload',()=>{
-    localStorage.removeItem('unlock_ts');
     const today=getTodayStr();
     const wm=loadMap(WECHAT_K);
     const rm=loadMap(REVISIT_K);
