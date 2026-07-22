@@ -8339,6 +8339,7 @@ export default {
               '<a class="client-card-phone all-phone-link" href="tel:' + esc(c.phone) + '" data-full="' + esc(c.phone) + '">' + esc(maskPhone(c.phone)) + '</a>' +
               '<button class="phone-toggle all-phone-toggle" title="显示号码">看</button>' +
             '</span>' +
+            getNoRevisitTags(c) +
           '</div>' +
         '</div>' +
         getStatusBadgeHtml(c) +
@@ -8347,7 +8348,6 @@ export default {
           (c.company ? getWhitelistTagHtml(c.company, false) : '') +
           (c.fund ? '<span class="client-card-tag client-card-tag-fund">' + esc(c.fund) + '</span>' : '') +
           getClientDetailTags(c) +
-          getNoRevisitTags(c) +
           (c.visitTime ? '<span class="client-card-tag client-card-tag-detail">' + esc(c.visitTime) + '</span>' : '') +
         '</div>' +
         '<div class="client-card-body">' +
