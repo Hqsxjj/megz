@@ -4297,8 +4297,8 @@ export default {
 (function(){
   var tk=localStorage.getItem('auth_token');
   var ul=(Date.now()-parseInt(localStorage.getItem('unlock_ts')||'0'))<3600000;
-  if(tk){document.body.className='page-journal';}
-  else if(ul){document.body.className='';}
+  if(tk&&ul){document.body.className='page-journal';}
+  else if(!tk&&ul){document.body.className='';}
   document.body.style.visibility='visible';
 })();
 </script>
@@ -7145,12 +7145,11 @@ export default {
   }
   async function checkAuth(){
     var token=localStorage.getItem(AUTH_TOKEN_K);
-    if(!token)return {valid:false,reason:'no_token'};
+    if(!token)return false;
     try{
       var r=await fetch('/api/auth/user',{headers:{'Authorization':'Bearer '+token}});
-      if(r.ok)return {valid:true};
-      return {valid:false,reason:'invalid_token',status:r.status};
-    }catch(e){return {valid:true,reason:'network_error'};}
+      return r.ok;
+    }catch(e){return false;}
   }
 
   // ==================== 日记 ====================
@@ -9323,14 +9322,14 @@ export default {
   (function(){
     // 同步判断：本地有 token 且未锁 → 立即显示对应界面，消除刷新闪烁
     var hasToken=!!localStorage.getItem(AUTH_TOKEN_K);
-    if(hasToken){
+    var unlocked=(Date.now()-parseInt(localStorage.getItem(UNLOCK_TS_K)||'0'))<3600000;
+    if(hasToken && unlocked){
       showJournalShell();localStorage.setItem(LOCK_K,'false');
-      localStorage.setItem(UNLOCK_TS_K,Date.now());
     }
     // 后台异步验证 token 有效性
-    checkAuth().then(function(result){
-      if(!result.valid && result.reason==='invalid_token'){
-        // token 已失效，清除并锁屏
+    checkAuth().then(function(valid){
+      if(!valid && hasToken){
+        // token 失效，清除并锁屏
         localStorage.removeItem(AUTH_TOKEN_K);
         localStorage.removeItem(AUTH_USER_K);
         document.body.className='page-hidden';
