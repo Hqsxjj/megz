@@ -4088,9 +4088,9 @@ export default {
       background: rgba(230,126,34,0.16);
       color: #f0a04b;
     }
-    .flag-dot{width:28px;height:28px;border-radius:50%;border:2px solid #e74c3c;background:transparent;cursor:pointer;padding:0;margin:0;flex-shrink:0;transition:all .15s;touch-action:manipulation;min-width:28px}
-    .flag-dot-active{background:#e74c3c;box-shadow:0 0 6px rgba(231,76,60,0.6)}
-    body.dark-mode .flag-dot-active{box-shadow:0 0 8px rgba(231,76,60,0.8)}
+    .flag-dot{width:10px;height:10px;border-radius:50%;border:1.5px solid #e74c3c;background:transparent;cursor:pointer;padding:0;margin:0;flex-shrink:0;transition:all .15s;touch-action:manipulation;min-width:10px}
+    .flag-dot-active{background:#e74c3c;box-shadow:0 0 3px rgba(231,76,60,0.5)}
+    body.dark-mode .flag-dot-active{box-shadow:0 0 4px rgba(231,76,60,0.7)}
     .all-clients-stats{display:flex;gap:8px;padding:10px 16px;margin:0 -4px;background:var(--card-bg);border-bottom:1px solid var(--border-light);flex-wrap:wrap;position:sticky;top:0;z-index:5}
     .all-clients-stats .stats-item{font-size:0.72rem;font-weight:600;color:var(--text-soft);padding:4px 12px;border-radius:12px;background:var(--btn-bg);white-space:nowrap}
     .all-clients-stats .stats-item strong{font-weight:900;font-size:0.85rem;margin-left:2px}
