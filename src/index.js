@@ -3716,6 +3716,13 @@ export default {
 
       /* Mobile: 全量客户弹窗卡片适配 */
       #allClientsModal .modal-card { max-height: 93vh !important; max-width: 100vw !important; margin-top: 7vh !important; border-radius: 16px 16px 0 0 !important; }
+      #allClientsModal .modal-header { flex-wrap: wrap; gap: 6px; padding-bottom: 6px; font-size: 0.85rem; }
+      #allClientsModal .modal-header > div { flex-wrap: wrap; gap: 4px; }
+      #allClientsModal .modal-header > div > span { font-size: 0.85rem; }
+      #allClientsModal .modal-header .btn-add { font-size: 0.68rem !important; padding: 2px 8px !important; height: 26px !important; }
+      #allClientsModal .modal-header .search-input { width: 110px !important; height: 26px !important; font-size: 0.68rem !important; }
+      #allClientsModal .modal-header select { height: 26px !important; font-size: 0.65rem !important; padding: 0 2px !important; }
+      #allClientsModal #allClientsSortOrderBtn { height: 26px !important; width: 26px !important; font-size: 0.75rem !important; }
       .all-client-card .card-action-btn { font-size: 0.7rem !important; padding: 4px 10px !important; }
     }
     /* ===== 紧凑表格与待办行样式 ===== */
