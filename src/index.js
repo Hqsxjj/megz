@@ -3297,7 +3297,7 @@ export default {
     body.dark-mode.page-hidden .privacy-wallpaper { opacity: 1; }
     body.page-hidden .privacy-mask { display: flex; pointer-events: auto; }
     body.page-hidden .app-shell { display: none; }
-    .pin-box { display: flex; flex-direction: column; align-items: center; gap: 22px; background: rgba(255,255,255,0.22); backdrop-filter: blur(50px) saturate(180%); -webkit-backdrop-filter: blur(50px) saturate(180%); padding: 45px 56px; border-radius: 28px; box-shadow: 0 8px 32px rgba(0,0,0,0.12), inset 0 0.5px 0 rgba(255,255,255,0.5); border: 1px solid rgba(255,255,255,0.3); min-width: 448px; max-width: 588px; z-index: 45; position: absolute; top: 60%; left: 50%; transform: translate(-50%, -50%); }
+    .pin-box { display: flex; flex-direction: column; align-items: center; gap: 18px; background: rgba(255,255,255,0.22); backdrop-filter: blur(50px) saturate(180%); -webkit-backdrop-filter: blur(50px) saturate(180%); padding: 36px 44px; border-radius: 24px; box-shadow: 0 8px 32px rgba(0,0,0,0.12), inset 0 0.5px 0 rgba(255,255,255,0.5); border: 1px solid rgba(255,255,255,0.3); min-width: 360px; max-width: 480px; z-index: 45; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); }
     body.dark-mode .pin-box { background: rgba(20,20,20,0.4); backdrop-filter: blur(50px) saturate(180%); -webkit-backdrop-filter: blur(50px) saturate(180%); border: 1px solid rgba(255,255,255,0.12); box-shadow: 0 8px 32px rgba(0,0,0,0.35), inset 0 0.5px 0 rgba(255,255,255,0.1); }
     .pin-stats { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; }
     .pin-stat-item { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px 16px; background: rgba(255,255,255,0.12); border-radius: var(--radius-sm); border: 1px solid rgba(255,255,255,0.15); min-width: 110px; flex: 1; }
@@ -3671,7 +3671,7 @@ export default {
       h3 { font-size: 1.15rem; }
       .modal-card { padding: 16px 14px; gap: 12px; }
       .client-modal-list { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-      .pin-box { min-width: 320px; max-width: 92vw; padding: 28px 20px; gap: 14px; top: 35%; transform: translate(-50%, -35%); }
+      .pin-box { min-width: 280px; max-width: 88vw; padding: 24px 18px; gap: 12px; top: 50%; transform: translate(-50%, -50%); }
       .pin-stats { gap: 8px; }
       .pin-stat-item { padding: 10px 10px; min-width: 90px; gap: 4px; }
       .pin-stat-label { font-size: 0.75rem; }
@@ -4194,8 +4194,7 @@ export default {
     body.android .modal-overlay { backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px); }
     body.android .circle-btn { backdrop-filter: none; }
     body.android .reset-mini { backdrop-filter: none; }
-    /* Android 调整锁屏 PIN 框位置 */
-    body.android .pin-box { top: 45%; }
+    /* Android 锁屏 PIN 框 — 同桌面居中 */
 
     /* Whitelist management modal */
     .whitelist-textarea {
