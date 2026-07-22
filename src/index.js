@@ -4272,7 +4272,16 @@ export default {
   </style>
   <script src="/xlsx.full.min.js"></script>
 </head>
-<body class="page-hidden">
+<body class="page-hidden" style="visibility:hidden">
+<script>
+(function(){
+  var tk=localStorage.getItem('auth_token');
+  var ul=(Date.now()-parseInt(localStorage.getItem('unlock_ts')||'0'))<3600000;
+  if(tk&&ul){document.body.className='page-journal';}
+  else if(!tk&&ul){document.body.className='';}
+  document.body.style.visibility='visible';
+})();
+</script>
 <div class="notify-bar" id="notifyBar" onclick="this.classList.remove('show')"><span id="notifyText"></span><span class="notify-close">✕</span></div>
 <div class="wallpaper-fallback"></div>
 <div class="wallpaper-background" id="wallpaperBackground"></div>
@@ -4330,7 +4339,7 @@ export default {
     <div class="pin-error" id="pinError"></div>
   </div>
 </div>
-<div class="journal-shell" id="journalShell" style="display:none">
+<div class="journal-shell" id="journalShell">
   <div class="topbar">
     <span class="topbar-logo">生活记事录</span>
     <input class="topbar-search" id="journalSearch" placeholder="搜索记录...">
@@ -4350,7 +4359,7 @@ export default {
     </main>
   </div>
 </div>
-<div class="app-shell" style="display:none">
+<div class="app-shell">
   <div class="container">
     <div class="header-bar">
       <h3>生活记事录</h3><div class="date-chip" id="liveDate"></div><button class="goal-eye eye-off" id="goalEyeBtn" title="显示目标数字">👁</button><div class="goal-chips" id="goalChips"></div><button class="icon-simple" id="loanCalcBtn" title="贷款利息计算器" style="margin-left:auto">计算器</button><button class="icon-simple" id="allClientsBtn" title="意向客户全量表">全量</button><button class="icon-simple" id="hideBtn" title="一键隐藏 (Ctrl+Z)">锁屏</button><button class="icon-simple" id="menuToggleBtn" title="菜单">≡</button><div class="menu-dropdown" id="menuDropdown"><button class="menu-item" id="logBtn">同步日志</button><button class="menu-item" id="scriptBtn">话术管理</button><button class="menu-item" id="learnBtn">学习管理</button><button class="menu-item" id="exportBtn">导出数据</button><button class="menu-item" id="goalBtn">目标设定</button><button class="menu-item" id="whitelistMenuBtn">白名单管理</button><button class="menu-item" id="darkToggleBtn">深色模式</button><button class="menu-item" id="logoutMenuBtn" style="color:#e74c3c">退出登录</button></div>
