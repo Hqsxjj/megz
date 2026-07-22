@@ -9437,6 +9437,7 @@ export default {
   // 注意：不在 visibilitychange 时调用 saveFullState，避免设备 B 切标签时
   // 用陈旧的本地数据覆盖云端（设备 A 刚同步上去的数据）
   window.addEventListener('beforeunload',()=>{
+    localStorage.removeItem('unlock_ts');
     const today=getTodayStr();
     const wm=loadMap(WECHAT_K);
     const rm=loadMap(REVISIT_K);
