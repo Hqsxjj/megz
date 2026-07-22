@@ -3590,6 +3590,11 @@ export default {
     .form-line { display: flex; gap: 8px; align-items: center; width: 100%; }
     .input-simple, .todo-input { flex: 1; width: 100%; height: 38px; padding: 0 12px; font-size: 0.85rem; background: var(--btn-bg); border: 0.5px solid var(--card-border); border-radius: var(--radius-xs); color: var(--text-main); outline: none; min-width: 0; font-weight: 600; box-sizing: border-box; transition: all 0.2s; }
     .input-simple:focus, .todo-input:focus { border-color: var(--accent-wechat); box-shadow: 0 0 0 2px rgba(255,255,255,0.7); }
+    input::placeholder, textarea::placeholder { font-weight: 400; opacity: 0.6; }
+    .input-simple::placeholder, .todo-input::placeholder, .note-textarea::placeholder { font-weight: 400; opacity: 0.6; }
+    .auth-input::placeholder { font-weight: 400; opacity: 0.6; }
+    .timer-input::placeholder { font-weight: 400; opacity: 0.6; }
+    .topbar-search::placeholder { font-weight: 400; opacity: 0.6; }
     textarea.input-simple, .note-textarea { height: auto; min-height: 68px; padding: 10px 12px; resize: vertical; line-height: 1.6; }
     .note-textarea { font-family: inherit; }
     .btn-add, .todo-add-btn { height: 38px; padding: 0 18px; font-size: 0.85rem; font-weight: 700; border: none; border-radius: var(--radius-xs); color: white; cursor: pointer; white-space: nowrap; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; transition: all 0.2s; }
