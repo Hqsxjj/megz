@@ -3888,6 +3888,25 @@ export default {
       background: rgba(149, 165, 166, 0.18);
       color: #bdc3c7;
     }
+    /* No-revisit warning tags */
+    .client-card-tag-no-revisit-5 {
+      background: rgba(230, 126, 34, 0.1);
+      color: #d35400;
+      border: 0.5px solid rgba(230, 126, 34, 0.2);
+    }
+    body.dark-mode .client-card-tag-no-revisit-5 {
+      background: rgba(230, 126, 34, 0.15);
+      color: #f39c12;
+    }
+    .client-card-tag-no-revisit-10 {
+      background: rgba(231, 76, 60, 0.1);
+      color: #c0392b;
+      border: 0.5px solid rgba(231, 76, 60, 0.2);
+    }
+    body.dark-mode .client-card-tag-no-revisit-10 {
+      background: rgba(231, 76, 60, 0.15);
+      color: #e74c3c;
+    }
     /* Collapsible detail panel */
     .detail-toggle-wrap {
       display: flex;
@@ -8198,6 +8217,27 @@ export default {
   },30000);
 
   // ==================== 意向客户全量表（卡片模式） ====================
+  function getDaysSinceLastFollowUp(c) {
+    if (!c.followUps || c.followUps.length === 0) return Infinity;
+    var dates = c.followUps.map(function(fu) { return fu.date; }).filter(Boolean);
+    if (dates.length === 0) return Infinity;
+    dates.sort();
+    var lastDate = dates[dates.length - 1];
+    var today = getTodayStr();
+    var diffMs = new Date(today).getTime() - new Date(lastDate).getTime();
+    return Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  }
+  function getNoRevisitTags(c) {
+    var days = getDaysSinceLastFollowUp(c);
+    var tags = '';
+    if (days > 5) {
+      tags += '<span class="client-card-tag client-card-tag-no-revisit-5">近5天未回访</span>';
+    }
+    if (days > 10) {
+      tags += '<span class="client-card-tag client-card-tag-no-revisit-10">近10天未回访</span>';
+    }
+    return tags;
+  }
   async function loadAllClients() {
     try {
       const r = await fetch('/api/all-clients');
@@ -8307,6 +8347,7 @@ export default {
           (c.company ? getWhitelistTagHtml(c.company, false) : '') +
           (c.fund ? '<span class="client-card-tag client-card-tag-fund">' + esc(c.fund) + '</span>' : '') +
           getClientDetailTags(c) +
+          getNoRevisitTags(c) +
           (c.visitTime ? '<span class="client-card-tag client-card-tag-detail">' + esc(c.visitTime) + '</span>' : '') +
         '</div>' +
         '<div class="client-card-body">' +
