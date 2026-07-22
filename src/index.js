@@ -3604,7 +3604,7 @@ export default {
     .btn-add:active, .todo-add-btn:active { transform: translateY(0); }
     .btn-add:disabled, .todo-add-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
     .time-input-compact { flex: 0 0 92px !important; min-width: 92px !important; padding: 0 6px !important; text-align: center; }
-    .client-scroll { max-height: 220px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+    .client-scroll { max-height: 460px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
     .client-row { background: var(--btn-bg); border-radius: var(--radius-sm); padding: 10px 14px; display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem; border: 0.5px solid var(--card-border); font-weight: 600; }
     .client-info { flex: 1; display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline; }
     .client-name { font-weight: 700; }
@@ -3634,7 +3634,7 @@ export default {
       .circle-btn { width: 42px; height: 42px; font-size: 1.5rem; }
       .button-group { gap: 12px; margin-top: 14px; }
       .reset-mini { font-size: 0.75rem; }
-      .client-scroll { max-height: 200px; }
+      .client-scroll { max-height: 320px; }
       .todo-list { max-height: 180px; }
       .card-title { font-size: 0.85rem; margin-bottom: 10px; }
       .input-simple, .todo-input { height: 34px; padding: 0 10px; font-size: 0.8rem; }
