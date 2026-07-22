@@ -5769,7 +5769,7 @@ export default {
           '<div class="client-card-content-block follow-up">'+
             '<div style="display:flex;justify-content:space-between;align-items:center;">'+
               '<span class="client-card-label">跟进记录('+(c.followUps?c.followUps.length:0)+')</span>'+
-              '<button class="cl-add-followup-btn" data-idx="'+idx+'" title="新增跟进记录" style="font-size:0.9rem;width:24px;height:24px;border-radius:50%;border:1.5px dashed var(--accent-wechat);background:transparent;color:var(--accent-wechat);cursor:pointer;font-weight:700;line-height:1;display:flex;align-items:center;justify-content:center;">+</button>'+
+              '<button class="cl-add-followup-btn" data-idx="'+i+'" title="新增跟进记录" style="font-size:0.9rem;width:24px;height:24px;border-radius:50%;border:1.5px dashed var(--accent-wechat);background:transparent;color:var(--accent-wechat);cursor:pointer;font-weight:700;line-height:1;display:flex;align-items:center;justify-content:center;">+</button>'+
             '</div>'+
             (c.followUps && c.followUps.length > 0 ?
               '<div class="follow-up-list">'+
@@ -5779,7 +5779,7 @@ export default {
             '<div class="cl-followup-inline-form" style="display:none;margin-top:6px;">'+
               '<textarea class="cl-followup-inline-input" placeholder="新增跟进记录..." style="width:100%;min-height:44px;padding:6px 8px;font-size:0.78rem;resize:vertical;border:1px solid var(--card-border);border-radius:6px;background:var(--input-bg);color:var(--text-main);font-family:inherit;box-sizing:border-box;"></textarea>'+
               '<div style="display:flex;justify-content:flex-end;gap:6px;margin-top:4px;">'+
-                '<button class="cl-followup-save-btn" data-idx="'+idx+'" style="font-size:0.7rem;padding:3px 10px;background:var(--accent-btn);color:#fff;border:none;border-radius:4px;font-weight:700;cursor:pointer;">保存</button>'+
+                '<button class="cl-followup-save-btn" data-idx="'+i+'" style="font-size:0.7rem;padding:3px 10px;background:var(--accent-btn);color:#fff;border:none;border-radius:4px;font-weight:700;cursor:pointer;">保存</button>'+
                 '<button class="cl-followup-cancel-btn" style="font-size:0.7rem;padding:3px 10px;background:var(--btn-bg);color:var(--text-soft);border:1px solid var(--card-border);border-radius:4px;font-weight:700;cursor:pointer;">取消</button>'+
               '</div>'+
             '</div>'+
