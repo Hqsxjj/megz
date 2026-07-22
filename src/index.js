@@ -4663,7 +4663,7 @@ export default {
 </div>
 <div id="allClientsModal" class="modal-overlay">
   <div class="modal-card" style="width:100vw;height:100vh;max-width:100vw;max-height:100vh;margin:0;border-radius:0;border:none;box-sizing:border-box;">
-    <div class="modal-header"><div style="display:flex;align-items:center;gap:12px;"><span>意向客户全量登记表</span><button id="allClientsAddBtn" class="btn-add" style="font-size:0.75rem;padding:4px 12px;height:28px;">+ 新增意向</button><input type="text" id="allClientsSearchInput" class="search-input" placeholder="模糊搜索姓名/电话/单位..." autocomplete="off" style="height:28px;font-size:0.72rem;border-radius:var(--radius-xs);padding:0 8px;border:1px solid var(--card-border);background:var(--btn-bg);color:var(--text-main);font-weight:400;width:180px;"></div><button id="closeAllClientsModalBtn">✕</button></div>
+    <div class="modal-header"><div style="display:flex;align-items:center;gap:12px;"><span>意向客户全量登记表</span><button id="allClientsAddBtn" class="btn-add" style="font-size:0.75rem;padding:4px 12px;height:28px;">+ 新增意向</button><input type="text" id="allClientsSearchInput" class="search-input" placeholder="模糊搜索姓名/电话/单位..." autocomplete="off" style="height:28px;font-size:0.72rem;border-radius:var(--radius-xs);padding:0 8px;border:1px solid var(--card-border);background:var(--btn-bg);color:var(--text-main);font-weight:400;width:180px;"><select id="allClientsSortSelect" style="height:28px;font-size:0.72rem;border-radius:var(--radius-xs);padding:0 4px;border:1px solid var(--card-border);background:var(--btn-bg);color:var(--text-main);font-weight:400;cursor:pointer;"><option value="date">登记日期</option><option value="followup">最近回访</option><option value="norevisit">未回访天数</option><option value="label">客户标签</option><option value="name">姓名</option></select><button id="allClientsSortOrderBtn" title="切换排序方向" style="height:28px;width:28px;font-size:0.85rem;font-weight:700;border-radius:var(--radius-xs);border:1px solid var(--card-border);background:var(--btn-bg);color:var(--text-main);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;">↓</button></div><button id="closeAllClientsModalBtn">✕</button></div>
     <div class="all-clients-stats" id="allClientsStatsBar">
       <span class="stats-item stats-total">总计 <strong id="statsTotal">0</strong></span>
       <span class="stats-item stats-unmarked">未标记 <strong id="statsUnmarked">0</strong></span>
@@ -4826,6 +4826,38 @@ export default {
   const DARK_K='dark_mode', LOCK_K='locked', TODAY_TODO_K='today_todo_v2', TOMORROW_TODO_K='tomorrow_todo_v2';
   const LAST_LOAD_DATE_K='last_load_date_v1', WALLPAPER_K='wp_cache', SCRIPTS_K='scripts_v1', LEARN_K='learn_v1', LOCAL_TS_K='local_ts_v1';
   let _allClientsCache=[];
+  let _allClientsSortField='date';
+  let _allClientsSortAsc=false;
+  function sortAllClients(clients) {
+    var field = _allClientsSortField;
+    var asc = _allClientsSortAsc;
+    var sorted = clients.slice();
+    sorted.sort(function(a, b) {
+      var va, vb;
+      if (field === 'date') {
+        va = (a.date || '') + (a.time || '');
+        vb = (b.date || '') + (b.time || '');
+      } else if (field === 'followup') {
+        var aDates = (a.followUps && a.followUps.length) ? a.followUps.map(function(fu){return fu.date;}).filter(Boolean).sort() : [];
+        var bDates = (b.followUps && b.followUps.length) ? b.followUps.map(function(fu){return fu.date;}).filter(Boolean).sort() : [];
+        va = aDates.length ? aDates[aDates.length - 1] : '0000-00-00';
+        vb = bDates.length ? bDates[bDates.length - 1] : '0000-00-00';
+      } else if (field === 'norevisit') {
+        va = getDaysSinceLastFollowUp(a);
+        vb = getDaysSinceLastFollowUp(b);
+      } else if (field === 'label') {
+        va = (a.label || 'D');
+        vb = (b.label || 'D');
+      } else if (field === 'name') {
+        va = (a.name || '');
+        vb = (b.name || '');
+      }
+      if (va < vb) return asc ? -1 : 1;
+      if (va > vb) return asc ? 1 : -1;
+      return 0;
+    });
+    return sorted;
+  }
   const TEMP_CLIENTS_K='temp_clients_v1', PIN_HASH_K='pin_hash_v1';
   const DEFAULT_PIN_HASH = hashPinSimple('8520'); // '7c78e7fa'
   function getPinHash() { return localStorage.getItem(PIN_HASH_K) || DEFAULT_PIN_HASH; }
@@ -8290,13 +8322,7 @@ export default {
 
     clients.forEach(function(c) { migrateClientFollowUps(c); });
 
-    clients.sort(function(a, b) {
-      var aHas = a.followUps && a.followUps.length > 0;
-      var bHas = b.followUps && b.followUps.length > 0;
-      if (aHas && !bHas) return 1;
-      if (!aHas && bHas) return -1;
-      return (b.date || '').localeCompare(a.date || '');
-    });
+    clients = sortAllClients(clients);
 
     updateAllClientsStats(clients);
 
@@ -8953,6 +8979,42 @@ export default {
             (c.company||'').toLowerCase().includes(q);
         });
         renderAllClientsCards(filtered);
+      });
+    }
+
+    // 全量意向排序
+    const sortSelect = document.getElementById('allClientsSortSelect');
+    const sortOrderBtn = document.getElementById('allClientsSortOrderBtn');
+    function updateSortOrderBtn() {
+      if (sortOrderBtn) {
+        sortOrderBtn.textContent = _allClientsSortAsc ? '↑' : '↓';
+      }
+    }
+    function applySort() {
+      const q = (searchInput && searchInput.value || '').trim().toLowerCase();
+      var source = _allClientsCache;
+      if (q) {
+        source = _allClientsCache.filter(function(c) {
+          return (c.name||'').toLowerCase().includes(q) ||
+            (c.phone||'').toLowerCase().includes(q) ||
+            (c.company||'').toLowerCase().includes(q);
+        });
+      }
+      renderAllClientsCards(source);
+    }
+    if (sortSelect) {
+      sortSelect.value = _allClientsSortField;
+      sortSelect.addEventListener('change', function() {
+        _allClientsSortField = this.value;
+        applySort();
+      });
+    }
+    if (sortOrderBtn) {
+      updateSortOrderBtn();
+      sortOrderBtn.addEventListener('click', function() {
+        _allClientsSortAsc = !_allClientsSortAsc;
+        updateSortOrderBtn();
+        applySort();
       });
     }
   }
