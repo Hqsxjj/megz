@@ -3623,6 +3623,21 @@ export default {
     .todo-text { flex: 1; word-break: break-word; line-height: 1.4; }
     .todo-input-row { display: flex; gap: 8px; align-items: center; width: 100%; }
     .todo-del-btn { background: none; border: none; color: #c97a7a; cursor: pointer; font-size: 0.85rem; padding: 0 4px; }
+    /* ===== 图片展示模块 ===== */
+    .image-scroll { display: flex; gap: 10px; overflow-x: auto; padding: 4px 0; scroll-behavior: smooth; -webkit-overflow-scrolling: touch; scrollbar-width: thin; }
+    .image-scroll::-webkit-scrollbar { height: 4px; }
+    .image-scroll::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 2px; }
+    .image-thumb-wrap { flex-shrink: 0; position: relative; }
+    .image-thumb { width: 140px; height: 100px; border-radius: 8px; object-fit: cover; cursor: pointer; border: 1px solid var(--card-border); transition: transform 0.15s; display: block; }
+    .image-thumb:hover { transform: scale(1.03); }
+    .image-thumb-placeholder { width: 140px; height: 100px; flex-shrink: 0; border-radius: 8px; border: 2px dashed var(--card-border); display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-soft); font-size: 2rem; background: var(--btn-bg); transition: all 0.2s; }
+    .image-thumb-placeholder:hover { border-color: var(--accent-btn); color: var(--accent-btn); }
+    .image-del-btn { position: absolute; top: 2px; right: 2px; width: 20px; height: 20px; border-radius: 50%; background: rgba(0,0,0,0.5); color: white; border: none; font-size: 0.7rem; cursor: pointer; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.15s; line-height: 1; }
+    .image-thumb-wrap:hover .image-del-btn { opacity: 1; }
+    .image-lightbox { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 10000; justify-content: center; align-items: center; cursor: pointer; }
+    .image-lightbox.open { display: flex; }
+    .image-lightbox img { max-width: 95vw; max-height: 95vh; object-fit: contain; border-radius: 4px; }
+    .image-empty-text { font-size: 0.8rem; color: var(--text-light); padding: 8px 0; }
     @media (min-width: 761px) {
       .right-area { order: 2; } .left-area { order: 1; }
       .card { padding: 14px 16px; }
@@ -4501,6 +4516,17 @@ export default {
           <div class="register-block">
             <div class="todo-input-row"><input type="text" class="todo-input" id="todoInput" placeholder="添加待办..." autocomplete="off"><input type="time" class="todo-input time-input-compact" id="todoRemindTime" autocomplete="off"><button class="todo-add-btn" id="addTodoBtn">+ 添加</button></div>
             <div class="todo-list" id="todoList"></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;">
+            <span>图片</span>
+            <label for="imageFileInput" style="font-size:0.8rem;font-weight:700;color:var(--accent-btn);cursor:pointer;padding:4px 10px;border-radius:4px;border:1px solid var(--accent-btn);">上传</label>
+            <input type="file" id="imageFileInput" accept="image/*" multiple style="display:none;" onchange="uploadImages(this.files)">
+          </div>
+          <div class="image-scroll" id="imageScroll"></div>
+          <div class="image-lightbox" id="imageLightbox" onclick="closeLightbox()">
+            <img id="imageLightboxImg" src="" alt="">
           </div>
         </div>
       </div>
@@ -6852,6 +6878,79 @@ export default {
     renderGoalChips();
   }
 
+  // ===== 图片展示模块 =====
+  async function loadImages(){
+    var container=document.getElementById('imageScroll');
+    if(!container) return;
+    try {
+      var resp=await fetch('/api/images');
+      var images=await resp.json();
+      if(!images || images.length===0) {
+        container.innerHTML='<span class="image-empty-text">暂无图片，点击上传</span>';
+        return;
+      }
+      var html='';
+      for(var i=0;i<images.length;i++){
+        var img=images[i];
+        var src='/api/image/'+encodeURIComponent(img.id);
+        var safeName=(img.name||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+        html+='<div class="image-thumb-wrap"><img class="image-thumb" src="'+src+'" alt="'+safeName+'" loading="lazy" onclick="event.stopPropagation();openLightbox(\\''+src+'\\')"><button class="image-del-btn" onclick="event.stopPropagation();deleteImage(\\''+img.id+'\\')">X</button></div>';
+      }
+      container.innerHTML=html;
+    } catch(e) { console.error('加载图片失败:',e); }
+  }
+
+  async function uploadImages(files){
+    if(!files||files.length===0) return;
+    for(var i=0;i<files.length;i++){
+      var file=files[i];
+      if(!file.type.startsWith('image/')) continue;
+      if(file.size>5*1024*1024) { alert(file.name+' 超过 5MB 限制'); continue; }
+      try {
+        var data=await new Promise(function(resolve,reject){
+          var reader=new FileReader();
+          reader.onload=function(){ resolve(reader.result); };
+          reader.onerror=function(){ reject(reader.error); };
+          reader.readAsDataURL(file);
+        });
+        var resp=await fetch('/api/images',{
+          method:'POST',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({name:file.name,type:file.type,data:data})
+        });
+        var result=await resp.json();
+        if(!result.ok) { alert('上传失败: '+(result.error||'未知错误')); }
+      } catch(e) { console.error('上传图片失败:',e); alert('上传失败: '+e.message); }
+    }
+    loadImages();
+    // 重置 file input 以便重复选同一文件
+    var input=document.getElementById('imageFileInput');
+    if(input) input.value='';
+  }
+
+  async function deleteImage(id){
+    if(!confirm('确定删除这张图片吗？')) return;
+    try {
+      var resp=await fetch('/api/images',{
+        method:'DELETE',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({id:id})
+      });
+      var result=await resp.json();
+      if(result.ok) loadImages();
+      else alert('删除失败: '+(result.error||'未知错误'));
+    } catch(e) { console.error('删除图片失败:',e); }
+  }
+
+  function openLightbox(src){
+    var lb=document.getElementById('imageLightbox');
+    var img=document.getElementById('imageLightboxImg');
+    if(lb&&img){ img.src=src; lb.classList.add('open'); }
+  }
+
+  function closeLightbox(){
+    var lb=document.getElementById('imageLightbox');
+    if(lb) lb.classList.remove('open');
+  }
+
   function refreshAll(){
     const wm=loadMap(WECHAT_K),im=loadMap(INTENT_K),rm=loadMap(REVISIT_K),vm=loadMap(VISIT_K),pm=loadMap(PAYMENT_K),today=getTodayStr();
     // 意向计数直接从当日客户数派生，确保永远准确
@@ -6872,6 +6971,7 @@ export default {
     document.getElementById('liveDate').innerHTML=(now.getMonth()+1)+'月'+now.getDate()+'日 '+wk[now.getDay()];
     renderCalendar(wm,im);renderClientList();renderTodos();renderTempClientList();
     renderGoalChips();
+    loadImages();
   }
 
   async function modCounter(key,delta,op){
@@ -9517,6 +9617,127 @@ export default {
 <div style="height:5px;width:100%;flex-shrink:0;" aria-hidden="true"></div>
 </body>
 </html>`;
+
+    // ========== 图片管理 API ==========
+
+    // 获取图片清单
+    if (path === '/api/images' && request.method === 'GET') {
+      const manifest = await env.DATA_KV.get('images:manifest');
+      const images = manifest ? JSON.parse(manifest) : [];
+      return new Response(JSON.stringify(images), {
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+      });
+    }
+
+    // 上传图片（base64 JSON body）
+    if (path === '/api/images' && request.method === 'POST') {
+      try {
+        const body = await request.json();
+        const { name, type, data } = body;
+        if (!data || !type) {
+          return new Response(JSON.stringify({ error: '缺少图片数据' }), {
+            status: 400, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+        // 解码 base64
+        const base64 = data.replace(/^data:[^;]+;base64,/, '');
+        let binary;
+        try {
+          binary = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+        } catch(e) {
+          return new Response(JSON.stringify({ error: 'base64 解码失败' }), {
+            status: 400, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+        // 大小限制 5MB
+        if (binary.byteLength > 5 * 1024 * 1024) {
+          return new Response(JSON.stringify({ error: '图片大小超过 5MB 限制' }), {
+            status: 400, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+        // 数量限制 50 张
+        let manifest = await env.DATA_KV.get('images:manifest');
+        let images = manifest ? JSON.parse(manifest) : [];
+        if (images.length >= 50) {
+          return new Response(JSON.stringify({ error: '图片数量已达上限（50张），请先删除旧图片' }), {
+            status: 400, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+        const id = Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+        const entry = { id, name: name || 'image', type, size: binary.byteLength, ts: Date.now() };
+        images.push(entry);
+        // 存储图片 binary + manifest
+        await Promise.all([
+          env.DATA_KV.put('img:' + id, binary.buffer, { type: 'arrayBuffer' }),
+          env.DATA_KV.put('images:manifest', JSON.stringify(images))
+        ]);
+        return new Response(JSON.stringify({ ok: true, id, entry }), {
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ error: '上传失败: ' + e.message }), {
+          status: 500, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+    }
+
+    // 获取单张图片
+    if (path.startsWith('/api/image/') && request.method === 'GET') {
+      const id = path.slice('/api/image/'.length);
+      if (!id || id.includes('/')) {
+        return new Response('Bad request', { status: 400 });
+      }
+      try {
+        const buf = await env.DATA_KV.get('img:' + id, { type: 'arrayBuffer' });
+        if (!buf) {
+          return new Response('Not found', { status: 404 });
+        }
+        // 从 manifest 获取 type
+        let contentType = 'image/jpeg';
+        const manifest = await env.DATA_KV.get('images:manifest');
+        if (manifest) {
+          const images = JSON.parse(manifest);
+          const found = images.find(e => e.id === id);
+          if (found) contentType = found.type;
+        }
+        return new Response(buf, {
+          headers: {
+            'Content-Type': contentType,
+            'Cache-Control': 'public, max-age=86400',
+            'Access-Control-Allow-Origin': '*'
+          }
+        });
+      } catch (e) {
+        return new Response('Error', { status: 500 });
+      }
+    }
+
+    // 删除图片
+    if (path === '/api/images' && request.method === 'DELETE') {
+      try {
+        const body = await request.json();
+        const { id } = body;
+        if (!id) {
+          return new Response(JSON.stringify({ error: '缺少 id' }), {
+            status: 400, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+        let manifest = await env.DATA_KV.get('images:manifest');
+        let images = manifest ? JSON.parse(manifest) : [];
+        images = images.filter(e => e.id !== id);
+        await Promise.all([
+          env.DATA_KV.delete('img:' + id),
+          env.DATA_KV.put('images:manifest', JSON.stringify(images))
+        ]);
+        return new Response(JSON.stringify({ ok: true }), {
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ error: '删除失败: ' + e.message }), {
+          status: 500, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+    }
 
     // ========== Bridge Config (KV持久化，云部署用) ==========
 
