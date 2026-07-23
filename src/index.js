@@ -4996,6 +4996,29 @@ export default {
     }
   }
 
+  function copyTextToClipboard(el) {
+    const text = (el.textContent || el.innerText || '').trim();
+    if (!text) return;
+    navigator.clipboard.writeText(text).then(function() {
+      var original = el.textContent;
+      el.textContent = '已复制';
+      el.style.opacity = '0.6';
+      setTimeout(function() {
+        el.textContent = original;
+        el.style.opacity = '1';
+      }, 800);
+    }).catch(function() {
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+    });
+  }
+
   function getWhitelistTagHtml(company, isTbl) {
     if (!company || company === '-') return isTbl ? '-' : '';
     const key = String(company).trim().toLowerCase();
@@ -5026,7 +5049,7 @@ export default {
     }
 
     if (!matchedName || !val) {
-      return isTbl ? esc(company) : '<span class="client-card-tag client-card-tag-company">' + esc(company) + '</span>';
+      return isTbl ? esc(company) : '<span class="client-card-tag client-card-tag-company" style="cursor:pointer" title="点击复制单位名称" onclick="event.stopPropagation();copyTextToClipboard(this)">' + esc(company) + '</span>';
     }
 
     const bank = val.bank || '建行建易贷';
@@ -5049,7 +5072,7 @@ export default {
       return '<span class="tbl-tag tbl-tag-company" style="' + bankBadgeStyle + '">' + esc(label) + '</span>';
     }
     // Card: company name + separate bank badge
-    return '<span class="client-card-tag client-card-tag-company">' + esc(company) + '</span>' +
+    return '<span class="client-card-tag client-card-tag-company" style="cursor:pointer" title="点击复制单位名称" onclick="event.stopPropagation();copyTextToClipboard(this)">' + esc(company) + '</span>' +
       '<span class="client-card-tag client-card-tag-bank" style="' + bankBadgeStyle + '">' + esc(bankLabel) + '</span>';
   }
 
