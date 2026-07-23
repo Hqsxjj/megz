@@ -5018,6 +5018,7 @@ export default {
       document.body.removeChild(ta);
     });
   }
+  window.copyTextToClipboard = copyTextToClipboard;
 
   function getWhitelistTagHtml(company, isTbl) {
     if (!company || company === '-') return isTbl ? '-' : '';
