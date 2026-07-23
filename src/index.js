@@ -3624,16 +3624,12 @@ export default {
     .todo-input-row { display: flex; gap: 8px; align-items: center; width: 100%; }
     .todo-del-btn { background: none; border: none; color: #c97a7a; cursor: pointer; font-size: 0.85rem; padding: 0 4px; }
     /* ===== 图片展示模块 ===== */
-    .image-card { padding: 0 !important; overflow: hidden; position: relative; min-height: 60px; }
-    .image-card.has-images { min-height: 0; }
-    .image-overlay { position: absolute; top: 0; left: 0; right: 0; z-index: 5; display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; pointer-events: none; opacity: 0; transition: opacity 0.25s; background: linear-gradient(to bottom, rgba(0,0,0,0.35) 0%, transparent 100%); }
-    .image-card:hover .image-overlay, .image-card:not(.has-images) .image-overlay { opacity: 1; }
+    .image-card { padding: 0 !important; overflow: hidden; position: relative; border-radius: var(--radius-ios) !important; }
+    .image-overlay { position: absolute; top: 0; left: 0; right: 0; z-index: 5; display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; pointer-events: none; opacity: 0; transition: opacity 0.25s; background: linear-gradient(to bottom, rgba(0,0,0,0.4) 0%, transparent 100%); }
+    .image-card:hover .image-overlay { opacity: 1; }
     .image-overlay span { color: #fff; font-weight: 700; font-size: 0.85rem; text-shadow: 0 1px 3px rgba(0,0,0,0.5); }
-    .image-card:not(.has-images) .image-overlay span { color: var(--text-main); text-shadow: none; }
     .image-overlay button { pointer-events: auto; font-size: 0.75rem; font-weight: 700; color: #fff; cursor: pointer; padding: 4px 10px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.5); background: rgba(255,255,255,0.15); backdrop-filter: blur(4px); text-shadow: 0 1px 2px rgba(0,0,0,0.3); }
-    .image-card:not(.has-images) .image-overlay button { color: var(--accent-btn); border-color: var(--accent-btn); background: transparent; text-shadow: none; }
     .image-overlay button:hover { background: rgba(255,255,255,0.3); }
-    .image-card:not(.has-images) .image-overlay button:hover { background: var(--btn-bg); }
     .image-scroll { display: flex; gap: 4px; overflow-x: auto; padding: 0; scroll-behavior: smooth; -webkit-overflow-scrolling: touch; scrollbar-width: none; scroll-snap-type: x mandatory; }
     .image-scroll::-webkit-scrollbar { display: none; }
     .image-thumb-wrap { flex-shrink: 0; position: relative; scroll-snap-align: start; }
@@ -3641,10 +3637,18 @@ export default {
     .image-thumb:hover { transform: scale(1.005); }
     .image-del-btn { position: absolute; top: 8px; right: 8px; width: 26px; height: 26px; border-radius: 50%; background: rgba(0,0,0,0.5); color: #fff; border: none; font-size: 0.8rem; cursor: pointer; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.2s; line-height: 1; z-index: 4; }
     .image-thumb-wrap:hover .image-del-btn { opacity: 1; }
+    /* 空状态 — 居中 紧凑 */
+    .image-empty-state { display: none; flex-direction: column; align-items: center; justify-content: center; width: 100%; padding: 24px 20px; gap: 6px; }
+    .image-card:not(.has-images) .image-empty-state { display: flex; }
+    .image-card:not(.has-images) .image-scroll { overflow: hidden; }
+    .image-empty-icon { font-size: 2rem; color: var(--card-border); line-height: 1; }
+    .image-empty-label { font-size: 0.8rem; color: var(--text-light); font-weight: 600; }
+    .image-empty-upload { margin-top: 6px; font-size: 0.82rem; font-weight: 700; color: var(--accent-btn); cursor: pointer; padding: 5px 18px; border-radius: 4px; border: 1px solid var(--accent-btn); background: transparent; }
+    .image-empty-upload:hover { background: var(--btn-bg); }
+    .image-card.has-images .image-overlay { display: flex; }
     .image-lightbox { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.92); z-index: 10000; justify-content: center; align-items: center; cursor: pointer; }
     .image-lightbox.open { display: flex; }
     .image-lightbox img { max-width: 95vw; max-height: 95vh; object-fit: contain; border-radius: 4px; }
-    .image-empty-text { font-size: 0.8rem; color: var(--text-light); padding: 20px 20px; display: block; }
     @media (min-width: 761px) {
       .right-area { order: 2; } .left-area { order: 1; }
       .card { padding: 14px 16px; }
@@ -4505,7 +4509,13 @@ export default {
             <span id="imageModuleTitle">图片</span>
             <button id="imageUploadBtn">上传</button>
           </div>
-          <div class="image-scroll" id="imageScroll"></div>
+          <div class="image-scroll" id="imageScroll">
+            <div class="image-empty-state">
+              <span class="image-empty-icon">—</span>
+              <span class="image-empty-label">暂无图片</span>
+              <button class="image-empty-upload" id="imageEmptyUploadBtn">点击上传</button>
+            </div>
+          </div>
           <div class="image-lightbox" id="imageLightbox" onclick="closeLightbox()">
             <img id="imageLightboxImg" src="" alt="">
           </div>
@@ -6887,16 +6897,22 @@ export default {
 
   // ===== 图片展示模块 =====
   function initImageModule(){
-    var btn=document.getElementById('imageUploadBtn');
-    if(!btn) return;
-    btn.addEventListener('click',function(){
-      var input=document.createElement('input');
-      input.type='file';
-      input.accept='image/*';
-      input.multiple=true;
-      input.onchange=function(){ uploadImages(this.files); };
-      input.click();
-    });
+    var btns=[
+      document.getElementById('imageUploadBtn'),
+      document.getElementById('imageEmptyUploadBtn')
+    ];
+    for(var b=0;b<btns.length;b++){
+      var btn=btns[b];
+      if(!btn) continue;
+      btn.addEventListener('click',function(){
+        var input=document.createElement('input');
+        input.type='file';
+        input.accept='image/*';
+        input.multiple=true;
+        input.onchange=function(){ uploadImages(this.files); };
+        input.click();
+      });
+    }
     loadImages();
   }
 
@@ -6909,7 +6925,6 @@ export default {
       var images=await resp.json();
       if(!images || images.length===0) {
         card.classList.remove('has-images');
-        container.innerHTML='<span class="image-empty-text">暂无图片，点击上传</span>';
         return;
       }
       card.classList.add('has-images');
