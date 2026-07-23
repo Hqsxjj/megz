@@ -3628,11 +3628,9 @@ export default {
     .image-scroll::-webkit-scrollbar { height: 4px; }
     .image-scroll::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 2px; }
     .image-thumb-wrap { flex-shrink: 0; position: relative; }
-    .image-thumb { width: 140px; height: 100px; border-radius: 8px; object-fit: cover; cursor: pointer; border: 1px solid var(--card-border); transition: transform 0.15s; display: block; }
-    .image-thumb:hover { transform: scale(1.03); }
-    .image-thumb-placeholder { width: 140px; height: 100px; flex-shrink: 0; border-radius: 8px; border: 2px dashed var(--card-border); display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-soft); font-size: 2rem; background: var(--btn-bg); transition: all 0.2s; }
-    .image-thumb-placeholder:hover { border-color: var(--accent-btn); color: var(--accent-btn); }
-    .image-del-btn { position: absolute; top: 2px; right: 2px; width: 20px; height: 20px; border-radius: 50%; background: rgba(0,0,0,0.5); color: white; border: none; font-size: 0.7rem; cursor: pointer; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.15s; line-height: 1; }
+    .image-thumb { width: 260px; height: 180px; border-radius: 8px; object-fit: cover; cursor: pointer; border: 1px solid var(--card-border); transition: transform 0.15s; display: block; }
+    .image-thumb:hover { transform: scale(1.02); }
+    .image-del-btn { position: absolute; top: 4px; right: 4px; width: 22px; height: 22px; border-radius: 50%; background: rgba(0,0,0,0.5); color: white; border: none; font-size: 0.75rem; cursor: pointer; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.15s; line-height: 1; }
     .image-thumb-wrap:hover .image-del-btn { opacity: 1; }
     .image-lightbox { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 10000; justify-content: center; align-items: center; cursor: pointer; }
     .image-lightbox.open { display: flex; }
@@ -3697,6 +3695,7 @@ export default {
       .learn-module { padding: 8px 12px; font-size: 0.7rem; }
       
       /* Mobile optimization additions */
+      .image-thumb { width: 180px; height: 130px; }
       .card { padding: 12px 14px; border-radius: 10px; }
       .card-title { font-size: 0.82rem; margin-bottom: 8px; }
       .counter-row { gap: 8px; }
