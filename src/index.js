@@ -4496,17 +4496,14 @@ export default {
                         <div class="client-scroll" id="clientList"></div>
           </div>
         </div>
-        <div class="card">
-          <div class="card-title">临时登记 (待晚回访)</div>
-          <div class="register-block">
-            <div class="form-line"><input type="text" class="input-simple" id="tempCustName" placeholder="姓名" autocomplete="off" readonly onfocus="this.removeAttribute('readonly');"><input type="text" class="input-simple" id="tempCustPhone" placeholder="电话/联系方式" autocomplete="off" readonly onfocus="this.removeAttribute('readonly');"></div>
-            <div style="display:flex;gap:4px;align-items:center;">
-              <textarea class="input-simple note-textarea" id="tempCustNote" placeholder="回访备注/待聊内容" rows="2" style="flex:1;"></textarea>
-              <button type="button" id="boldBtn" title="加粗 (Alt+B)" style="height:28px;width:28px;font-weight:900;font-size:0.7rem;border:1px solid var(--card-border);background:var(--btn-bg);color:var(--text-main);cursor:pointer;border-radius:3px;padding:0;line-height:1;">B</button>
-              <button type="button" id="delBtn" title="删除线 (Alt+D)" style="height:28px;width:28px;font-weight:700;font-size:0.6rem;border:1px solid var(--card-border);background:var(--btn-bg);color:var(--text-main);cursor:pointer;border-radius:3px;padding:0;line-height:1;text-decoration:line-through;">D</button>
-            </div>
-            <button class="btn-add" id="addTempCustBtn" style="background:var(--accent-btn);">+ 登记</button>
-            <div class="client-scroll" id="tempClientList"></div>
+        <div class="card image-card">
+          <div class="image-overlay">
+            <span id="imageModuleTitle">图片</span>
+            <button id="imageUploadBtn">上传</button>
+          </div>
+          <div class="image-scroll" id="imageScroll"></div>
+          <div class="image-lightbox" id="imageLightbox" onclick="closeLightbox()">
+            <img id="imageLightboxImg" src="" alt="">
           </div>
         </div>
         <div class="card">
@@ -4522,14 +4519,17 @@ export default {
             <div class="todo-list" id="todoList"></div>
           </div>
         </div>
-        <div class="card image-card">
-          <div class="image-overlay">
-            <span id="imageModuleTitle">图片</span>
-            <button id="imageUploadBtn">上传</button>
-          </div>
-          <div class="image-scroll" id="imageScroll"></div>
-          <div class="image-lightbox" id="imageLightbox" onclick="closeLightbox()">
-            <img id="imageLightboxImg" src="" alt="">
+        <div class="card">
+          <div class="card-title">临时登记 (待晚回访)</div>
+          <div class="register-block">
+            <div class="form-line"><input type="text" class="input-simple" id="tempCustName" placeholder="姓名" autocomplete="off" readonly onfocus="this.removeAttribute('readonly');"><input type="text" class="input-simple" id="tempCustPhone" placeholder="电话/联系方式" autocomplete="off" readonly onfocus="this.removeAttribute('readonly');"></div>
+            <div style="display:flex;gap:4px;align-items:center;">
+              <textarea class="input-simple note-textarea" id="tempCustNote" placeholder="回访备注/待聊内容" rows="2" style="flex:1;"></textarea>
+              <button type="button" id="boldBtn" title="加粗 (Alt+B)" style="height:28px;width:28px;font-weight:900;font-size:0.7rem;border:1px solid var(--card-border);background:var(--btn-bg);color:var(--text-main);cursor:pointer;border-radius:3px;padding:0;line-height:1;">B</button>
+              <button type="button" id="delBtn" title="删除线 (Alt+D)" style="height:28px;width:28px;font-weight:700;font-size:0.6rem;border:1px solid var(--card-border);background:var(--btn-bg);color:var(--text-main);cursor:pointer;border-radius:3px;padding:0;line-height:1;text-decoration:line-through;">D</button>
+            </div>
+            <button class="btn-add" id="addTempCustBtn" style="background:var(--accent-btn);">+ 登记</button>
+            <div class="client-scroll" id="tempClientList"></div>
           </div>
         </div>
       </div>
