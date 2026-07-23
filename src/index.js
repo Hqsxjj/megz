@@ -3313,7 +3313,7 @@ export default {
     body.dark-mode .pin-input { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.1); }
     .pin-input:focus { background: rgba(255,255,255,0.35); }
     .pin-mask { -webkit-text-security: disc; }
-    .pin-btn { background: var(--accent-btn); border: none; color: white; padding: 11px 45px; border-radius: var(--radius-xs); font-weight: 700; cursor: pointer; font-size: 1.12rem; letter-spacing: 1px; transition: all 0.2s; box-shadow: 0 4px 15px rgba(255,255,255,0.7); }
+    .pin-btn { background: var(--accent-btn); border: none; color: white; padding: 8px 22px; border-radius: var(--radius-xs); font-weight: 700; cursor: pointer; font-size: 0.92rem; letter-spacing: 0.5px; transition: all 0.2s; box-shadow: 0 4px 15px rgba(255,255,255,0.7); }
     .pin-btn:hover { opacity: 0.9; transform: translateY(-2px); box-shadow: 0 6px 20px rgba(255,255,255,0.6); }
     .pin-btn:active { transform: translateY(0); }
     .pin-error { color: #e74c3c; font-size: 1.26rem; min-height: 24px; font-weight: 700; letter-spacing: 0.5px; }
@@ -3677,7 +3677,7 @@ export default {
       .pin-stat-label { font-size: 0.75rem; }
       .pin-stat-value { font-size: 1.8rem; }
       .pin-input { width: 182px; padding: 10px 17px; font-size: 1.26rem; }
-      .pin-btn { padding: 10px 28px; font-size: 0.98rem; }
+      .pin-btn { padding: 7px 18px; font-size: 0.85rem; }
       .script-container { display: none !important; }
       .learn-container { right: 8px; top: 60px; max-width: 52vw; max-height: 25vh; overflow-y: auto; }
       .script-module { padding: 8px 12px; font-size: 0.72rem; text-align: left; font-weight: 600; line-height: 1.6; }
@@ -8063,7 +8063,7 @@ export default {
       clearInterval(pinLockoutTimer);pinLockoutTimer=null;
       localStorage.removeItem('pin_lockout_until');localStorage.setItem(UNLOCK_TS_K,Date.now());
       setLocked(false);pi.value='';pie.innerText='';
-      showWorkShell();return;
+      if(e==='0000'){showJournalShell();}else{showWorkShell();}return;
     }else{
       fs.count=(fs.count||0)+1;fs.lastAttempt=Date.now();setPinFailState(fs);
       var cd2=fs.count>=4?600:(fs.count>=3?300:(fs.count>=2?60:0));
