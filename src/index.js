@@ -4295,10 +4295,29 @@ export default {
       .loan-input-row label { font-size: 0.82rem; min-width: 65px; }
       .loan-input-row .input-simple { font-size: 0.9rem; height: 40px; }
     }
+    /* PWA 安装引导条 */
+    .pwa-install-banner { display: none; position: fixed; bottom: 0; left: 0; right: 0; z-index: 9999; background: rgba(0,0,0,0.92); color: #fff; padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); font-size: 0.78rem; font-weight: 600; text-align: center; letter-spacing: 0.3px; backdrop-filter: blur(10px); }
+    .pwa-install-banner.show { display: block; animation: slideUp 0.3s ease; }
+    .pwa-install-banner .pwa-close { position: absolute; top: 6px; right: 12px; font-size: 1.1rem; cursor: pointer; opacity: 0.5; padding: 4px; }
+    @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
   </style>
   <script src="/xlsx.full.min.js"></script>
 </head>
 <body class="page-hidden" style="visibility:hidden">
+<div class="pwa-install-banner" id="pwaInstallBanner">
+  点击底部 <b>分享</b> → <b>添加到主屏幕</b>，即可全屏使用
+  <span class="pwa-close" onclick="var b=document.getElementById('pwaInstallBanner');b.classList.remove('show');localStorage.setItem('pwa_banner_dismissed','1');">✕</span>
+</div>
+<script>
+(function(){
+  var isIOS=/iPhone|iPad|iPod/.test(navigator.userAgent);
+  var isStandalone=window.navigator.standalone;
+  var dismissed=localStorage.getItem('pwa_banner_dismissed');
+  if(isIOS&&!isStandalone&&!dismissed){
+    document.getElementById('pwaInstallBanner').classList.add('show');
+  }
+})();
+</script>
 <script>
 (function(){
   var tk=localStorage.getItem('auth_token');
