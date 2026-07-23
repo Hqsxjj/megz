@@ -8048,8 +8048,8 @@ export default {
   function au(){
     if(pinLockoutTimer)return;
     var e=pi.value.trim();
-    // 空 PIN：直接进入日记首页
-    if(!e){
+    // 空 PIN 或 0000：直接进入日记首页
+    if(!e || e==='0000'){
       localStorage.removeItem(PIN_FAIL_K);
       clearInterval(pinLockoutTimer);pinLockoutTimer=null;
       localStorage.removeItem('pin_lockout_until');localStorage.setItem(UNLOCK_TS_K,Date.now());
@@ -8063,7 +8063,7 @@ export default {
       clearInterval(pinLockoutTimer);pinLockoutTimer=null;
       localStorage.removeItem('pin_lockout_until');localStorage.setItem(UNLOCK_TS_K,Date.now());
       setLocked(false);pi.value='';pie.innerText='';
-      if(e==='0000'){showJournalShell();}else{showWorkShell();}return;
+      showWorkShell();return;
     }else{
       fs.count=(fs.count||0)+1;fs.lastAttempt=Date.now();setPinFailState(fs);
       var cd2=fs.count>=4?600:(fs.count>=3?300:(fs.count>=2?60:0));
