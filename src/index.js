@@ -3286,7 +3286,8 @@ export default {
       --stats-gradient: linear-gradient(135deg, #0d2626 0%, #143d3d 50%, #1a5252 100%);
       --wallpaper-opacity: 0.35;
     }
-    html, body { height: 100%; min-height: 100%; min-height: -webkit-fill-available; width: 100%; overflow: hidden; background: var(--bg-app); font-family: system-ui, -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif; font-weight: 400; text-rendering: optimizeLegibility; transition: background 0.3s; position: relative; }
+    html { height: 100%; position: fixed; top: 0; left: 0; width: 100%; overflow: hidden; }
+    body { height: 100%; width: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch; background: var(--bg-app); font-family: system-ui, -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif; font-weight: 400; text-rendering: optimizeLegibility; transition: background 0.3s; position: relative; }
     .wallpaper-background { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; background-image: var(--wallpaper-url); background-size: cover; background-position: center; background-repeat: no-repeat; opacity: var(--wallpaper-opacity); transition: opacity 0.8s ease, background-image 0.8s ease; pointer-events: none; }
     body.dark-mode .wallpaper-background { opacity: 0.12; }
     .wallpaper-fallback { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; background: linear-gradient(135deg, #a8e6cf 0%, #dcedc1 100%); opacity: 0.15; pointer-events: none; }
@@ -3336,7 +3337,7 @@ export default {
     .auth-switch a:hover { text-decoration: underline; }
     .auth-error { color: #e74c3c; font-size: 0.95rem; min-height: 20px; font-weight: 700; text-align: center; }
     /* ====== 日记首页 ====== */
-    .journal-shell { display: none; height: 100%; height: 100dvh; width: 100%; flex-direction: column; overflow: hidden; position: relative; z-index: 1; }
+    .journal-shell { display: none; min-height: 100%; min-height: 100dvh; width: 100%; flex-direction: column; position: relative; z-index: 1; }
     body.page-journal .journal-shell { display: flex !important; }
     body.page-journal .app-shell { display: none !important; }
     .topbar { display: flex; align-items: center; gap: 16px; padding: 0 20px; height: 56px; flex-shrink: 0; background: rgba(255,255,255,0.35); backdrop-filter: blur(20px) saturate(160%); -webkit-backdrop-filter: blur(20px) saturate(160%); border-bottom: 1px solid rgba(0,0,0,0.06); z-index: 10; }
@@ -3348,7 +3349,7 @@ export default {
     .topbar-btn { padding: 8px 18px; border-radius: 20px; border: none; background: var(--accent-btn); color: white; font-weight: 700; font-size: 0.9rem; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
     .topbar-btn:hover { opacity: 0.9; transform: translateY(-1px); }
     .topbar-user { font-size: 0.85rem; color: var(--text-soft); white-space: nowrap; cursor: pointer; }
-    .journal-body { display: flex; flex: 1; min-height: 0; overflow: hidden; }
+    .journal-body { display: flex; flex: 1; min-height: 0; }
     .sidebar { width: 170px; flex-shrink: 0; display: flex; flex-direction: column; gap: 2px; padding: 16px 10px; background: rgba(255,255,255,0.18); backdrop-filter: blur(20px) saturate(160%); -webkit-backdrop-filter: blur(20px) saturate(160%); border-right: 1px solid rgba(0,0,0,0.05); overflow-y: auto; }
     body.dark-mode .sidebar { background: rgba(20,20,20,0.3); border-right: 1px solid rgba(255,255,255,0.06); }
     .sidebar-item { display: block; padding: 10px 14px; border-radius: 8px; font-size: 0.92rem; font-weight: 700; color: var(--text-soft); text-decoration: none; cursor: pointer; transition: all 0.15s; }
@@ -3356,7 +3357,7 @@ export default {
     body.dark-mode .sidebar-item:hover { background: rgba(255,255,255,0.06); }
     .sidebar-item.active { background: var(--accent-btn); color: white; }
     body.dark-mode .sidebar-item.active { background: var(--accent-btn); color: white; }
-    .journal-main { flex: 1; overflow-y: auto; padding: 24px 28px; display: flex; flex-direction: column; gap: 20px; }
+    .journal-main { flex: 1; padding: 24px 28px; display: flex; flex-direction: column; gap: 20px; }
     .journal-main .section-title { font-size: 1.1rem; font-weight: 600; color: var(--text-main); margin: 0; }
     .journal-card { background: rgba(255,255,255,0.5); backdrop-filter: blur(20px) saturate(160%); -webkit-backdrop-filter: blur(20px) saturate(160%); border-radius: 12px; border: 1px solid rgba(0,0,0,0.06); padding: 20px 24px; display: flex; flex-direction: column; gap: 14px; }
     body.dark-mode .journal-card { background: rgba(30,30,30,0.5); border: 1px solid rgba(255,255,255,0.08); }
@@ -3443,8 +3444,8 @@ export default {
     .script-list { max-height: 180px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
     .script-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: var(--btn-bg); border-radius: var(--radius-xs); border: 1px solid var(--card-border); font-size: 0.78rem; color: var(--text-main); font-weight: 700; }
     .script-item-text { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-right: 8px; }
-    .app-shell { height: 100%; height: 100dvh; width: 100%; display: flex; flex-direction: column; overflow: hidden; position: relative; z-index: 1; }
-    .container { flex: 1; display: flex; flex-direction: column; padding: 8px 14px 8px; overflow-y: auto; scrollbar-width: thin; -webkit-overflow-scrolling: touch; }
+    .app-shell { min-height: 100%; min-height: 100dvh; width: 100%; display: flex; flex-direction: column; position: relative; z-index: 1; }
+    .container { flex: 1; display: flex; flex-direction: column; padding: 8px 14px 8px; }
     .header-bar { display: flex; justify-content: space-between; align-items: center; gap: 6px; flex-shrink: 0; flex-wrap: wrap; margin-bottom: 8px; position: relative; }
     h3 { font-size: 1.35rem; font-weight: 700; letter-spacing: -0.2px; color: var(--text-main); white-space: nowrap; }
 
@@ -9516,6 +9517,7 @@ export default {
 </script>
 <!-- 蜜罐陷阱 — 爬虫会跟随，正常用户不可见 -->
 <a href="/api/trap" style="display:none" aria-hidden="true" rel="nofollow"></a>
+<div style="height:0.5px;width:100%;flex-shrink:0;" aria-hidden="true"></div>
 </body>
 </html>`;
 
