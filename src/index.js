@@ -3357,7 +3357,7 @@ export default {
     body.dark-mode .sidebar-item:hover { background: rgba(255,255,255,0.06); }
     .sidebar-item.active { background: var(--accent-btn); color: white; }
     body.dark-mode .sidebar-item.active { background: var(--accent-btn); color: white; }
-    .journal-main { flex: 1; padding: 24px 28px calc(24px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 20px; }
+    .journal-main { flex: 1; padding: 8px 28px calc(24px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 20px; }
     .journal-main .section-title { font-size: 1.1rem; font-weight: 600; color: var(--text-main); margin: 0; }
     .journal-card { background: rgba(255,255,255,0.5); backdrop-filter: blur(20px) saturate(160%); -webkit-backdrop-filter: blur(20px) saturate(160%); border-radius: 12px; border: 1px solid rgba(0,0,0,0.06); padding: 20px 24px; display: flex; flex-direction: column; gap: 14px; }
     body.dark-mode .journal-card { background: rgba(30,30,30,0.5); border: 1px solid rgba(255,255,255,0.08); }
@@ -3445,7 +3445,7 @@ export default {
     .script-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: var(--btn-bg); border-radius: var(--radius-xs); border: 1px solid var(--card-border); font-size: 0.78rem; color: var(--text-main); font-weight: 700; }
     .script-item-text { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-right: 8px; }
     .app-shell { min-height: 100vh; width: 100%; display: flex; flex-direction: column; position: relative; z-index: 1; }
-    .container { flex: 1; display: flex; flex-direction: column; padding: 4px 14px 8px; padding-bottom: calc(8px + env(safe-area-inset-bottom)); }
+    .container { flex: 1; display: flex; flex-direction: column; padding: 2px 14px 8px; padding-bottom: calc(8px + env(safe-area-inset-bottom)); }
     .header-bar { display: flex; justify-content: space-between; align-items: center; gap: 6px; flex-shrink: 0; flex-wrap: wrap; margin-bottom: 8px; position: relative; }
     h3 { font-size: 1.35rem; font-weight: 700; letter-spacing: -0.2px; color: var(--text-main); white-space: nowrap; }
 
