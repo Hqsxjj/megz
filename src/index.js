@@ -3287,7 +3287,7 @@ export default {
       --wallpaper-opacity: 0.35;
     }
     html { height: 100%; width: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: none; }
-    body { min-height: 100%; width: 100%; background: var(--bg-app); font-family: system-ui, -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif; font-weight: 400; text-rendering: optimizeLegibility; transition: background 0.3s; position: relative; }
+    body { min-height: 100vh; width: 100%; background: var(--bg-app); font-family: system-ui, -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif; font-weight: 400; text-rendering: optimizeLegibility; transition: background 0.3s; position: relative; }
     .wallpaper-background { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; background-image: var(--wallpaper-url); background-size: cover; background-position: center; background-repeat: no-repeat; opacity: var(--wallpaper-opacity); transition: opacity 0.8s ease, background-image 0.8s ease; pointer-events: none; }
     body.dark-mode .wallpaper-background { opacity: 0.12; }
     .wallpaper-fallback { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; background: linear-gradient(135deg, #a8e6cf 0%, #dcedc1 100%); opacity: 0.15; pointer-events: none; }
@@ -3337,7 +3337,7 @@ export default {
     .auth-switch a:hover { text-decoration: underline; }
     .auth-error { color: #e74c3c; font-size: 0.95rem; min-height: 20px; font-weight: 700; text-align: center; }
     /* ====== 日记首页 ====== */
-    .journal-shell { display: none; min-height: 100%; width: 100%; flex-direction: column; position: relative; z-index: 1; }
+    .journal-shell { display: none; min-height: 100vh; width: 100%; flex-direction: column; position: relative; z-index: 1; }
     body.page-journal .journal-shell { display: flex !important; }
     body.page-journal .app-shell { display: none !important; }
     .topbar { display: flex; align-items: center; gap: 16px; padding: 0 20px; height: 56px; flex-shrink: 0; background: rgba(255,255,255,0.35); backdrop-filter: blur(20px) saturate(160%); -webkit-backdrop-filter: blur(20px) saturate(160%); border-bottom: 1px solid rgba(0,0,0,0.06); z-index: 10; }
@@ -3444,7 +3444,7 @@ export default {
     .script-list { max-height: 180px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
     .script-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: var(--btn-bg); border-radius: var(--radius-xs); border: 1px solid var(--card-border); font-size: 0.78rem; color: var(--text-main); font-weight: 700; }
     .script-item-text { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-right: 8px; }
-    .app-shell { min-height: 100%; width: 100%; display: flex; flex-direction: column; position: relative; z-index: 1; }
+    .app-shell { min-height: 100vh; width: 100%; display: flex; flex-direction: column; position: relative; z-index: 1; }
     .container { flex: 1; display: flex; flex-direction: column; padding: 8px 14px 8px; }
     .header-bar { display: flex; justify-content: space-between; align-items: center; gap: 6px; flex-shrink: 0; flex-wrap: wrap; margin-bottom: 8px; position: relative; }
     h3 { font-size: 1.35rem; font-weight: 700; letter-spacing: -0.2px; color: var(--text-main); white-space: nowrap; }
@@ -9517,7 +9517,7 @@ export default {
 </script>
 <!-- 蜜罐陷阱 — 爬虫会跟随，正常用户不可见 -->
 <a href="/api/trap" style="display:none" aria-hidden="true" rel="nofollow"></a>
-<div style="height:0.5px;width:100%;flex-shrink:0;" aria-hidden="true"></div>
+<div style="height:30px;width:100%;flex-shrink:0;" aria-hidden="true"></div>
 </body>
 </html>`;
 
