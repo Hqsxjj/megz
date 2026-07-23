@@ -3225,9 +3225,9 @@ export default {
       --bg-app: rgba(237,237,237,0.6);
       --card-bg: rgba(255,255,255,0.5);
       --card-border: rgba(0,0,0,0.06);
-      --text-main: #191919;
-      --text-soft: #5e5e5e;
-      --text-light: #8e8e8e;
+      --text-main: #0a0a0a;
+      --text-soft: #3d3d3d;
+      --text-light: #5c5c5c;
       --accent-wechat: #34D399;
       --accent-intent: #FB8C00;
       --accent-wechat-bg: #ECFDF5;
@@ -3260,9 +3260,9 @@ export default {
       --bg-app: rgba(17,17,17,0.5);
       --card-bg: rgba(20,20,20,0.35);
       --card-border: rgba(255,255,255,0.08);
-      --text-main: #e5e5e5;
-      --text-soft: #a0a0a0;
-      --text-light: #6b6b6b;
+      --text-main: #f0f0f0;
+      --text-soft: #b8b8b8;
+      --text-light: #808080;
       --accent-wechat: #34D399;
       --accent-intent: #FBA95C;
       --accent-wechat-bg: #064E3B;
@@ -3286,7 +3286,7 @@ export default {
       --stats-gradient: linear-gradient(135deg, #0d2626 0%, #143d3d 50%, #1a5252 100%);
       --wallpaper-opacity: 0.35;
     }
-    html, body { height: 100%; min-height: 100%; min-height: -webkit-fill-available; width: 100%; overflow: hidden; background: var(--bg-app); font-family: system-ui, -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif; font-weight: 600; text-rendering: optimizeLegibility; transition: background 0.3s; position: relative; }
+    html, body { height: 100%; min-height: 100%; min-height: -webkit-fill-available; width: 100%; overflow: hidden; background: var(--bg-app); font-family: system-ui, -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif; font-weight: 400; text-rendering: optimizeLegibility; transition: background 0.3s; position: relative; }
     .wallpaper-background { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; background-image: var(--wallpaper-url); background-size: cover; background-position: center; background-repeat: no-repeat; opacity: var(--wallpaper-opacity); transition: opacity 0.8s ease, background-image 0.8s ease; pointer-events: none; }
     body.dark-mode .wallpaper-background { opacity: 0.12; }
     .wallpaper-fallback { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; background: linear-gradient(135deg, #a8e6cf 0%, #dcedc1 100%); opacity: 0.15; pointer-events: none; }
@@ -3608,11 +3608,11 @@ export default {
     .client-row { background: var(--btn-bg); border-radius: var(--radius-sm); padding: 10px 14px; display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem; border: 0.5px solid var(--card-border); font-weight: 600; }
     .client-info { flex: 1; display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline; }
     .client-name { font-weight: 700; }
-    .client-phone, .modal-client-phone { color: var(--text-soft) !important; font-size: 0.75rem; font-weight: 600; text-decoration: none !important; cursor: pointer; }
+    .client-phone, .modal-client-phone { color: var(--text-soft) !important; font-size: 0.75rem; font-weight: 400; text-decoration: none !important; cursor: pointer; }
     .client-phone:hover, .modal-client-phone:hover { text-decoration: underline !important; }
     .phone-toggle { background: none; border: none; font-size: 0.8rem; cursor: pointer; padding: 0 2px; opacity: 0.5; transition: opacity 0.2s; vertical-align: middle; line-height: 1; }
     .phone-toggle:hover { opacity: 1; }
-    .client-note { color: var(--text-light); font-size: 0.75rem; font-weight: 600; }
+    .client-note { color: var(--text-light); font-size: 0.75rem; font-weight: 400; }
     .del-icon { background: none; border: none; font-size: 0.9rem; color: #c97a7a; cursor: pointer; width: 28px; height: 28px; border-radius: var(--radius-xs); font-weight: 700; }
     .edit-icon { background: none; border: none; font-size: 0.9rem; color: var(--accent-wechat); cursor: pointer; width: 28px; height: 28px; border-radius: var(--radius-xs); font-weight: 700; margin-right: 4px; }
     .export-single-btn { background: none; border: none; font-size: 0.9rem; color: var(--accent-intent); cursor: pointer; width: 28px; height: 28px; border-radius: var(--radius-xs); font-weight: 700; margin-right: 4px; }
@@ -3804,7 +3804,7 @@ export default {
     .client-card-time {
       font-size: 0.72rem;
       color: var(--text-light);
-      font-weight: 600;
+      font-weight: 400;
     }
     .client-card-meta {
       display: flex;
