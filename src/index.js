@@ -9639,15 +9639,19 @@ export default {
             status: 400, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
           });
         }
-        // 解码 base64
+        // 解码 base64（兼容 Workers 环境，优先用 node:buffer）
         const base64 = data.replace(/^data:[^;]+;base64,/, '');
         let binary;
         try {
-          binary = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+          const { Buffer } = await import('node:buffer');
+          binary = Buffer.from(base64, 'base64');
         } catch(e) {
-          return new Response(JSON.stringify({ error: 'base64 解码失败' }), {
-            status: 400, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-          });
+          // 回退：手动 atob 解码
+          const raw = atob(base64);
+          binary = new Uint8Array(raw.length);
+          for (let i = 0; i < raw.length; i++) {
+            binary[i] = raw.charCodeAt(i);
+          }
         }
         // 大小限制 5MB
         if (binary.byteLength > 5 * 1024 * 1024) {
@@ -9666,9 +9670,10 @@ export default {
         const id = Date.now() + '_' + Math.random().toString(36).slice(2, 8);
         const entry = { id, name: name || 'image', type, size: binary.byteLength, ts: Date.now() };
         images.push(entry);
-        // 存储图片 binary + manifest
+        // 确保 ArrayBuffer 大小精确匹配（Buffer/Uint8Array 的 buffer 可能更大）
+        const exactBuf = binary.buffer.slice(binary.byteOffset || 0, (binary.byteOffset || 0) + binary.byteLength);
         await Promise.all([
-          env.DATA_KV.put('img:' + id, binary.buffer, { type: 'arrayBuffer' }),
+          env.DATA_KV.put('img:' + id, exactBuf, { type: 'arrayBuffer' }),
           env.DATA_KV.put('images:manifest', JSON.stringify(images))
         ]);
         return new Response(JSON.stringify({ ok: true, id, entry }), {
