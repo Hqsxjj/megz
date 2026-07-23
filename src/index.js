@@ -3624,18 +3624,21 @@ export default {
     .todo-input-row { display: flex; gap: 8px; align-items: center; width: 100%; }
     .todo-del-btn { background: none; border: none; color: #c97a7a; cursor: pointer; font-size: 0.85rem; padding: 0 4px; }
     /* ===== 图片展示模块 ===== */
-    .image-scroll { display: flex; gap: 10px; overflow-x: auto; padding: 4px 0; scroll-behavior: smooth; -webkit-overflow-scrolling: touch; scrollbar-width: thin; }
+    .image-card { padding: 0 !important; overflow: hidden; }
+    .image-scroll { display: flex; gap: 6px; overflow-x: auto; padding: 6px 2px 12px 2px; scroll-behavior: smooth; -webkit-overflow-scrolling: touch; scrollbar-width: thin; scroll-snap-type: x proximity; }
     .image-scroll::-webkit-scrollbar { height: 4px; }
     .image-scroll::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 2px; }
-    .image-thumb-wrap { flex-shrink: 0; position: relative; }
-    .image-thumb { width: 260px; height: 180px; border-radius: 8px; object-fit: cover; cursor: pointer; border: 1px solid var(--card-border); transition: transform 0.15s; display: block; }
-    .image-thumb:hover { transform: scale(1.02); }
-    .image-del-btn { position: absolute; top: 4px; right: 4px; width: 22px; height: 22px; border-radius: 50%; background: rgba(0,0,0,0.5); color: white; border: none; font-size: 0.75rem; cursor: pointer; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.15s; line-height: 1; }
+    .image-thumb-wrap { flex-shrink: 0; position: relative; scroll-snap-align: start; }
+    .image-thumb-wrap:first-child { padding-left: 18px; }
+    .image-thumb-wrap:last-child { padding-right: 18px; }
+    .image-thumb { height: 220px; border-radius: 6px; object-fit: cover; cursor: pointer; border: none; transition: transform 0.15s; display: block; max-width: none; }
+    .image-thumb:hover { transform: scale(1.01); }
+    .image-del-btn { position: absolute; top: 6px; right: 6px; width: 24px; height: 24px; border-radius: 50%; background: rgba(0,0,0,0.5); color: white; border: none; font-size: 0.8rem; cursor: pointer; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.15s; line-height: 1; }
     .image-thumb-wrap:hover .image-del-btn { opacity: 1; }
     .image-lightbox { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 10000; justify-content: center; align-items: center; cursor: pointer; }
     .image-lightbox.open { display: flex; }
     .image-lightbox img { max-width: 95vw; max-height: 95vh; object-fit: contain; border-radius: 4px; }
-    .image-empty-text { font-size: 0.8rem; color: var(--text-light); padding: 8px 0; }
+    .image-empty-text { font-size: 0.8rem; color: var(--text-light); padding: 8px 20px; }
     @media (min-width: 761px) {
       .right-area { order: 2; } .left-area { order: 1; }
       .card { padding: 14px 16px; }
@@ -3695,7 +3698,8 @@ export default {
       .learn-module { padding: 8px 12px; font-size: 0.7rem; }
       
       /* Mobile optimization additions */
-      .image-thumb { width: 180px; height: 130px; }
+      .image-thumb { height: 180px; }
+      .image-scroll { padding: 4px 1px 10px 1px; }
       .card { padding: 12px 14px; border-radius: 10px; }
       .card-title { font-size: 0.82rem; margin-bottom: 8px; }
       .counter-row { gap: 8px; }
@@ -4517,9 +4521,9 @@ export default {
             <div class="todo-list" id="todoList"></div>
           </div>
         </div>
-        <div class="card">
-          <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;">
-            <span id="imageModuleTitle">图片</span>
+        <div class="card image-card">
+          <div class="image-card-header" style="display:flex;align-items:center;justify-content:space-between;padding:10px 20px 6px;">
+            <span id="imageModuleTitle" style="font-weight:700;font-size:0.9rem;color:var(--text-main);">图片</span>
             <button id="imageUploadBtn" style="font-size:0.8rem;font-weight:700;color:var(--accent-btn);cursor:pointer;padding:4px 10px;border-radius:4px;border:1px solid var(--accent-btn);background:transparent;">上传</button>
           </div>
           <div class="image-scroll" id="imageScroll"></div>
@@ -6901,12 +6905,16 @@ export default {
         container.innerHTML='<span class="image-empty-text">暂无图片，点击上传</span>';
         return;
       }
+      // 缩略图宽度 = 卡片宽度 - 边距，使图片铺满模块
+      var card=container.parentElement;
+      var cardW=card?card.offsetWidth:400;
+      var thumbW=Math.max(cardW-36,200);
       var html='';
       for(var i=0;i<images.length;i++){
         var img=images[i];
         var src='/api/image/'+encodeURIComponent(img.id);
         var safeName=(img.name||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-        html+='<div class="image-thumb-wrap"><img class="image-thumb" src="'+src+'" alt="'+safeName+'" loading="lazy" onclick="event.stopPropagation();openLightbox(\\''+src+'\\')"><button class="image-del-btn" onclick="event.stopPropagation();deleteImage(\\''+img.id+'\\')">X</button></div>';
+        html+='<div class="image-thumb-wrap"><img class="image-thumb" src="'+src+'" alt="'+safeName+'" loading="lazy" style="width:'+thumbW+'px" onclick="event.stopPropagation();openLightbox(\\''+src+'\\')"><button class="image-del-btn" onclick="event.stopPropagation();deleteImage(\\''+img.id+'\\')">X</button></div>';
       }
       container.innerHTML=html;
     } catch(e) { console.error('加载图片失败:',e); }
