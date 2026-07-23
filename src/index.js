@@ -8372,7 +8372,7 @@ export default {
       return '<div class="client-card-content-block follow-up">' +
         '<div style="display:flex;justify-content:space-between;align-items:center;">' +
           '<span class="client-card-label">' + count + '</span>' +
-          '<button class="allcard-add-followup-btn"' + idxAttr + ' title="新增跟进记录" style="font-size:0.9rem;width:24px;height:24px;border-radius:50%;border:1.5px dashed var(--accent-wechat);background:transparent;color:var(--accent-wechat);cursor:pointer;font-weight:500;line-height:1;display:flex;align-items:center;justify-content:center;">+</button>' +
+          '<button class="allcard-add-followup-btn"' + idxAttr + ' title="新增跟进记录" style="font-size:0.9rem;width:24px;height:24px;border:none;background:transparent;color:var(--accent-wechat);cursor:pointer;font-weight:500;line-height:1;display:flex;align-items:center;justify-content:center;">+</button>' +
         '</div>' +
         (parts.length > 0 ? '<div class="follow-up-list">' + parts.join('') + '</div>' : '') +
         '<div class="allcard-followup-inline-form" style="display:none;margin-top:6px;">' +
