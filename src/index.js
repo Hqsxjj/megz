@@ -4520,9 +4520,8 @@ export default {
         </div>
         <div class="card">
           <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;">
-            <span>图片</span>
-            <label for="imageFileInput" style="font-size:0.8rem;font-weight:700;color:var(--accent-btn);cursor:pointer;padding:4px 10px;border-radius:4px;border:1px solid var(--accent-btn);">上传</label>
-            <input type="file" id="imageFileInput" accept="image/*" multiple style="display:none;" onchange="uploadImages(this.files)">
+            <span id="imageModuleTitle">图片</span>
+            <button id="imageUploadBtn" style="font-size:0.8rem;font-weight:700;color:var(--accent-btn);cursor:pointer;padding:4px 10px;border-radius:4px;border:1px solid var(--accent-btn);background:transparent;">上传</button>
           </div>
           <div class="image-scroll" id="imageScroll"></div>
           <div class="image-lightbox" id="imageLightbox" onclick="closeLightbox()">
@@ -6879,6 +6878,20 @@ export default {
   }
 
   // ===== 图片展示模块 =====
+  function initImageModule(){
+    var btn=document.getElementById('imageUploadBtn');
+    if(!btn) return;
+    btn.addEventListener('click',function(){
+      var input=document.createElement('input');
+      input.type='file';
+      input.accept='image/*';
+      input.multiple=true;
+      input.onchange=function(){ uploadImages(this.files); };
+      input.click();
+    });
+    loadImages();
+  }
+
   async function loadImages(){
     var container=document.getElementById('imageScroll');
     if(!container) return;
@@ -6902,15 +6915,18 @@ export default {
 
   async function uploadImages(files){
     if(!files||files.length===0) return;
+    var titleEl=document.getElementById('imageModuleTitle');
+    var origTitle=titleEl?titleEl.textContent:'图片';
     for(var i=0;i<files.length;i++){
       var file=files[i];
       if(!file.type.startsWith('image/')) continue;
       if(file.size>5*1024*1024) { alert(file.name+' 超过 5MB 限制'); continue; }
+      if(titleEl) titleEl.textContent=origTitle+' (上传中...)';
       try {
         var data=await new Promise(function(resolve,reject){
           var reader=new FileReader();
           reader.onload=function(){ resolve(reader.result); };
-          reader.onerror=function(){ reject(reader.error); };
+          reader.onerror=function(){ reject(reader.error||new Error('读取文件失败')); };
           reader.readAsDataURL(file);
         });
         var resp=await fetch('/api/images',{
@@ -6919,12 +6935,11 @@ export default {
         });
         var result=await resp.json();
         if(!result.ok) { alert('上传失败: '+(result.error||'未知错误')); }
+        else { if(titleEl) titleEl.textContent=origTitle+' (OK)'; }
       } catch(e) { console.error('上传图片失败:',e); alert('上传失败: '+e.message); }
     }
+    if(titleEl) setTimeout(function(){ titleEl.textContent=origTitle; },1500);
     loadImages();
-    // 重置 file input 以便重复选同一文件
-    var input=document.getElementById('imageFileInput');
-    if(input) input.value='';
   }
 
   async function deleteImage(id){
@@ -7312,6 +7327,7 @@ export default {
     document.body.classList.remove('page-journal','page-auth','page-hidden');
     var app=document.querySelector('.app-shell');if(app)app.style.display='flex';
     var js=document.getElementById('journalShell');if(js)js.style.display='none';
+    initImageModule();
     refreshAll();
   }
   function showJournalShell(){
