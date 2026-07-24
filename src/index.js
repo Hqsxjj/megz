@@ -3633,7 +3633,10 @@ export default {
     .image-scroll { display: flex; gap: 4px; overflow-x: auto; padding: 0; scroll-behavior: smooth; -webkit-overflow-scrolling: touch; scrollbar-width: none; scroll-snap-type: x mandatory; }
     .image-scroll::-webkit-scrollbar { display: none; }
     .image-thumb-wrap { flex-shrink: 0; position: relative; scroll-snap-align: start; }
-    .image-thumb { height: 300px; width: auto; border-radius: 0; object-fit: contain; cursor: pointer; border: none; transition: transform 0.2s; display: block; max-width: 100%; background: #1a1a1a; }
+    .image-thumb { height: var(--thumb-h, 300px); width: auto; border-radius: 0; object-fit: contain; cursor: pointer; border: none; transition: transform 0.2s; display: block; max-width: 100%; background: #1a1a1a; }
+    .image-size-slider { -webkit-appearance: none; appearance: none; width: 80px; height: 4px; border-radius: 2px; background: rgba(255,255,255,0.35); outline: none; pointer-events: auto; cursor: pointer; margin: 0 4px; flex-shrink: 0; }
+    .image-size-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: #fff; cursor: pointer; border: none; box-shadow: 0 1px 4px rgba(0,0,0,0.3); }
+    .image-size-slider::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; background: #fff; cursor: pointer; border: none; box-shadow: 0 1px 4px rgba(0,0,0,0.3); }
     .image-thumb:hover { transform: scale(1.005); }
     .image-del-btn { position: absolute; top: 8px; right: 8px; width: 26px; height: 26px; border-radius: 50%; background: rgba(0,0,0,0.5); color: #fff; border: none; font-size: 0.8rem; cursor: pointer; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.2s; line-height: 1; z-index: 4; }
     .image-thumb-wrap:hover .image-del-btn { opacity: 1; }
@@ -3708,7 +3711,8 @@ export default {
       .learn-module { padding: 8px 12px; font-size: 0.7rem; }
       
       /* Mobile optimization additions */
-      .image-thumb { height: 220px; }
+      .image-thumb { height: var(--thumb-h, 220px); }
+      .image-size-slider { width: 60px; }
       .card { padding: 12px 14px; border-radius: 10px; }
       .card-title { font-size: 0.82rem; margin-bottom: 8px; }
       .counter-row { gap: 8px; }
@@ -4507,7 +4511,10 @@ export default {
         <div class="card image-card">
           <div class="image-overlay">
             <span id="imageModuleTitle">图片</span>
-            <button id="imageUploadBtn">上传</button>
+            <div style="display:flex;align-items:center;gap:2px;pointer-events:auto;">
+              <input type="range" class="image-size-slider" id="imageSizeSlider" min="100" max="500" value="300" title="拖动调整图片大小">
+              <button id="imageUploadBtn">上传</button>
+            </div>
           </div>
           <div class="image-scroll" id="imageScroll">
             <div class="image-empty-state">
@@ -6914,6 +6921,23 @@ export default {
       });
     }
     loadImages();
+    initImageSizeSlider();
+  }
+
+  function initImageSizeSlider(){
+    var slider=document.getElementById('imageSizeSlider');
+    var card=document.querySelector('.image-card');
+    if(!slider||!card) return;
+    var isMobile=window.innerWidth<761;
+    var defaultH=isMobile?220:300;
+    var saved=localStorage.getItem('thumb_size');
+    var val=saved?parseInt(saved):defaultH;
+    slider.value=val;
+    card.style.setProperty('--thumb-h',val+'px');
+    slider.addEventListener('input',function(){
+      card.style.setProperty('--thumb-h',this.value+'px');
+      localStorage.setItem('thumb_size',this.value);
+    });
   }
 
   async function loadImages(){
