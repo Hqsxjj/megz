@@ -3633,7 +3633,7 @@ export default {
     .image-scroll { display: flex; gap: 4px; overflow-x: auto; padding: 0; scroll-behavior: smooth; -webkit-overflow-scrolling: touch; scrollbar-width: none; scroll-snap-type: x mandatory; }
     .image-scroll::-webkit-scrollbar { display: none; }
     .image-thumb-wrap { flex-shrink: 0; position: relative; scroll-snap-align: start; }
-    .image-thumb { height: 300px; border-radius: 0; object-fit: cover; cursor: pointer; border: none; transition: transform 0.2s; display: block; max-width: none; }
+    .image-thumb { height: 300px; border-radius: 0; object-fit: contain; cursor: pointer; border: none; transition: transform 0.2s; display: block; max-width: 100%; background: #1a1a1a; }
     .image-thumb:hover { transform: scale(1.005); }
     .image-del-btn { position: absolute; top: 8px; right: 8px; width: 26px; height: 26px; border-radius: 50%; background: rgba(0,0,0,0.5); color: #fff; border: none; font-size: 0.8rem; cursor: pointer; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.2s; line-height: 1; z-index: 4; }
     .image-thumb-wrap:hover .image-del-btn { opacity: 1; }
