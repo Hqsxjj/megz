@@ -3625,7 +3625,7 @@ export default {
     .todo-del-btn { background: none; border: none; color: #c97a7a; cursor: pointer; font-size: 0.85rem; padding: 0 4px; }
     /* ===== 图片展示模块 ===== */
     .image-card { padding: 0 !important; overflow: hidden; position: relative; border-radius: var(--radius-ios) !important; }
-    .image-overlay { position: absolute; top: 0; left: 0; right: 0; z-index: 5; display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; pointer-events: none; opacity: 0; transition: opacity 0.25s; background: linear-gradient(to bottom, rgba(0,0,0,0.4) 0%, transparent 100%); }
+    .image-overlay { position: absolute; top: 0; left: 0; right: 0; z-index: 5; display: flex; align-items: center; justify-content: flex-end; padding: 10px 16px; pointer-events: none; opacity: 0; transition: opacity 0.25s; background: linear-gradient(to bottom, rgba(0,0,0,0.4) 0%, transparent 100%); }
     .image-card:hover .image-overlay { opacity: 1; }
     .image-overlay span { color: #fff; font-weight: 700; font-size: 0.85rem; text-shadow: 0 1px 3px rgba(0,0,0,0.5); }
     .image-overlay button { pointer-events: auto; font-size: 0.75rem; font-weight: 700; color: #fff; cursor: pointer; padding: 4px 10px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.5); background: rgba(255,255,255,0.15); backdrop-filter: blur(4px); text-shadow: 0 1px 2px rgba(0,0,0,0.3); }
@@ -4510,7 +4510,6 @@ export default {
         </div>
         <div class="card image-card">
           <div class="image-overlay">
-            <span id="imageModuleTitle">图片</span>
             <div style="display:flex;align-items:center;gap:2px;pointer-events:auto;">
               <input type="range" class="image-size-slider" id="imageSizeSlider" min="100" max="500" value="300" title="拖动调整图片大小">
               <button id="imageUploadBtn">上传</button>
