@@ -3646,9 +3646,9 @@ export default {
     .image-empty-upload { margin-top: 6px; font-size: 0.82rem; font-weight: 700; color: var(--accent-btn); cursor: pointer; padding: 5px 18px; border-radius: 4px; border: 1px solid var(--accent-btn); background: transparent; }
     .image-empty-upload:hover { background: var(--btn-bg); }
     .image-card.has-images .image-overlay { display: flex; }
-    .image-lightbox { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.92); z-index: 10000; justify-content: center; align-items: center; cursor: pointer; }
+    .image-lightbox { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; height: 100dvh; background: rgba(0,0,0,0.92); z-index: 10000; justify-content: center; align-items: center; cursor: pointer; padding: 24px; box-sizing: border-box; }
     .image-lightbox.open { display: flex; }
-    .image-lightbox img { max-width: 95vw; max-height: 95vh; object-fit: contain; border-radius: 4px; }
+    .image-lightbox img { max-width: 100%; max-height: 100%; object-fit: scale-down; border-radius: 4px; }
     @media (min-width: 761px) {
       .right-area { order: 2; } .left-area { order: 1; }
       .card { padding: 14px 16px; }
@@ -4517,7 +4517,7 @@ export default {
             </div>
           </div>
           <div class="image-lightbox" id="imageLightbox" onclick="closeLightbox()">
-            <img id="imageLightboxImg" src="" alt="">
+            <img id="imageLightboxImg" src="" alt="" onclick="event.stopPropagation()">
           </div>
         </div>
         <div class="card">
