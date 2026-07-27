@@ -4543,6 +4543,7 @@ export default {
           <div class="card-title">临时登记 (待晚回访)</div>
           <div class="register-block">
             <div class="form-line"><input type="text" class="input-simple" id="tempCustName" placeholder="姓名" autocomplete="off" readonly onfocus="this.removeAttribute('readonly');"><input type="text" class="input-simple" id="tempCustPhone" placeholder="电话/联系方式" autocomplete="off" readonly onfocus="this.removeAttribute('readonly');"></div>
+            <div class="form-line"><input type="text" class="input-simple" id="tempCustCompany" placeholder="单位" autocomplete="off" readonly onfocus="this.removeAttribute('readonly');"><input type="text" class="input-simple" id="tempCustFund" placeholder="公积金基数" autocomplete="off" readonly onfocus="this.removeAttribute('readonly');"></div>
             <div style="display:flex;gap:4px;align-items:center;">
               <textarea class="input-simple note-textarea" id="tempCustNote" placeholder="回访备注/待聊内容" rows="2" style="flex:1;"></textarea>
               <button type="button" id="boldBtn" title="加粗 (Alt+B)" style="height:28px;width:28px;font-weight:900;font-size:0.7rem;border:1px solid var(--card-border);background:var(--btn-bg);color:var(--text-main);cursor:pointer;border-radius:3px;padding:0;line-height:1;">B</button>
@@ -6395,6 +6396,8 @@ export default {
             '</div>'+
             '<div class="client-card-tags">'+
               '<span class="client-card-tag" style="background:rgba(255,255,255,0.3);color:var(--accent-wechat);">电话: '+esc(e.phone)+'</span>'+
+              (e.company ? '<span class="client-card-tag" style="background:rgba(255,255,255,0.3);">单位: '+esc(e.company)+'</span>' : '')+
+              (e.fund ? '<span class="client-card-tag" style="background:rgba(255,255,255,0.3);">公积金: '+esc(e.fund)+'</span>' : '')+
             '</div>'+
             (e.note ? '<div class="client-card-body"><div class="client-card-content-block"><span class="client-card-label">回访备注</span><span class="client-card-text">'+esc(e.note)+'</span></div></div>' : '')+
           '</div>';
@@ -7143,15 +7146,19 @@ export default {
   async function addTempClient(){
     const n=document.getElementById('tempCustName').value.trim();
     const p=document.getElementById('tempCustPhone').value.trim();
+    const co=document.getElementById('tempCustCompany').value.trim();
+    const fu=document.getElementById('tempCustFund').value.trim();
     const nt=document.getElementById('tempCustNote').value.trim();
     if(!n||!p){alert('请填写姓名和联系方式');return;}
     const list=JSON.parse(localStorage.getItem(TEMP_CLIENTS_K)||'[]');
     const today=getTodayStr(),time=getCurrentTime();
-    const newClient={name:n,phone:p,note:nt,date:today,time:time};
+    const newClient={name:n,phone:p,company:co,fund:fu,note:nt,date:today,time:time};
     list.push(newClient);
     localStorage.setItem(TEMP_CLIENTS_K,JSON.stringify(list));
     document.getElementById('tempCustName').value='';
     document.getElementById('tempCustPhone').value='';
+    document.getElementById('tempCustCompany').value='';
+    document.getElementById('tempCustFund').value='';
     document.getElementById('tempCustNote').value='';
     renderTempClientList();
     await syncOp('setTempClients',{tempClients:list});
@@ -7178,6 +7185,10 @@ export default {
           (c.time ? '<span class="client-card-time">'+esc(c.time)+'</span>' : '')+
         '</div>'+
         '<div class="client-card-body">'+
+          (c.company||c.fund ? '<div class="client-card-content-block">'+
+            '<span class="client-card-label">信息</span>'+
+            '<span class="client-card-text">'+esc([c.company||'',c.fund?'公积金:'+c.fund:''].filter(Boolean).join(' | '))+'</span>'+
+          '</div>' : '')+
           '<div class="client-card-content-block">'+
             '<span class="client-card-label">回访备注</span>'+
             '<span class="client-card-text">'+esc(c.note||'')+'</span>'+
@@ -7213,8 +7224,8 @@ export default {
         document.getElementById('custName').value=c.name;
         document.getElementById('custPhone').value=c.phone;
         document.getElementById('custNote').value=c.note||'';
-        document.getElementById('custCompany').value='';
-        document.getElementById('custFund').value='';
+        document.getElementById('custCompany').value=c.company||'';
+        document.getElementById('custFund').value=c.fund||'';
         
         // 从临时列表中删除
         a.splice(idx,1);
