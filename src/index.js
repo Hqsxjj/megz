@@ -7000,6 +7000,7 @@ export default {
     });
     // 鼠标拖动切换
     var img=document.getElementById('imageLightboxImg');
+    if(!img) return;
     var dragStartX=0, dragStartY=0, dragging=false, dragMoved=false;
     img.addEventListener('mousedown',function(e){
       dragging=true; dragMoved=false;
@@ -7031,6 +7032,8 @@ export default {
         else lbNext(e);
       }
     });
+
+  }
 
   function initImageSizeSlider(){
     var slider=document.getElementById('imageSizeSlider');
