@@ -4194,6 +4194,19 @@ export default {
 
 
 
+    /* ===== 临时登记全量表 ===== */
+    .temp-full-table { width:100%; border-collapse:collapse; font-size:0.75rem; }
+    .temp-full-table th { position:sticky; top:0; background:var(--card-bg); z-index:1; text-align:left; padding:8px 10px; font-weight:700; font-size:0.7rem; color:var(--text-soft); border-bottom:2px solid var(--card-border); white-space:nowrap; }
+    .temp-full-table td { padding:7px 10px; border-bottom:1px solid var(--border-light); color:var(--text-main); white-space:nowrap; max-width:200px; overflow:hidden; text-overflow:ellipsis; }
+    .temp-full-table td.note-cell { max-width:260px; }
+    .temp-full-table tbody tr:hover { background:var(--btn-bg); }
+    .temp-full-table .temp-tbl-del { background:none; border:none; color:#e74c3c; cursor:pointer; font-size:0.85rem; padding:0 4px; font-weight:700; }
+    .temp-full-table .temp-tbl-convert { background:none; border:none; color:var(--accent-intent); cursor:pointer; font-size:0.85rem; padding:0 4px; margin-right:4px; font-weight:700; }
+    @media (max-width:760px) {
+      .temp-full-table { font-size:0.68rem; }
+      .temp-full-table th,.temp-full-table td { padding:5px 6px; }
+    }
+
     /* ===== 全量客户卡片布局 ===== */
     .all-client-card {
       margin-bottom: 10px;
@@ -4552,7 +4565,7 @@ export default {
           </div>
         </div>
         <div class="card">
-          <div class="card-title">临时登记 (待晚回访)</div>
+          <div class="card-title">临时登记 (待晚回访) <button class="btn-add" id="allTempTableBtn" style="font-size:0.65rem;padding:2px 8px;margin-left:auto;">全量表</button></div>
           <div class="register-block">
             <div class="form-line"><input type="text" class="input-simple" id="tempCustName" placeholder="姓名" autocomplete="off" readonly onfocus="this.removeAttribute('readonly');"><input type="text" class="input-simple" id="tempCustPhone" placeholder="电话/联系方式" autocomplete="off" readonly onfocus="this.removeAttribute('readonly');"></div>
             <div class="form-line"><input type="text" class="input-simple" id="tempCustCompany" placeholder="单位" autocomplete="off" readonly onfocus="this.removeAttribute('readonly');"><input type="text" class="input-simple" id="tempCustFund" placeholder="公积金基数" autocomplete="off" readonly onfocus="this.removeAttribute('readonly');"></div>
@@ -4778,6 +4791,26 @@ export default {
       <div style="display:flex;gap:8px;align-items:center;"><label style="font-size:0.8rem;font-weight:600;min-width:60px;">回款</label><input type="number" class="input-simple" id="goalMonthlyPayment" min="0" placeholder="0" style="flex:1;" autocomplete="off"></div>
       <button class="btn-add" id="saveGoalBtn" style="width:100%;margin-top:4px;">保存目标</button>
       <div id="goalStatus" style="font-size:0.75rem;text-align:center;min-height:20px;color:var(--text-soft);"></div>
+    </div>
+  </div>
+</div>
+
+<!-- 临时登记全量表 -->
+<div id="tempFullModal" class="modal-overlay">
+  <div class="modal-card" style="max-width:900px;width:95%;">
+    <div class="modal-header">
+      <span>临时登记全量表 <span id="tempFullCount" style="font-size:0.7rem;color:var(--accent-wechat);font-weight:800;"></span></span>
+      <button id="closeTempFullModalBtn">×</button>
+    </div>
+    <div style="overflow-x:auto;max-height:70vh;overflow-y:auto;">
+      <table class="temp-full-table" id="tempFullTable">
+        <thead>
+          <tr>
+            <th>日期</th><th>时间</th><th>姓名</th><th>电话</th><th>单位</th><th>公积金基数</th><th>备注</th><th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="tempFullTableBody"></tbody>
+      </table>
     </div>
   </div>
 </div>
@@ -7363,6 +7396,82 @@ export default {
     }));
   }
 
+  // ===== 临时登记全量表 =====
+  function renderTempFullTable(){
+    var list=JSON.parse(localStorage.getItem(TEMP_CLIENTS_K)||'[]');
+    var tbody=document.getElementById('tempFullTableBody');
+    var count=document.getElementById('tempFullCount');
+    if(!tbody) return;
+    if(count) count.textContent='('+list.length+'人)';
+    if(list.length===0){
+      tbody.innerHTML='<tr><td colspan="8" style="text-align:center;color:var(--text-light);padding:32px;">暂无临时登记客户</td></tr>';
+      return;
+    }
+    // 按日期倒序排列
+    list.sort(function(a,b){ return (b.date||'').localeCompare(a.date||'')||(b.time||'').localeCompare(a.time||''); });
+    var html='';
+    for(var i=0;i<list.length;i++){
+      var c=list[i];
+      html+='<tr>'+
+        '<td>'+esc(c.date||'')+'</td>'+
+        '<td>'+esc(c.time||'')+'</td>'+
+        '<td>'+esc(c.name)+'</td>'+
+        '<td><a href="tel:'+esc(c.phone)+'">'+esc(maskPhone(c.phone))+'</a></td>'+
+        '<td>'+esc(c.company||'')+'</td>'+
+        '<td>'+esc(c.fund||'')+'</td>'+
+        '<td class="note-cell">'+esc(c.note||'')+'</td>'+
+        '<td>'+
+          '<button class="temp-tbl-convert" data-idx="'+i+'" title="转正式意向">→</button>'+
+          '<button class="temp-tbl-del" data-idx="'+i+'" title="删除">✕</button>'+
+        '</td>'+
+      '</tr>';
+    }
+    tbody.innerHTML=html;
+    // 绑定事件
+    tbody.querySelectorAll('.temp-tbl-del').forEach(function(b){
+      b.onclick=async function(){
+        var idx=parseInt(this.dataset.idx);
+        var a=JSON.parse(localStorage.getItem(TEMP_CLIENTS_K)||'[]');
+        // 按日期重新排序后找到正确位置
+        a.sort(function(x,y){ return (y.date||'').localeCompare(x.date||'')||(y.time||'').localeCompare(x.time||''); });
+        if(idx<0||idx>=a.length) return;
+        if(!confirm('删除 '+a[idx].name+' ?')) return;
+        a.splice(idx,1);
+        localStorage.setItem(TEMP_CLIENTS_K,JSON.stringify(a));
+        renderTempFullTable();
+        renderTempClientList();
+        await syncOp('setTempClients',{tempClients:a});
+      };
+    });
+    tbody.querySelectorAll('.temp-tbl-convert').forEach(function(b){
+      b.onclick=async function(){
+        var idx=parseInt(this.dataset.idx);
+        var a=JSON.parse(localStorage.getItem(TEMP_CLIENTS_K)||'[]');
+        a.sort(function(x,y){ return (y.date||'').localeCompare(x.date||'')||(y.time||'').localeCompare(x.time||''); });
+        if(idx<0||idx>=a.length) return;
+        var c=a[idx];
+        document.getElementById('custName').value=c.name;
+        document.getElementById('custPhone').value=c.phone;
+        document.getElementById('custNote').value=c.note||'';
+        document.getElementById('custCompany').value=c.company||'';
+        document.getElementById('custFund').value=c.fund||'';
+        a.splice(idx,1);
+        localStorage.setItem(TEMP_CLIENTS_K,JSON.stringify(a));
+        renderTempFullTable();
+        renderTempClientList();
+        await syncOp('setTempClients',{tempClients:a});
+        document.getElementById('custName').focus();
+        var card=document.getElementById('custName').closest('.card');
+        if(card){ card.style.transform='scale(1.02)'; card.style.transition='all 0.3s'; setTimeout(function(){ card.style.transform='none'; },500); }
+      };
+    });
+  }
+
+  function openTempFullTable(){
+    renderTempFullTable();
+    document.getElementById('tempFullModal').classList.add('active');
+  }
+
   async function addTodoItem(){
     const input=document.getElementById('todoInput'),text=input.value.trim();
     if(!text)return;const remind=document.getElementById('todoRemindTime').value;
@@ -8499,6 +8608,10 @@ export default {
   document.addEventListener('keydown',function(e){if(e.altKey&&e.key==='b'){e.preventDefault();doWrap('**|**');}else if(e.altKey&&e.key==='d'){e.preventDefault();doWrap('~~|~~');}});
   document.getElementById('closeModalBtn').addEventListener('click',()=>document.getElementById('dateModal').classList.remove('active'));
   document.getElementById('dateModal').addEventListener('click',e=>{if(e.target===document.getElementById('dateModal'))document.getElementById('dateModal').classList.remove('active');});
+  // 临时登记全量表
+  document.getElementById('allTempTableBtn').addEventListener('click',openTempFullTable);
+  document.getElementById('closeTempFullModalBtn').addEventListener('click',()=>document.getElementById('tempFullModal').classList.remove('active'));
+  document.getElementById('tempFullModal').addEventListener('click',function(e){if(e.target===this)this.classList.remove('active');});
 
   // 云端同步：自适应动态调度排空队列与数据拉取
   function scheduleNextTick(){
