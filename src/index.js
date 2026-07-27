@@ -4198,8 +4198,8 @@ export default {
     .temp-full-table { width:100%; border-collapse:collapse; font-size:0.75rem; table-layout:fixed; }
     .temp-full-table th { position:sticky; top:0; background:var(--card-bg); z-index:1; text-align:left; padding:8px 6px; font-weight:700; font-size:0.7rem; color:var(--text-soft); border-bottom:2px solid var(--card-border); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
     .temp-full-table td { padding:6px 6px; border-bottom:1px solid var(--border-light); color:var(--text-main); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-    .temp-full-table .col-date { width:78px; }
-    .temp-full-table .col-time { width:50px; }
+    .temp-full-table .col-date { width:86px; white-space:nowrap; }
+    .temp-full-table .col-time { width:58px; white-space:nowrap; }
     .temp-full-table .col-name { width:68px; }
     .temp-full-table .col-phone { width:108px; }
     .temp-full-table .col-company { width:96px; }
@@ -4212,8 +4212,8 @@ export default {
     @media (max-width:760px) {
       .temp-full-table { font-size:0.68rem; }
       .temp-full-table th,.temp-full-table td { padding:4px; }
-      .temp-full-table .col-date { width:64px; }
-      .temp-full-table .col-time { width:42px; }
+      .temp-full-table .col-date { width:76px; }
+      .temp-full-table .col-time { width:52px; }
       .temp-full-table .col-name { width:52px; }
       .temp-full-table .col-phone { width:88px; }
       .temp-full-table .col-company { width:74px; }
