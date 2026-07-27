@@ -4552,6 +4552,23 @@ export default {
           </div>
         </div>
         <div class="card">
+          <div class="card-title">临时登记 (待晚回访) <button class="btn-add" id="allTempTableBtn" style="font-size:0.65rem;padding:2px 8px;margin-left:auto;">全量表</button></div>
+          <div class="register-block">
+            <div class="form-line"><input type="text" class="input-simple" id="tempCustName" placeholder="姓名" autocomplete="off" readonly onfocus="this.removeAttribute('readonly');"><input type="text" class="input-simple" id="tempCustPhone" placeholder="电话/联系方式" autocomplete="off" readonly onfocus="this.removeAttribute('readonly');"></div>
+            <div class="form-line"><input type="text" class="input-simple" id="tempCustCompany" placeholder="单位" autocomplete="off" readonly onfocus="this.removeAttribute('readonly');"><input type="text" class="input-simple" id="tempCustFund" placeholder="公积金基数" autocomplete="off" readonly onfocus="this.removeAttribute('readonly');"></div>
+            <div style="display:flex;gap:4px;align-items:center;">
+              <textarea class="input-simple note-textarea" id="tempCustNote" placeholder="回访备注/待聊内容" rows="2" style="flex:1;"></textarea>
+              <button type="button" id="boldBtn" title="加粗 (Alt+B)" style="height:28px;width:28px;font-weight:900;font-size:0.7rem;border:1px solid var(--card-border);background:var(--btn-bg);color:var(--text-main);cursor:pointer;border-radius:3px;padding:0;line-height:1;">B</button>
+              <button type="button" id="delBtn" title="删除线 (Alt+D)" style="height:28px;width:28px;font-weight:700;font-size:0.6rem;border:1px solid var(--card-border);background:var(--btn-bg);color:var(--text-main);cursor:pointer;border-radius:3px;padding:0;line-height:1;text-decoration:line-through;">D</button>
+            </div>
+            <div style="display:flex;gap:4px;">
+              <button class="btn-add" id="addTempCustBtn" style="background:var(--accent-btn);flex:1;">+ 登记</button>
+              <button class="btn-add" id="cancelTempEditBtn" style="background:var(--btn-bg);color:var(--text-soft);display:none;padding:0 12px;font-size:0.72rem;">取消</button>
+            </div>
+            <div class="client-scroll" id="tempClientList"></div>
+          </div>
+        </div>
+        <div class="card">
           <div class="card-title" style="display:flex;align-items:center;gap:10px;">
             <span>待办</span>
             <div class="todo-tab-switch" id="todoTabSwitch">
@@ -4562,20 +4579,6 @@ export default {
           <div class="register-block">
             <div class="todo-input-row"><input type="text" class="todo-input" id="todoInput" placeholder="添加待办..." autocomplete="off"><input type="time" class="todo-input time-input-compact" id="todoRemindTime" autocomplete="off"><button class="todo-add-btn" id="addTodoBtn">+ 添加</button></div>
             <div class="todo-list" id="todoList"></div>
-          </div>
-        </div>
-        <div class="card">
-          <div class="card-title">临时登记 (待晚回访) <button class="btn-add" id="allTempTableBtn" style="font-size:0.65rem;padding:2px 8px;margin-left:auto;">全量表</button></div>
-          <div class="register-block">
-            <div class="form-line"><input type="text" class="input-simple" id="tempCustName" placeholder="姓名" autocomplete="off" readonly onfocus="this.removeAttribute('readonly');"><input type="text" class="input-simple" id="tempCustPhone" placeholder="电话/联系方式" autocomplete="off" readonly onfocus="this.removeAttribute('readonly');"></div>
-            <div class="form-line"><input type="text" class="input-simple" id="tempCustCompany" placeholder="单位" autocomplete="off" readonly onfocus="this.removeAttribute('readonly');"><input type="text" class="input-simple" id="tempCustFund" placeholder="公积金基数" autocomplete="off" readonly onfocus="this.removeAttribute('readonly');"></div>
-            <div style="display:flex;gap:4px;align-items:center;">
-              <textarea class="input-simple note-textarea" id="tempCustNote" placeholder="回访备注/待聊内容" rows="2" style="flex:1;"></textarea>
-              <button type="button" id="boldBtn" title="加粗 (Alt+B)" style="height:28px;width:28px;font-weight:900;font-size:0.7rem;border:1px solid var(--card-border);background:var(--btn-bg);color:var(--text-main);cursor:pointer;border-radius:3px;padding:0;line-height:1;">B</button>
-              <button type="button" id="delBtn" title="删除线 (Alt+D)" style="height:28px;width:28px;font-weight:700;font-size:0.6rem;border:1px solid var(--card-border);background:var(--btn-bg);color:var(--text-main);cursor:pointer;border-radius:3px;padding:0;line-height:1;text-decoration:line-through;">D</button>
-            </div>
-            <button class="btn-add" id="addTempCustBtn" style="background:var(--accent-btn);">+ 登记</button>
-            <div class="client-scroll" id="tempClientList"></div>
           </div>
         </div>
       </div>
@@ -7279,6 +7282,35 @@ export default {
     await syncOp('addClient',{client:newClient});
   }
 
+  var _tempEditIdx=-1; // -1=新增模式, >=0=编辑索引
+  function tempEditClient(idx){
+    var list=JSON.parse(localStorage.getItem(TEMP_CLIENTS_K)||'[]');
+    if(idx<0||idx>=list.length) return;
+    var c=list[idx];
+    document.getElementById('tempCustName').value=c.name;
+    document.getElementById('tempCustPhone').value=c.phone;
+    document.getElementById('tempCustCompany').value=c.company||'';
+    document.getElementById('tempCustFund').value=c.fund||'';
+    document.getElementById('tempCustNote').value=c.note||'';
+    _tempEditIdx=idx;
+    var btn=document.getElementById('addTempCustBtn');
+    if(btn){ btn.textContent='✓ 更新'; btn.style.background='var(--accent-intent)'; }
+    var cancelBtn=document.getElementById('cancelTempEditBtn');
+    if(cancelBtn) cancelBtn.style.display='inline-block';
+    document.getElementById('tempCustName').focus();
+  }
+  function tempCancelEdit(){
+    _tempEditIdx=-1;
+    document.getElementById('tempCustName').value='';
+    document.getElementById('tempCustPhone').value='';
+    document.getElementById('tempCustCompany').value='';
+    document.getElementById('tempCustFund').value='';
+    document.getElementById('tempCustNote').value='';
+    var btn=document.getElementById('addTempCustBtn');
+    if(btn){ btn.textContent='+ 登记'; btn.style.background='var(--accent-btn)'; }
+    var cancelBtn=document.getElementById('cancelTempEditBtn');
+    if(cancelBtn) cancelBtn.style.display='none';
+  }
   async function addTempClient(){
     const n=document.getElementById('tempCustName').value.trim();
     const p=document.getElementById('tempCustPhone').value.trim();
@@ -7289,13 +7321,16 @@ export default {
     const list=JSON.parse(localStorage.getItem(TEMP_CLIENTS_K)||'[]');
     const today=getTodayStr(),time=getCurrentTime();
     const newClient={name:n,phone:p,company:co,fund:fu,note:nt,date:today,time:time};
-    list.push(newClient);
+    if(_tempEditIdx>=0&&_tempEditIdx<list.length){
+      // 编辑模式：保留原日期时间
+      newClient.date=list[_tempEditIdx].date;
+      newClient.time=list[_tempEditIdx].time;
+      list[_tempEditIdx]=newClient;
+    } else {
+      list.push(newClient);
+    }
     localStorage.setItem(TEMP_CLIENTS_K,JSON.stringify(list));
-    document.getElementById('tempCustName').value='';
-    document.getElementById('tempCustPhone').value='';
-    document.getElementById('tempCustCompany').value='';
-    document.getElementById('tempCustFund').value='';
-    document.getElementById('tempCustNote').value='';
+    tempCancelEdit();
     renderTempClientList();
     await syncOp('setTempClients',{tempClients:list});
   }
@@ -7331,6 +7366,7 @@ export default {
           '</div>'+
         '</div>'+
         '<div class="client-card-actions">'+
+          '<button class="edit-temp-btn" data-idx="'+i+'" title="编辑" style="font-size:0.75rem;padding:2px 8px;background:none;border:1px solid var(--card-border);color:var(--text-soft);cursor:pointer;margin-right:4px;border-radius:3px;font-weight:600;">编</button>'+
           '<button class="convert-temp-btn" data-idx="'+i+'" title="转为正式意向客户" style="font-size:1.1rem;padding:0;background:none;border:none;color:var(--accent-intent);cursor:pointer;margin-right:8px;font-weight:700;">→</button>'+
           '<button class="del-icon del-temp-btn" data-idx="'+i+'" title="删除" style="vertical-align:middle;padding:0;width:20px;height:20px;line-height:20px;display:inline-block;">×</button>'+
         '</div>'+
@@ -7346,6 +7382,15 @@ export default {
         localStorage.setItem(TEMP_CLIENTS_K,JSON.stringify(a));
         renderTempClientList();
         await syncOp('setTempClients',{tempClients:a});
+      };
+    });
+
+    // 绑定编辑按钮
+    container.querySelectorAll('.edit-temp-btn').forEach(function(b){
+      b.onclick=function(e){
+        e.stopPropagation();
+        var idx=parseInt(this.dataset.idx);
+        tempEditClient(idx);
       };
     });
 
@@ -7424,6 +7469,7 @@ export default {
         '<td>'+esc(c.fund||'')+'</td>'+
         '<td class="note-cell">'+esc(c.note||'')+'</td>'+
         '<td>'+
+          '<button class="temp-tbl-edit" data-key="'+esc(c.name)+'|'+esc(c.phone)+'" title="编辑" style="background:none;border:1px solid var(--card-border);color:var(--text-soft);cursor:pointer;font-size:0.72rem;padding:1px 6px;margin-right:4px;border-radius:3px;font-weight:600;">编</button>'+
           '<button class="temp-tbl-convert" data-idx="'+i+'" title="转正式意向">→</button>'+
           '<button class="temp-tbl-del" data-idx="'+i+'" title="删除">✕</button>'+
         '</td>'+
@@ -7444,6 +7490,17 @@ export default {
         renderTempFullTable();
         renderTempClientList();
         await syncOp('setTempClients',{tempClients:a});
+      };
+    });
+    tbody.querySelectorAll('.temp-tbl-edit').forEach(function(b){
+      b.onclick=function(){
+        var key=this.dataset.key;
+        var a=JSON.parse(localStorage.getItem(TEMP_CLIENTS_K)||'[]');
+        var idx=-1;
+        for(var ai=0;ai<a.length;ai++){ if((a[ai].name+'|'+a[ai].phone)===key){ idx=ai; break; } }
+        if(idx<0) return;
+        document.getElementById('tempFullModal').classList.remove('active');
+        tempEditClient(idx);
       };
     });
     tbody.querySelectorAll('.temp-tbl-convert').forEach(function(b){
@@ -8604,6 +8661,7 @@ export default {
   });
   ['custName','custPhone','custCompany','custFund','custAge','custSocialSecurity','custAvgSalary','custTax2yr','custSalaryBank','custBankDebt','custCreditCardDebt','custQuery3m','custOnlineLoanCount'].forEach(id=>{const el=document.getElementById(id);if(el)el.addEventListener('keypress',e=>{if(e.key==='Enter')addClient();});});
   document.getElementById('addTempCustBtn').addEventListener('click',addTempClient);
+  document.getElementById('cancelTempEditBtn').addEventListener('click',tempCancelEdit);
   ['tempCustName','tempCustPhone'].forEach(id=>document.getElementById(id).addEventListener('keypress',e=>{if(e.key==='Enter')addTempClient();}));
   function doWrap(tag){var ta=document.getElementById('tempCustNote');var s=ta.selectionStart,e=ta.selectionEnd;var v=ta.value;if(s===e){var i=tag.indexOf('|');var o=i>=0?tag.slice(0,i):tag,c=i>=0?tag.slice(i+1):tag;ta.value=v.slice(0,s)+o+c+v.slice(e);ta.selectionStart=ta.selectionEnd=s+o.length;}else{var i2=tag.indexOf('|');var o2=i2>=0?tag.slice(0,i2):tag,c2=i2>=0?tag.slice(i2+1):tag;ta.value=v.slice(0,s)+o2+v.slice(s,e)+c2+v.slice(e);ta.selectionStart=s+o2.length;ta.selectionEnd=e+o2.length;}ta.focus();}
   document.getElementById('boldBtn').addEventListener('click',function(){doWrap('**|**');});
