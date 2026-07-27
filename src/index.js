@@ -3651,7 +3651,15 @@ export default {
     .image-card.has-images .image-overlay { display: flex; }
     .image-lightbox { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; height: 100dvh; background: rgba(0,0,0,0.92); z-index: 10000; justify-content: center; align-items: center; cursor: pointer; padding: 24px; box-sizing: border-box; }
     .image-lightbox.open { display: flex; }
-    .image-lightbox img { max-width: 100%; max-height: 100%; object-fit: scale-down; border-radius: 4px; }
+    .image-lightbox img { max-width: 100%; max-height: 100%; object-fit: scale-down; border-radius: 4px; cursor: default; user-select: none; -webkit-user-select: none; }
+    .lb-nav { position: absolute; top: 50%; transform: translateY(-50%); z-index: 10001; background: rgba(255,255,255,0.12); border: none; color: #fff; font-size: 2.5rem; width: 48px; height: 72px; cursor: pointer; display: flex; align-items: center; justify-content: center; border-radius: 6px; transition: background 0.2s; line-height: 1; }
+    .lb-nav:hover { background: rgba(255,255,255,0.25); }
+    .lb-prev { left: 12px; }
+    .lb-next { right: 12px; }
+    .lb-close { position: absolute; top: 16px; right: 20px; z-index: 10001; background: rgba(255,255,255,0.12); border: none; color: #fff; font-size: 1.8rem; width: 40px; height: 40px; cursor: pointer; display: flex; align-items: center; justify-content: center; border-radius: 50%; transition: background 0.2s; line-height: 1; }
+    .lb-close:hover { background: rgba(255,255,255,0.25); }
+    .lb-counter { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); color: rgba(255,255,255,0.7); font-size: 0.85rem; z-index: 10001; font-weight: 600; }
+    @media (max-width: 760px) { .lb-nav { width: 36px; height: 56px; font-size: 2rem; } .lb-prev { left: 4px; } .lb-next { right: 4px; } }
     @media (min-width: 761px) {
       .right-area { order: 2; } .left-area { order: 1; }
       .card { padding: 14px 16px; }
@@ -4522,8 +4530,12 @@ export default {
               <button class="image-empty-upload" id="imageEmptyUploadBtn">点击上传</button>
             </div>
           </div>
-          <div class="image-lightbox" id="imageLightbox" onclick="closeLightbox()">
-            <img id="imageLightboxImg" src="" alt="" onclick="event.stopPropagation()">
+          <div class="image-lightbox" id="imageLightbox">
+            <button class="lb-nav lb-prev" id="lbPrev" title="上一张">‹</button>
+            <img id="imageLightboxImg" src="" alt="">
+            <button class="lb-nav lb-next" id="lbNext" title="下一张">›</button>
+            <button class="lb-close" id="lbClose" title="关闭">✕</button>
+            <span class="lb-counter" id="lbCounter"></span>
           </div>
         </div>
         <div class="card">
@@ -5832,6 +5844,7 @@ export default {
       refreshAll();
       addSyncLog('✅ 拉取并合并云端最新数据完成');
     }
+    loadImages();
     _lastSyncTime=new Date();
     if(loadOpQueue().length===0)_syncStatus='synced';
     updateSyncIndicator();
@@ -6924,7 +6937,67 @@ export default {
     }
     loadImages();
     initImageSizeSlider();
+    initLightboxNav();
   }
+
+  var _lbEventsInited=false;
+  function initLightboxNav(){
+    if(_lbEventsInited) return;
+    _lbEventsInited=true;
+    var lb=document.getElementById('imageLightbox');
+    if(!lb) return;
+    // 点背景关闭
+    lb.addEventListener('click',function(e){
+      if(e.target===lb) closeLightbox();
+    });
+    // 关闭按钮
+    var closeBtn=document.getElementById('lbClose');
+    if(closeBtn) closeBtn.addEventListener('click',closeLightbox);
+    // 上/下一张按钮
+    var prevBtn=document.getElementById('lbPrev');
+    if(prevBtn) prevBtn.addEventListener('click',lbPrev);
+    var nextBtn=document.getElementById('lbNext');
+    if(nextBtn) nextBtn.addEventListener('click',lbNext);
+    // 键盘左右键
+    document.addEventListener('keydown',function(e){
+      if(!document.getElementById('imageLightbox').classList.contains('open')) return;
+      if(e.key==='ArrowLeft') lbPrev(e);
+      else if(e.key==='ArrowRight') lbNext(e);
+      else if(e.key==='Escape') closeLightbox();
+    });
+    // 鼠标拖动切换
+    var img=document.getElementById('imageLightboxImg');
+    var dragStartX=0, dragStartY=0, dragging=false, dragMoved=false;
+    img.addEventListener('mousedown',function(e){
+      dragging=true; dragMoved=false;
+      dragStartX=e.clientX; dragStartY=e.clientY;
+      e.preventDefault();
+    });
+    img.addEventListener('mousemove',function(e){
+      if(!dragging) return;
+      if(Math.abs(e.clientX-dragStartX)>10||Math.abs(e.clientY-dragStartY)>10) dragMoved=true;
+    });
+    img.addEventListener('mouseup',function(e){
+      if(!dragging) return;
+      var dx=e.clientX-dragStartX;
+      dragging=false;
+      if(!dragMoved||Math.abs(dx)<60) return;
+      if(dx>0) lbPrev(e);
+      else lbNext(e);
+    });
+    img.addEventListener('mouseleave',function(){ dragging=false; });
+    // 触摸滑动
+    var touchStartX=0;
+    img.addEventListener('touchstart',function(e){
+      if(e.touches.length===1) touchStartX=e.touches[0].clientX;
+    },{passive:true});
+    img.addEventListener('touchend',function(e){
+      var dx=(e.changedTouches[0]||{}).clientX-touchStartX;
+      if(Math.abs(dx)>50){
+        if(dx>0) lbPrev(e);
+        else lbNext(e);
+      }
+    });
 
   function initImageSizeSlider(){
     var slider=document.getElementById('imageSizeSlider');
@@ -6959,7 +7032,7 @@ export default {
         var img=images[i];
         var src='/api/image/'+encodeURIComponent(img.id);
         var safeName=(img.name||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-        html+='<div class="image-thumb-wrap"><img class="image-thumb" src="'+src+'" alt="'+safeName+'" loading="lazy" onclick="event.stopPropagation();openLightbox(\\''+src+'\\')"><button class="image-del-btn" onclick="event.stopPropagation();deleteImage(\\''+img.id+'\\')">X</button></div>';
+        html+='<div class="image-thumb-wrap"><img class="image-thumb" src="'+src+'" alt="'+safeName+'" loading="lazy" onclick="event.stopPropagation();openLightbox('+i+')"><button class="image-del-btn" onclick="event.stopPropagation();deleteImage(\\''+img.id+'\\')">X</button></div>';
       }
       container.innerHTML=html;
     } catch(e) { console.error('加载图片失败:',e); }
@@ -7002,15 +7075,42 @@ export default {
     } catch(e) { console.error('删除图片失败:',e); }
   }
 
-  function openLightbox(src){
+  // 当前 lightbox 图片列表和索引
+  var _lbImages=[], _lbIdx=-1;
+
+  function openLightbox(idx){
+    // idx 是 image-thumb 元素在 .image-thumb 列表中的索引
+    var imgs=document.querySelectorAll('#imageScroll .image-thumb');
+    if(!imgs.length) return;
+    _lbImages=[]; _lbIdx=-1;
+    for(var i=0;i<imgs.length;i++){
+      _lbImages.push(imgs[i].src);
+    }
+    if(idx<0||idx>=_lbImages.length) idx=0;
+    _lbIdx=idx;
+    showLbImage();
     var lb=document.getElementById('imageLightbox');
-    var img=document.getElementById('imageLightboxImg');
-    if(lb&&img){ img.src=src; lb.classList.add('open'); }
+    if(lb) lb.classList.add('open');
   }
+
+  function showLbImage(){
+    var img=document.getElementById('imageLightboxImg');
+    var counter=document.getElementById('lbCounter');
+    var prev=document.getElementById('lbPrev');
+    var next=document.getElementById('lbNext');
+    if(img) img.src=_lbImages[_lbIdx];
+    if(counter) counter.textContent=(_lbIdx+1)+' / '+_lbImages.length;
+    if(prev) prev.style.visibility=_lbIdx<=0?'hidden':'visible';
+    if(next) next.style.visibility=_lbIdx>=_lbImages.length-1?'hidden':'visible';
+  }
+
+  function lbPrev(e){ e.stopPropagation(); if(_lbIdx>0){ _lbIdx--; showLbImage(); } }
+  function lbNext(e){ e.stopPropagation(); if(_lbIdx<_lbImages.length-1){ _lbIdx++; showLbImage(); } }
 
   function closeLightbox(){
     var lb=document.getElementById('imageLightbox');
     if(lb) lb.classList.remove('open');
+    _lbImages=[]; _lbIdx=-1;
   }
 
   function refreshAll(){
