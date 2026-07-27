@@ -4198,27 +4198,27 @@ export default {
     .temp-full-table { width:100%; border-collapse:collapse; font-size:0.75rem; table-layout:fixed; }
     .temp-full-table th { position:sticky; top:0; background:var(--card-bg); z-index:1; text-align:left; padding:8px 6px; font-weight:700; font-size:0.7rem; color:var(--text-soft); border-bottom:2px solid var(--card-border); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
     .temp-full-table td { padding:6px 6px; border-bottom:1px solid var(--border-light); color:var(--text-main); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-    .temp-full-table .col-date { width:72px; }
-    .temp-full-table .col-time { width:44px; }
-    .temp-full-table .col-name { width:56px; }
-    .temp-full-table .col-phone { width:90px; }
-    .temp-full-table .col-company { width:80px; }
-    .temp-full-table .col-fund { width:64px; }
+    .temp-full-table .col-date { width:78px; }
+    .temp-full-table .col-time { width:50px; }
+    .temp-full-table .col-name { width:68px; }
+    .temp-full-table .col-phone { width:108px; }
+    .temp-full-table .col-company { width:96px; }
+    .temp-full-table .col-fund { width:72px; }
     .temp-full-table td.note-cell { white-space:normal; word-break:break-all; }
-    .temp-full-table .col-act { width:70px; }
+    .temp-full-table .col-act { width:76px; }
     .temp-full-table tbody tr:hover { background:var(--btn-bg); }
     .temp-full-table .temp-tbl-del { background:none; border:none; color:#e74c3c; cursor:pointer; font-size:0.85rem; padding:0 4px; font-weight:700; }
     .temp-full-table .temp-tbl-convert { background:none; border:none; color:var(--accent-intent); cursor:pointer; font-size:0.85rem; padding:0 4px; margin-right:4px; font-weight:700; }
     @media (max-width:760px) {
       .temp-full-table { font-size:0.68rem; }
       .temp-full-table th,.temp-full-table td { padding:4px; }
-      .temp-full-table .col-date { width:60px; }
-      .temp-full-table .col-time { width:36px; }
-      .temp-full-table .col-name { width:44px; }
-      .temp-full-table .col-phone { width:76px; }
-      .temp-full-table .col-company { width:64px; }
-      .temp-full-table .col-fund { width:52px; }
-      .temp-full-table .col-act { width:58px; }
+      .temp-full-table .col-date { width:64px; }
+      .temp-full-table .col-time { width:42px; }
+      .temp-full-table .col-name { width:52px; }
+      .temp-full-table .col-phone { width:88px; }
+      .temp-full-table .col-company { width:74px; }
+      .temp-full-table .col-fund { width:58px; }
+      .temp-full-table .col-act { width:62px; }
     }
 
     /* ===== 全量客户卡片布局 ===== */
