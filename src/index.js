@@ -4195,16 +4195,30 @@ export default {
 
 
     /* ===== 临时登记全量表 ===== */
-    .temp-full-table { width:100%; border-collapse:collapse; font-size:0.75rem; }
-    .temp-full-table th { position:sticky; top:0; background:var(--card-bg); z-index:1; text-align:left; padding:8px 10px; font-weight:700; font-size:0.7rem; color:var(--text-soft); border-bottom:2px solid var(--card-border); white-space:nowrap; }
-    .temp-full-table td { padding:7px 10px; border-bottom:1px solid var(--border-light); color:var(--text-main); white-space:nowrap; max-width:200px; overflow:hidden; text-overflow:ellipsis; }
-    .temp-full-table td.note-cell { max-width:260px; }
+    .temp-full-table { width:100%; border-collapse:collapse; font-size:0.75rem; table-layout:fixed; }
+    .temp-full-table th { position:sticky; top:0; background:var(--card-bg); z-index:1; text-align:left; padding:8px 6px; font-weight:700; font-size:0.7rem; color:var(--text-soft); border-bottom:2px solid var(--card-border); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .temp-full-table td { padding:6px 6px; border-bottom:1px solid var(--border-light); color:var(--text-main); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .temp-full-table .col-date { width:72px; }
+    .temp-full-table .col-time { width:44px; }
+    .temp-full-table .col-name { width:56px; }
+    .temp-full-table .col-phone { width:90px; }
+    .temp-full-table .col-company { width:80px; }
+    .temp-full-table .col-fund { width:64px; }
+    .temp-full-table td.note-cell { white-space:normal; word-break:break-all; }
+    .temp-full-table .col-act { width:70px; }
     .temp-full-table tbody tr:hover { background:var(--btn-bg); }
     .temp-full-table .temp-tbl-del { background:none; border:none; color:#e74c3c; cursor:pointer; font-size:0.85rem; padding:0 4px; font-weight:700; }
     .temp-full-table .temp-tbl-convert { background:none; border:none; color:var(--accent-intent); cursor:pointer; font-size:0.85rem; padding:0 4px; margin-right:4px; font-weight:700; }
     @media (max-width:760px) {
       .temp-full-table { font-size:0.68rem; }
-      .temp-full-table th,.temp-full-table td { padding:5px 6px; }
+      .temp-full-table th,.temp-full-table td { padding:4px; }
+      .temp-full-table .col-date { width:60px; }
+      .temp-full-table .col-time { width:36px; }
+      .temp-full-table .col-name { width:44px; }
+      .temp-full-table .col-phone { width:76px; }
+      .temp-full-table .col-company { width:64px; }
+      .temp-full-table .col-fund { width:52px; }
+      .temp-full-table .col-act { width:58px; }
     }
 
     /* ===== 全量客户卡片布局 ===== */
@@ -4809,7 +4823,7 @@ export default {
       <table class="temp-full-table" id="tempFullTable">
         <thead>
           <tr>
-            <th>日期</th><th>时间</th><th>姓名</th><th>电话</th><th>单位</th><th>公积金基数</th><th>备注</th><th>操作</th>
+            <th class="col-date">日期</th><th class="col-time">时间</th><th class="col-name">姓名</th><th class="col-phone">电话</th><th class="col-company">单位</th><th class="col-fund">公积金基数</th><th>备注</th><th class="col-act">操作</th>
           </tr>
         </thead>
         <tbody id="tempFullTableBody"></tbody>
@@ -7461,14 +7475,14 @@ export default {
     for(var i=0;i<list.length;i++){
       var c=list[i];
       html+='<tr>'+
-        '<td>'+esc(c.date||'')+'</td>'+
-        '<td>'+esc(c.time||'')+'</td>'+
-        '<td>'+esc(c.name)+'</td>'+
-        '<td><a href="tel:'+esc(c.phone)+'">'+esc(maskPhone(c.phone))+'</a></td>'+
-        '<td>'+esc(c.company||'')+'</td>'+
-        '<td>'+esc(c.fund||'')+'</td>'+
+        '<td class="col-date">'+esc(c.date||'')+'</td>'+
+        '<td class="col-time">'+esc(c.time||'')+'</td>'+
+        '<td class="col-name">'+esc(c.name)+'</td>'+
+        '<td class="col-phone"><a href="tel:'+esc(c.phone)+'">'+esc(maskPhone(c.phone))+'</a></td>'+
+        '<td class="col-company">'+esc(c.company||'')+'</td>'+
+        '<td class="col-fund">'+esc(c.fund||'')+'</td>'+
         '<td class="note-cell">'+esc(c.note||'')+'</td>'+
-        '<td>'+
+        '<td class="col-act">'+
           '<button class="temp-tbl-edit" data-key="'+esc(c.name)+'|'+esc(c.phone)+'" title="编辑" style="background:none;border:1px solid var(--card-border);color:var(--text-soft);cursor:pointer;font-size:0.72rem;padding:1px 6px;margin-right:4px;border-radius:3px;font-weight:600;">编</button>'+
           '<button class="temp-tbl-convert" data-idx="'+i+'" title="转正式意向">→</button>'+
           '<button class="temp-tbl-del" data-idx="'+i+'" title="删除">✕</button>'+
