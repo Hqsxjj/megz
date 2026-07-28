@@ -4254,9 +4254,10 @@ export default {
     .temp-card-actions button { background:none; border:1px solid var(--card-border); color:var(--text-soft); cursor:pointer; font-size:0.72rem; padding:2px 8px; border-radius:4px; font-weight:600; }
     .temp-card-actions .temp-tbl-convert { border-color:var(--accent-intent); color:var(--accent-intent); }
     .temp-card-actions .temp-tbl-del { border-color:#e74c3c; color:#e74c3c; }
-    @media (max-width:760px) {
-      .temp-full-table { display:none; }
-      .temp-card-list { display:flex; }
+    .temp-full-table { display:none; }
+    .temp-card-list { display:flex; }
+    @media (min-width:761px) {
+      .temp-card-list { display:grid; grid-template-columns:repeat(2,1fr); }
     }
 
     /* ===== 全量客户卡片布局 ===== */
