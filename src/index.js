@@ -7539,7 +7539,7 @@ export default {
         '<td class="col-date">'+esc(c.date||'')+'</td>'+
         '<td class="col-time">'+esc(c.time||'')+'</td>'+
         '<td class="col-name">'+esc(c.name)+'</td>'+
-        '<td class="col-phone"><a href="tel:'+esc(c.phone)+'">'+esc(maskPhone(c.phone))+'</a></td>'+
+        '<td class="col-phone"><a href="tel:'+esc(c.phone)+'">'+esc(c.phone)+'</a></td>'+
         '<td class="col-company">'+esc(c.company||'')+'</td>'+
         '<td class="col-fund">'+esc(c.fund||'')+'</td>'+
         '<td class="note-cell">'+esc(c.note||'')+'</td>'+
@@ -7552,7 +7552,7 @@ export default {
       // Mobile card
       cardHtml+='<div class="temp-card">'+
         '<div class="temp-card-row"><span class="temp-card-date">'+esc(c.date||'')+'</span><span class="temp-card-time">'+esc(c.time||'')+'</span></div>'+
-        '<div class="temp-card-row"><span class="temp-card-name">'+esc(c.name)+'</span><span class="temp-card-phone"><a href="tel:'+esc(c.phone)+'">'+esc(maskPhone(c.phone))+'</a></span><div class="temp-card-actions"><button class="temp-tbl-edit" data-key="'+esc(c.name)+'|'+esc(c.phone)+'">编</button><button class="temp-tbl-convert" data-idx="'+i+'">→</button><button class="temp-tbl-del" data-idx="'+i+'">✕</button></div></div>'+
+        '<div class="temp-card-row"><span class="temp-card-name">'+esc(c.name)+'</span><span class="temp-card-phone"><a href="tel:'+esc(c.phone)+'">'+esc(c.phone)+'</a></span><div class="temp-card-actions"><button class="temp-tbl-edit" data-key="'+esc(c.name)+'|'+esc(c.phone)+'">编</button><button class="temp-tbl-convert" data-idx="'+i+'">→</button><button class="temp-tbl-del" data-idx="'+i+'">✕</button></div></div>'+
         ((c.company||c.fund) ? '<div class="temp-card-row"><span class="temp-card-info">'+esc([c.company||'',c.fund?'公积金:'+c.fund:''].filter(Boolean).join(' | '))+'</span></div>' : '')+
         '<div class="temp-card-row"><span class="temp-card-note">'+esc(c.note||'')+'</span></div>'+
       '</div>';
