@@ -2865,6 +2865,30 @@ export default {
       });
     }
 
+    // 获取全量临时登记客户
+    if (path === '/api/all-temp-clients' && request.method === 'GET') {
+      const keys = await getAllKVKeys(env, 'work:');
+      const keyValues = await getKVValuesConcurrently(env, keys);
+      const allTempClients = [];
+      for (const kv of keyValues) {
+        if (kv.val) {
+          try {
+            const d = JSON.parse(kv.val);
+            if (d.tempClients) {
+              d.tempClients.forEach(c => {
+                c.date = c.date || kv.name.replace('work:', '');
+                allTempClients.push(c);
+              });
+            }
+          } catch(e) {}
+        }
+      }
+      allTempClients.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+      return new Response(JSON.stringify(allTempClients), {
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+      });
+    }
+
     // 导出数据并发送企业微信 webhook
     if (path === '/api/export' && request.method === 'POST') {
       const body = await request.json();
@@ -7475,8 +7499,19 @@ export default {
   }
 
   // ===== 临时登记全量表 =====
-  function renderTempFullTable(){
-    var list=JSON.parse(localStorage.getItem(TEMP_CLIENTS_K)||'[]');
+  async function renderTempFullTable(){
+    var list=[];
+    // 优先从云端拉取全量临时客户
+    try{
+      var r=await fetch('/api/all-temp-clients');
+      if(r.ok){
+        list=await r.json();
+        localStorage.setItem(TEMP_CLIENTS_K,JSON.stringify(list));
+      }
+    }catch(e){}
+    if(list.length===0){
+      list=JSON.parse(localStorage.getItem(TEMP_CLIENTS_K)||'[]');
+    }
     var tbody=document.getElementById('tempFullTableBody');
     var count=document.getElementById('tempFullCount');
     if(!tbody) return;
