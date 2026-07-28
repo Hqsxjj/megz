@@ -7527,11 +7527,32 @@ export default {
     var cardHtml='';
     for(var i=0;i<list.length;i++){
       var c=list[i];
+      if(!c.followUps) c.followUps=[];
+      var fuCount=c.followUps.length;
+      var fuParts=[];
+      for(var fi=0;fi<c.followUps.length;fi++){
+        var fu=c.followUps[fi];
+        fuParts.push('<div style="font-size:0.65rem;color:var(--text-soft);padding:2px 0;">'+esc(fu.date||'')+' '+esc(fu.time||'')+' '+esc(fu.content||'')+'</div>');
+      }
       cardHtml+='<div class="temp-card">'+
         '<div class="temp-card-row"><span class="temp-card-no" style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:var(--accent-wechat);color:#fff;font-size:0.62rem;font-weight:800;flex-shrink:0;">'+(list.length-i)+'</span><span class="temp-card-date">'+esc(c.date||'')+'</span><span class="temp-card-time">'+esc(c.time||'')+'</span></div>'+
         '<div class="temp-card-row"><span class="temp-card-name">'+esc(c.name)+'</span><span class="temp-card-phone"><a href="tel:'+esc(c.phone)+'">'+esc(c.phone)+'</a></span><div class="temp-card-actions"><button class="temp-tbl-edit" data-key="'+esc(c.name)+'|'+esc(c.phone)+'">编</button><button class="temp-tbl-convert" data-idx="'+i+'">→</button><button class="temp-tbl-del" data-idx="'+i+'">✕</button></div></div>'+
-        ((c.company||c.fund) ? '<div class="temp-card-row"><span class="temp-card-info">'+esc([c.company||'',c.fund?'公积金:'+c.fund:''].filter(Boolean).join(' | '))+'</span></div>' : '')+
+        ((c.company||c.fund) ? '<div class="temp-card-row" style="gap:4px;">'+(c.company?'<span class="client-card-tag client-card-tag-company" style="font-size:0.62rem;padding:1px 6px;">'+esc(c.company)+'</span>':'')+(c.fund?'<span class="client-card-tag client-card-tag-fund" style="font-size:0.62rem;padding:1px 6px;">'+esc(c.fund)+'</span>':'')+'</div>' : '')+
         '<div class="temp-card-row"><span class="temp-card-note">'+esc(c.note||'')+'</span></div>'+
+        '<div style="border-top:1px solid var(--border-light);padding-top:4px;margin-top:2px;">'+
+          '<div style="display:flex;justify-content:space-between;align-items:center;">'+
+            '<span style="font-size:0.62rem;color:var(--text-light);font-weight:600;">'+(fuCount>0?fuCount+'条':'')+'</span>'+
+            '<button class="temp-tbl-followup-btn" data-idx="'+i+'" style="font-size:0.7rem;width:22px;height:22px;border:none;background:transparent;color:var(--accent-wechat);cursor:pointer;font-weight:700;line-height:1;">+</button>'+
+          '</div>'+
+          (fuParts.length>0?'<div style="margin-top:2px;">'+fuParts.join('')+'</div>':'')+
+          '<div class="temp-followup-inline-form" data-idx="'+i+'" style="display:none;margin-top:4px;">'+
+            '<textarea class="temp-followup-input" placeholder="新增跟进记录..." style="width:100%;min-height:36px;padding:4px 6px;font-size:0.7rem;resize:vertical;border:1px solid var(--card-border);border-radius:4px;background:var(--input-bg);color:var(--text-main);font-family:inherit;box-sizing:border-box;"></textarea>'+
+            '<div style="display:flex;justify-content:flex-end;gap:4px;margin-top:3px;">'+
+              '<button class="temp-followup-save" data-idx="'+i+'" style="font-size:0.62rem;padding:2px 8px;background:var(--accent-btn);color:#fff;border:none;border-radius:3px;font-weight:600;cursor:pointer;">保存</button>'+
+              '<button class="temp-followup-cancel" style="font-size:0.62rem;padding:2px 8px;background:var(--btn-bg);color:var(--text-soft);border:1px solid var(--card-border);border-radius:3px;font-weight:600;cursor:pointer;">取消</button>'+
+            '</div>'+
+          '</div>'+
+        '</div>'+
       '</div>';
     }
     cardList.innerHTML=cardHtml;
@@ -7584,6 +7605,40 @@ export default {
         document.getElementById('custName').focus();
         var card=document.getElementById('custName').closest('.card');
         if(card){ card.style.transform='scale(1.02)'; card.style.transition='all 0.3s'; setTimeout(function(){ card.style.transform='none'; },500); }
+      };
+    });
+    // Follow-up buttons
+    cardList.querySelectorAll('.temp-tbl-followup-btn').forEach(function(b){
+      b.onclick=function(){
+        var form=cardList.querySelector('.temp-followup-inline-form[data-idx="'+this.dataset.idx+'"]');
+        if(form) form.style.display=form.style.display==='none'?'block':'none';
+        var ta=form&&form.querySelector('textarea');
+        if(ta) setTimeout(function(){ ta.focus(); },100);
+      };
+    });
+    cardList.querySelectorAll('.temp-followup-save').forEach(function(b){
+      b.onclick=async function(){
+        var idx=parseInt(this.dataset.idx);
+        var form=cardList.querySelector('.temp-followup-inline-form[data-idx="'+idx+'"]');
+        var ta=form&&form.querySelector('textarea');
+        var content=(ta&&ta.value.trim())||'';
+        if(!content) return;
+        var a=JSON.parse(localStorage.getItem(TEMP_CLIENTS_K)||'[]');
+        if(idx<0||idx>=a.length) return;
+        if(!a[idx].followUps) a[idx].followUps=[];
+        var now=new Date();
+        var dateStr=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
+        var timeStr=String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
+        a[idx].followUps.push({date:dateStr,time:timeStr,content:content});
+        localStorage.setItem(TEMP_CLIENTS_K,JSON.stringify(a));
+        renderTempFullTable();
+        await syncOp('setTempClients',{tempClients:a});
+      };
+    });
+    cardList.querySelectorAll('.temp-followup-cancel').forEach(function(b){
+      b.onclick=function(){
+        var form=this.closest('.temp-followup-inline-form');
+        if(form){ form.style.display='none'; form.querySelector('textarea').value=''; }
       };
     });
   }
