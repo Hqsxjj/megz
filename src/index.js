@@ -2856,13 +2856,6 @@ export default {
                 allClients.push(c);
               });
             }
-            if (d.tempClients) {
-              d.tempClients.forEach(c => {
-                c.date = c.date || kv.name.replace('work:', '');
-                c._isTemp = true;
-                allClients.push(c);
-              });
-            }
           } catch(e) {}
         }
       }
@@ -5884,8 +5877,16 @@ export default {
       // 待办：云端版本为准（通过 setTodayTodos/setTomorrowTodos 原子同步）
       if(data.todayTodos!==undefined)saveTodos(TODAY_TODO_K,data.todayTodos);
       if(data.tomorrowTodos!==undefined)saveTodos(TOMORROW_TODO_K,data.tomorrowTodos);
-      // 临时登记：云端版本为准
-      if(data.tempClients!==undefined)localStorage.setItem(TEMP_CLIENTS_K,JSON.stringify(data.tempClients));
+      // 临时登记：云端版本合并，保留历史数据
+      if(data.tempClients!==undefined){
+        var allTemp=JSON.parse(localStorage.getItem(TEMP_CLIENTS_K)||'[]');
+        var nonTodayTemp=allTemp.filter(function(tc){return tc.date!==today;});
+        var localTodayTemp=allTemp.filter(function(tc){return tc.date===today;});
+        var tempMergeMap=new Map();
+        localTodayTemp.forEach(function(tc){tempMergeMap.set(tc.name+'|'+tc.phone+'|'+(tc.time||''),tc);});
+        (data.tempClients||[]).forEach(function(tc){tempMergeMap.set(tc.name+'|'+tc.phone+'|'+(tc.time||''),tc);});
+        localStorage.setItem(TEMP_CLIENTS_K,JSON.stringify(nonTodayTemp.concat(Array.from(tempMergeMap.values()))));
+      }
       // 话术/学习
       if(data.scripts!==undefined){saveScripts(data.scripts);renderLockScripts();}
       if(data.learns!==undefined){saveLearns(data.learns);renderLockLearns();}
@@ -5931,7 +5932,15 @@ export default {
     }
     if(data.todayTodos!==undefined)saveTodos(TODAY_TODO_K,data.todayTodos);
     if(data.tomorrowTodos!==undefined)saveTodos(TOMORROW_TODO_K,data.tomorrowTodos);
-    if(data.tempClients!==undefined)localStorage.setItem(TEMP_CLIENTS_K,JSON.stringify(data.tempClients));
+    if(data.tempClients!==undefined){
+      var allTemp2=JSON.parse(localStorage.getItem(TEMP_CLIENTS_K)||'[]');
+      var nonDayTemp=allTemp2.filter(function(tc){return tc.date!==date;});
+      var dayTempMerge=new Map();
+      var localDayTemp=allTemp2.filter(function(tc){return tc.date===date;});
+      localDayTemp.forEach(function(tc){dayTempMerge.set(tc.name+'|'+tc.phone+'|'+(tc.time||''),tc);});
+      (data.tempClients||[]).forEach(function(tc){dayTempMerge.set(tc.name+'|'+tc.phone+'|'+(tc.time||''),tc);});
+      localStorage.setItem(TEMP_CLIENTS_K,JSON.stringify(nonDayTemp.concat(Array.from(dayTempMerge.values()))));
+    }
     if(data.scripts!==undefined)saveScripts(data.scripts);
     if(data.learns!==undefined)saveLearns(data.learns);
     if(data.pinHash!==undefined&&data.pinHash)localStorage.setItem(PIN_HASH_K,data.pinHash);
@@ -8870,10 +8879,10 @@ export default {
 
     var html = '';
     clients.forEach(function(c, idx) {
-      html += '<div class="client-card-item all-client-card' + (c.status ? ' ' + STATUS_CLASSES[c.status] : '') + (c._isTemp ? ' all-client-card-temp' : '') + '" data-date="' + esc(c.date) + '" data-name="' + esc(c.name) + '" data-phone="' + esc(c.phone) + '" data-time="' + esc(c.time || '') + '">' +
+      html += '<div class="client-card-item all-client-card' + (c.status ? ' ' + STATUS_CLASSES[c.status] : '') + '" data-date="' + esc(c.date) + '" data-name="' + esc(c.name) + '" data-phone="' + esc(c.phone) + '" data-time="' + esc(c.time || '') + '">' +
         '<div class="client-card-top">' +
           '<div class="client-card-primary">' +
-            '<span class="client-card-name">' + esc(c.name) + (c._isTemp ? ' <sup style="font-size:0.6rem;color:var(--accent-intent);font-weight:700;">临时</sup>' : '') + '</span>' +
+            '<span class="client-card-name">' + esc(c.name) + '</span>' +
             '<span class="client-card-phone-wrap">' +
               '<a class="client-card-phone all-phone-link" href="tel:' + esc(c.phone) + '" data-full="' + esc(c.phone) + '">' + esc(maskPhone(c.phone)) + '</a>' +
               '<button class="phone-toggle all-phone-toggle" title="显示号码">看</button>' +
