@@ -4511,7 +4511,7 @@ export default {
 <div class="app-shell">
   <div class="container">
     <div class="header-bar">
-      <h3>生活记事录</h3><div class="date-chip" id="liveDate"></div><button class="goal-eye eye-off" id="goalEyeBtn" title="显示目标数字">👁</button><div class="goal-chips" id="goalChips"></div><button class="icon-simple" id="loanCalcBtn" title="贷款利息计算器" style="margin-left:auto">计算器</button><button class="icon-simple" id="allClientsBtn" title="意向客户全量表">全量</button><button class="icon-simple" id="hideBtn" title="一键隐藏 (Ctrl+Z)">锁屏</button><button class="icon-simple" id="menuToggleBtn" title="菜单">≡</button><div class="menu-dropdown" id="menuDropdown"><button class="menu-item" id="logBtn">同步日志</button><button class="menu-item" id="scriptBtn">话术管理</button><button class="menu-item" id="learnBtn">学习管理</button><button class="menu-item" id="exportBtn">导出数据</button><button class="menu-item" id="goalBtn">目标设定</button><button class="menu-item" id="whitelistMenuBtn">白名单管理</button><button class="menu-item" id="darkToggleBtn">深色模式</button><button class="menu-item" id="logoutMenuBtn" style="color:#e74c3c">退出登录</button></div>
+      <h3>生活记事录</h3><div class="date-chip" id="liveDate"></div><button class="goal-eye eye-off" id="goalEyeBtn" title="显示目标数字">👁</button><div class="goal-chips" id="goalChips"></div><button class="icon-simple" id="loanCalcBtn" title="贷款利息计算器" style="margin-left:auto">计算器</button><button class="icon-simple" id="hideBtn" title="一键隐藏 (Ctrl+Z)">锁屏</button><button class="icon-simple" id="menuToggleBtn" title="菜单">≡</button><div class="menu-dropdown" id="menuDropdown"><button class="menu-item" id="logBtn">同步日志</button><button class="menu-item" id="scriptBtn">话术管理</button><button class="menu-item" id="learnBtn">学习管理</button><button class="menu-item" id="exportBtn">导出数据</button><button class="menu-item" id="goalBtn">目标设定</button><button class="menu-item" id="whitelistMenuBtn">白名单管理</button><button class="menu-item" id="darkToggleBtn">深色模式</button><button class="menu-item" id="logoutMenuBtn" style="color:#e74c3c">退出登录</button></div>
     </div>
     <div class="two-columns">
       <div class="left-area">
@@ -4550,7 +4550,7 @@ export default {
       </div>
       <div class="right-area">
         <div class="card">
-          <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;">意向登记</div>
+          <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;">意向登记 <button class="icon-simple" id="allClientsBtn" title="意向客户全量表" style="font-size:0.65rem;padding:2px 8px;">全量</button></div>
           <div class="register-block">
             <div class="form-line"><input type="text" class="input-simple" id="custName" placeholder="姓名" autocomplete="off"><input type="text" class="input-simple" id="custPhone" placeholder="电话" autocomplete="off"></div>
             <div class="form-line"><input type="text" class="input-simple" id="custCompany" placeholder="单位" autocomplete="off"><input type="text" class="input-simple" id="custFund" placeholder="公积金基数" autocomplete="off"></div>
@@ -8825,10 +8825,10 @@ export default {
     var days = getDaysSinceLastFollowUp(c);
     var tags = '';
     if (days > 5) {
-      tags += '<span class="client-card-tag client-card-tag-no-revisit-5">近5天未回访</span>';
+      tags += '<span class="client-card-tag client-card-tag-no-revisit-5">5天</span>';
     }
     if (days > 10) {
-      tags += '<span class="client-card-tag client-card-tag-no-revisit-10">近10天未回访</span>';
+      tags += '<span class="client-card-tag client-card-tag-no-revisit-10">10天</span>';
     }
     return tags;
   }
