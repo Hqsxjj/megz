@@ -2856,6 +2856,13 @@ export default {
                 allClients.push(c);
               });
             }
+            if (d.tempClients) {
+              d.tempClients.forEach(c => {
+                c.date = c.date || kv.name.replace('work:', '');
+                c._isTemp = true;
+                allClients.push(c);
+              });
+            }
           } catch(e) {}
         }
       }
@@ -8863,10 +8870,10 @@ export default {
 
     var html = '';
     clients.forEach(function(c, idx) {
-      html += '<div class="client-card-item all-client-card' + (c.status ? ' ' + STATUS_CLASSES[c.status] : '') + '" data-date="' + esc(c.date) + '" data-name="' + esc(c.name) + '" data-phone="' + esc(c.phone) + '" data-time="' + esc(c.time || '') + '">' +
+      html += '<div class="client-card-item all-client-card' + (c.status ? ' ' + STATUS_CLASSES[c.status] : '') + (c._isTemp ? ' all-client-card-temp' : '') + '" data-date="' + esc(c.date) + '" data-name="' + esc(c.name) + '" data-phone="' + esc(c.phone) + '" data-time="' + esc(c.time || '') + '">' +
         '<div class="client-card-top">' +
           '<div class="client-card-primary">' +
-            '<span class="client-card-name">' + esc(c.name) + '</span>' +
+            '<span class="client-card-name">' + esc(c.name) + (c._isTemp ? ' <sup style="font-size:0.6rem;color:var(--accent-intent);font-weight:700;">临时</sup>' : '') + '</span>' +
             '<span class="client-card-phone-wrap">' +
               '<a class="client-card-phone all-phone-link" href="tel:' + esc(c.phone) + '" data-full="' + esc(c.phone) + '">' + esc(maskPhone(c.phone)) + '</a>' +
               '<button class="phone-toggle all-phone-toggle" title="显示号码">看</button>' +
