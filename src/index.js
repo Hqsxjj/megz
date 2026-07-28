@@ -4585,7 +4585,7 @@ export default {
           </div>
         </div>
         <div class="card">
-          <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;">临时登记 (待晚回访) <button class="icon-simple" id="allTempTableBtn" title="临时表" style="font-size:0.65rem;padding:2px 8px;">临时表</button></div>
+          <div class="card-title">临时登记 (待晚回访) <button class="btn-add" id="allTempTableBtn" style="font-size:0.65rem;padding:2px 8px;margin-left:auto;">临时表</button></div>
           <div class="register-block">
             <div class="form-line"><input type="text" class="input-simple" id="tempCustName" placeholder="姓名" autocomplete="off" readonly onfocus="this.removeAttribute('readonly');"><input type="text" class="input-simple" id="tempCustPhone" placeholder="电话/联系方式" autocomplete="off" readonly onfocus="this.removeAttribute('readonly');"></div>
             <div class="form-line"><input type="text" class="input-simple" id="tempCustCompany" placeholder="单位" autocomplete="off" readonly onfocus="this.removeAttribute('readonly');"><input type="text" class="input-simple" id="tempCustFund" placeholder="公积金基数" autocomplete="off" readonly onfocus="this.removeAttribute('readonly');"></div>
