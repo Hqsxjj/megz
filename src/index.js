@@ -2622,7 +2622,8 @@ export default {
           data.tomorrowTodos = body.todos || [];
           break;
         case 'setTempClients':
-          data.tempClients = body.tempClients || [];
+          // Only keep temp clients belonging to this date (client sends full array)
+          data.tempClients = (body.tempClients || []).filter(function(tc){ return tc.date === date; });
           break;
         case 'pushTodoLog':
           if (body.todo) {
@@ -2870,6 +2871,7 @@ export default {
       const keys = await getAllKVKeys(env, 'work:');
       const keyValues = await getKVValuesConcurrently(env, keys);
       const allTempClients = [];
+      const seen = new Set();
       for (const kv of keyValues) {
         if (kv.val) {
           try {
@@ -2877,7 +2879,12 @@ export default {
             if (d.tempClients) {
               d.tempClients.forEach(c => {
                 c.date = c.date || kv.name.replace('work:', '');
-                allTempClients.push(c);
+                // Dedup by name|phone|date|time
+                const uniq = c.name + '|' + c.phone + '|' + c.date + '|' + (c.time||'');
+                if (!seen.has(uniq)) {
+                  seen.add(uniq);
+                  allTempClients.push(c);
+                }
               });
             }
           } catch(e) {}
