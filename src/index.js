@@ -8953,8 +8953,8 @@ export default {
     clients.forEach(function(c, idx) {
       html += '<div class="client-card-item all-client-card' + (c.status ? ' ' + STATUS_CLASSES[c.status] : '') + '" data-date="' + esc(c.date) + '" data-name="' + esc(c.name) + '" data-phone="' + esc(c.phone) + '" data-time="' + esc(c.time || '') + '">' +
         '<div class="client-card-top">' +
-          (c._seq ? '<span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:var(--accent-wechat);color:#fff;font-size:0.6rem;font-weight:800;flex-shrink:0;margin-right:6px;">' + c._seq + '</span>' : '') +
           '<div class="client-card-primary">' +
+            (c._seq ? '<span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:var(--accent-wechat);color:#fff;font-size:0.6rem;font-weight:800;flex-shrink:0;">' + c._seq + '</span>' : '') +
             '<span class="client-card-name">' + esc(c.name) + '</span>' +
             '<span class="client-card-phone-wrap">' +
               '<a class="client-card-phone all-phone-link" href="tel:' + esc(c.phone) + '" data-full="' + esc(c.phone) + '">' + esc(maskPhone(c.phone)) + '</a>' +
