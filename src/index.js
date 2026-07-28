@@ -4816,7 +4816,7 @@ export default {
 <div id="tempFullModal" class="modal-overlay">
   <div class="modal-card" style="width:100%;height:100%;max-width:none;border-radius:0;margin:0;display:flex;flex-direction:column;">
     <div class="modal-header" style="flex-shrink:0;">
-      <span>临时登记全量表 <span id="tempFullCount" style="font-size:0.7rem;color:var(--accent-wechat);font-weight:800;"></span></span>
+      <span>临时表 <span id="tempFullCount" style="font-size:0.7rem;color:var(--accent-wechat);font-weight:800;"></span></span>
       <button id="closeTempFullModalBtn">×</button>
     </div>
     <div style="overflow:auto;flex:1;">
