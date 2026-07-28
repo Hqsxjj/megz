@@ -3784,6 +3784,8 @@ export default {
 
       /* Mobile: 全量客户弹窗卡片适配 */
       #allClientsModal .modal-card { max-height: 93vh !important; max-width: 100vw !important; margin-top: 7vh !important; border-radius: 16px 16px 0 0 !important; }
+      /* Mobile: 临时表底部抽屉 */
+      #tempFullModal .modal-card { max-height: 93vh !important; max-width: 100vw !important; margin-top: 7vh !important; border-radius: 16px 16px 0 0 !important; width: 100vw !important; }
       #allClientsModal .modal-header { flex-wrap: wrap; gap: 6px; padding-bottom: 6px; font-size: 0.85rem; }
       #allClientsModal .modal-header > div { flex-wrap: wrap; gap: 4px; }
       #allClientsModal .modal-header > div > span { font-size: 0.85rem; }
@@ -4851,22 +4853,14 @@ export default {
   </div>
 </div>
 
-<!-- 临时登记全量表 -->
+<!-- 临时表 -->
 <div id="tempFullModal" class="modal-overlay">
-  <div class="modal-card" style="width:100%;height:100%;max-width:none;border-radius:0;margin:0;display:flex;flex-direction:column;">
+  <div class="modal-card" id="tempFullModalCard" style="display:flex;flex-direction:column;">
     <div class="modal-header" style="flex-shrink:0;">
       <span>临时表 <span id="tempFullCount" style="font-size:0.7rem;color:var(--accent-wechat);font-weight:800;"></span></span>
       <button id="closeTempFullModalBtn">×</button>
     </div>
-    <div style="overflow:auto;flex:1;">
-      <table class="temp-full-table" id="tempFullTable">
-        <thead>
-          <tr>
-            <th class="col-date">日期</th><th class="col-time">时间</th><th class="col-name">姓名</th><th class="col-phone">电话</th><th class="col-company">单位</th><th class="col-fund">公积金基数</th><th>备注</th><th class="col-act">操作</th>
-          </tr>
-        </thead>
-        <tbody id="tempFullTableBody"></tbody>
-      </table>
+    <div style="overflow:auto;flex:1;min-height:0;">
       <div class="temp-card-list" id="tempFullCardList"></div>
     </div>
   </div>
@@ -7530,36 +7524,19 @@ export default {
     if(list.length===0){
       list=JSON.parse(localStorage.getItem(TEMP_CLIENTS_K)||'[]');
     }
-    var tbody=document.getElementById('tempFullTableBody');
     var cardList=document.getElementById('tempFullCardList');
     var count=document.getElementById('tempFullCount');
-    if(!tbody) return;
+    if(!cardList) return;
     if(count) count.textContent='('+list.length+'人)';
     if(list.length===0){
-      tbody.innerHTML='<tr><td colspan="8" style="text-align:center;color:var(--text-light);padding:32px;">暂无临时登记客户</td></tr>';
-      if(cardList) cardList.innerHTML='<div style="text-align:center;color:var(--text-light);padding:32px;font-size:0.85rem;">暂无临时登记客户</div>';
+      cardList.innerHTML='<div style="text-align:center;color:var(--text-light);padding:32px;font-size:0.85rem;">暂无临时登记客户</div>';
       return;
     }
     // 按日期倒序排列
     list.sort(function(a,b){ return (b.date||'').localeCompare(a.date||'')||(b.time||'').localeCompare(a.time||''); });
-    var html='', cardHtml='';
+    var cardHtml='';
     for(var i=0;i<list.length;i++){
       var c=list[i];
-      html+='<tr>'+
-        '<td class="col-date">'+esc(c.date||'')+'</td>'+
-        '<td class="col-time">'+esc(c.time||'')+'</td>'+
-        '<td class="col-name">'+esc(c.name)+'</td>'+
-        '<td class="col-phone"><a href="tel:'+esc(c.phone)+'">'+esc(c.phone)+'</a></td>'+
-        '<td class="col-company">'+esc(c.company||'')+'</td>'+
-        '<td class="col-fund">'+esc(c.fund||'')+'</td>'+
-        '<td class="note-cell">'+esc(c.note||'')+'</td>'+
-        '<td class="col-act">'+
-          '<button class="temp-tbl-edit" data-key="'+esc(c.name)+'|'+esc(c.phone)+'" title="编辑" style="background:none;border:1px solid var(--card-border);color:var(--text-soft);cursor:pointer;font-size:0.72rem;padding:1px 6px;margin-right:4px;border-radius:3px;font-weight:600;">编</button>'+
-          '<button class="temp-tbl-convert" data-idx="'+i+'" title="转正式意向">→</button>'+
-          '<button class="temp-tbl-del" data-idx="'+i+'" title="删除">✕</button>'+
-        '</td>'+
-      '</tr>';
-      // Mobile card
       cardHtml+='<div class="temp-card">'+
         '<div class="temp-card-row"><span class="temp-card-no" style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:var(--accent-wechat);color:#fff;font-size:0.62rem;font-weight:800;flex-shrink:0;">'+(list.length-i)+'</span><span class="temp-card-date">'+esc(c.date||'')+'</span><span class="temp-card-time">'+esc(c.time||'')+'</span></div>'+
         '<div class="temp-card-row"><span class="temp-card-name">'+esc(c.name)+'</span><span class="temp-card-phone"><a href="tel:'+esc(c.phone)+'">'+esc(c.phone)+'</a></span><div class="temp-card-actions"><button class="temp-tbl-edit" data-key="'+esc(c.name)+'|'+esc(c.phone)+'">编</button><button class="temp-tbl-convert" data-idx="'+i+'">→</button><button class="temp-tbl-del" data-idx="'+i+'">✕</button></div></div>'+
@@ -7567,15 +7544,10 @@ export default {
         '<div class="temp-card-row"><span class="temp-card-note">'+esc(c.note||'')+'</span></div>'+
       '</div>';
     }
-    tbody.innerHTML=html;
-    if(cardList) cardList.innerHTML=cardHtml;
-    // 绑定事件（table + card）
-    var allDelBtns=tbody.querySelectorAll('.temp-tbl-del');
-    if(cardList) allDelBtns=[].concat(Array.from(allDelBtns),Array.from(cardList.querySelectorAll('.temp-tbl-del')));
-    var allEditBtns=tbody.querySelectorAll('.temp-tbl-edit');
-    if(cardList) allEditBtns=[].concat(Array.from(allEditBtns),Array.from(cardList.querySelectorAll('.temp-tbl-edit')));
-    var allConvertBtns=tbody.querySelectorAll('.temp-tbl-convert');
-    if(cardList) allConvertBtns=[].concat(Array.from(allConvertBtns),Array.from(cardList.querySelectorAll('.temp-tbl-convert')));
+    cardList.innerHTML=cardHtml;
+    var allDelBtns=cardList.querySelectorAll('.temp-tbl-del');
+    var allEditBtns=cardList.querySelectorAll('.temp-tbl-edit');
+    var allConvertBtns=cardList.querySelectorAll('.temp-tbl-convert');
     allDelBtns.forEach(function(b){
       b.onclick=async function(){
         var idx=parseInt(this.dataset.idx);
