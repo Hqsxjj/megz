@@ -3690,7 +3690,7 @@ export default {
     .lb-close { position: absolute; top: 16px; right: 20px; z-index: 10001; background: rgba(255,255,255,0.12); border: none; color: #fff; font-size: 1.8rem; width: 40px; height: 40px; cursor: pointer; display: flex; align-items: center; justify-content: center; border-radius: 50%; transition: background 0.2s; line-height: 1; }
     .lb-close:hover { background: rgba(255,255,255,0.25); }
     .lb-counter { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); color: rgba(255,255,255,0.7); font-size: 0.85rem; z-index: 10001; font-weight: 600; }
-    @media (max-width: 760px) { .lb-nav { width: 36px; height: 56px; font-size: 2rem; } .lb-prev { left: 4px; } .lb-next { right: 4px; } }
+    @media (max-width: 760px) { .lb-nav { width: 36px; height: 56px; font-size: 2rem; } .lb-prev { left: 4px; } .lb-next { right: 4px; } .image-card { order: 999; } }
     @media (min-width: 761px) {
       .right-area { order: 2; } .left-area { order: 1; }
       .card { padding: 14px 16px; }
@@ -4601,6 +4601,28 @@ export default {
             <div class="client-scroll" id="tempClientList"></div>
           </div>
         </div>
+        <div class="card image-card">
+          <div class="image-overlay">
+            <div style="display:flex;align-items:center;gap:2px;pointer-events:auto;">
+              <input type="range" class="image-size-slider" id="imageSizeSlider" min="150" max="600" value="400" title="拖动调整图片大小">
+              <button id="imageUploadBtn">上传</button>
+            </div>
+          </div>
+          <div class="image-scroll" id="imageScroll">
+            <div class="image-empty-state">
+              <span class="image-empty-icon">—</span>
+              <span class="image-empty-label">暂无图片</span>
+              <button class="image-empty-upload" id="imageEmptyUploadBtn">点击上传</button>
+            </div>
+          </div>
+          <div class="image-lightbox" id="imageLightbox">
+            <button class="lb-nav lb-prev" id="lbPrev" title="上一张">‹</button>
+            <img id="imageLightboxImg" src="" alt="">
+            <button class="lb-nav lb-next" id="lbNext" title="下一张">›</button>
+            <button class="lb-close" id="lbClose" title="关闭">✕</button>
+            <span class="lb-counter" id="lbCounter"></span>
+          </div>
+        </div>
         <div class="card">
           <div class="card-title" style="display:flex;align-items:center;gap:10px;">
             <span>待办</span>
@@ -4696,28 +4718,6 @@ export default {
     <div class="script-list" id="learnList" style="max-height: 220px; overflow-y: auto;"></div>
   </div>
 </div>
-    <div class="card image-card" style="width:100%;margin-top:16px;">
-      <div class="image-overlay">
-        <div style="display:flex;align-items:center;gap:2px;pointer-events:auto;">
-          <input type="range" class="image-size-slider" id="imageSizeSlider" min="150" max="600" value="400" title="拖动调整图片大小">
-          <button id="imageUploadBtn">上传</button>
-        </div>
-      </div>
-      <div class="image-scroll" id="imageScroll">
-        <div class="image-empty-state">
-          <span class="image-empty-icon">—</span>
-          <span class="image-empty-label">暂无图片</span>
-          <button class="image-empty-upload" id="imageEmptyUploadBtn">点击上传</button>
-        </div>
-      </div>
-      <div class="image-lightbox" id="imageLightbox">
-        <button class="lb-nav lb-prev" id="lbPrev" title="上一张">‹</button>
-        <img id="imageLightboxImg" src="" alt="">
-        <button class="lb-nav lb-next" id="lbNext" title="下一张">›</button>
-        <button class="lb-close" id="lbClose" title="关闭">✕</button>
-        <span class="lb-counter" id="lbCounter"></span>
-      </div>
-    </div>
 <div id="exportModal" class="modal-overlay">
   <div class="modal-card" style="max-width:420px; width: 90%;">
     <div class="modal-header"><span>数据导出与配置</span><button id="closeExportModalBtn">×</button></div>
