@@ -7100,9 +7100,16 @@ export default {
         var img=images[i];
         var src='/api/image/'+encodeURIComponent(img.id);
         var safeName=(img.name||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-        html+='<div class="image-thumb-wrap"><img class="image-thumb" src="'+src+'" alt="'+safeName+'" loading="lazy" onclick="event.stopPropagation();openLightbox('+i+')"><button class="image-del-btn" onclick="event.stopPropagation();deleteImage(\\''+img.id+'\\')">X</button></div>';
+        html+='<div class="image-thumb-wrap"><img class="image-thumb" src="'+src+'" alt="'+safeName+'" loading="lazy" data-lb-idx="'+i+'"><button class="image-del-btn" data-img-id="'+img.id.replace(/'/g,"\\'")+'">X</button></div>';
       }
       container.innerHTML=html;
+      // Bind events (avoid inline onclick escaping issues)
+      container.querySelectorAll('.image-thumb').forEach(function(el,i){
+        el.onclick=function(){ event.stopPropagation(); openLightbox(i); };
+      });
+      container.querySelectorAll('.image-del-btn').forEach(function(el){
+        el.onclick=function(){ event.stopPropagation(); deleteImage(this.dataset.imgId); };
+      });
     } catch(e) { console.error('加载图片失败:',e); }
   }
 
