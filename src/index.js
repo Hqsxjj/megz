@@ -7398,8 +7398,10 @@ export default {
   }
 
   function renderTempClientList(){
-    const list=JSON.parse(localStorage.getItem(TEMP_CLIENTS_K)||'[]');
-    const container = document.getElementById('tempClientList');
+    var all=JSON.parse(localStorage.getItem(TEMP_CLIENTS_K)||'[]');
+    var today=getTodayStr();
+    var list=all.filter(function(tc){return tc.date===today;});
+    var container = document.getElementById('tempClientList');
     if(!container) return;
     if(list.length===0){
       container.innerHTML='<div class="empty-clients">暂无临时登记客户</div>';
