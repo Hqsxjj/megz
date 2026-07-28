@@ -3664,7 +3664,7 @@ export default {
     .image-scroll { display: flex; gap: 4px; overflow-x: auto; padding: 0; scroll-behavior: smooth; -webkit-overflow-scrolling: touch; scrollbar-width: none; scroll-snap-type: x mandatory; }
     .image-scroll::-webkit-scrollbar { display: none; }
     .image-thumb-wrap { flex-shrink: 0; position: relative; scroll-snap-align: start; }
-    .image-thumb { height: var(--thumb-h, 300px); width: var(--thumb-h, 300px); border-radius: 0; object-fit: cover; cursor: pointer; border: none; transition: transform 0.2s; display: block; background: #1a1a1a; }
+    .image-thumb { height: var(--thumb-h, 300px); width: var(--thumb-h, 300px); border-radius: 6px; object-fit: contain; cursor: pointer; border: none; transition: transform 0.2s; display: block; background: #1a1a1a; }
     .image-size-slider { -webkit-appearance: none; appearance: none; width: 80px; height: 4px; border-radius: 2px; background: rgba(255,255,255,0.35); outline: none; pointer-events: auto; cursor: pointer; margin: 0 4px; flex-shrink: 0; }
     .image-size-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: #fff; cursor: pointer; border: none; box-shadow: 0 1px 4px rgba(0,0,0,0.3); }
     .image-size-slider::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; background: #fff; cursor: pointer; border: none; box-shadow: 0 1px 4px rgba(0,0,0,0.3); }
@@ -4587,7 +4587,7 @@ export default {
         <div class="card image-card">
           <div class="image-overlay">
             <div style="display:flex;align-items:center;gap:2px;pointer-events:auto;">
-              <input type="range" class="image-size-slider" id="imageSizeSlider" min="100" max="500" value="300" title="拖动调整图片大小">
+              <input type="range" class="image-size-slider" id="imageSizeSlider" min="150" max="600" value="400" title="拖动调整图片大小">
               <button id="imageUploadBtn">上传</button>
             </div>
           </div>
@@ -4855,12 +4855,12 @@ export default {
 
 <!-- 临时表 -->
 <div id="tempFullModal" class="modal-overlay">
-  <div class="modal-card" id="tempFullModalCard" style="display:flex;flex-direction:column;">
+  <div class="modal-card" id="tempFullModalCard" style="width:100vw;height:100vh;max-width:100vw;max-height:100vh;margin:0;border-radius:0;border:none;box-sizing:border-box;display:flex;flex-direction:column;">
     <div class="modal-header" style="flex-shrink:0;">
       <span>临时表 <span id="tempFullCount" style="font-size:0.7rem;color:var(--accent-wechat);font-weight:800;"></span></span>
       <button id="closeTempFullModalBtn">×</button>
     </div>
-    <div style="overflow:auto;flex:1;min-height:0;">
+    <div style="overflow:auto;flex:1;min-height:0;padding:0 4px;">
       <div class="temp-card-list" id="tempFullCardList"></div>
     </div>
   </div>
@@ -7072,7 +7072,7 @@ export default {
     var card=document.querySelector('.image-card');
     if(!slider||!card) return;
     var isMobile=window.innerWidth<761;
-    var defaultH=isMobile?220:300;
+    var defaultH=isMobile?220:400;
     var saved=localStorage.getItem('thumb_size');
     var val=saved?parseInt(saved):defaultH;
     slider.value=val;
