@@ -7065,41 +7065,6 @@ export default {
       else if(e.key==='ArrowRight') lbNext(e);
       else if(e.key==='Escape') closeLightbox();
     });
-    // 鼠标拖动切换
-    var img=document.getElementById('imageLightboxImg');
-    if(!img) return;
-    var dragStartX=0, dragStartY=0, dragging=false, dragMoved=false;
-    img.addEventListener('mousedown',function(e){
-      dragging=true; dragMoved=false;
-      dragStartX=e.clientX; dragStartY=e.clientY;
-      e.preventDefault();
-    });
-    img.addEventListener('mousemove',function(e){
-      if(!dragging) return;
-      if(Math.abs(e.clientX-dragStartX)>10||Math.abs(e.clientY-dragStartY)>10) dragMoved=true;
-    });
-    img.addEventListener('mouseup',function(e){
-      if(!dragging) return;
-      var dx=e.clientX-dragStartX;
-      dragging=false;
-      if(!dragMoved||Math.abs(dx)<60) return;
-      if(dx>0) lbPrev(e);
-      else lbNext(e);
-    });
-    img.addEventListener('mouseleave',function(){ dragging=false; });
-    // 触摸滑动
-    var touchStartX=0;
-    img.addEventListener('touchstart',function(e){
-      if(e.touches.length===1) touchStartX=e.touches[0].clientX;
-    },{passive:true});
-    img.addEventListener('touchend',function(e){
-      var dx=(e.changedTouches[0]||{}).clientX-touchStartX;
-      if(Math.abs(dx)>50){
-        if(dx>0) lbPrev(e);
-        else lbNext(e);
-      }
-    });
-
   }
 
   function initImageSizeSlider(){
