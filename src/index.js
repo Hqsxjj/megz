@@ -8866,12 +8866,15 @@ export default {
       const r = await fetch('/api/all-clients');
       if (r.ok) {
         const data = await r.json();
+        // Assign fixed seq based on API order (date desc)
+        data.forEach(function(c, i){ c._seq = i + 1; });
         _allClientsCache = data;
         renderAllClientsCards(data);
       }
     } catch(e) {
       const local = JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
       local.sort((a,b) => (b.date||'').localeCompare(a.date||''));
+      local.forEach(function(c, i){ c._seq = i + 1; });
       _allClientsCache = local;
       renderAllClientsCards(local);
     }
@@ -8950,6 +8953,7 @@ export default {
     clients.forEach(function(c, idx) {
       html += '<div class="client-card-item all-client-card' + (c.status ? ' ' + STATUS_CLASSES[c.status] : '') + '" data-date="' + esc(c.date) + '" data-name="' + esc(c.name) + '" data-phone="' + esc(c.phone) + '" data-time="' + esc(c.time || '') + '">' +
         '<div class="client-card-top">' +
+          (c._seq ? '<span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:var(--accent-wechat);color:#fff;font-size:0.6rem;font-weight:800;flex-shrink:0;margin-right:6px;">' + c._seq + '</span>' : '') +
           '<div class="client-card-primary">' +
             '<span class="client-card-name">' + esc(c.name) + '</span>' +
             '<span class="client-card-phone-wrap">' +
