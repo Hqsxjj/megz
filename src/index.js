@@ -4233,16 +4233,23 @@ export default {
     .temp-full-table tbody tr:hover { background:var(--btn-bg); }
     .temp-full-table .temp-tbl-del { background:none; border:none; color:#e74c3c; cursor:pointer; font-size:0.85rem; padding:0 4px; font-weight:700; }
     .temp-full-table .temp-tbl-convert { background:none; border:none; color:var(--accent-intent); cursor:pointer; font-size:0.85rem; padding:0 4px; margin-right:4px; font-weight:700; }
+    .temp-card-list { display:none; flex-direction:column; gap:8px; padding:8px; }
+    .temp-card { background:var(--card-bg); border:1px solid var(--card-border); border-radius:8px; padding:10px 12px; }
+    .temp-card-row { display:flex; align-items:center; gap:8px; font-size:0.72rem; margin-bottom:4px; }
+    .temp-card-row:last-child { margin-bottom:0; }
+    .temp-card-date { color:var(--text-soft); font-weight:700; font-size:0.68rem; white-space:nowrap; }
+    .temp-card-time { color:var(--text-light); font-size:0.68rem; }
+    .temp-card-name { font-weight:800; color:var(--text-main); font-size:0.82rem; }
+    .temp-card-phone a { color:var(--accent-wechat); text-decoration:none; font-weight:700; font-size:0.78rem; }
+    .temp-card-info { color:var(--text-soft); font-size:0.7rem; display:flex; flex-wrap:wrap; gap:4px 12px; }
+    .temp-card-note { color:var(--text-main); font-size:0.72rem; line-height:1.4; }
+    .temp-card-actions { display:flex; gap:6px; margin-left:auto; flex-shrink:0; }
+    .temp-card-actions button { background:none; border:1px solid var(--card-border); color:var(--text-soft); cursor:pointer; font-size:0.72rem; padding:2px 8px; border-radius:4px; font-weight:600; }
+    .temp-card-actions .temp-tbl-convert { border-color:var(--accent-intent); color:var(--accent-intent); }
+    .temp-card-actions .temp-tbl-del { border-color:#e74c3c; color:#e74c3c; }
     @media (max-width:760px) {
-      .temp-full-table { font-size:0.68rem; }
-      .temp-full-table th,.temp-full-table td { padding:4px; }
-      .temp-full-table .col-date { width:76px; }
-      .temp-full-table .col-time { width:60px; }
-      .temp-full-table .col-name { width:52px; }
-      .temp-full-table .col-phone { width:88px; }
-      .temp-full-table .col-company { width:74px; }
-      .temp-full-table .col-fund { width:58px; }
-      .temp-full-table .col-act { width:62px; }
+      .temp-full-table { display:none; }
+      .temp-card-list { display:flex; }
     }
 
     /* ===== 全量客户卡片布局 ===== */
@@ -4852,6 +4859,7 @@ export default {
         </thead>
         <tbody id="tempFullTableBody"></tbody>
       </table>
+      <div class="temp-card-list" id="tempFullCardList"></div>
     </div>
   </div>
 </div>
@@ -7513,16 +7521,18 @@ export default {
       list=JSON.parse(localStorage.getItem(TEMP_CLIENTS_K)||'[]');
     }
     var tbody=document.getElementById('tempFullTableBody');
+    var cardList=document.getElementById('tempFullCardList');
     var count=document.getElementById('tempFullCount');
     if(!tbody) return;
     if(count) count.textContent='('+list.length+'人)';
     if(list.length===0){
       tbody.innerHTML='<tr><td colspan="8" style="text-align:center;color:var(--text-light);padding:32px;">暂无临时登记客户</td></tr>';
+      if(cardList) cardList.innerHTML='<div style="text-align:center;color:var(--text-light);padding:32px;font-size:0.85rem;">暂无临时登记客户</div>';
       return;
     }
     // 按日期倒序排列
     list.sort(function(a,b){ return (b.date||'').localeCompare(a.date||'')||(b.time||'').localeCompare(a.time||''); });
-    var html='';
+    var html='', cardHtml='';
     for(var i=0;i<list.length;i++){
       var c=list[i];
       html+='<tr>'+
@@ -7539,10 +7549,24 @@ export default {
           '<button class="temp-tbl-del" data-idx="'+i+'" title="删除">✕</button>'+
         '</td>'+
       '</tr>';
+      // Mobile card
+      cardHtml+='<div class="temp-card">'+
+        '<div class="temp-card-row"><span class="temp-card-date">'+esc(c.date||'')+'</span><span class="temp-card-time">'+esc(c.time||'')+'</span></div>'+
+        '<div class="temp-card-row"><span class="temp-card-name">'+esc(c.name)+'</span><span class="temp-card-phone"><a href="tel:'+esc(c.phone)+'">'+esc(maskPhone(c.phone))+'</a></span><div class="temp-card-actions"><button class="temp-tbl-edit" data-key="'+esc(c.name)+'|'+esc(c.phone)+'">编</button><button class="temp-tbl-convert" data-idx="'+i+'">→</button><button class="temp-tbl-del" data-idx="'+i+'">✕</button></div></div>'+
+        ((c.company||c.fund) ? '<div class="temp-card-row"><span class="temp-card-info">'+esc([c.company||'',c.fund?'公积金:'+c.fund:''].filter(Boolean).join(' | '))+'</span></div>' : '')+
+        '<div class="temp-card-row"><span class="temp-card-note">'+esc(c.note||'')+'</span></div>'+
+      '</div>';
     }
     tbody.innerHTML=html;
-    // 绑定事件
-    tbody.querySelectorAll('.temp-tbl-del').forEach(function(b){
+    if(cardList) cardList.innerHTML=cardHtml;
+    // 绑定事件（table + card）
+    var allDelBtns=tbody.querySelectorAll('.temp-tbl-del');
+    if(cardList) allDelBtns=[].concat(Array.from(allDelBtns),Array.from(cardList.querySelectorAll('.temp-tbl-del')));
+    var allEditBtns=tbody.querySelectorAll('.temp-tbl-edit');
+    if(cardList) allEditBtns=[].concat(Array.from(allEditBtns),Array.from(cardList.querySelectorAll('.temp-tbl-edit')));
+    var allConvertBtns=tbody.querySelectorAll('.temp-tbl-convert');
+    if(cardList) allConvertBtns=[].concat(Array.from(allConvertBtns),Array.from(cardList.querySelectorAll('.temp-tbl-convert')));
+    allDelBtns.forEach(function(b){
       b.onclick=async function(){
         var idx=parseInt(this.dataset.idx);
         var a=JSON.parse(localStorage.getItem(TEMP_CLIENTS_K)||'[]');
@@ -7557,7 +7581,7 @@ export default {
         await syncOp('setTempClients',{tempClients:a});
       };
     });
-    tbody.querySelectorAll('.temp-tbl-edit').forEach(function(b){
+    allEditBtns.forEach(function(b){
       b.onclick=function(){
         var key=this.dataset.key;
         var a=JSON.parse(localStorage.getItem(TEMP_CLIENTS_K)||'[]');
@@ -7568,7 +7592,7 @@ export default {
         tempEditClient(idx);
       };
     });
-    tbody.querySelectorAll('.temp-tbl-convert').forEach(function(b){
+    allConvertBtns.forEach(function(b){
       b.onclick=async function(){
         var idx=parseInt(this.dataset.idx);
         var a=JSON.parse(localStorage.getItem(TEMP_CLIENTS_K)||'[]');
