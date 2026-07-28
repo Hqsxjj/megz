@@ -3656,7 +3656,7 @@ export default {
     .todo-del-btn { background: none; border: none; color: #c97a7a; cursor: pointer; font-size: 0.85rem; padding: 0 4px; }
     /* ===== 图片展示模块 ===== */
     .image-card { padding: 0 !important; overflow: hidden; position: relative; border-radius: var(--radius-ios) !important; }
-    .image-overlay { position: absolute; top: 0; left: 0; right: 0; z-index: 5; display: flex; align-items: center; justify-content: flex-end; padding: 10px 16px; pointer-events: none; opacity: 0; transition: opacity 0.25s; background: linear-gradient(to bottom, rgba(0,0,0,0.4) 0%, transparent 100%); }
+    .image-overlay { position: absolute; top: 0; left: 0; right: 0; z-index: 5; display: flex; align-items: center; justify-content: flex-start; padding: 8px 10px; pointer-events: none; opacity: 0; transition: opacity 0.25s; background: linear-gradient(to bottom, rgba(0,0,0,0.4) 0%, transparent 100%); }
     .image-card:hover .image-overlay { opacity: 1; }
     .image-overlay span { color: #fff; font-weight: 700; font-size: 0.85rem; text-shadow: 0 1px 3px rgba(0,0,0,0.5); }
     .image-overlay button { pointer-events: auto; font-size: 0.75rem; font-weight: 700; color: #fff; cursor: pointer; padding: 4px 10px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.5); background: rgba(255,255,255,0.15); backdrop-filter: blur(4px); text-shadow: 0 1px 2px rgba(0,0,0,0.3); }
@@ -3664,7 +3664,7 @@ export default {
     .image-scroll { display: flex; gap: 4px; overflow-x: auto; padding: 0; scroll-behavior: smooth; -webkit-overflow-scrolling: touch; scrollbar-width: none; scroll-snap-type: x mandatory; }
     .image-scroll::-webkit-scrollbar { display: none; }
     .image-thumb-wrap { flex-shrink: 0; position: relative; scroll-snap-align: start; }
-    .image-thumb { height: var(--thumb-h, 300px); width: auto; border-radius: 0; object-fit: contain; cursor: pointer; border: none; transition: transform 0.2s; display: block; max-width: 100%; background: #1a1a1a; }
+    .image-thumb { height: var(--thumb-h, 300px); width: var(--thumb-h, 300px); border-radius: 0; object-fit: cover; cursor: pointer; border: none; transition: transform 0.2s; display: block; background: #1a1a1a; }
     .image-size-slider { -webkit-appearance: none; appearance: none; width: 80px; height: 4px; border-radius: 2px; background: rgba(255,255,255,0.35); outline: none; pointer-events: auto; cursor: pointer; margin: 0 4px; flex-shrink: 0; }
     .image-size-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: #fff; cursor: pointer; border: none; box-shadow: 0 1px 4px rgba(0,0,0,0.3); }
     .image-size-slider::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; background: #fff; cursor: pointer; border: none; box-shadow: 0 1px 4px rgba(0,0,0,0.3); }
@@ -7141,6 +7141,22 @@ export default {
     } catch(e) { console.error('加载图片失败:',e); }
   }
 
+  function cropToSquare(dataUrl){
+    return new Promise(function(resolve,reject){
+      var img=new Image();
+      img.onload=function(){
+        var size=Math.min(img.width,img.height);
+        var sx=(img.width-size)/2, sy=(img.height-size)/2;
+        var canvas=document.createElement('canvas');
+        canvas.width=size; canvas.height=size;
+        var ctx=canvas.getContext('2d');
+        ctx.drawImage(img,sx,sy,size,size,0,0,size,size);
+        resolve(canvas.toDataURL('image/jpeg',0.92));
+      };
+      img.onerror=function(){ reject(new Error('图片加载失败')); };
+      img.src=dataUrl;
+    });
+  }
   async function uploadImages(files){
     if(!files||files.length===0) return;
     for(var i=0;i<files.length;i++){
@@ -7154,9 +7170,11 @@ export default {
           reader.onerror=function(){ reject(reader.error||new Error('读取文件失败')); };
           reader.readAsDataURL(file);
         });
+        // Crop to square before uploading
+        var squareData=await cropToSquare(data);
         var resp=await fetch('/api/images',{
           method:'POST',headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({name:file.name,type:file.type,data:data})
+          body:JSON.stringify({name:file.name,type:'image/jpeg',data:squareData})
         });
         var result=await resp.json();
         if(!result.ok) { alert('上传失败: '+(result.error||'未知错误')); }
