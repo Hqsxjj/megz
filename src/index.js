@@ -4584,28 +4584,6 @@ export default {
                         <div class="client-scroll" id="clientList"></div>
           </div>
         </div>
-        <div class="card image-card">
-          <div class="image-overlay">
-            <div style="display:flex;align-items:center;gap:2px;pointer-events:auto;">
-              <input type="range" class="image-size-slider" id="imageSizeSlider" min="150" max="600" value="400" title="拖动调整图片大小">
-              <button id="imageUploadBtn">上传</button>
-            </div>
-          </div>
-          <div class="image-scroll" id="imageScroll">
-            <div class="image-empty-state">
-              <span class="image-empty-icon">—</span>
-              <span class="image-empty-label">暂无图片</span>
-              <button class="image-empty-upload" id="imageEmptyUploadBtn">点击上传</button>
-            </div>
-          </div>
-          <div class="image-lightbox" id="imageLightbox">
-            <button class="lb-nav lb-prev" id="lbPrev" title="上一张">‹</button>
-            <img id="imageLightboxImg" src="" alt="">
-            <button class="lb-nav lb-next" id="lbNext" title="下一张">›</button>
-            <button class="lb-close" id="lbClose" title="关闭">✕</button>
-            <span class="lb-counter" id="lbCounter"></span>
-          </div>
-        </div>
         <div class="card">
           <div class="card-title">临时登记 (待晚回访) <button class="btn-add" id="allTempTableBtn" style="font-size:0.65rem;padding:2px 8px;margin-left:auto;">全量表</button></div>
           <div class="register-block">
@@ -4718,6 +4696,28 @@ export default {
     <div class="script-list" id="learnList" style="max-height: 220px; overflow-y: auto;"></div>
   </div>
 </div>
+    <div class="card image-card" style="width:100%;margin-top:16px;">
+      <div class="image-overlay">
+        <div style="display:flex;align-items:center;gap:2px;pointer-events:auto;">
+          <input type="range" class="image-size-slider" id="imageSizeSlider" min="150" max="600" value="400" title="拖动调整图片大小">
+          <button id="imageUploadBtn">上传</button>
+        </div>
+      </div>
+      <div class="image-scroll" id="imageScroll">
+        <div class="image-empty-state">
+          <span class="image-empty-icon">—</span>
+          <span class="image-empty-label">暂无图片</span>
+          <button class="image-empty-upload" id="imageEmptyUploadBtn">点击上传</button>
+        </div>
+      </div>
+      <div class="image-lightbox" id="imageLightbox">
+        <button class="lb-nav lb-prev" id="lbPrev" title="上一张">‹</button>
+        <img id="imageLightboxImg" src="" alt="">
+        <button class="lb-nav lb-next" id="lbNext" title="下一张">›</button>
+        <button class="lb-close" id="lbClose" title="关闭">✕</button>
+        <span class="lb-counter" id="lbCounter"></span>
+      </div>
+    </div>
 <div id="exportModal" class="modal-overlay">
   <div class="modal-card" style="max-width:420px; width: 90%;">
     <div class="modal-header"><span>数据导出与配置</span><button id="closeExportModalBtn">×</button></div>
