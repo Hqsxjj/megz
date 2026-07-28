@@ -4223,7 +4223,7 @@ export default {
     .temp-full-table th { position:sticky; top:0; background:var(--card-bg); z-index:1; text-align:left; padding:8px 6px; font-weight:700; font-size:0.7rem; color:var(--text-soft); border-bottom:2px solid var(--card-border); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
     .temp-full-table td { padding:6px 6px; border-bottom:1px solid var(--border-light); color:var(--text-main); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     .temp-full-table .col-date { width:86px; white-space:nowrap; }
-    .temp-full-table .col-time { width:58px; white-space:nowrap; }
+    .temp-full-table .col-time { width:68px; white-space:nowrap; }
     .temp-full-table .col-name { width:68px; }
     .temp-full-table .col-phone { width:108px; }
     .temp-full-table .col-company { width:96px; }
@@ -4237,7 +4237,7 @@ export default {
       .temp-full-table { font-size:0.68rem; }
       .temp-full-table th,.temp-full-table td { padding:4px; }
       .temp-full-table .col-date { width:76px; }
-      .temp-full-table .col-time { width:52px; }
+      .temp-full-table .col-time { width:60px; }
       .temp-full-table .col-name { width:52px; }
       .temp-full-table .col-phone { width:88px; }
       .temp-full-table .col-company { width:74px; }
