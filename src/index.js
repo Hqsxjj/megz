@@ -4825,7 +4825,7 @@ export default {
       <span class="stats-item stats-success">成功 <strong id="statsSuccess">0</strong></span>
       <span class="stats-item stats-failed">失败 <strong id="statsFailed">0</strong></span>
     </div>
-    <div style="overflow-y:auto;flex:1;min-height:0;margin-top:10px;padding:0 4px;" id="allClientsCardList">
+    <div style="overflow-y:auto;flex:1;min-height:0;margin-top:10px;padding:0 4px;overscroll-behavior:contain;" id="allClientsCardList">
       <!-- JS 动态渲染为卡片 -->
     </div>
   </div>
@@ -4860,7 +4860,7 @@ export default {
       <span>临时表 <span id="tempFullCount" style="font-size:0.7rem;color:var(--accent-wechat);font-weight:800;"></span></span>
       <button id="closeTempFullModalBtn">×</button>
     </div>
-    <div style="overflow:auto;flex:1;min-height:0;padding:0 4px;">
+    <div style="overflow:auto;flex:1;min-height:0;padding:0 4px;overscroll-behavior:contain;">
       <div class="temp-card-list" id="tempFullCardList"></div>
     </div>
   </div>
@@ -7591,6 +7591,11 @@ export default {
   function openTempFullTable(){
     renderTempFullTable();
     document.getElementById('tempFullModal').classList.add('active');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeTempFullTable(){
+    document.getElementById('tempFullModal').classList.remove('active');
+    document.body.style.overflow = '';
   }
 
   async function addTodoItem(){
@@ -8732,7 +8737,11 @@ export default {
   document.getElementById('dateModal').addEventListener('click',e=>{if(e.target===document.getElementById('dateModal'))document.getElementById('dateModal').classList.remove('active');});
   // 临时登记全量表
   document.getElementById('allTempTableBtn').addEventListener('click',openTempFullTable);
-  document.getElementById('closeTempFullModalBtn').addEventListener('click',()=>document.getElementById('tempFullModal').classList.remove('active'));
+  document.getElementById('closeTempFullModalBtn').addEventListener('click',closeTempFullTable);
+  // 点击遮罩关闭
+  document.getElementById('tempFullModal').addEventListener('click',function(e){
+    if(e.target===this) closeTempFullTable();
+  });
   document.getElementById('tempFullModal').addEventListener('click',function(e){if(e.target===this)this.classList.remove('active');});
 
   // 云端同步：自适应动态调度排空队列与数据拉取
