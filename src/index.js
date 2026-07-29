@@ -3282,7 +3282,7 @@ export default {
       --separator: rgba(0,0,0,0.08);
       --text-main: #1c1c1e;
       --text-soft: #3a3a3c;
-      --text-light: #6e6e72;
+      --text-light: #5c5c60;
       --accent-wechat: #34D399;
       --accent-intent: #FB8C00;
       --accent-wechat-bg: #ECFDF5;
@@ -3320,7 +3320,7 @@ export default {
       --separator: rgba(255,255,255,0.1);
       --text-main: #f2f2f7;
       --text-soft: #aeaeb2;
-      --text-light: #8e8e93;
+      --text-light: #aeaeb2;
       --accent-wechat: #34D399;
       --accent-intent: #FBA95C;
       --accent-wechat-bg: #064E3B;
@@ -3345,8 +3345,8 @@ export default {
       --stats-gradient: linear-gradient(135deg, #0d2626 0%, #143d3d 50%, #1a5252 100%);
       --wallpaper-opacity: 0.35;
     }
-    html { height: 100%; width: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: none; }
-    body { min-height: 100vh; width: 100%; background: var(--bg-app); font-family: system-ui, -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif; font-weight: 400; text-rendering: optimizeLegibility; transition: background 0.3s; position: relative; }
+    html { height: 100%; width: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: none; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+    body { min-height: 100vh; width: 100%; background: var(--bg-app); font-family: "SF Pro Display", "SF Pro Text", -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", "Microsoft YaHei", sans-serif; font-weight: 400; letter-spacing: -0.01em; text-rendering: optimizeLegibility; transition: background 0.3s; position: relative; line-height: 1.45; }
     .wallpaper-background { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; background-image: var(--wallpaper-url); background-size: cover; background-position: center; background-repeat: no-repeat; opacity: var(--wallpaper-opacity); transition: opacity 0.8s ease, background-image 0.8s ease; pointer-events: none; }
     body.dark-mode .wallpaper-background { opacity: 0.12; }
     .wallpaper-fallback { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; background: linear-gradient(135deg, #a8e6cf 0%, #dcedc1 100%); opacity: 0.15; pointer-events: none; }
@@ -3362,7 +3362,7 @@ export default {
     .pin-stats { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; }
     .pin-stat-item { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px 16px; background: rgba(255,255,255,0.12); border-radius: var(--radius-sm); border: 1px solid rgba(255,255,255,0.15); min-width: 110px; flex: 1; }
     body.dark-mode .pin-stat-item { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.06); }
-    .pin-stat-label { font-size: 0.82rem; font-weight: 700; color: var(--text-soft); letter-spacing: 0.3px; white-space: nowrap; }
+    .pin-stat-label { font-size: 0.82rem; font-weight: 500; color: var(--text-soft); letter-spacing: -0.01em; white-space: nowrap; }
     .pin-stat-value { font-size: 2.2rem; font-weight: 700; line-height: 1; }
     .pin-wechat-value { background: var(--wechat-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
     .pin-intent-value { background: var(--intent-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
@@ -3373,7 +3373,7 @@ export default {
     body.dark-mode .pin-input { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.1); }
     .pin-input:focus { background: rgba(255,255,255,0.45); }
     .pin-mask { -webkit-text-security: disc; }
-    .pin-btn { background: var(--accent-btn); border: none; color: white; padding: 8px 22px; border-radius: var(--radius-xs); font-weight: 700; cursor: pointer; font-size: 0.92rem; letter-spacing: 0.5px; transition: all 0.2s; box-shadow: 0 4px 15px rgba(255,255,255,0.7); }
+    .pin-btn { background: var(--accent-btn); border: none; color: white; padding: 8px 22px; border-radius: var(--radius-sm); font-weight: 600; cursor: pointer; font-size: 0.92rem; letter-spacing: -0.01em; transition: all 0.2s; }
     .pin-btn:hover { opacity: 0.9; transform: translateY(-2px); box-shadow: 0 6px 20px rgba(255,255,255,0.6); }
     .pin-btn:active { transform: translateY(0); }
     .pin-error { color: #e74c3c; font-size: 1.26rem; min-height: 24px; font-weight: 700; letter-spacing: 0.5px; }
@@ -3388,7 +3388,7 @@ export default {
     .auth-input { width: 100%; padding: 12px 16px; border-radius: 8px; border: 1.5px solid rgba(0,0,0,0.08); background: rgba(255,255,255,0.5); font-size: 1rem; color: var(--text-main); outline: none; transition: all 0.3s; box-sizing: border-box; }
     body.dark-mode .auth-input { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.1); }
     .auth-input:focus { background: rgba(255,255,255,0.45); border-color: var(--accent-main); box-shadow: 0 0 0 3px rgba(91,184,240,0.15); }
-    .auth-btn { width: 100%; background: var(--accent-btn); border: none; color: white; padding: 12px 20px; border-radius: 8px; font-weight: 700; cursor: pointer; font-size: 1.05rem; letter-spacing: 1px; transition: all 0.2s; box-shadow: 0 4px 15px rgba(255,255,255,0.7); }
+    .auth-btn { width: 100%; background: var(--accent-btn); border: none; color: white; padding: 12px 20px; border-radius: var(--radius-sm); font-weight: 600; cursor: pointer; font-size: 1.05rem; letter-spacing: -0.01em; transition: all 0.2s; }
     .auth-btn:hover { opacity: 0.9; transform: translateY(-2px); box-shadow: 0 6px 20px rgba(255,255,255,0.6); }
     .auth-btn:active { transform: translateY(0); }
     .auth-switch { font-size: 0.88rem; color: var(--text-soft); }
@@ -3405,7 +3405,7 @@ export default {
     .topbar-search { flex: 1; max-width: 360px; padding: 8px 14px; border-radius: 20px; border: 1px solid rgba(0,0,0,0.08); background: rgba(255,255,255,0.6); font-size: 0.9rem; color: var(--text-main); outline: none; transition: all 0.2s; }
     body.dark-mode .topbar-search { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.1); }
     .topbar-search:focus { border-color: var(--accent-main); box-shadow: 0 0 0 3px rgba(91,184,240,0.12); }
-    .topbar-btn { padding: 8px 18px; border-radius: 20px; border: none; background: var(--accent-btn); color: white; font-weight: 700; font-size: 0.9rem; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
+    .topbar-btn { padding: 8px 18px; border-radius: var(--radius-capsule); border: none; background: var(--accent-btn); color: white; font-weight: 600; font-size: 0.9rem; cursor: pointer; transition: all 0.2s; white-space: nowrap; letter-spacing: -0.01em; }
     .topbar-btn:hover { opacity: 0.9; transform: translateY(-1px); }
     .topbar-user { font-size: 0.85rem; color: var(--text-soft); white-space: nowrap; cursor: pointer; }
     .journal-body { display: flex; flex: 1; min-height: 0; }
@@ -3421,10 +3421,10 @@ export default {
     .journal-card { background: rgba(255,255,255,0.68); backdrop-filter: blur(20px) saturate(160%); -webkit-backdrop-filter: blur(20px) saturate(160%); border-radius: var(--radius-md); border: 0.5px solid var(--card-border); padding: 14px 20px; display: flex; flex-direction: column; gap: 10px; box-shadow: var(--shadow-card); }
     body.dark-mode .journal-card { background: rgba(30,30,30,0.5); border: 0.5px solid var(--card-border); }
     .journal-meta { display: flex; gap: 16px; flex-wrap: wrap; align-items: center; }
-    .journal-meta-tag { padding: 6px 12px; border-radius: 14px; background: rgba(0,0,0,0.04); font-size: 0.85rem; color: var(--text-main); font-weight: 700; }
+    .journal-meta-tag { padding: 6px 12px; border-radius: var(--radius-capsule); background: rgba(0,0,0,0.04); font-size: 0.85rem; color: var(--text-main); font-weight: 500; }
     body.dark-mode .journal-meta-tag { background: rgba(255,255,255,0.08); }
     .journal-meta-tag select { border: none; background: transparent; font: inherit; color: inherit; outline: none; cursor: pointer; }
-    .journal-content { font-size: 0.98rem; color: var(--text-main); line-height: 1.8; white-space: pre-wrap; word-break: break-word; }
+    .journal-content { font-size: 1rem; font-weight: 400; color: var(--text-main); line-height: 1.6; white-space: pre-wrap; word-break: break-word; letter-spacing: -0.01em; }
     .journal-media-row { display: flex; gap: 10px; flex-wrap: wrap; }
     .journal-media-thumb { width: 80px; height: 80px; border-radius: 8px; object-fit: cover; cursor: pointer; border: 1px solid rgba(0,0,0,0.06); }
     .journal-actions { display: flex; gap: 10px; }
@@ -3506,7 +3506,7 @@ export default {
     .app-shell { min-height: 100vh; width: 100%; display: flex; flex-direction: column; position: relative; z-index: 1; }
     .container { flex: 1; display: flex; flex-direction: column; padding: 2px 14px 8px; padding-bottom: calc(8px + env(safe-area-inset-bottom)); }
     .header-bar { display: flex; justify-content: space-between; align-items: center; gap: 6px; flex-shrink: 0; flex-wrap: wrap; margin-bottom: 8px; position: relative; }
-    h3 { font-size: 1.25rem; font-weight: 700; letter-spacing: -0.2px; color: var(--text-main); white-space: nowrap; }
+    h3 { font-size: 1.25rem; font-weight: 600; letter-spacing: -0.02em; color: var(--text-main); white-space: nowrap; }
 
     .date-chip { background: var(--card-bg); padding: 4px 12px; border-radius: var(--radius-capsule); font-size: 0.75rem; font-weight: 600; color: var(--text-soft); border: 0.5px solid var(--card-border); }
     .goal-chips { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
@@ -3551,9 +3551,9 @@ export default {
     .counter-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; position: relative; z-index: 1; }
     .counter-header .button-group { display: flex; gap: 6px; margin-top: 0; }
     .counter-header .circle-btn { width: 28px; height: 28px; font-size: 1.1rem; border-radius: 4px; }
-    .counter-label { font-size: 0.8rem; font-weight: 600; color: rgba(255,255,255,0.95); text-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+    .counter-label { font-size: 0.8rem; font-weight: 500; color: rgba(255,255,255,0.95); text-shadow: 0 1px 2px rgba(0,0,0,0.1); letter-spacing: -0.01em; }
     .reset-mini { background: rgba(255,255,255,0.3); border: none; font-size: 0.7rem; color: rgba(255,255,255,0.9); cursor: pointer; padding: 4px 8px; border-radius: var(--radius-xs); font-weight: 700; position: relative; z-index: 1; backdrop-filter: blur(4px); }
-    .counter-value { font-size: 2.4rem; font-weight: 700; line-height: 1; color: white; text-shadow: 0 2px 4px rgba(0,0,0,0.15); position: relative; z-index: 1; }
+    .counter-value { font-size: 2.4rem; font-weight: 700; line-height: 1; color: white; text-shadow: 0 2px 4px rgba(0,0,0,0.15); position: relative; z-index: 1; letter-spacing: -0.02em; }
     .counter-stats { display: flex; gap: 12px; margin-top: 6px; position: relative; z-index: 1; font-size: 0.7rem; color: rgba(255,255,255,0.8); font-weight: 600; }
     .counter-stats b { font-weight: 700; }
     .button-group { display: flex; gap: 12px; margin-top: 12px; position: relative; z-index: 1; }
@@ -3642,7 +3642,7 @@ export default {
     .phone-toggle { background: none; border: none; font-size: 0.8rem; cursor: pointer; opacity: 0.6; transition: opacity 0.2s; padding: 0; outline: none; }
     .phone-toggle:hover { opacity: 1; }
     .empty-clients { text-align: center; color: var(--text-light); padding: 30px 20px; font-size: 0.85rem; font-weight: 700; }
-    .card-title { font-weight: 700; font-size: 0.9rem; margin-bottom: 12px; color: var(--text-main); }
+    .card-title { font-weight: 600; font-size: 0.9rem; margin-bottom: 10px; color: var(--text-main); letter-spacing: -0.01em; }
     .register-block { display: flex; flex-direction: column; gap: 5px; }
     .register-block .form-line { gap: 5px; }
     .register-block .input-simple { height: 32px; padding: 0 10px; font-size: 0.8rem; }
@@ -3660,7 +3660,7 @@ export default {
     .kq-check { display: flex; align-items: flex-start; gap: 4px; cursor: pointer; padding: 2px 0; color: var(--text-soft); line-height: 1.35; }
     .kq-check input { margin-top: 2px; flex-shrink: 0; accent-color: var(--accent-wechat); }
     body.dark-mode .kq-check { color: #bbb; }
-    .input-simple, .todo-input { flex: 1; width: 100%; height: 38px; padding: 0 12px; font-size: 0.85rem; background: var(--btn-bg); border: 0.5px solid var(--card-border); border-radius: var(--radius-sm); color: var(--text-main); outline: none; min-width: 0; font-weight: 500; box-sizing: border-box; transition: all 0.2s; }
+    .input-simple, .todo-input { flex: 1; width: 100%; height: 38px; padding: 0 12px; font-size: 0.85rem; background: var(--btn-bg); border: 0.5px solid var(--card-border); border-radius: var(--radius-sm); color: var(--text-main); outline: none; min-width: 0; font-weight: 400; box-sizing: border-box; transition: all 0.2s; }
     .input-simple:focus, .todo-input:focus { border-color: var(--accent-wechat); box-shadow: 0 0 0 3px rgba(52,211,153,0.15); }
     input::placeholder, textarea::placeholder { font-weight: 400; opacity: 0.6; }
     .input-simple::placeholder, .todo-input::placeholder, .note-textarea::placeholder { font-weight: 400; opacity: 0.6; }
@@ -3669,7 +3669,7 @@ export default {
     .topbar-search::placeholder { font-weight: 400; opacity: 0.6; }
     textarea.input-simple, .note-textarea { height: auto; min-height: 68px; padding: 10px 12px; resize: vertical; line-height: 1.6; }
     .note-textarea { font-family: inherit; }
-    .btn-add, .todo-add-btn { height: 38px; padding: 0 18px; font-size: 0.85rem; font-weight: 700; border: none; border-radius: var(--radius-xs); color: white; cursor: pointer; white-space: nowrap; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; transition: all 0.2s; }
+    .btn-add, .todo-add-btn { height: 38px; padding: 0 18px; font-size: 0.85rem; font-weight: 600; letter-spacing: -0.01em; border: none; border-radius: var(--radius-xs); color: white; cursor: pointer; white-space: nowrap; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; transition: all 0.2s; }
     .btn-add { background: var(--accent-btn); }
     .todo-add-btn { background: var(--accent-btn); }
     .btn-add:hover, .todo-add-btn:hover { opacity: 0.92; transform: translateY(-1px); }
@@ -3745,7 +3745,7 @@ export default {
       .reset-mini { font-size: 0.75rem; }
       .client-scroll { max-height: 320px; }
       .todo-list { max-height: 180px; }
-      .card-title { font-size: 0.85rem; margin-bottom: 10px; }
+      .card-title { font-size: 0.85rem; margin-bottom: 8px; }
       .input-simple, .todo-input { height: 34px; padding: 0 10px; font-size: 0.8rem; }
       .btn-add, .todo-add-btn { height: 34px; padding: 0 14px; font-size: 0.8rem; }
       .time-input-compact { flex: 0 0 84px !important; min-width: 84px !important; padding: 0 4px !important; }
@@ -3796,7 +3796,7 @@ export default {
       .image-thumb { height: var(--thumb-h, 220px); }
       .image-size-slider { width: 60px; }
       .card { padding: 12px 14px; border-radius: 10px; }
-      .card-title { font-size: 0.82rem; margin-bottom: 8px; }
+      .card-title { font-size: 0.82rem; margin-bottom: 6px; }
       .counter-row { gap: 8px; }
       .counter-card { padding: 8px; }
       .counter-value { font-size: 1.6rem; }
