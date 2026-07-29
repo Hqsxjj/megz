@@ -3793,9 +3793,7 @@ export default {
       #allClientsModal .modal-header .search-input { width: 110px !important; height: 26px !important; font-size: 0.68rem !important; }
       #allClientsModal .modal-header select { height: 26px !important; font-size: 0.65rem !important; padding: 0 2px !important; }
       #allClientsModal #allClientsSortOrderBtn { height: 26px !important; width: 26px !important; font-size: 0.75rem !important; }
-      .all-client-card .card-action-btn:not(.all-edit-btn):not(.all-export-btn) { font-size: 0.7rem !important; padding: 4px 10px !important; }
-      .all-client-card .all-edit-btn,
-      .all-client-card .all-export-btn { font-size: 0 !important; padding: 0 !important; }
+      .all-client-card .card-action-btn { font-size: 0.7rem !important; padding: 4px 10px !important; }
     }
     /* ===== 紧凑表格与待办行样式 ===== */
     .table-compact { width: 100%; border-collapse: collapse; font-size: 0.78rem; color: var(--text-main); text-align: left; }
@@ -4166,46 +4164,6 @@ export default {
     body.dark-mode .status-toggle-btn.status-failed {
       background: rgba(230,126,34,0.16);
       color: #f0a04b;
-    }
-    /* 状态标记 — 几何圆点图标 */
-    .status-toggle-btn { font-size: 0; }
-    .status-toggle-btn::after {
-      content: '';
-      display: block;
-      width: 10px; height: 10px;
-      border-radius: 50%;
-      border: 2px solid currentColor;
-      flex-shrink: 0;
-      transition: background 0.15s;
-    }
-    .status-toggle-btn.status-success::after {
-      background: currentColor;
-    }
-    .status-toggle-btn.status-failed::after {
-      background: currentColor;
-    }
-    /* 编辑按钮 — 矩形图标 */
-    .client-card-actions-top .all-edit-btn { font-size: 0; }
-    .client-card-actions-top .all-edit-btn::after {
-      content: '';
-      display: block;
-      width: 8px; height: 8px;
-      border: 1.5px solid currentColor;
-      border-radius: 2px;
-      flex-shrink: 0;
-    }
-    /* 导出按钮 — 箭头图标 */
-    .client-card-actions-top .all-export-btn { font-size: 0; }
-    .client-card-actions-top .all-export-btn::after {
-      content: '';
-      display: block;
-      width: 7px; height: 7px;
-      border-top: 2px solid currentColor;
-      border-right: 2px solid currentColor;
-      transform: rotate(45deg);
-      flex-shrink: 0;
-      margin-left: -2px;
-      margin-top: 2px;
     }
     .flag-dot{width:10px;height:10px;border-radius:50%;border:1.5px solid #e74c3c;background:transparent;cursor:pointer;padding:0;margin:0;flex-shrink:0;transition:all .15s;touch-action:manipulation;min-width:10px}
     .flag-dot-active{background:#e74c3c;box-shadow:0 0 3px rgba(231,76,60,0.5)}
@@ -5116,7 +5074,7 @@ export default {
     return html;
   }
   // Status helpers
-  const STATUS_LABELS = { 'success': '', 'failed': '' };
+  const STATUS_LABELS = { 'success': '成', 'failed': '败' };
   const STATUS_CLASSES = { 'success': 'status-success', 'failed': 'status-failed' };
   const STATUS_BADGE_LABELS = { 'success': '已办理成功', 'failed': '未办理成功' };
   const STATUS_BADGE_CLASSES = { 'success': 'status-badge-success', 'failed': 'status-badge-failed' };
@@ -5125,7 +5083,7 @@ export default {
     return '<span class="client-card-status-badge ' + STATUS_BADGE_CLASSES[c.status] + '">' + STATUS_BADGE_LABELS[c.status] + '</span>';
   }
   function getStatusToggleHtml(c) {
-    var label = '';
+    var label = c.status ? STATUS_LABELS[c.status] : '标';
     var cls = c.status ? 'status-toggle-btn ' + STATUS_CLASSES[c.status] : 'status-toggle-btn';
     return '<button class="' + cls + '" data-status="' + (c.status||'') + '">' + label + '</button>';
   }
@@ -9069,8 +9027,8 @@ export default {
         '<div class="client-card-actions-top">' +
           getFlagDotHtml(c) +
           getStatusToggleHtml(c) +
-          '<button class="all-edit-btn card-action-btn" data-date="' + esc(c.date) + '" data-name="' + esc(c.name) + '" data-phone="' + esc(c.phone) + '" data-time="' + esc(c.time || '') + '" title="编辑"></button>' +
-          '<button class="all-export-btn card-action-btn" data-date="' + esc(c.date) + '" data-name="' + esc(c.name) + '" data-phone="' + esc(c.phone) + '" data-time="' + esc(c.time || '') + '" title="导出"></button>' +
+          '<button class="all-edit-btn card-action-btn" data-date="' + esc(c.date) + '" data-name="' + esc(c.name) + '" data-phone="' + esc(c.phone) + '" data-time="' + esc(c.time || '') + '" title="编辑">编</button>' +
+          '<button class="all-export-btn card-action-btn" data-date="' + esc(c.date) + '" data-name="' + esc(c.name) + '" data-phone="' + esc(c.phone) + '" data-time="' + esc(c.time || '') + '" title="导出">出</button>' +
         '</div>' +
       '</div>';
     });
