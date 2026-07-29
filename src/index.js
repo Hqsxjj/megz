@@ -2651,8 +2651,7 @@ export default {
           data.tomorrowTodos = body.todos || [];
           break;
         case 'setTempClients':
-          // Only keep temp clients belonging to this date (client sends full array)
-          data.tempClients = (body.tempClients || []).filter(function(tc){ return tc.date === date; });
+          data.tempClients = body.tempClients || [];
           break;
         case 'pushTodoLog':
           if (body.todo) {
