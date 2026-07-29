@@ -5829,13 +5829,25 @@ export default {
               label = bank + '(已删除)';
               badgeStyle = 'background:rgba(231,76,60,0.1); color:#e74c3c;';
             }
-            return '<div style="display:flex; justify-content:space-between; align-items:center; padding:4px 6px; border-bottom:1px dashed var(--card-border); background:var(--btn-bg); border-radius:3px; cursor:pointer;" data-company="' + esc(c.company_name) + '" onclick="document.getElementById(\\\'custCompany\\\').value=this.dataset.company; document.getElementById(\\\'mainWlSearchResults\\\').style.display=\\\'none\\\';">' +
+            return '<div class="wl-result-item" style="display:flex; justify-content:space-between; align-items:center; padding:4px 6px; border-bottom:1px dashed var(--card-border); background:var(--btn-bg); border-radius:3px; cursor:pointer;" data-company="' + esc(c.company_name) + '">' +
               '<span style="font-weight:700; color:var(--text-main); font-size:0.62rem;">' + esc(c.company_name) + '</span>' +
               '<span style="font-size:0.52rem; ' + badgeStyle + ' padding:1px 4px; border-radius:3px; font-weight:700; white-space:nowrap; margin-left:8px;">' + esc(label) + '</span>' +
               '</div>';
           }).join('');
         }
         mainSearchResults.style.display = 'flex';
+      });
+      // 点击白名单结果：填充到意向登记和临时登记的单位名称
+      mainSearchResults.addEventListener('click', function(e) {
+        var item = e.target.closest('.wl-result-item');
+        if (!item) return;
+        var company = item.dataset.company;
+        var custEl = document.getElementById('custCompany');
+        var tempEl = document.getElementById('tempCustCompany');
+        if (custEl) custEl.value = company;
+        if (tempEl) tempEl.value = company;
+        mainSearchResults.style.display = 'none';
+        mainSearchInput.value = '';
       });
     }
 
