@@ -7645,6 +7645,19 @@ export default {
       var r=await fetch('/api/all-temp-clients');
       if(r.ok){
         list=await r.json();
+        // 合并本地跟进记录：保留本地未同步到云端的 followUps，防止拉取覆盖丢失
+        var localList=JSON.parse(localStorage.getItem(TEMP_CLIENTS_K)||'[]');
+        var localMap=new Map();
+        localList.forEach(function(lc){
+          localMap.set(lc.name+'|'+lc.phone+'|'+(lc.date||'')+'|'+(lc.time||''),lc);
+        });
+        list.forEach(function(c){
+          var key=c.name+'|'+c.phone+'|'+(c.date||'')+'|'+(c.time||'');
+          var local=localMap.get(key);
+          if(local&&local.followUps&&local.followUps.length>0){
+            c.followUps=local.followUps;
+          }
+        });
         localStorage.setItem(TEMP_CLIENTS_K,JSON.stringify(list));
       }
     }catch(e){}
