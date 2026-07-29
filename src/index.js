@@ -3640,6 +3640,12 @@ export default {
     .card-title { font-weight: 700; font-size: 0.9rem; margin-bottom: 12px; color: var(--text-main); }
     .register-block { display: flex; flex-direction: column; gap: 8px; }
     .form-line { display: flex; gap: 8px; align-items: center; width: 100%; }
+    /* 关键问题勾选 */
+    .kq-title { font-size: 0.72rem; font-weight: 700; color: var(--text-soft); margin-bottom: -4px; }
+    .kq-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1px 10px; font-size: 0.7rem; max-height: 220px; overflow-y: auto; padding: 2px 0; }
+    .kq-check { display: flex; align-items: flex-start; gap: 4px; cursor: pointer; padding: 2px 0; color: var(--text-soft); line-height: 1.35; }
+    .kq-check input { margin-top: 2px; flex-shrink: 0; accent-color: var(--accent-wechat); }
+    body.dark-mode .kq-check { color: #bbb; }
     .input-simple, .todo-input { flex: 1; width: 100%; height: 38px; padding: 0 12px; font-size: 0.85rem; background: var(--btn-bg); border: 0.5px solid var(--card-border); border-radius: var(--radius-xs); color: var(--text-main); outline: none; min-width: 0; font-weight: 600; box-sizing: border-box; transition: all 0.2s; }
     .input-simple:focus, .todo-input:focus { border-color: var(--accent-wechat); box-shadow: 0 0 0 2px rgba(255,255,255,0.7); }
     input::placeholder, textarea::placeholder { font-weight: 400; opacity: 0.6; }
@@ -4604,6 +4610,7 @@ export default {
               <textarea class="input-simple note-textarea" id="custNote" placeholder="沟通记录 (必填)" rows="3"></textarea>
               <textarea class="input-simple note-textarea" id="custFollowUp" placeholder="跟进情况" rows="2"></textarea>
             </div>
+            <div id="keyQuestionsIntent"></div>
             <button type="button" class="btn-add" id="addClientBtn">+ 添加</button>
                         <div class="client-scroll" id="clientList"></div>
           </div>
@@ -4618,6 +4625,7 @@ export default {
               <button type="button" id="boldBtn" title="加粗 (Alt+B)" style="height:28px;width:28px;font-weight:900;font-size:0.7rem;border:1px solid var(--card-border);background:var(--btn-bg);color:var(--text-main);cursor:pointer;border-radius:3px;padding:0;line-height:1;">B</button>
               <button type="button" id="delBtn" title="删除线 (Alt+D)" style="height:28px;width:28px;font-weight:700;font-size:0.6rem;border:1px solid var(--card-border);background:var(--btn-bg);color:var(--text-main);cursor:pointer;border-radius:3px;padding:0;line-height:1;text-decoration:line-through;">D</button>
             </div>
+            <div id="keyQuestionsTemp"></div>
             <div style="display:flex;gap:4px;">
               <button class="btn-add" id="addTempCustBtn" style="background:var(--accent-btn);flex:1;">+ 登记</button>
               <button class="btn-add" id="cancelTempEditBtn" style="background:var(--btn-bg);color:var(--text-soft);display:none;padding:0 12px;font-size:0.72rem;">取消</button>
@@ -5069,6 +5077,20 @@ export default {
   const saveMap=(k,o)=>localStorage.setItem(k,JSON.stringify(o));
   const loadTodos=k=>{try{const d=JSON.parse(localStorage.getItem(k))||[];return d.map(t=>typeof t==='string'?{text:t,time:'',date:getTodayStr()}:t);}catch(e){return[];}};
   const saveTodos=(k,a)=>localStorage.setItem(k,JSON.stringify(a));
+  const KEY_QUESTIONS=['你们利息多少?','能贷多少额度?','你们费用怎么收?','怎么办理，需要什么资料?','多久能放款呢?','能不能办?能办下来吗?','我的负债比较高了！','查询比较多?','你们是银行吗?还是中介机构的?','需要抵押吗','需要电核吗','线下我都不相信了，根本办不了线下','晚上非工作时间通过微信的','电话中情绪比较低落的','听完贷款说在开会的','听完贷款说让加微信的','加了微信隔几天通过的'];
+  function renderKeyQuestionsHTML(prefix,selected){
+    var h='<div class="kq-title">关键问题勾选</div><div class="kq-grid">';
+    for(var i=0;i<KEY_QUESTIONS.length;i++){
+      var id=prefix+i; var sel=selected&&selected.indexOf(i)>=0?' checked':'';
+      h+='<label class="kq-check"><input type="checkbox" id="'+id+'"'+sel+'> '+(i+1)+'. '+KEY_QUESTIONS[i]+'</label>';
+    }
+    h+='</div>'; return h;
+  }
+  function getKeyQuestionsFromForm(prefix){
+    var sel=[];
+    for(var i=0;i<KEY_QUESTIONS.length;i++){var el=document.getElementById(prefix+i);if(el&&el.checked)sel.push(i);}
+    return sel;
+  }
   const loadClients=()=>{try{return JSON.parse(localStorage.getItem(CLIENTS_K))||[];}catch(e){return[];}};
   const loadGoals=()=>{try{return JSON.parse(localStorage.getItem(GOALS_K))||{};}catch(e){return{};}};
   const saveGoals=(g)=>localStorage.setItem(GOALS_K,JSON.stringify(g));
@@ -6260,6 +6282,7 @@ export default {
       var dRb=document.getElementById('custRejectedBank'); if(dRb)dRb.value=c.rejectedBank||'';
       var dRr=document.getElementById('custRejectReason'); if(dRr)dRr.value=c.rejectReason||'';
       showStatusConditionalFields(c.status||'');
+      var kqEl=document.getElementById('keyQuestionsIntent'); if(kqEl)kqEl.innerHTML=renderKeyQuestionsHTML('kq_',c.keyQuestions||[]);
       // Auto-expand detail panel if any new field has a value
       var hasDetail = c.age||c.maritalStatus||c.isShenzhenHukou||c.socialSecurity||c.avgSalary||c.tax2yr||c.salaryBank||c.education||c.property||c.propertyType||c.propertyAddress||c.propertyArea||c.propertyMortgageBank||c.propertyMortgageAmount||c.propertyOther||c.bankDebt||c.creditCardDebt||c.query3m||c.onlineLoanCount||c.demand||c.fundUsage||c.visitTime||c.note||(c.followUps&&c.followUps.length>0)||c.followUp;
       var panel = document.getElementById('detailPanel');
@@ -7339,7 +7362,8 @@ export default {
       age,maritalStatus,isShenzhenHukou,socialSecurity,avgSalary,tax2yr,salaryBank,
       education,property:propertyVal,propertyType,propertyAddress,propertyArea,propertyMortgageBank,propertyMortgageAmount,propertyOther,
       bankDebt,creditCardDebt,query3m,onlineLoanCount,demand,fundUsage,
-      visitTime,status,approvedBank,approvedAmount,rateTerm,rejectedBank,rejectReason};
+      visitTime,status,approvedBank,approvedAmount,rateTerm,rejectedBank,rejectReason,
+      keyQuestions:getKeyQuestionsFromForm('kq_')};
     // Preserve original date+time when editing (keep the record on its original day)
     if (oldEntry && oldEntry.date) { newClient.date = oldEntry.date; newClient.time = oldEntry.time || time; }
     list.push(newClient);
@@ -7358,6 +7382,7 @@ export default {
     clearEl('custRateTerm'); clearEl('custRejectedBank'); clearEl('custRejectReason');
     var stEl = document.getElementById('custStatus'); if (stEl) stEl.value = '';
     showStatusConditionalFields('');
+    var kqEl=document.getElementById('keyQuestionsIntent'); if(kqEl)kqEl.innerHTML=renderKeyQuestionsHTML('kq_',[]);
     renderClientList();refreshAll();
     // Sync: remove old entry first if editing, then add the new one
     if (oldEntry) {
@@ -7376,6 +7401,7 @@ export default {
     document.getElementById('tempCustCompany').value=c.company||'';
     document.getElementById('tempCustFund').value=c.fund||'';
     document.getElementById('tempCustNote').value=c.note||'';
+    var tkqEl=document.getElementById('keyQuestionsTemp'); if(tkqEl)tkqEl.innerHTML=renderKeyQuestionsHTML('tkq_',c.keyQuestions||[]);
     _tempEditIdx=idx;
     var btn=document.getElementById('addTempCustBtn');
     if(btn){ btn.textContent='✓ 更新'; btn.style.background='var(--accent-intent)'; }
@@ -7390,6 +7416,7 @@ export default {
     document.getElementById('tempCustCompany').value='';
     document.getElementById('tempCustFund').value='';
     document.getElementById('tempCustNote').value='';
+    var tkqEl=document.getElementById('keyQuestionsTemp'); if(tkqEl)tkqEl.innerHTML=renderKeyQuestionsHTML('tkq_',[]);
     var btn=document.getElementById('addTempCustBtn');
     if(btn){ btn.textContent='+ 登记'; btn.style.background='var(--accent-btn)'; }
     var cancelBtn=document.getElementById('cancelTempEditBtn');
@@ -7404,7 +7431,8 @@ export default {
     if(!n||!p){alert('请填写姓名和联系方式');return;}
     const list=JSON.parse(localStorage.getItem(TEMP_CLIENTS_K)||'[]');
     const today=getTodayStr(),time=getCurrentTime();
-    const newClient={name:n,phone:p,company:co,fund:fu,note:nt,date:today,time:time};
+    var keyQuestions=getKeyQuestionsFromForm('tkq_');
+    const newClient={name:n,phone:p,company:co,fund:fu,note:nt,date:today,time:time,keyQuestions:keyQuestions};
     if(_tempEditIdx>=0&&_tempEditIdx<list.length){
       // 编辑模式：保留原日期时间
       newClient.date=list[_tempEditIdx].date;
@@ -9965,6 +9993,13 @@ export default {
   safeInit('initGoals', initGoals);
   safeInit('initWhitelistFeature', initWhitelistFeature);
   safeInit('initLoanCalc', initLoanCalc);
+  function initKeyQuestions(){
+    var el1=document.getElementById('keyQuestionsIntent');
+    var el2=document.getElementById('keyQuestionsTemp');
+    if(el1)el1.innerHTML=renderKeyQuestionsHTML('kq_',[]);
+    if(el2)el2.innerHTML=renderKeyQuestionsHTML('tkq_',[]);
+  }
+  safeInit('initKeyQuestions', initKeyQuestions);
   document.getElementById('goalEyeBtn').addEventListener('click',toggleGoalNumbers);
   function calGo(delta){
     const [y,m]=calendarMonth.split('-').map(Number);
