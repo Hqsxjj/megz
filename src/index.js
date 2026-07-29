@@ -5074,7 +5074,7 @@ export default {
     return html;
   }
   // Status helpers
-  const STATUS_LABELS = { 'success': '成', 'failed': '败' };
+  const STATUS_LABELS = { 'success': '✓', 'failed': '✗' };
   const STATUS_CLASSES = { 'success': 'status-success', 'failed': 'status-failed' };
   const STATUS_BADGE_LABELS = { 'success': '已办理成功', 'failed': '未办理成功' };
   const STATUS_BADGE_CLASSES = { 'success': 'status-badge-success', 'failed': 'status-badge-failed' };
@@ -5083,7 +5083,7 @@ export default {
     return '<span class="client-card-status-badge ' + STATUS_BADGE_CLASSES[c.status] + '">' + STATUS_BADGE_LABELS[c.status] + '</span>';
   }
   function getStatusToggleHtml(c) {
-    var label = c.status ? STATUS_LABELS[c.status] : '标';
+    var label = c.status ? STATUS_LABELS[c.status] : '◉';
     var cls = c.status ? 'status-toggle-btn ' + STATUS_CLASSES[c.status] : 'status-toggle-btn';
     return '<button class="' + cls + '" data-status="' + (c.status||'') + '">' + label + '</button>';
   }
@@ -9027,8 +9027,8 @@ export default {
         '<div class="client-card-actions-top">' +
           getFlagDotHtml(c) +
           getStatusToggleHtml(c) +
-          '<button class="all-edit-btn card-action-btn" data-date="' + esc(c.date) + '" data-name="' + esc(c.name) + '" data-phone="' + esc(c.phone) + '" data-time="' + esc(c.time || '') + '" title="编辑">编</button>' +
-          '<button class="all-export-btn card-action-btn" data-date="' + esc(c.date) + '" data-name="' + esc(c.name) + '" data-phone="' + esc(c.phone) + '" data-time="' + esc(c.time || '') + '" title="导出">出</button>' +
+          '<button class="all-edit-btn card-action-btn" data-date="' + esc(c.date) + '" data-name="' + esc(c.name) + '" data-phone="' + esc(c.phone) + '" data-time="' + esc(c.time || '') + '" title="编辑">✎</button>' +
+          '<button class="all-export-btn card-action-btn" data-date="' + esc(c.date) + '" data-name="' + esc(c.name) + '" data-phone="' + esc(c.phone) + '" data-time="' + esc(c.time || '') + '" title="导出">↗</button>' +
         '</div>' +
       '</div>';
     });
