@@ -4341,11 +4341,14 @@ export default {
     .temp-card-phone a { color:var(--accent-wechat); text-decoration:none; font-weight:700; font-size:0.78rem; }
     .temp-card-info { color:var(--text-soft); font-size:0.7rem; display:flex; flex-wrap:wrap; gap:4px 12px; }
     .temp-card-note { color:var(--text-main); font-size:0.72rem; line-height:1.4; }
-    .temp-card-actions { display:flex; gap:6px; margin-left:auto; flex-shrink:0; }
-    .temp-card-actions button { background:none; border:1px solid var(--card-border); color:var(--text-soft); cursor:pointer; font-size:0.72rem; padding:2px 8px; border-radius:4px; font-weight:600; }
-    .temp-card-actions .temp-tbl-convert { border-color:var(--accent-intent); color:var(--accent-intent); }
-    .temp-card-actions .temp-tbl-del { border-color:#e74c3c; color:#e74c3c; }
-    .temp-card-actions .temp-tbl-export { font-size:0; border-color:var(--accent-wechat); color:var(--accent-wechat); width:28px; height:28px; padding:0; display:inline-flex; align-items:center; justify-content:center; }
+    .temp-card-actions { display:flex; gap:6px; margin-left:auto; flex-shrink:0; align-items:center; }
+    .temp-card-actions button { width:32px; height:32px; background:none; border:0.5px solid var(--card-border); cursor:pointer; font-size:0; padding:0; border-radius:var(--radius-sm); display:inline-flex; align-items:center; justify-content:center; color:var(--text-soft); transition:all 0.15s; }
+    .temp-card-actions button:hover { background:var(--btn-hover); transform:translateY(-1px); }
+    .temp-card-actions button:active { transform:translateY(0); }
+    .temp-card-actions .temp-tbl-export { color:var(--accent-wechat); }
+    .temp-card-actions .temp-tbl-edit { color:var(--text-soft); }
+    .temp-card-actions .temp-tbl-convert { color:var(--accent-intent); }
+    .temp-card-actions .temp-tbl-del { color:#ff3b30; }
     .temp-full-table { display:none; }
     .temp-card-list { display:flex; }
     @media (min-width:761px) {
@@ -4951,10 +4954,7 @@ export default {
   <div class="modal-card" id="tempFullModalCard" style="width:100vw;height:100vh;max-width:100vw;max-height:100vh;margin:0;border-radius:0;border:none;box-sizing:border-box;display:flex;flex-direction:column;">
     <div class="modal-header" style="flex-shrink:0;">
       <span>临时表 <span id="tempFullCount" style="font-size:0.7rem;color:var(--accent-wechat);font-weight:800;"></span></span>
-      <div style="display:flex;gap:8px;align-items:center;">
-        <button id="exportTempClientsBtn" style="font-size:0.72rem;padding:4px 12px;border-radius:var(--radius-xs);border:none;background:var(--accent-btn);color:#fff;font-weight:700;cursor:pointer;">导出</button>
-        <button id="closeTempFullModalBtn">×</button>
-      </div>
+      <button id="closeTempFullModalBtn">×</button>
     </div>
     <div style="overflow:auto;flex:1;min-height:0;padding:0 4px;overscroll-behavior:contain;">
       <div class="temp-card-list" id="tempFullCardList"></div>
@@ -7659,7 +7659,7 @@ export default {
       }
       cardHtml+='<div class="temp-card">'+
         '<div class="temp-card-row"><span class="temp-card-no" style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:var(--accent-wechat);color:#fff;font-size:0.62rem;font-weight:800;flex-shrink:0;">'+(list.length-i)+'</span><span class="temp-card-date">'+esc(c.date||'')+'</span><span class="temp-card-time">'+esc(c.time||'')+'</span></div>'+
-        '<div class="temp-card-row"><span class="temp-card-name">'+esc(c.name)+'</span><span class="temp-card-phone"><a href="tel:'+esc(c.phone)+'">'+esc(c.phone)+'</a></span><div class="temp-card-actions"><button class="temp-tbl-export" data-idx="'+i+'" title="导出"><svg width="15" height="15" viewBox="0 0 17 17" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 12.5l7.5-7.5M5.5 5H12v6.5"/></svg></button><button class="temp-tbl-edit" data-key="'+esc(c.name)+'|'+esc(c.phone)+'">编</button><button class="temp-tbl-convert" data-idx="'+i+'">→</button><button class="temp-tbl-del" data-idx="'+i+'">✕</button></div></div>'+
+        '<div class="temp-card-row"><span class="temp-card-name">'+esc(c.name)+'</span><span class="temp-card-phone"><a href="tel:'+esc(c.phone)+'">'+esc(c.phone)+'</a></span><div class="temp-card-actions"><button class="temp-tbl-export" data-idx="'+i+'" title="导出"><svg width="15" height="15" viewBox="0 0 17 17" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 12.5l7.5-7.5M5.5 5H12v6.5"/></svg></button><button class="temp-tbl-edit" data-key="'+esc(c.name)+'|'+esc(c.phone)+'" title="编辑"><svg width="15" height="15" viewBox="0 0 17 17" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path d="M11.5 3l2 2L6 13.5H3.5v-2.5L11.5 3z"/></svg></button><button class="temp-tbl-convert" data-idx="'+i+'" title="转为意向"><svg width="15" height="15" viewBox="0 0 17 17" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path d="M2 8.5h11M10 6l3 2.5-3 2.5"/></svg></button><button class="temp-tbl-del" data-idx="'+i+'" title="删除"><svg width="15" height="15" viewBox="0 0 17 17" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 4.5l8 8M12.5 4.5l-8 8"/></svg></button></div></div>'+
         ((c.company||c.fund) ? '<div class="temp-card-row" style="gap:4px;">'+(c.company?'<span class="client-card-tag client-card-tag-company" style="font-size:0.62rem;padding:1px 6px;">'+esc(c.company)+'</span>':'')+(c.fund?'<span class="client-card-tag client-card-tag-fund" style="font-size:0.62rem;padding:1px 6px;">'+esc(c.fund)+'</span>':'')+'</div>' : '')+
         '<div class="temp-card-row"><span class="temp-card-note">'+esc(c.note||'')+'</span></div>'+
         '<div style="border-top:1px solid var(--border-light);padding-top:4px;margin-top:2px;">'+
@@ -8966,21 +8966,6 @@ export default {
   // 临时登记全量表
   document.getElementById('allTempTableBtn').addEventListener('click',openTempFullTable);
   document.getElementById('closeTempFullModalBtn').addEventListener('click',closeTempFullTable);
-  // 导出临时表到企业微信
-  document.getElementById('exportTempClientsBtn').addEventListener('click',async function(){
-    var savedUrl = (localStorage.getItem('webhook_url') || '').trim();
-    if (!savedUrl) { alert('请先在主菜单 → 导出数据 中配置企业微信 Webhook URL'); return; }
-    var list = JSON.parse(localStorage.getItem(TEMP_CLIENTS_K) || '[]');
-    if (list.length === 0) { alert('没有可导出的临时登记客户'); return; }
-    this.disabled = true; this.textContent = '发送中...';
-    try {
-      var r = await fetch('/api/export', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'temp_clients', webhookUrl: savedUrl, tempClients: list }) });
-      var data = await r.json();
-      if (r.ok) { alert(data.message || '导出成功'); }
-      else { alert('导出失败: ' + (data.error || r.statusText)); }
-    } catch(e) { alert('请求失败: ' + e.message); }
-    this.disabled = false; this.textContent = '导出';
-  });
   // 点击遮罩关闭
   document.getElementById('tempFullModal').addEventListener('click',function(e){
     if(e.target===this) closeTempFullTable();
