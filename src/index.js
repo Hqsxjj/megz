@@ -3638,7 +3638,16 @@ export default {
     .phone-toggle:hover { opacity: 1; }
     .empty-clients { text-align: center; color: var(--text-light); padding: 30px 20px; font-size: 0.85rem; font-weight: 700; }
     .card-title { font-weight: 700; font-size: 0.9rem; margin-bottom: 12px; color: var(--text-main); }
-    .register-block { display: flex; flex-direction: column; gap: 8px; }
+    .register-block { display: flex; flex-direction: column; gap: 5px; }
+    .register-block .form-line { gap: 5px; }
+    .register-block .input-simple { height: 32px; padding: 0 10px; font-size: 0.8rem; }
+    .register-block textarea.input-simple { height: auto; min-height: 52px; padding: 6px 10px; }
+    .register-block .btn-add { height: 32px; padding: 0 14px; font-size: 0.8rem; }
+    .register-block .detail-toggle-wrap { padding: 2px 0; }
+    .register-block .detail-toggle-btn { font-size: 0.68rem; padding: 3px 14px; }
+    .register-block .kq-grid { max-height: 150px; font-size: 0.65rem; }
+    .register-block .kq-title { font-size: 0.68rem; }
+    .register-block .detail-panel { padding: 6px; gap: 5px; }
     .form-line { display: flex; gap: 8px; align-items: center; width: 100%; }
     /* 关键问题勾选 */
     .kq-title { font-size: 0.72rem; font-weight: 700; color: var(--text-soft); margin-bottom: -4px; }
