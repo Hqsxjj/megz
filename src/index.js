@@ -3010,6 +3010,45 @@ export default {
         }
       }
 
+      // 导出单个临时登记客户
+      if (type === 'temp_single_client') {
+        const client = body.client;
+        if (!client) {
+          return new Response(JSON.stringify({ error: '缺少 client 参数' }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+        const weekNames = ['日', '一', '二', '三', '四', '五', '六'];
+        const datePart = (client.date || '').slice(5);
+        const wk = client.date ? ' 周' + weekNames[new Date(client.date + 'T00:00:00').getDay()] : '';
+
+        let text = '> 客户姓名：' + client.name + '\n';
+        text += '> 日期：' + datePart + wk + ' | 时间：' + (client.time || '') + '\n';
+        text += '> 电话：' + (client.phone || '') + '\n';
+        text += '> 单位名称：' + (client.company || '') + '\n';
+        text += '> 公积金：' + (client.fund || '') + '\n';
+        text += '> 沟通内容：' + (client.note || '').replace(/\n/g, ' ') + '\n';
+        if (client.followUps && client.followUps.length > 0) {
+          text += '> 跟进记录：\n';
+          client.followUps.forEach(function(fu) {
+            text += '>   [' + (fu.date || '') + ' ' + (fu.time || '') + '] ' + (fu.content || '').replace(/\n/g, ' ') + '\n';
+          });
+        }
+
+        try {
+          await sendMarkdownMessage(env, target, text);
+          return new Response(JSON.stringify({ success: true }), {
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
+        } catch (e) {
+          return new Response(JSON.stringify({ error: '发送遇到错误: ' + e.message }), {
+            status: 500,
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+      }
+
       // 导出全量意向客户
       if (type === 'all_clients') {
         const keys = await getAllKVKeys(env, 'work:');
@@ -4300,6 +4339,7 @@ export default {
     .temp-card-actions button { background:none; border:1px solid var(--card-border); color:var(--text-soft); cursor:pointer; font-size:0.72rem; padding:2px 8px; border-radius:4px; font-weight:600; }
     .temp-card-actions .temp-tbl-convert { border-color:var(--accent-intent); color:var(--accent-intent); }
     .temp-card-actions .temp-tbl-del { border-color:#e74c3c; color:#e74c3c; }
+    .temp-card-actions .temp-tbl-export { font-size:0; border-color:var(--accent-wechat); color:var(--accent-wechat); width:28px; height:28px; padding:0; display:inline-flex; align-items:center; justify-content:center; }
     .temp-full-table { display:none; }
     .temp-card-list { display:flex; }
     @media (min-width:761px) {
@@ -7613,7 +7653,7 @@ export default {
       }
       cardHtml+='<div class="temp-card">'+
         '<div class="temp-card-row"><span class="temp-card-no" style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:var(--accent-wechat);color:#fff;font-size:0.62rem;font-weight:800;flex-shrink:0;">'+(list.length-i)+'</span><span class="temp-card-date">'+esc(c.date||'')+'</span><span class="temp-card-time">'+esc(c.time||'')+'</span></div>'+
-        '<div class="temp-card-row"><span class="temp-card-name">'+esc(c.name)+'</span><span class="temp-card-phone"><a href="tel:'+esc(c.phone)+'">'+esc(c.phone)+'</a></span><div class="temp-card-actions"><button class="temp-tbl-edit" data-key="'+esc(c.name)+'|'+esc(c.phone)+'">编</button><button class="temp-tbl-convert" data-idx="'+i+'">→</button><button class="temp-tbl-del" data-idx="'+i+'">✕</button></div></div>'+
+        '<div class="temp-card-row"><span class="temp-card-name">'+esc(c.name)+'</span><span class="temp-card-phone"><a href="tel:'+esc(c.phone)+'">'+esc(c.phone)+'</a></span><div class="temp-card-actions"><button class="temp-tbl-export" data-idx="'+i+'" title="导出"><svg width="15" height="15" viewBox="0 0 17 17" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 12.5l7.5-7.5M5.5 5H12v6.5"/></svg></button><button class="temp-tbl-edit" data-key="'+esc(c.name)+'|'+esc(c.phone)+'">编</button><button class="temp-tbl-convert" data-idx="'+i+'">→</button><button class="temp-tbl-del" data-idx="'+i+'">✕</button></div></div>'+
         ((c.company||c.fund) ? '<div class="temp-card-row" style="gap:4px;">'+(c.company?'<span class="client-card-tag client-card-tag-company" style="font-size:0.62rem;padding:1px 6px;">'+esc(c.company)+'</span>':'')+(c.fund?'<span class="client-card-tag client-card-tag-fund" style="font-size:0.62rem;padding:1px 6px;">'+esc(c.fund)+'</span>':'')+'</div>' : '')+
         '<div class="temp-card-row"><span class="temp-card-note">'+esc(c.note||'')+'</span></div>'+
         '<div style="border-top:1px solid var(--border-light);padding-top:4px;margin-top:2px;">'+
@@ -7682,6 +7722,41 @@ export default {
         document.getElementById('custName').focus();
         var card=document.getElementById('custName').closest('.card');
         if(card){ card.style.transform='scale(1.02)'; card.style.transition='all 0.3s'; setTimeout(function(){ card.style.transform='none'; },500); }
+      };
+    });
+    // Export single temp client
+    cardList.querySelectorAll('.temp-tbl-export').forEach(function(b){
+      b.onclick=async function(){
+        var idx=parseInt(this.dataset.idx);
+        var a=JSON.parse(localStorage.getItem(TEMP_CLIENTS_K)||'[]');
+        a.sort(function(x,y){ return (y.date||'').localeCompare(x.date||'')||(y.time||'').localeCompare(x.time||''); });
+        if(idx<0||idx>=a.length) return;
+        var c=a[idx];
+        var savedUrl=(localStorage.getItem('webhook_url')||'').trim();
+        if(!savedUrl){
+          alert('请先在主菜单 → 导出数据 中配置企业微信 Webhook URL');
+          return;
+        }
+        b.disabled=true;
+        var origHTML=b.innerHTML;
+        b.innerHTML='...';
+        try{
+          var r=await fetch('/api/export',{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({type:'temp_single_client',webhookUrl:savedUrl,client:c})
+          });
+          if(r.ok){
+            alert('客户已成功导出到企业微信！');
+          }else{
+            var err=await r.json();
+            alert('导出失败: ' + (err.error || r.statusText));
+          }
+        }catch(errVal){
+          alert('网络错误: ' + errVal.message);
+        }
+        b.disabled=false;
+        b.innerHTML=origHTML;
       };
     });
     // Follow-up buttons
