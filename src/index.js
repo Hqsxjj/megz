@@ -575,6 +575,16 @@ async function callAIChatWithTools(env, messages, temperature = 0.5, fromUser = 
                 if (c.company) itemText += '> 单位: ' + c.company + '\n';
                 if (c.fund) itemText += '> 公积金: ' + c.fund + '\n';
                 if (c.note) itemText += '> 备注: ' + c.note.replace(/\n/g, ' ') + '\n';
+                if (c.followUps && c.followUps.length > 0) {
+                  itemText += '> 跟进记录:\n';
+                  c.followUps.forEach(function(fu) {
+                    itemText += '>   - ' + (fu.date||'') + ' ' + (fu.time||'') + ' ' + (fu.content||'').replace(/\n/g, ' ') + '\n';
+                  });
+                }
+                if (c.keyQuestions && c.keyQuestions.length > 0) {
+                  var nums = c.keyQuestions.map(function(i){ return String.fromCharCode(9312 + i); }).join('');
+                  itemText += '> 关键问题: ' + nums + '\n';
+                }
                 itemText += '\n';
                 return itemText;
               };
