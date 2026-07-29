@@ -3626,7 +3626,7 @@ export default {
     .tbl-note-empty { color: var(--text-light); font-size: 0.75rem; font-style: italic; }
     .tbl-time { font-size: 0.7rem; color: var(--text-light); white-space: nowrap; }
     .tbl-action { text-align: center; white-space: nowrap; }
-    .edit-note-btn { font-size: 0.78rem; background: transparent; border: 1px solid var(--accent-wechat); color: var(--accent-wechat); border-radius: 50%; cursor: pointer; width: 26px; height: 26px; padding: 0; display: inline-flex; justify-content: center; align-items: center; font-weight: 700; transition: all 0.2s; }
+    .edit-note-btn { font-size: 0; background: transparent; border: 1px solid var(--accent-wechat); color: var(--accent-wechat); border-radius: 50%; cursor: pointer; width: 26px; height: 26px; padding: 0; display: inline-flex; justify-content: center; align-items: center; transition: all 0.2s; }
     .edit-note-btn:hover { background: var(--accent-btn); color: #fff; transform: scale(1.1); }
     .tbl-note-edit-wrap { display: flex; flex-direction: column; gap: 6px; }
     .tbl-note-edit-wrap textarea { width: 100%; min-height: 90px; background: var(--btn-bg); border: 1.5px solid var(--accent-wechat); border-radius: 6px; padding: 8px 10px; font-size: 0.86rem; color: var(--text-main); outline: none; font-weight: 600; resize: vertical; line-height: 1.7; }
@@ -3686,9 +3686,9 @@ export default {
     .phone-toggle:hover { opacity: 1; }
     .client-note { color: var(--text-light); font-size: 0.75rem; font-weight: 400; }
     .del-icon { background: none; border: none; font-size: 0.9rem; color: #c97a7a; cursor: pointer; width: 28px; height: 28px; border-radius: var(--radius-xs); font-weight: 700; }
-    .edit-icon { background: none; border: none; font-size: 0.9rem; color: var(--accent-wechat); cursor: pointer; width: 28px; height: 28px; border-radius: var(--radius-xs); font-weight: 700; margin-right: 4px; }
-    .export-single-btn { background: none; border: none; font-size: 0.9rem; color: var(--accent-intent); cursor: pointer; width: 28px; height: 28px; border-radius: var(--radius-xs); font-weight: 700; margin-right: 4px; }
-    .export-timeline-single-btn { font-size: 0.78rem; background: transparent; border: 1px solid var(--accent-intent); color: var(--accent-intent); border-radius: 50%; cursor: pointer; width: 26px; height: 26px; padding: 0; display: inline-flex; justify-content: center; align-items: center; font-weight: 700; transition: all 0.2s; margin-right: 4px; }
+    .edit-icon { background: none; border: none; font-size: 0; color: var(--accent-wechat); cursor: pointer; width: 28px; height: 28px; border-radius: var(--radius-xs); display: inline-flex; align-items: center; justify-content: center; margin-right: 4px; }
+    .export-single-btn { background: none; border: none; font-size: 0; color: var(--accent-intent); cursor: pointer; width: 28px; height: 28px; border-radius: var(--radius-xs); display: inline-flex; align-items: center; justify-content: center; margin-right: 4px; }
+    .export-timeline-single-btn { font-size: 0; background: transparent; border: 1px solid var(--accent-intent); color: var(--accent-intent); border-radius: 50%; cursor: pointer; width: 26px; height: 26px; padding: 0; display: inline-flex; justify-content: center; align-items: center; transition: all 0.2s; margin-right: 4px; }
     .export-timeline-single-btn:hover { background: var(--accent-btn); color: #fff; transform: scale(1.1); }
     .client-actions { display: flex; align-items: center; gap: 4px; }
     .todo-list { display: flex; flex-direction: column; gap: 8px; max-height: 200px; overflow-y: auto; }
@@ -6140,8 +6140,8 @@ export default {
         '<div class="client-card-actions">'+
           getFlagDotHtml(c) +
           getStatusToggleHtml(c) +
-          '<button class="export-single-btn" data-name="'+esc(c.name)+'" data-phone="'+esc(c.phone)+'" data-time="'+esc(c.time||'')+'" title="导出">出</button>'+
-          '<button class="edit-icon" data-name="'+esc(c.name)+'" data-phone="'+esc(c.phone)+'" data-time="'+esc(c.time||'')+'" title="编辑">编</button>'+
+          '<button class="export-single-btn" data-name="'+esc(c.name)+'" data-phone="'+esc(c.phone)+'" data-time="'+esc(c.time||'')+'" title="导出"><svg width="15" height="15" viewBox="0 0 17 17" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 12.5l7.5-7.5M5.5 5H12v6.5"/></svg></button>'+
+          '<button class="edit-icon" data-name="'+esc(c.name)+'" data-phone="'+esc(c.phone)+'" data-time="'+esc(c.time||'')+'" title="编辑"><svg width="15" height="15" viewBox="0 0 17 17" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path d="M11.5 3l2 2L6 13.5H3.5v-2.5L11.5 3z"/></svg></button>'+
           '<button class="del-icon" data-name="'+esc(c.name)+'" data-phone="'+esc(c.phone)+'" data-time="'+esc(c.time||'')+'" title="删除">×</button>'+
         '</div>'+
       '</div>';
@@ -6555,8 +6555,8 @@ export default {
             '<div class="client-card-actions">'+
               getFlagDotHtml(e) +
               getStatusToggleHtml(e) +
-              '<button class="export-timeline-single-btn" data-idx="'+e.idx+'" title="导出">出</button>'+
-              '<button class="edit-note-btn" title="编辑客户信息" data-idx="'+e.idx+'">编</button>'+
+              '<button class="export-timeline-single-btn" data-idx="'+e.idx+'" title="导出"><svg width="15" height="15" viewBox="0 0 17 17" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 12.5l7.5-7.5M5.5 5H12v6.5"/></svg></button>'+
+              '<button class="edit-note-btn" title="编辑客户信息" data-idx="'+e.idx+'"><svg width="15" height="15" viewBox="0 0 17 17" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path d="M11.5 3l2 2L6 13.5H3.5v-2.5L11.5 3z"/></svg></button>'+
               '<button class="delete-timeline-client-btn" title="删除客户" data-idx="'+e.idx+'">删</button>'+
             '</div>'+
           '</div>';
