@@ -73,7 +73,7 @@ function formatKeyQuestions(indices) {
   for (var i = 0; i < indices.length; i++) {
     var idx = indices[i];
     if (idx >= 0 && idx < EXPORT_KEY_QUESTIONS.length) {
-      parts.push((idx + 1) + '.' + EXPORT_KEY_QUESTIONS[idx]);
+      parts.push(EXPORT_KEY_QUESTIONS[idx]);
     }
   }
   return parts.length > 0 ? parts.join('；') : '';
@@ -5187,7 +5187,7 @@ export default {
     var parts=[];
     for(var i=0;i<indices.length;i++){
       var idx=indices[i];
-      if(idx>=0&&idx<KEY_QUESTIONS.length)parts.push('<span class="kq-tag">'+(idx+1)+'.'+esc(KEY_QUESTIONS[idx])+'</span>');
+      if(idx>=0&&idx<KEY_QUESTIONS.length)parts.push('<span class="kq-tag">'+esc(KEY_QUESTIONS[idx])+'</span>');
     }
     return parts.length>0?'<div class="kq-tags">'+parts.join('')+'</div>':'';
   }
