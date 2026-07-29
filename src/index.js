@@ -561,6 +561,29 @@ async function callAIChatWithTools(env, messages, temperature = 0.5, fromUser = 
                 }
                 resultData = { success: true, message: `逐条导出完成：共 ${allClients.length} 条，成功 ${sent} 条，失败 ${failed} 条。` };
               }
+            } else if (type === 'temp_clients') {
+              const list = body.tempClients || [];
+              const total = list.length;
+              const weekNames = ['日', '一', '二', '三', '四', '五', '六'];
+              const baseHeader = '### 临时登记全量表\n> 共计 **' + total + '** 人\n\n---\n\n';
+              const itemFormatter = (c) => {
+                const datePart = (c.date || '').slice(5);
+                const wk = c.date ? ' 周' + weekNames[new Date(c.date + 'T00:00:00').getDay()] : '';
+                let itemText = '> 姓名：' + c.name + '\n';
+                itemText += '> 日期: ' + datePart + wk + ' | 时间: ' + (c.time || '—') + '\n';
+                itemText += '> 电话: ' + (c.phone || '—') + '\n';
+                if (c.company) itemText += '> 单位: ' + c.company + '\n';
+                if (c.fund) itemText += '> 公积金: ' + c.fund + '\n';
+                if (c.note) itemText += '> 备注: ' + c.note.replace(/\n/g, ' ') + '\n';
+                itemText += '\n';
+                return itemText;
+              };
+              try {
+                await sendWebhookMarkdown(env, target, baseHeader, list, itemFormatter);
+                resultData = { success: true, message: '已成功导出全部共 ' + total + ' 位临时登记客户到企业微信。' };
+              } catch (e) {
+                resultData = { error: '导出失败: ' + e.message };
+              }
             } else if (type === 'week' || type === 'month') {
               const today = new Date();
               const dow = today.getDay();
@@ -4859,7 +4882,10 @@ export default {
   <div class="modal-card" id="tempFullModalCard" style="width:100vw;height:100vh;max-width:100vw;max-height:100vh;margin:0;border-radius:0;border:none;box-sizing:border-box;display:flex;flex-direction:column;">
     <div class="modal-header" style="flex-shrink:0;">
       <span>临时表 <span id="tempFullCount" style="font-size:0.7rem;color:var(--accent-wechat);font-weight:800;"></span></span>
-      <button id="closeTempFullModalBtn">×</button>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <button id="exportTempClientsBtn" style="font-size:0.72rem;padding:4px 12px;border-radius:var(--radius-xs);border:none;background:var(--accent-btn);color:#fff;font-weight:700;cursor:pointer;">导出</button>
+        <button id="closeTempFullModalBtn">×</button>
+      </div>
     </div>
     <div style="overflow:auto;flex:1;min-height:0;padding:0 4px;overscroll-behavior:contain;">
       <div class="temp-card-list" id="tempFullCardList"></div>
@@ -8797,6 +8823,21 @@ export default {
   // 临时登记全量表
   document.getElementById('allTempTableBtn').addEventListener('click',openTempFullTable);
   document.getElementById('closeTempFullModalBtn').addEventListener('click',closeTempFullTable);
+  // 导出临时表到企业微信
+  document.getElementById('exportTempClientsBtn').addEventListener('click',async function(){
+    var savedUrl = (localStorage.getItem('webhook_url') || '').trim();
+    if (!savedUrl) { alert('请先在主菜单 → 导出数据 中配置企业微信 Webhook URL'); return; }
+    var list = JSON.parse(localStorage.getItem(TEMP_CLIENTS_K) || '[]');
+    if (list.length === 0) { alert('没有可导出的临时登记客户'); return; }
+    this.disabled = true; this.textContent = '发送中...';
+    try {
+      var r = await fetch('/api/export', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'temp_clients', webhookUrl: savedUrl, tempClients: list }) });
+      var data = await r.json();
+      if (r.ok) { alert(data.message || '导出成功'); }
+      else { alert('导出失败: ' + (data.error || r.statusText)); }
+    } catch(e) { alert('请求失败: ' + e.message); }
+    this.disabled = false; this.textContent = '导出';
+  });
   // 点击遮罩关闭
   document.getElementById('tempFullModal').addEventListener('click',function(e){
     if(e.target===this) closeTempFullTable();
