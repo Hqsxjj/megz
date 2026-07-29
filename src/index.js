@@ -3745,6 +3745,9 @@ export default {
     .kq-check { display: flex; align-items: flex-start; gap: 4px; cursor: pointer; padding: 2px 0; color: var(--text-soft); line-height: 1.35; }
     .kq-check input { margin-top: 2px; flex-shrink: 0; accent-color: var(--accent-wechat); }
     body.dark-mode .kq-check { color: #bbb; }
+    .kq-tags { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 4px; }
+    .kq-tag { display: inline-block; font-size: 0.62rem; background: rgba(90,106,126,0.08); color: var(--text-soft); padding: 1px 6px; border-radius: 999px; white-space: nowrap; max-width: 180px; overflow: hidden; text-overflow: ellipsis; line-height: 1.5; }
+    body.dark-mode .kq-tag { background: rgba(255,255,255,0.06); }
     .input-simple, .todo-input { flex: 1; width: 100%; height: 38px; padding: 0 12px; font-size: 0.85rem; background: var(--btn-bg); border: 0.5px solid var(--card-border); border-radius: var(--radius-sm); color: var(--text-main); outline: none; min-width: 0; font-weight: 400; box-sizing: border-box; transition: all 0.2s; }
     .input-simple:focus, .todo-input:focus { border-color: var(--accent-wechat); box-shadow: 0 0 0 3px rgba(52,211,153,0.15); }
     input::placeholder, textarea::placeholder { font-weight: 400; opacity: 0.6; }
@@ -5179,6 +5182,15 @@ export default {
   const loadTodos=k=>{try{const d=JSON.parse(localStorage.getItem(k))||[];return d.map(t=>typeof t==='string'?{text:t,time:'',date:getTodayStr()}:t);}catch(e){return[];}};
   const saveTodos=(k,a)=>localStorage.setItem(k,JSON.stringify(a));
   const KEY_QUESTIONS=['你们利息多少?','能贷多少额度?','你们费用怎么收?','怎么办理，需要什么资料?','多久能放款呢?','能不能办?能办下来吗?','我的负债比较高了！','查询比较多?','你们是银行吗?还是中介机构的?','需要抵押吗','需要电核吗','线下我都不相信了，根本办不了线下','晚上非工作时间通过微信的','电话中情绪比较低落的','听完贷款说在开会的','听完贷款说让加微信的','加了微信隔几天通过的'];
+  function formatKqDisplay(indices){
+    if(!indices||!indices.length)return'';
+    var parts=[];
+    for(var i=0;i<indices.length;i++){
+      var idx=indices[i];
+      if(idx>=0&&idx<KEY_QUESTIONS.length)parts.push('<span class="kq-tag">'+(idx+1)+'.'+esc(KEY_QUESTIONS[idx])+'</span>');
+    }
+    return parts.length>0?'<div class="kq-tags">'+parts.join('')+'</div>':'';
+  }
   function renderKeyQuestionsHTML(prefix,selected){
     var h='<div class="kq-title">关键问题勾选</div><div class="kq-grid">';
     for(var i=0;i<KEY_QUESTIONS.length;i++){
@@ -7584,6 +7596,7 @@ export default {
             '<span class="client-card-label">信息</span>'+
             '<span class="client-card-text">'+esc([c.company||'',c.fund?'公积金:'+c.fund:''].filter(Boolean).join(' | '))+'</span>'+
           '</div>' : '')+
+          formatKqDisplay(c.keyQuestions)+
           '<div class="client-card-content-block">'+
             '<span class="client-card-label">回访备注</span>'+
             '<span class="client-card-text">'+esc(c.note||'')+'</span>'+
@@ -7719,6 +7732,7 @@ export default {
         '<div class="temp-card-row"><span class="temp-card-no" style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:var(--accent-wechat);color:#fff;font-size:0.62rem;font-weight:800;flex-shrink:0;">'+(list.length-i)+'</span><span class="temp-card-date">'+esc(c.date||'')+'</span><span class="temp-card-time">'+esc(c.time||'')+'</span></div>'+
         '<div class="temp-card-row"><span class="temp-card-name">'+esc(c.name)+'</span><span class="temp-card-phone"><a href="tel:'+esc(c.phone)+'">'+esc(c.phone)+'</a></span><div class="temp-card-actions"><button class="temp-tbl-export" data-idx="'+i+'" title="导出"><svg width="15" height="15" viewBox="0 0 17 17" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 12.5l7.5-7.5M5.5 5H12v6.5"/></svg></button><button class="temp-tbl-edit" data-key="'+esc(c.name)+'|'+esc(c.phone)+'" title="编辑"><svg width="15" height="15" viewBox="0 0 17 17" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path d="M11.5 3l2 2L6 13.5H3.5v-2.5L11.5 3z"/></svg></button><button class="temp-tbl-convert" data-idx="'+i+'" title="转为意向"><svg width="15" height="15" viewBox="0 0 17 17" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path d="M2 8.5h11M10 6l3 2.5-3 2.5"/></svg></button><button class="temp-tbl-del" data-idx="'+i+'" title="删除"><svg width="15" height="15" viewBox="0 0 17 17" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 4.5l8 8M12.5 4.5l-8 8"/></svg></button></div></div>'+
         ((c.company||c.fund) ? '<div class="temp-card-row" style="gap:4px;">'+(c.company?'<span class="client-card-tag client-card-tag-company" style="font-size:0.62rem;padding:1px 6px;">'+esc(c.company)+'</span>':'')+(c.fund?'<span class="client-card-tag client-card-tag-fund" style="font-size:0.62rem;padding:1px 6px;">'+esc(c.fund)+'</span>':'')+'</div>' : '')+
+        formatKqDisplay(c.keyQuestions)+
         '<div class="temp-card-row"><span class="temp-card-note">'+esc(c.note||'')+'</span></div>'+
         '<div style="border-top:1px solid var(--border-light);padding-top:4px;margin-top:2px;">'+
           '<div style="display:flex;justify-content:space-between;align-items:center;">'+
@@ -9244,6 +9258,7 @@ export default {
               '<span class="client-card-label">资金用途</span>' +
               '<span class="client-card-text">' + esc(c.fundUsage) + '</span>' +
             '</div>' : '') +
+          formatKqDisplay(c.keyQuestions) +
           (c.status === 'success' ?
             '<div class="client-card-content-block" style="border-left-color:#27ae60;">' +
               '<span class="client-card-label">办理成功</span>' +
