@@ -4610,7 +4610,8 @@ export default {
               <textarea class="input-simple note-textarea" id="custNote" placeholder="沟通记录 (必填)" rows="3"></textarea>
               <textarea class="input-simple note-textarea" id="custFollowUp" placeholder="跟进情况" rows="2"></textarea>
             </div>
-            <div id="keyQuestionsIntent"></div>
+            <div class="detail-toggle-wrap"><button type="button" class="detail-toggle-btn" id="kqToggleBtn"><span class="detail-toggle-icon">▶</span> 关键问题勾选</button></div>
+            <div class="detail-panel" id="kqPanel" style="display:none;"><div id="keyQuestionsIntent"></div></div>
             <button type="button" class="btn-add" id="addClientBtn">+ 添加</button>
                         <div class="client-scroll" id="clientList"></div>
           </div>
@@ -4625,7 +4626,8 @@ export default {
               <button type="button" id="boldBtn" title="加粗 (Alt+B)" style="height:28px;width:28px;font-weight:900;font-size:0.7rem;border:1px solid var(--card-border);background:var(--btn-bg);color:var(--text-main);cursor:pointer;border-radius:3px;padding:0;line-height:1;">B</button>
               <button type="button" id="delBtn" title="删除线 (Alt+D)" style="height:28px;width:28px;font-weight:700;font-size:0.6rem;border:1px solid var(--card-border);background:var(--btn-bg);color:var(--text-main);cursor:pointer;border-radius:3px;padding:0;line-height:1;text-decoration:line-through;">D</button>
             </div>
-            <div id="keyQuestionsTemp"></div>
+            <div class="detail-toggle-wrap"><button type="button" class="detail-toggle-btn" id="tkqToggleBtn"><span class="detail-toggle-icon">▶</span> 关键问题勾选</button></div>
+            <div class="detail-panel" id="tkqPanel" style="display:none;"><div id="keyQuestionsTemp"></div></div>
             <div style="display:flex;gap:4px;">
               <button class="btn-add" id="addTempCustBtn" style="background:var(--accent-btn);flex:1;">+ 登记</button>
               <button class="btn-add" id="cancelTempEditBtn" style="background:var(--btn-bg);color:var(--text-soft);display:none;padding:0 12px;font-size:0.72rem;">取消</button>
@@ -6283,6 +6285,10 @@ export default {
       var dRr=document.getElementById('custRejectReason'); if(dRr)dRr.value=c.rejectReason||'';
       showStatusConditionalFields(c.status||'');
       var kqEl=document.getElementById('keyQuestionsIntent'); if(kqEl)kqEl.innerHTML=renderKeyQuestionsHTML('kq_',c.keyQuestions||[]);
+      if(c.keyQuestions && c.keyQuestions.length>0){
+        var kqp=document.getElementById('kqPanel'); if(kqp)kqp.style.display='flex';
+        var kqBtn=document.getElementById('kqToggleBtn'); if(kqBtn)kqBtn.innerHTML='<span class="detail-toggle-icon open">▶</span> 收起关键问题勾选';
+      }
       // Auto-expand detail panel if any new field has a value
       var hasDetail = c.age||c.maritalStatus||c.isShenzhenHukou||c.socialSecurity||c.avgSalary||c.tax2yr||c.salaryBank||c.education||c.property||c.propertyType||c.propertyAddress||c.propertyArea||c.propertyMortgageBank||c.propertyMortgageAmount||c.propertyOther||c.bankDebt||c.creditCardDebt||c.query3m||c.onlineLoanCount||c.demand||c.fundUsage||c.visitTime||c.note||(c.followUps&&c.followUps.length>0)||c.followUp;
       var panel = document.getElementById('detailPanel');
@@ -7383,6 +7389,8 @@ export default {
     var stEl = document.getElementById('custStatus'); if (stEl) stEl.value = '';
     showStatusConditionalFields('');
     var kqEl=document.getElementById('keyQuestionsIntent'); if(kqEl)kqEl.innerHTML=renderKeyQuestionsHTML('kq_',[]);
+    var kqp=document.getElementById('kqPanel'); if(kqp)kqp.style.display='none';
+    var kqBtn=document.getElementById('kqToggleBtn'); if(kqBtn)kqBtn.innerHTML='<span class="detail-toggle-icon">▶</span> 关键问题勾选';
     renderClientList();refreshAll();
     // Sync: remove old entry first if editing, then add the new one
     if (oldEntry) {
@@ -7402,6 +7410,10 @@ export default {
     document.getElementById('tempCustFund').value=c.fund||'';
     document.getElementById('tempCustNote').value=c.note||'';
     var tkqEl=document.getElementById('keyQuestionsTemp'); if(tkqEl)tkqEl.innerHTML=renderKeyQuestionsHTML('tkq_',c.keyQuestions||[]);
+    if(c.keyQuestions && c.keyQuestions.length>0){
+      var tkqp=document.getElementById('tkqPanel'); if(tkqp)tkqp.style.display='flex';
+      var tkqBtn=document.getElementById('tkqToggleBtn'); if(tkqBtn)tkqBtn.innerHTML='<span class="detail-toggle-icon open">▶</span> 收起关键问题勾选';
+    }
     _tempEditIdx=idx;
     var btn=document.getElementById('addTempCustBtn');
     if(btn){ btn.textContent='✓ 更新'; btn.style.background='var(--accent-intent)'; }
@@ -7417,6 +7429,8 @@ export default {
     document.getElementById('tempCustFund').value='';
     document.getElementById('tempCustNote').value='';
     var tkqEl=document.getElementById('keyQuestionsTemp'); if(tkqEl)tkqEl.innerHTML=renderKeyQuestionsHTML('tkq_',[]);
+    var tkqp=document.getElementById('tkqPanel'); if(tkqp)tkqp.style.display='none';
+    var tkqBtn=document.getElementById('tkqToggleBtn'); if(tkqBtn)tkqBtn.innerHTML='<span class="detail-toggle-icon">▶</span> 关键问题勾选';
     var btn=document.getElementById('addTempCustBtn');
     if(btn){ btn.textContent='+ 登记'; btn.style.background='var(--accent-btn)'; }
     var cancelBtn=document.getElementById('cancelTempEditBtn');
@@ -8828,6 +8842,22 @@ export default {
       this.innerHTML = '<span class="detail-toggle-icon">▶</span> 详细资料';
     }
   });
+  // 关键问题勾选 — 展开/收起
+  function setupKqToggle(btnId, panelId, label){
+    document.getElementById(btnId).addEventListener('click', function(){
+      var panel=document.getElementById(panelId);
+      var icon=this.querySelector('.detail-toggle-icon');
+      if(panel.style.display==='none'){
+        panel.style.display='flex'; icon.classList.add('open');
+        this.innerHTML='<span class="detail-toggle-icon open">▶</span> 收起'+label;
+      }else{
+        panel.style.display='none'; icon.classList.remove('open');
+        this.innerHTML='<span class="detail-toggle-icon">▶</span> '+label;
+      }
+    });
+  }
+  setupKqToggle('kqToggleBtn','kqPanel','关键问题勾选');
+  setupKqToggle('tkqToggleBtn','tkqPanel','关键问题勾选');
 
   document.getElementById('addTodoBtn').addEventListener('click',addTodoItem);
   document.getElementById('todoInput').addEventListener('keypress',e=>{if(e.key==='Enter')addTodoItem();});
