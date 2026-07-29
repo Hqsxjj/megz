@@ -624,7 +624,7 @@ async function callAIChatWithTools(env, messages, temperature = 0.5, fromUser = 
 
               const keys = await getAllKVKeys(env, 'work:' + monthPrefix);
               const keyValues = await getKVValuesConcurrently(env, keys);
-              let weekW = 0, monthW = 0, weekI = 0, monthI = 0, weekR = 0, monthR = 0;
+              let weekW = 0, monthW = 0, weekI = 0, monthI = 0, weekR = 0, monthR = 0, weekT = 0, monthT = 0;
               const sorted = [];
               for (const kv of keyValues) {
                 if (!kv.val) continue;
@@ -634,10 +634,12 @@ async function callAIChatWithTools(env, messages, temperature = 0.5, fromUser = 
                   monthW += d.wechatCount || 0;
                   monthI += d.intentCount || 0;
                   monthR += d.revisitCount || 0;
+                  monthT += (d.tempClients || []).length;
                   if (d.date >= monStr && d.date <= todayStr) {
                     weekW += d.wechatCount || 0;
                     weekI += d.intentCount || 0;
                     weekR += d.revisitCount || 0;
+                    weekT += (d.tempClients || []).length;
                   }
                 } catch(e) {}
               }
@@ -651,13 +653,15 @@ async function callAIChatWithTools(env, messages, temperature = 0.5, fromUser = 
               const wTotal = type === 'week' ? weekW : monthW;
               const iTotal = type === 'week' ? weekI : monthI;
               const rTotal = type === 'week' ? weekR : monthR;
+              const tTotal = type === 'week' ? weekT : monthT;
 
               const baseHeader = '### ' + title + '\n' +
                 '> ' + dateRange + '\n\n' +
                 '<font color="info">新增微信：**' + wTotal + '**</font>\n' +
                 '<font color="warning">新增意向：**' + iTotal + '**</font>\n' +
                 '<font color="comment">客户回访：**' + rTotal + '**</font>\n' +
-                (type !== 'week' ? '\n> 本周参考: 微信 **' + weekW + '** | 意向 **' + weekI + '** | 回访 **' + weekR + '**\n' : '') +
+                '<font color="comment">临时登记：**' + tTotal + '** 人</font>\n' +
+                (type !== 'week' ? '\n> 本周参考: 微信 **' + weekW + '** | 意向 **' + weekI + '** | 回访 **' + weekR + '** | 临时 **' + weekT + '**\n' : '') +
                 '\n---\n\n';
 
               const activeDays = sorted.filter(d => {
@@ -3267,7 +3271,7 @@ export default {
 
       const keys = await getAllKVKeys(env, 'work:' + monthPrefix);
       const keyValues = await getKVValuesConcurrently(env, keys);
-      let weekW = 0, monthW = 0, weekI = 0, monthI = 0, weekR = 0, monthR = 0;
+      let weekW = 0, monthW = 0, weekI = 0, monthI = 0, weekR = 0, monthR = 0, weekT = 0, monthT = 0;
       const sorted = [];
       for (const kv of keyValues) {
         if (!kv.val) continue;
@@ -3277,10 +3281,12 @@ export default {
           monthW += d.wechatCount || 0;
           monthI += d.intentCount || 0;
           monthR += d.revisitCount || 0;
+          monthT += (d.tempClients || []).length;
           if (d.date >= monStr && d.date <= todayStr) {
             weekW += d.wechatCount || 0;
             weekI += d.intentCount || 0;
             weekR += d.revisitCount || 0;
+            weekT += (d.tempClients || []).length;
           }
         } catch(e) {}
       }
@@ -3294,13 +3300,15 @@ export default {
       const wTotal = type === 'week' ? weekW : monthW;
       const iTotal = type === 'week' ? weekI : monthI;
       const rTotal = type === 'week' ? weekR : monthR;
+      const tTotal = type === 'week' ? weekT : monthT;
 
       const baseHeader = '### ' + title + '\n' +
         '> ' + dateRange + '\n\n' +
         '<font color="info">新增微信：**' + wTotal + '**</font>\n' +
         '<font color="warning">新增意向：**' + iTotal + '**</font>\n' +
         '<font color="comment">客户回访：**' + rTotal + '**</font>\n' +
-        (type !== 'week' ? '\n> 本周参考: 微信 **' + weekW + '** | 意向 **' + weekI + '** | 回访 **' + weekR + '**\n' : '') +
+        '<font color="comment">临时登记：**' + tTotal + '** 人</font>\n' +
+        (type !== 'week' ? '\n> 本周参考: 微信 **' + weekW + '** | 意向 **' + weekI + '** | 回访 **' + weekR + '** | 临时 **' + weekT + '**\n' : '') +
         '\n---\n\n';
 
       const activeDays = sorted.filter(d => {
