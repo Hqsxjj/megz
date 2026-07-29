@@ -6,6 +6,20 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 "每日工作" (Daily Work) — a Cloudflare Worker that serves a single-page app for tracking daily work metrics: WeChat counts, intent counts, client registrations, and todo lists. The entire application (HTML, CSS, JS, and API routes) lives in one file: `src/index.js`.
 
+## 🍎 iOS 27 Design System — 永久开发标准
+
+**所有 UI 开发必须遵循 iOS 设计规范。** 完整细则见 `[[ios-design-standards]]` 记忆文件。
+
+核心要点速查：
+- **圆角**: 卡片 16px, 按钮/输入框 10px, 胶囊 999px
+- **边框**: 全局 0.5px hairline，禁用粗边框和 dashed 分隔线
+- **配色**: text `#1c1c1e` / `#3a3a3c` / `#5c5c60`（iOS 语义色），禁止纯黑纯白
+- **字体**: SF Pro 优先，字重 400/500/600/700 四级，禁用 Light/ExtraBold
+- **全局**: `letter-spacing: -0.01em`, `-webkit-font-smoothing: antialiased`
+- **触摸**: 独立按钮 ≥44px, 内联按钮 ≥32px
+- **图标**: SF Symbols 风格 SVG, 1.25px 圆头描边, currentColor
+- **阴影**: 用 `--shadow-card` 变量，不要硬编码
+
 ## ⛔ 全局规则：禁止添加图标 / emoji
 
 **无论任何时候、任何修改，严禁在 UI 中新增装饰性 emoji 或图标。** 包括但不限于：
