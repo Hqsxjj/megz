@@ -4149,6 +4149,7 @@ export default {
       transition: all 0.15s;
     }
     .status-toggle-btn:hover { opacity: 0.75; }
+    .status-toggle-btn svg, .client-card-actions-top .card-action-btn svg { display: block; }
     .status-toggle-btn.status-success {
       background: rgba(39,174,96,0.12);
       color: #27ae60;
@@ -5074,7 +5075,10 @@ export default {
     return html;
   }
   // Status helpers
-  const STATUS_LABELS = { 'success': '成', 'failed': '败' };
+  var SVG_UNMARKED = '<svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round"><circle cx="7.5" cy="7.5" r="5.75"/></svg>';
+  var SVG_SUCCESS = '<svg width="15" height="15" viewBox="0 0 15 15" fill="none"><circle cx="7.5" cy="7.5" r="6.5" fill="currentColor"/><path d="M5 7.5l2 2 3.5-4" stroke="#fff" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  var SVG_FAILED = '<svg width="15" height="15" viewBox="0 0 15 15" fill="none"><circle cx="7.5" cy="7.5" r="6.5" fill="currentColor"/><path d="M5.5 5.5l4 4M9.5 5.5l-4 4" stroke="#fff" stroke-width="1.25" stroke-linecap="round"/></svg>';
+  const STATUS_LABELS = { 'success': SVG_SUCCESS, 'failed': SVG_FAILED };
   const STATUS_CLASSES = { 'success': 'status-success', 'failed': 'status-failed' };
   const STATUS_BADGE_LABELS = { 'success': '已办理成功', 'failed': '未办理成功' };
   const STATUS_BADGE_CLASSES = { 'success': 'status-badge-success', 'failed': 'status-badge-failed' };
@@ -5083,7 +5087,7 @@ export default {
     return '<span class="client-card-status-badge ' + STATUS_BADGE_CLASSES[c.status] + '">' + STATUS_BADGE_LABELS[c.status] + '</span>';
   }
   function getStatusToggleHtml(c) {
-    var label = c.status ? STATUS_LABELS[c.status] : '标';
+    var label = c.status ? STATUS_LABELS[c.status] : SVG_UNMARKED;
     var cls = c.status ? 'status-toggle-btn ' + STATUS_CLASSES[c.status] : 'status-toggle-btn';
     return '<button class="' + cls + '" data-status="' + (c.status||'') + '">' + label + '</button>';
   }
@@ -9027,8 +9031,8 @@ export default {
         '<div class="client-card-actions-top">' +
           getFlagDotHtml(c) +
           getStatusToggleHtml(c) +
-          '<button class="all-edit-btn card-action-btn" data-date="' + esc(c.date) + '" data-name="' + esc(c.name) + '" data-phone="' + esc(c.phone) + '" data-time="' + esc(c.time || '') + '" title="编辑">编</button>' +
-          '<button class="all-export-btn card-action-btn" data-date="' + esc(c.date) + '" data-name="' + esc(c.name) + '" data-phone="' + esc(c.phone) + '" data-time="' + esc(c.time || '') + '" title="导出">出</button>' +
+          '<button class="all-edit-btn card-action-btn" data-date="' + esc(c.date) + '" data-name="' + esc(c.name) + '" data-phone="' + esc(c.phone) + '" data-time="' + esc(c.time || '') + '" title="编辑"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2.5l2 2L4.5 12H2v-2.5L10 2.5z"/></svg></button>' +
+          '<button class="all-export-btn card-action-btn" data-date="' + esc(c.date) + '" data-name="' + esc(c.name) + '" data-phone="' + esc(c.phone) + '" data-time="' + esc(c.time || '') + '" title="导出"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 10.5l7-7M4.5 4H10v5.5"/></svg></button>' +
         '</div>' +
       '</div>';
     });
