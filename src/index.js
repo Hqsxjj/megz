@@ -3504,9 +3504,9 @@ export default {
     .script-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: var(--btn-bg); border-radius: var(--radius-xs); border: 1px solid var(--card-border); font-size: 0.78rem; color: var(--text-main); font-weight: 700; }
     .script-item-text { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-right: 8px; }
     .app-shell { min-height: 100vh; width: 100%; display: flex; flex-direction: column; position: relative; z-index: 1; }
-    .container { flex: 1; display: flex; flex-direction: column; padding: 2px 14px 8px; padding-bottom: calc(8px + env(safe-area-inset-bottom)); }
-    .header-bar { display: flex; justify-content: space-between; align-items: center; gap: 6px; flex-shrink: 0; flex-wrap: wrap; margin-bottom: 8px; position: relative; }
-    h3 { font-size: 1.25rem; font-weight: 600; letter-spacing: -0.02em; color: var(--text-main); white-space: nowrap; }
+    .container { flex: 1; display: flex; flex-direction: column; padding: 2px 10px 8px; padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px)); max-width: 1400px; margin: 0 auto; width: 100%; }
+    .header-bar { display: flex; justify-content: space-between; align-items: center; gap: 6px; flex-shrink: 0; flex-wrap: wrap; margin-bottom: 6px; position: relative; }
+    h3 { font-size: 1.15rem; font-weight: 600; letter-spacing: -0.02em; color: var(--text-main); white-space: nowrap; }
 
     .date-chip { background: var(--card-bg); padding: 4px 12px; border-radius: var(--radius-capsule); font-size: 0.75rem; font-weight: 600; color: var(--text-soft); border: 0.5px solid var(--card-border); }
     .goal-chips { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
@@ -3733,111 +3733,97 @@ export default {
     .lb-close { position: absolute; top: 16px; right: 20px; z-index: 10001; background: rgba(255,255,255,0.12); border: none; color: #fff; font-size: 1.8rem; width: 40px; height: 40px; cursor: pointer; display: flex; align-items: center; justify-content: center; border-radius: 50%; transition: background 0.2s; line-height: 1; }
     .lb-close:hover { background: rgba(255,255,255,0.25); }
     .lb-counter { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); color: rgba(255,255,255,0.7); font-size: 0.85rem; z-index: 10001; font-weight: 600; }
-    @media (max-width: 760px) { .lb-nav { width: 36px; height: 56px; font-size: 2rem; } .lb-prev { left: 4px; } .lb-next { right: 4px; } .image-card { order: 999; } }
-    @media (min-width: 761px) {
-      .right-area { order: 2; } .left-area { order: 1; }
-      .card { padding: 14px 16px; }
-      .counter-card { padding: 16px 14px; }
-      .counter-label { font-size: 0.85rem; }
-      .counter-value { font-size: 3.2rem; font-weight: 700; }
-      .circle-btn { width: 42px; height: 42px; font-size: 1.5rem; }
-      .button-group { gap: 12px; margin-top: 14px; }
-      .reset-mini { font-size: 0.75rem; }
-      .client-scroll { max-height: 320px; }
-      .todo-list { max-height: 180px; }
-      .card-title { font-size: 0.85rem; margin-bottom: 8px; }
-      .input-simple, .todo-input { height: 34px; padding: 0 10px; font-size: 0.8rem; }
-      .btn-add, .todo-add-btn { height: 34px; padding: 0 14px; font-size: 0.8rem; }
-      .time-input-compact { flex: 0 0 84px !important; min-width: 84px !important; padding: 0 4px !important; }
-      .client-row { padding: 8px 12px; font-size: 0.8rem; }
-      .todo-item { padding: 6px 10px; font-size: 0.8rem; }
-      /* PC/desktop monthly calendar font size increases and bottom alignment */
-      .calendar-compact { flex: 1; display: flex; flex-direction: column; }
-      .cal-head { font-size: 0.95rem; margin-bottom: 12px; }
-      .cal-grid { flex: 1; align-content: space-around; }
-      .cal-weekday { font-size: 0.8rem; padding: 6px 0; }
-      .cal-day { font-size: 0.82rem; }
-      .day-number { font-size: 0.94rem; }
-      .day-badge { font-size: 0.6rem; margin-top: 4px; gap: 3px; }
-      .day-badge span { padding: 1px 3px; }
-    }
-    @media (min-width: 1024px) {
-      .right-area {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 16px;
-      }
-    }
+    /* ===== 响应式系统 ===== */
+    /* 手机 (<761px) — 单列布局 */
     @media (max-width: 760px) {
-      .timer-container { display: none !important; }
-      .timer-box { padding: 16px 20px; }
-      .timer-display { font-size: 2.5rem; }
-      .two-columns { flex-direction: column; gap: 20px; flex: none; }
+      .two-columns { flex-direction: column; gap: 16px; flex: none; }
       .left-area, .right-area { flex: none; width: 100%; }
       .right-area { order: 1; } .left-area { order: 2; }
-      .container { padding: 6px 10px 6px; }
-      .header-bar { margin-bottom: 6px; gap: 5px; }
-      h3 { font-size: 1.15rem; }
-      .modal-card { padding: 16px 14px; gap: 12px; }
-      .client-modal-list { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-      .pin-box { min-width: 280px; max-width: 88vw; padding: 24px 18px; gap: 12px; top: 50%; transform: translate(-50%, -50%); }
-      .pin-stats { gap: 8px; }
-      .pin-stat-item { padding: 10px 10px; min-width: 90px; gap: 4px; }
-      .pin-stat-label { font-size: 0.75rem; }
-      .pin-stat-value { font-size: 1.8rem; }
-      .pin-input { width: 182px; padding: 10px 17px; font-size: 1.26rem; }
-      .pin-btn { padding: 7px 18px; font-size: 0.85rem; }
-      .script-container { display: none !important; }
-      .learn-container { right: 8px; top: 60px; max-width: 52vw; max-height: 25vh; overflow-y: auto; }
-      .script-module { padding: 8px 12px; font-size: 0.72rem; text-align: left; font-weight: 600; line-height: 1.6; }
-      .learn-module { padding: 8px 12px; font-size: 0.7rem; }
-      
-      /* Mobile optimization additions */
-      .image-thumb { height: var(--thumb-h, 220px); }
-      .image-size-slider { width: 60px; }
-      .card { padding: 12px 14px; border-radius: 10px; }
+      .container { padding: 4px 8px 6px; padding-bottom: calc(6px + env(safe-area-inset-bottom, 0px)); }
+      .card { padding: 12px 12px; }
       .card-title { font-size: 0.82rem; margin-bottom: 6px; }
-      .counter-row { gap: 8px; }
+      .counter-row { gap: 8px; flex-wrap: wrap; }
       .counter-card { padding: 8px; }
       .counter-value { font-size: 1.6rem; }
-      .counter-header .circle-btn { width: 24px; height: 24px; font-size: 0.9rem; border-radius: 3px; }
-      .counter-header .button-group { gap: 4px; }
-      .counter-stats { font-size: 0.6rem; gap: 8px; }
-      .button-group { gap: 6px; margin-top: 6px; justify-content: center; }
-      .circle-btn { width: 30px; height: 30px; font-size: 1.1rem; border-radius: 6px; }
-      .reset-mini { padding: 2px 4px; font-size: 0.6rem; }
-      .stats-row { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
-      .stat-block { padding: 6px 2px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; }
-      .stat-block .label { font-size: 0.62rem; }
-      .stat-block .number { font-size: 1rem; margin-left: 0; }
-      .cal-day { aspect-ratio: auto; min-height: 38px; padding: 3px 1px; overflow: hidden; }
-      .cal-grid { gap: 2px; }
-      .day-badge { font-size: 0.38rem; gap: 1px; }
-      .day-number { font-size: 0.68rem; }
-      .todo-input-row { flex-wrap: wrap; gap: 8px; }
-      .todo-input { flex: 1 1 100%; }
-      .time-input-compact { flex: 1 !important; min-width: 0 !important; }
-      .todo-add-btn { flex: 1; }
-      .client-actions { flex-shrink: 0; }
+      .counter-label { font-size: 0.72rem; }
+      .circle-btn { width: 30px; height: 30px; font-size: 1.1rem; }
+      .button-group { gap: 6px; margin-top: 6px; }
+      .client-scroll { max-height: 280px; }
+      .header-bar { margin-bottom: 4px; gap: 4px; }
+      h3 { font-size: 1.15rem; }
       .icon-simple { min-width: 28px; height: 28px; font-size: 0.68rem; padding: 0 6px; }
-      #logBtn { height: 32px !important; padding: 0 8px !important; font-size: 0.72rem !important; }
-      .intent-table { font-size: 0.75rem; }
-      .intent-table th, .intent-table td { padding: 8px 6px; }
-      .tbl-note-cell { min-width: 200px; }
-
-      /* Mobile: 全量客户弹窗卡片适配 */
-      #allClientsModal .modal-card { max-height: 93vh !important; max-width: 100vw !important; margin-top: 7vh !important; border-radius: 16px 16px 0 0 !important; }
-      /* Mobile: 临时表底部抽屉 */
-      #tempFullModal .modal-card { max-height: 93vh !important; max-width: 100vw !important; margin-top: 7vh !important; border-radius: 16px 16px 0 0 !important; width: 100vw !important; }
-      #allClientsModal .modal-header { flex-wrap: wrap; gap: 6px; padding-bottom: 6px; font-size: 0.85rem; }
-      #allClientsModal .modal-header > div { flex-wrap: wrap; gap: 4px; }
-      #allClientsModal .modal-header > div > span { font-size: 0.85rem; }
-      #allClientsModal .modal-header .btn-add { font-size: 0.68rem !important; padding: 2px 8px !important; height: 26px !important; }
-      #allClientsModal .modal-header .search-input { width: 110px !important; height: 26px !important; font-size: 0.68rem !important; }
-      #allClientsModal .modal-header select { height: 26px !important; font-size: 0.65rem !important; padding: 0 2px !important; }
-      #allClientsModal #allClientsSortOrderBtn { height: 26px !important; width: 26px !important; font-size: 0.75rem !important; }
-      .all-client-card .card-action-btn { font-size: 0.7rem !important; padding: 4px 10px !important; }
+      .cal-day { min-height: 36px; font-size: 0.68rem; }
+      .day-number { font-size: 0.68rem; }
+      .script-container { display: none !important; }
+      .learn-container { right: 8px; top: 60px; max-width: 52vw; max-height: 25vh; overflow-y: auto; }
+      .timer-container { display: none !important; }
+      .image-card { order: 999; }
+      .lb-nav { width: 36px; height: 56px; font-size: 2rem; }
+      .lb-prev { left: 4px; } .lb-next { right: 4px; }
+      .pin-box { min-width: 280px; max-width: 88vw; padding: 24px 18px; gap: 12px; }
+      .pin-stat-item { padding: 10px 10px; min-width: 90px; }
+      .pin-stat-value { font-size: 1.8rem; }
+      .modal-card { padding: 16px 14px; gap: 12px; }
+      #allClientsModal .modal-card, #tempFullModal .modal-card { max-height: 93vh !important; max-width: 100vw !important; border-radius: 16px 16px 0 0 !important; }
+      #tempFullModal .modal-card { margin-top: 7vh !important; width: 100vw !important; }
     }
+
+    /* 平板 (≥761px) — 双栏 */
+    @media (min-width: 761px) {
+      .two-columns { flex-direction: row; gap: 16px; flex: 1; }
+      .left-area { flex: 1; order: 1; } .right-area { flex: 2; order: 2; }
+      .container { padding: 6px 16px 10px; }
+      .card { padding: 14px 16px; }
+      .card-title { font-size: 0.85rem; margin-bottom: 8px; }
+      .counter-card { padding: 14px 12px; }
+      .counter-value { font-size: 2.6rem; }
+      .circle-btn { width: 36px; height: 36px; font-size: 1.3rem; }
+      .button-group { gap: 10px; margin-top: 10px; }
+      .client-scroll { max-height: 340px; }
+      h3 { font-size: 1.25rem; }
+      .cal-day { min-height: 40px; font-size: 0.78rem; }
+      .day-number { font-size: 0.9rem; }
+      .script-container { display: flex !important; left: 12px; top: 64px; }
+      .learn-container { right: 12px; top: 64px; }
+      .timer-container { display: block !important; }
+      .image-card { order: initial; }
+      .pin-box { min-width: 360px; max-width: 480px; padding: 36px 44px; }
+      .pin-stat-item { min-width: 110px; }
+      .pin-stat-value { font-size: 2.2rem; }
+      .modal-card { padding: 20px 28px; gap: 16px; }
+      #allClientsModal .modal-card { max-height: 90vh !important; max-width: 98vw !important; border-radius: 16px !important; }
+      #tempFullModal .modal-card { max-height: 100vh !important; max-width: 100vw !important; border-radius: 0 !important; margin-top: 0 !important; }
+    }
+
+    /* 桌面 (≥1024px) — 右侧双列网格 */
+    @media (min-width: 1024px) {
+      .container { padding: 8px 24px 12px; }
+      .card { padding: 16px 20px; }
+      .counter-value { font-size: 3.2rem; }
+      .circle-btn { width: 42px; height: 42px; font-size: 1.5rem; }
+      .right-area { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+      .right-area > * { min-width: 0; }
+      .client-scroll { max-height: 380px; }
+      .icon-simple { min-width: 36px; height: 32px; font-size: 0.72rem; padding: 0 10px; }
+    }
+
+    /* 大屏 (≥1400px) — 居中容器 + 三列右区 */
+    @media (min-width: 1400px) {
+      .container { padding: 12px 36px 16px; }
+      .two-columns { gap: 24px; }
+      .left-area { flex: 1; max-width: 380px; }
+      .right-area { flex: 3; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+      .counter-value { font-size: 3.6rem; }
+      .client-scroll { max-height: 420px; }
+    }
+
+    /* iOS 安全区域适配 */
+    @supports (padding-bottom: env(safe-area-inset-bottom)) {
+      .container { padding-bottom: calc(8px + env(safe-area-inset-bottom)); }
+      @media (max-width: 760px) { .container { padding-bottom: calc(6px + env(safe-area-inset-bottom)); } }
+    }
+
+    /* Android 平台适配（详情见下方 Android 检测区块） */
     /* ===== 紧凑表格与待办行样式 ===== */
     .table-compact { width: 100%; border-collapse: collapse; font-size: 0.78rem; color: var(--text-main); text-align: left; }
     .table-compact th { padding: 4px 6px; font-weight: 700; color: var(--text-soft); border-bottom: 0.5px solid var(--card-border); font-size: 0.72rem; }
