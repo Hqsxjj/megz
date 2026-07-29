@@ -2651,7 +2651,9 @@ export default {
           data.tomorrowTodos = body.todos || [];
           break;
         case 'setTempClients':
-          data.tempClients = body.tempClients || [];
+          data.tempClients = (body.tempClients || []).filter(function(tc){ return tc.date === date; });
+          // Also persist full list to a dedicated cross-date KV key
+          await env.DATA_KV.put('temp_clients:all', JSON.stringify(body.tempClients || []));
           break;
         case 'pushTodoLog':
           if (body.todo) {
@@ -2896,6 +2898,18 @@ export default {
 
     // 获取全量临时登记客户
     if (path === '/api/all-temp-clients' && request.method === 'GET') {
+      // Read from dedicated cross-date KV key (preferred)
+      const masterRaw = await env.DATA_KV.get('temp_clients:all');
+      if (masterRaw) {
+        try {
+          const all = JSON.parse(masterRaw);
+          all.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+          return new Response(JSON.stringify(all), {
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
+        } catch(e) {}
+      }
+      // Fallback: aggregate from per-date entries (backward compat)
       const keys = await getAllKVKeys(env, 'work:');
       const keyValues = await getKVValuesConcurrently(env, keys);
       const allTempClients = [];
@@ -2907,7 +2921,6 @@ export default {
             if (d.tempClients) {
               d.tempClients.forEach(c => {
                 c.date = c.date || kv.name.replace('work:', '');
-                // Dedup by name|phone|date|time
                 const uniq = c.name + '|' + c.phone + '|' + c.date + '|' + (c.time||'');
                 if (!seen.has(uniq)) {
                   seen.add(uniq);
