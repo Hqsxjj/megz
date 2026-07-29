@@ -4294,6 +4294,7 @@ export default {
     .temp-card-note { color:var(--text-main); font-size:0.72rem; line-height:1.4; }
     .temp-card-actions { display:flex; gap:6px; margin-left:auto; flex-shrink:0; }
     .temp-card-actions button { background:none; border:1px solid var(--card-border); color:var(--text-soft); cursor:pointer; font-size:0.72rem; padding:2px 8px; border-radius:4px; font-weight:600; }
+    .temp-card-actions .temp-tbl-export { border-color:var(--accent-wechat); color:var(--accent-wechat); display:inline-flex; align-items:center; justify-content:center; }
     .temp-card-actions .temp-tbl-convert { border-color:var(--accent-intent); color:var(--accent-intent); }
     .temp-card-actions .temp-tbl-del { border-color:#e74c3c; color:#e74c3c; }
     .temp-full-table { display:none; }
@@ -7609,7 +7610,7 @@ export default {
       }
       cardHtml+='<div class="temp-card">'+
         '<div class="temp-card-row"><span class="temp-card-no" style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:var(--accent-wechat);color:#fff;font-size:0.62rem;font-weight:800;flex-shrink:0;">'+(list.length-i)+'</span><span class="temp-card-date">'+esc(c.date||'')+'</span><span class="temp-card-time">'+esc(c.time||'')+'</span></div>'+
-        '<div class="temp-card-row"><span class="temp-card-name">'+esc(c.name)+'</span><span class="temp-card-phone"><a href="tel:'+esc(c.phone)+'">'+esc(c.phone)+'</a></span><div class="temp-card-actions"><button class="temp-tbl-edit" data-key="'+esc(c.name)+'|'+esc(c.phone)+'">编</button><button class="temp-tbl-convert" data-idx="'+i+'">→</button><button class="temp-tbl-del" data-idx="'+i+'">✕</button></div></div>'+
+        '<div class="temp-card-row"><span class="temp-card-name">'+esc(c.name)+'</span><span class="temp-card-phone"><a href="tel:'+esc(c.phone)+'">'+esc(c.phone)+'</a></span><div class="temp-card-actions"><button class="temp-tbl-export" data-idx="'+i+'" title="导出"><svg width="14" height="14" viewBox="0 0 17 17" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 12.5l7.5-7.5M5.5 5H12v6.5"/></svg></button><button class="temp-tbl-edit" data-key="'+esc(c.name)+'|'+esc(c.phone)+'">编</button><button class="temp-tbl-convert" data-idx="'+i+'">→</button><button class="temp-tbl-del" data-idx="'+i+'">✕</button></div></div>'+
         ((c.company||c.fund) ? '<div class="temp-card-row" style="gap:4px;">'+(c.company?'<span class="client-card-tag client-card-tag-company" style="font-size:0.62rem;padding:1px 6px;">'+esc(c.company)+'</span>':'')+(c.fund?'<span class="client-card-tag client-card-tag-fund" style="font-size:0.62rem;padding:1px 6px;">'+esc(c.fund)+'</span>':'')+'</div>' : '')+
         '<div class="temp-card-row"><span class="temp-card-note">'+esc(c.note||'')+'</span></div>'+
         '<div style="border-top:1px solid var(--border-light);padding-top:4px;margin-top:2px;">'+
@@ -7632,6 +7633,27 @@ export default {
     var allDelBtns=cardList.querySelectorAll('.temp-tbl-del');
     var allEditBtns=cardList.querySelectorAll('.temp-tbl-edit');
     var allConvertBtns=cardList.querySelectorAll('.temp-tbl-convert');
+    var allExportBtns=cardList.querySelectorAll('.temp-tbl-export');
+    // 单独导出某个临时客户
+    allExportBtns.forEach(function(b){
+      b.onclick=async function(e){
+        e.stopPropagation();
+        var idx=parseInt(this.dataset.idx);
+        var a=JSON.parse(localStorage.getItem(TEMP_CLIENTS_K)||'[]');
+        a.sort(function(x,y){ return (y.date||'').localeCompare(x.date||'')||(y.time||'').localeCompare(x.time||''); });
+        if(idx<0||idx>=a.length) return;
+        var savedUrl=(localStorage.getItem('webhook_url')||'').trim();
+        if(!savedUrl){ alert('请先配置企业微信 Webhook URL'); return; }
+        this.disabled=true;
+        try{
+          var r=await fetch('/api/export',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:'temp_clients',webhookUrl:savedUrl,tempClients:[a[idx]]})});
+          var data=await r.json();
+          if(r.ok){ alert(data.message||'导出成功'); }
+          else{ alert('导出失败: '+(data.error||r.statusText)); }
+        }catch(e2){ alert('请求失败: '+e2.message); }
+        this.disabled=false;
+      };
+    });
     allDelBtns.forEach(function(b){
       b.onclick=async function(){
         var idx=parseInt(this.dataset.idx);
