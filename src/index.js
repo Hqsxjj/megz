@@ -4629,25 +4629,6 @@ export default {
                         <div class="client-scroll" id="clientList"></div>
           </div>
         </div>
-        <div class="card">
-          <div class="card-title" style="display:flex;align-items:center;">临时登记 (待晚回访) <button class="btn-add" id="allTempTableBtn" style="font-size:0.65rem;padding:2px 8px;margin-left:auto;">临时表</button></div>
-          <div class="register-block">
-            <div class="form-line"><input type="text" class="input-simple" id="tempCustName" placeholder="姓名" autocomplete="off" readonly onfocus="this.removeAttribute('readonly');"><input type="text" class="input-simple" id="tempCustPhone" placeholder="电话/联系方式" autocomplete="off" readonly onfocus="this.removeAttribute('readonly');"></div>
-            <div class="form-line"><input type="text" class="input-simple" id="tempCustCompany" placeholder="单位" autocomplete="off" readonly onfocus="this.removeAttribute('readonly');"><input type="text" class="input-simple" id="tempCustFund" placeholder="公积金基数" autocomplete="off" readonly onfocus="this.removeAttribute('readonly');"></div>
-            <div style="display:flex;gap:4px;align-items:center;">
-              <textarea class="input-simple note-textarea" id="tempCustNote" placeholder="回访备注/待聊内容" rows="2" style="flex:1;"></textarea>
-              <button type="button" id="boldBtn" title="加粗 (Alt+B)" style="height:28px;width:28px;font-weight:900;font-size:0.7rem;border:1px solid var(--card-border);background:var(--btn-bg);color:var(--text-main);cursor:pointer;border-radius:3px;padding:0;line-height:1;">B</button>
-              <button type="button" id="delBtn" title="删除线 (Alt+D)" style="height:28px;width:28px;font-weight:700;font-size:0.6rem;border:1px solid var(--card-border);background:var(--btn-bg);color:var(--text-main);cursor:pointer;border-radius:3px;padding:0;line-height:1;text-decoration:line-through;">D</button>
-            </div>
-            <div class="detail-toggle-wrap"><button type="button" class="detail-toggle-btn" id="tkqToggleBtn"><span class="detail-toggle-icon">▶</span> 关键问题勾选</button></div>
-            <div class="detail-panel" id="tkqPanel" style="display:none;"><div id="keyQuestionsTemp"></div></div>
-            <div style="display:flex;gap:4px;">
-              <button class="btn-add" id="addTempCustBtn" style="background:var(--accent-btn);flex:1;">+ 登记</button>
-              <button class="btn-add" id="cancelTempEditBtn" style="background:var(--btn-bg);color:var(--text-soft);display:none;padding:0 12px;font-size:0.72rem;">取消</button>
-            </div>
-            <div class="client-scroll" id="tempClientList"></div>
-          </div>
-        </div>
         <div class="card image-card">
           <div class="image-overlay">
             <div style="display:flex;align-items:center;gap:2px;pointer-events:auto;">
@@ -4668,6 +4649,25 @@ export default {
             <button class="lb-nav lb-next" id="lbNext" title="下一张">›</button>
             <button class="lb-close" id="lbClose" title="关闭">✕</button>
             <span class="lb-counter" id="lbCounter"></span>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title" style="display:flex;align-items:center;">临时登记 (待晚回访) <button class="btn-add" id="allTempTableBtn" style="font-size:0.65rem;padding:2px 8px;margin-left:auto;">临时表</button></div>
+          <div class="register-block">
+            <div class="form-line"><input type="text" class="input-simple" id="tempCustName" placeholder="姓名" autocomplete="off" readonly onfocus="this.removeAttribute('readonly');"><input type="text" class="input-simple" id="tempCustPhone" placeholder="电话/联系方式" autocomplete="off" readonly onfocus="this.removeAttribute('readonly');"></div>
+            <div class="form-line"><input type="text" class="input-simple" id="tempCustCompany" placeholder="单位" autocomplete="off" readonly onfocus="this.removeAttribute('readonly');"><input type="text" class="input-simple" id="tempCustFund" placeholder="公积金基数" autocomplete="off" readonly onfocus="this.removeAttribute('readonly');"></div>
+            <div style="display:flex;gap:4px;align-items:center;">
+              <textarea class="input-simple note-textarea" id="tempCustNote" placeholder="回访备注/待聊内容" rows="2" style="flex:1;"></textarea>
+              <button type="button" id="boldBtn" title="加粗 (Alt+B)" style="height:28px;width:28px;font-weight:900;font-size:0.7rem;border:1px solid var(--card-border);background:var(--btn-bg);color:var(--text-main);cursor:pointer;border-radius:3px;padding:0;line-height:1;">B</button>
+              <button type="button" id="delBtn" title="删除线 (Alt+D)" style="height:28px;width:28px;font-weight:700;font-size:0.6rem;border:1px solid var(--card-border);background:var(--btn-bg);color:var(--text-main);cursor:pointer;border-radius:3px;padding:0;line-height:1;text-decoration:line-through;">D</button>
+            </div>
+            <div class="detail-toggle-wrap"><button type="button" class="detail-toggle-btn" id="tkqToggleBtn"><span class="detail-toggle-icon">▶</span> 关键问题勾选</button></div>
+            <div class="detail-panel" id="tkqPanel" style="display:none;"><div id="keyQuestionsTemp"></div></div>
+            <div style="display:flex;gap:4px;">
+              <button class="btn-add" id="addTempCustBtn" style="background:var(--accent-btn);flex:1;">+ 登记</button>
+              <button class="btn-add" id="cancelTempEditBtn" style="background:var(--btn-bg);color:var(--text-soft);display:none;padding:0 12px;font-size:0.72rem;">取消</button>
+            </div>
+            <div class="client-scroll" id="tempClientList"></div>
           </div>
         </div>
         <div class="card">
