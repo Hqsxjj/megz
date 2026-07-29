@@ -4609,9 +4609,8 @@ export default {
               <textarea class="input-simple note-textarea" id="custFundUsage" placeholder="资金用途和时间" rows="2"></textarea>
               <textarea class="input-simple note-textarea" id="custNote" placeholder="沟通记录 (必填)" rows="3"></textarea>
               <textarea class="input-simple note-textarea" id="custFollowUp" placeholder="跟进情况" rows="2"></textarea>
+              <div id="keyQuestionsIntent"></div>
             </div>
-            <div class="detail-toggle-wrap"><button type="button" class="detail-toggle-btn" id="kqToggleBtn"><span class="detail-toggle-icon">▶</span> 关键问题勾选</button></div>
-            <div class="detail-panel" id="kqPanel" style="display:none;"><div id="keyQuestionsIntent"></div></div>
             <button type="button" class="btn-add" id="addClientBtn">+ 添加</button>
                         <div class="client-scroll" id="clientList"></div>
           </div>
@@ -6285,12 +6284,8 @@ export default {
       var dRr=document.getElementById('custRejectReason'); if(dRr)dRr.value=c.rejectReason||'';
       showStatusConditionalFields(c.status||'');
       var kqEl=document.getElementById('keyQuestionsIntent'); if(kqEl)kqEl.innerHTML=renderKeyQuestionsHTML('kq_',c.keyQuestions||[]);
-      if(c.keyQuestions && c.keyQuestions.length>0){
-        var kqp=document.getElementById('kqPanel'); if(kqp)kqp.style.display='flex';
-        var kqBtn=document.getElementById('kqToggleBtn'); if(kqBtn)kqBtn.innerHTML='<span class="detail-toggle-icon open">▶</span> 收起关键问题勾选';
-      }
       // Auto-expand detail panel if any new field has a value
-      var hasDetail = c.age||c.maritalStatus||c.isShenzhenHukou||c.socialSecurity||c.avgSalary||c.tax2yr||c.salaryBank||c.education||c.property||c.propertyType||c.propertyAddress||c.propertyArea||c.propertyMortgageBank||c.propertyMortgageAmount||c.propertyOther||c.bankDebt||c.creditCardDebt||c.query3m||c.onlineLoanCount||c.demand||c.fundUsage||c.visitTime||c.note||(c.followUps&&c.followUps.length>0)||c.followUp;
+      var hasDetail = c.age||c.maritalStatus||c.isShenzhenHukou||c.socialSecurity||c.avgSalary||c.tax2yr||c.salaryBank||c.education||c.property||c.propertyType||c.propertyAddress||c.propertyArea||c.propertyMortgageBank||c.propertyMortgageAmount||c.propertyOther||c.bankDebt||c.creditCardDebt||c.query3m||c.onlineLoanCount||c.demand||c.fundUsage||c.visitTime||c.note||(c.followUps&&c.followUps.length>0)||c.followUp||(c.keyQuestions&&c.keyQuestions.length>0);
       var panel = document.getElementById('detailPanel');
       var toggleBtn = document.getElementById('detailToggleBtn');
       if (hasDetail && panel && panel.style.display === 'none') {
@@ -7389,8 +7384,6 @@ export default {
     var stEl = document.getElementById('custStatus'); if (stEl) stEl.value = '';
     showStatusConditionalFields('');
     var kqEl=document.getElementById('keyQuestionsIntent'); if(kqEl)kqEl.innerHTML=renderKeyQuestionsHTML('kq_',[]);
-    var kqp=document.getElementById('kqPanel'); if(kqp)kqp.style.display='none';
-    var kqBtn=document.getElementById('kqToggleBtn'); if(kqBtn)kqBtn.innerHTML='<span class="detail-toggle-icon">▶</span> 关键问题勾选';
     renderClientList();refreshAll();
     // Sync: remove old entry first if editing, then add the new one
     if (oldEntry) {
@@ -8842,7 +8835,7 @@ export default {
       this.innerHTML = '<span class="detail-toggle-icon">▶</span> 详细资料';
     }
   });
-  // 关键问题勾选 — 展开/收起
+  // 关键问题勾选 — 展开/收起（仅临时登记）
   function setupKqToggle(btnId, panelId, label){
     document.getElementById(btnId).addEventListener('click', function(){
       var panel=document.getElementById(panelId);
@@ -8856,7 +8849,6 @@ export default {
       }
     });
   }
-  setupKqToggle('kqToggleBtn','kqPanel','关键问题勾选');
   setupKqToggle('tkqToggleBtn','tkqPanel','关键问题勾选');
 
   document.getElementById('addTodoBtn').addEventListener('click',addTodoItem);
