@@ -7499,9 +7499,11 @@ export default {
     var keyQuestions=getKeyQuestionsFromForm('tkq_');
     const newClient={name:n,phone:p,company:co,fund:fu,note:nt,date:today,time:time,keyQuestions:keyQuestions};
     if(_tempEditIdx>=0&&_tempEditIdx<list.length){
-      // 编辑模式：保留原日期时间
-      newClient.date=list[_tempEditIdx].date;
-      newClient.time=list[_tempEditIdx].time;
+      // 编辑模式：保留原日期时间、跟进记录
+      var old=list[_tempEditIdx];
+      newClient.date=old.date;
+      newClient.time=old.time;
+      if(old.followUps) newClient.followUps=old.followUps;
       list[_tempEditIdx]=newClient;
     } else {
       list.push(newClient);
