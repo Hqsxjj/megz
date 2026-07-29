@@ -569,12 +569,18 @@ async function callAIChatWithTools(env, messages, temperature = 0.5, fromUser = 
               const itemFormatter = (c) => {
                 const datePart = (c.date || '').slice(5);
                 const wk = c.date ? ' 周' + weekNames[new Date(c.date + 'T00:00:00').getDay()] : '';
-                let itemText = '> 姓名：' + c.name + '\n';
-                itemText += '> 日期: ' + datePart + wk + ' | 时间: ' + (c.time || '—') + '\n';
-                itemText += '> 电话: ' + (c.phone || '—') + '\n';
-                if (c.company) itemText += '> 单位: ' + c.company + '\n';
-                if (c.fund) itemText += '> 公积金: ' + c.fund + '\n';
-                if (c.note) itemText += '> 备注: ' + c.note.replace(/\n/g, ' ') + '\n';
+                let itemText = '> 客户姓名：' + c.name + '\n';
+                itemText += '> 日期：' + datePart + wk + ' | 时间：' + (c.time || '') + '\n';
+                itemText += '> 电话：' + (c.phone || '') + '\n';
+                itemText += '> 单位名称：' + (c.company || '') + '\n';
+                itemText += '> 公积金：' + (c.fund || '') + '\n';
+                itemText += '> 沟通内容：' + (c.note || '').replace(/\n/g, ' ') + '\n';
+                if (c.followUps && c.followUps.length > 0) {
+                  itemText += '> 跟进记录：\n';
+                  c.followUps.forEach(function(fu) {
+                    itemText += '>   [' + (fu.date || '') + ' ' + (fu.time || '') + '] ' + (fu.content || '').replace(/\n/g, ' ') + '\n';
+                  });
+                }
                 itemText += '\n';
                 return itemText;
               };
