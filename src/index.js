@@ -65,6 +65,20 @@ async function sendMarkdownMessage(env, target, content) {
   }
 }
 
+// 关键问题列表（导出用，与客户端 KEY_QUESTIONS 保持同步）
+const EXPORT_KEY_QUESTIONS = ['你们利息多少?','能贷多少额度?','你们费用怎么收?','怎么办理，需要什么资料?','多久能放款呢?','能不能办?能办下来吗?','我的负债比较高了！','查询比较多?','你们是银行吗?还是中介机构的?','需要抵押吗','需要电核吗','线下我都不相信了，根本办不了线下','晚上非工作时间通过微信的','电话中情绪比较低落的','听完贷款说在开会的','听完贷款说让加微信的','加了微信隔几天通过'];
+function formatKeyQuestions(indices) {
+  if (!indices || !indices.length) return '';
+  var parts = [];
+  for (var i = 0; i < indices.length; i++) {
+    var idx = indices[i];
+    if (idx >= 0 && idx < EXPORT_KEY_QUESTIONS.length) {
+      parts.push((idx + 1) + '.' + EXPORT_KEY_QUESTIONS[idx]);
+    }
+  }
+  return parts.length > 0 ? parts.join('；') : '';
+}
+
 async function sendWebhookMarkdown(env, target, baseHeader, items, itemFormatter) {
   const enc = new TextEncoder();
   let currentText = baseHeader;
@@ -435,6 +449,8 @@ async function callAIChatWithTools(env, messages, temperature = 0.5, fromUser = 
                   if (detailParts.length > 0) text += '> ' + detailParts.join(' | ') + '\n';
                   if (client.demand) text += '> 需求: ' + client.demand.replace(/\n/g, ' ') + '\n';
                   if (client.fundUsage) text += '> 资金用途: ' + client.fundUsage.replace(/\n/g, ' ') + '\n';
+                  var kqAi = formatKeyQuestions(client.keyQuestions);
+                  if (kqAi) text += '> 关键问题：' + kqAi + '\n';
 
                   try {
                     await sendMarkdownMessage(env, target, text);
@@ -498,6 +514,8 @@ async function callAIChatWithTools(env, messages, temperature = 0.5, fromUser = 
                   if (dp.length > 0) itemText += '> ' + dp.join(' | ') + '\n';
                   if (c.demand) itemText += '> 需求: ' + c.demand.replace(/\n/g, ' ') + '\n';
                   if (c.fundUsage) itemText += '> 资金用途: ' + c.fundUsage.replace(/\n/g, ' ') + '\n';
+                  var kqAiBulk = formatKeyQuestions(c.keyQuestions);
+                  if (kqAiBulk) itemText += '> 关键问题：' + kqAiBulk + '\n';
                   itemText += '\n';
                   return itemText;
                 };
@@ -542,6 +560,8 @@ async function callAIChatWithTools(env, messages, temperature = 0.5, fromUser = 
                   if (dp2.length > 0) text += '> ' + dp2.join(' | ') + '\n';
                   if (c.demand) text += '> 需求: ' + c.demand.replace(/\n/g, ' ') + '\n';
                   if (c.fundUsage) text += '> 资金用途: ' + c.fundUsage.replace(/\n/g, ' ') + '\n';
+                  var kqAiSolo = formatKeyQuestions(c.keyQuestions);
+                  if (kqAiSolo) text += '> 关键问题：' + kqAiSolo + '\n';
                   return text;
                 };
 
@@ -581,6 +601,8 @@ async function callAIChatWithTools(env, messages, temperature = 0.5, fromUser = 
                     itemText += '>   [' + (fu.date || '') + ' ' + (fu.time || '') + '] ' + (fu.content || '').replace(/\n/g, ' ') + '\n';
                   });
                 }
+                var kqTc = formatKeyQuestions(c.keyQuestions);
+                if (kqTc) itemText += '> 关键问题：' + kqTc + '\n';
                 itemText += '\n';
                 return itemText;
               };
@@ -3014,6 +3036,8 @@ export default {
           text += '> 跟进情况：' + client.followUp.replace(/\n/g, ' ') + '\n';
         }
         if (client.status) text += '> 状态：' + (client.status==='success'?'已办理成功':'未办理成功') + '\n';
+        var kqText = formatKeyQuestions(client.keyQuestions);
+        if (kqText) text += '> 关键问题：' + kqText + '\n';
 
         try {
           await sendMarkdownMessage(env, target, text);
@@ -3053,6 +3077,8 @@ export default {
             text += '>   [' + (fu.date || '') + ' ' + (fu.time || '') + '] ' + (fu.content || '').replace(/\n/g, ' ') + '\n';
           });
         }
+        var kqText2 = formatKeyQuestions(client.keyQuestions);
+        if (kqText2) text += '> 关键问题：' + kqText2 + '\n';
 
         try {
           await sendMarkdownMessage(env, target, text);
@@ -3129,6 +3155,8 @@ export default {
             itemText += '> 跟进情况：' + c.followUp.replace(/\n/g, ' ') + '\n';
           }
           if (c.status) itemText += '> 状态：' + (c.status==='success'?'已办理成功':'未办理成功') + '\n';
+          var kqBulk = formatKeyQuestions(c.keyQuestions);
+          if (kqBulk) itemText += '> 关键问题：' + kqBulk + '\n';
           itemText += '\n';
           return itemText;
         };
@@ -6738,7 +6766,10 @@ export default {
                   query3m:ti.query3m,
                   onlineLoanCount:ti.onlineLoanCount,
                   demand:ti.demand,
-                  fundUsage:ti.fundUsage
+                  fundUsage:ti.fundUsage,
+                  keyQuestions:ti.keyQuestions,
+                  followUps:ti.followUps,
+                  status:ti.status
                 }
               })
             });
