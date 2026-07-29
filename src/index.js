@@ -6138,7 +6138,6 @@ export default {
             '</div>' : '')+
         '</div>'+
         '<div class="client-card-actions">'+
-          getFlagDotHtml(c) +
           getStatusToggleHtml(c) +
           '<button class="export-single-btn" data-name="'+esc(c.name)+'" data-phone="'+esc(c.phone)+'" data-time="'+esc(c.time||'')+'" title="导出"><svg width="15" height="15" viewBox="0 0 17 17" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 12.5l7.5-7.5M5.5 5H12v6.5"/></svg></button>'+
           '<button class="edit-icon" data-name="'+esc(c.name)+'" data-phone="'+esc(c.phone)+'" data-time="'+esc(c.time||'')+'" title="编辑"><svg width="15" height="15" viewBox="0 0 17 17" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path d="M11.5 3l2 2L6 13.5H3.5v-2.5L11.5 3z"/></svg></button>'+
@@ -6553,7 +6552,6 @@ export default {
                 '</div>' : '')+
             '</div>'+
             '<div class="client-card-actions">'+
-              getFlagDotHtml(e) +
               getStatusToggleHtml(e) +
               '<button class="export-timeline-single-btn" data-idx="'+e.idx+'" title="导出"><svg width="15" height="15" viewBox="0 0 17 17" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 12.5l7.5-7.5M5.5 5H12v6.5"/></svg></button>'+
               '<button class="edit-note-btn" title="编辑客户信息" data-idx="'+e.idx+'"><svg width="15" height="15" viewBox="0 0 17 17" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path d="M11.5 3l2 2L6 13.5H3.5v-2.5L11.5 3z"/></svg></button>'+
