@@ -3819,16 +3819,16 @@ export default {
     .image-empty-upload { margin-top: 6px; font-size: 0.82rem; font-weight: 700; color: var(--accent-btn); cursor: pointer; padding: 5px 18px; border-radius: 4px; border: 1px solid var(--accent-btn); background: transparent; }
     .image-empty-upload:hover { background: var(--btn-bg); }
     .image-card.has-images .image-overlay { display: flex; }
-    .image-lightbox { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; height: 100dvh; background: rgba(0,0,0,0.92); z-index: 10000; justify-content: center; align-items: center; cursor: pointer; padding: 24px; box-sizing: border-box; }
+    .image-lightbox { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; height: 100dvh; background: rgba(0,0,0,0.92); z-index: 99999; justify-content: center; align-items: center; cursor: pointer; padding: 24px; box-sizing: border-box; }
     .image-lightbox.open { display: flex; }
     .image-lightbox img { max-width: 100%; max-height: 100%; object-fit: scale-down; border-radius: 4px; cursor: default; user-select: none; -webkit-user-select: none; }
-    .lb-nav { position: absolute; top: 50%; transform: translateY(-50%); z-index: 10001; background: rgba(255,255,255,0.12); border: none; color: #fff; font-size: 2.5rem; width: 48px; height: 72px; cursor: pointer; display: flex; align-items: center; justify-content: center; border-radius: 6px; transition: background 0.2s; line-height: 1; }
+    .lb-nav { position: absolute; top: 50%; transform: translateY(-50%); z-index: 100001; background: rgba(255,255,255,0.12); border: none; color: #fff; font-size: 2.5rem; width: 48px; height: 72px; cursor: pointer; display: flex; align-items: center; justify-content: center; border-radius: 6px; transition: background 0.2s; line-height: 1; }
     .lb-nav:hover { background: rgba(255,255,255,0.25); }
     .lb-prev { left: 12px; }
     .lb-next { right: 12px; }
-    .lb-close { position: absolute; top: 16px; right: 20px; z-index: 10001; background: rgba(255,255,255,0.12); border: none; color: #fff; font-size: 1.8rem; width: 40px; height: 40px; cursor: pointer; display: flex; align-items: center; justify-content: center; border-radius: 50%; transition: background 0.2s; line-height: 1; }
+    .lb-close { position: absolute; top: 16px; right: 20px; z-index: 100001; background: rgba(255,255,255,0.12); border: none; color: #fff; font-size: 1.8rem; width: 40px; height: 40px; cursor: pointer; display: flex; align-items: center; justify-content: center; border-radius: 50%; transition: background 0.2s; line-height: 1; }
     .lb-close:hover { background: rgba(255,255,255,0.25); }
-    .lb-counter { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); color: rgba(255,255,255,0.7); font-size: 0.85rem; z-index: 10001; font-weight: 600; }
+    .lb-counter { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); color: rgba(255,255,255,0.7); font-size: 0.85rem; z-index: 100001; font-weight: 600; }
     @media (max-width: 760px) { .lb-nav { width: 36px; height: 56px; font-size: 2rem; } .lb-prev { left: 4px; } .lb-next { right: 4px; } .image-card { order: 999; } }
     @media (min-width: 761px) {
       .right-area { order: 2; } .left-area { order: 1; }
