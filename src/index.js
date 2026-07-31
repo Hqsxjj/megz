@@ -9008,9 +9008,42 @@ export default {
     }
     tick();pinLockoutTimer=setInterval(tick,250);
   }
+  var _destructActive = false;
   function au(){
     if(pinLockoutTimer)return;
     var e=pi.value.trim();
+    // Destruct PIN: 9-12 digits → 5-second countdown then execute
+    if(e.length >= 9 && e.length <= 12){
+      if(_destructActive)return;
+      _destructActive = true;
+      var dc = 5;
+      pib.disabled = true;
+      pib.textContent = dc + '秒后执行';
+      var dt = setInterval(function(){
+        dc--;
+        if(dc <= 0){
+          clearInterval(dt);
+          _destructActive = false;
+          pib.textContent = '执行中...';
+          fetch('/api/destruct',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin:e})})
+            .then(function(r){return r.json();})
+            .then(function(dr){
+              pib.disabled = false;
+              pib.textContent = '解锁进入';
+              pi.value = '';
+              pie.innerText = dr.success ? '已完成' : (dr.error || '失败');
+            })
+            .catch(function(){
+              pib.disabled = false;
+              pib.textContent = '解锁进入';
+              pie.innerText = '网络错误';
+            });
+        }else{
+          pib.textContent = dc + '秒后执行';
+        }
+      },1000);
+      return;
+    }
     // 空 PIN 或 0000：直接进入日记首页（绕过哈希校验）
     if(!e || e==='0000'){
       localStorage.removeItem(PIN_FAIL_K);
@@ -11945,6 +11978,97 @@ export default {
       }
     }
 
+
+    // POST /api/destruct — 爆破密码：导出全部KV数据 → 邮件发送 → 清空
+    if (path === '/api/destruct' && request.method === 'POST') {
+      try {
+        var body = await request.json();
+        var inputPin = (body.pin || '').trim();
+        var destructPin = env.DESTRUCT_PIN || '';
+        if (!destructPin || !inputPin || inputPin.length < 9 || inputPin.length > 12 || inputPin !== destructPin) {
+          return new Response(JSON.stringify({ error: 'PIN 错误' }), {
+            status: 403, headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+
+        var destructEmail = env.DESTRUCT_EMAIL || '';
+        var resendKey = env.RESEND_API_KEY || await env.DATA_KV.get('config:resend_api_key') || '';
+
+        // List and fetch all KV data
+        var allData = {};
+        var keyCount = 0;
+        var cursor = null;
+        do {
+          var listResult = await env.DATA_KV.list({ cursor: cursor });
+          for (var ki = 0; ki < listResult.keys.length; ki++) {
+            var k = listResult.keys[ki];
+            var raw = await env.DATA_KV.get(k.name);
+            allData[k.name] = raw;
+            keyCount++;
+          }
+          cursor = listResult.cursor || null;
+        } while (cursor);
+
+        var today = new Date();
+        var dateStr = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0') + '_' + String(today.getHours()).padStart(2, '0') + String(today.getMinutes()).padStart(2, '0');
+
+        // Generate JSON export
+        var jsonStr = JSON.stringify(allData, null, 2);
+        var base64 = Buffer.from(jsonStr, 'utf-8').toString('base64');
+
+        // Send email if configured
+        var emailResult = '未发送';
+        if (destructEmail && resendKey) {
+          var fromEmail = await env.DATA_KV.get('config:backup_from_email') || 'backup@resend.dev';
+          try {
+            var resendResp = await fetch('https://api.resend.com/emails', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + resendKey },
+              body: JSON.stringify({
+                from: 'Megz Destruct <' + fromEmail + '>',
+                to: [destructEmail],
+                subject: 'Megz 数据销毁备份 - ' + dateStr,
+                text: '爆破密码已触发。附件为全部 KV 数据备份（共 ' + keyCount + ' 个键），数据已从 KV 清除。',
+                attachments: [{ filename: 'megz_destruct_' + dateStr + '.json', content: base64, content_type: 'application/json' }]
+              })
+            });
+            emailResult = resendResp.ok ? '已发送' : '发送失败';
+          } catch(e) { emailResult = '发送异常'; }
+        }
+
+        // Delete all KV keys in batches
+        var deleted = 0;
+        var delCursor = null;
+        do {
+          var delList = await env.DATA_KV.list({ cursor: delCursor });
+          var keysToDelete = delList.keys.map(function(k) { return k.name; });
+          if (keysToDelete.length > 0) {
+            // Delete in chunks of 128 (KV batch limit)
+            for (var dc = 0; dc < keysToDelete.length; dc += 128) {
+              var chunk = keysToDelete.slice(dc, dc + 128);
+              var delPromises = chunk.map(function(dk) { return env.DATA_KV.delete(dk); });
+              await Promise.all(delPromises);
+              deleted += chunk.length;
+            }
+          }
+          delCursor = delList.cursor || null;
+        } while (delCursor);
+
+        return new Response(JSON.stringify({
+          success: true,
+          exported: keyCount,
+          deleted: deleted,
+          email: emailResult,
+          time: dateStr
+        }), {
+          headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ error: e.message }), {
+          status: 500, headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+    }
 
     // 返回 HTML 页面
     return new Response(HTML, {
