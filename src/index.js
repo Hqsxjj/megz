@@ -3929,7 +3929,7 @@ export default {
       .temp-card-row { gap: 6px; font-size: 0.7rem; }
       .temp-card-name { font-size: 0.78rem; }
       /* Image card */
-      .image-thumb { height: 180px; }
+      .image-thumb { width: 180px; height: 180px; }
       .image-scroll { gap: 6px; }
     }
     @media (max-width: 760px) {
@@ -3957,7 +3957,7 @@ export default {
       .learn-module { padding: 8px 12px; font-size: 0.7rem; }
       
       /* Mobile optimization additions */
-      .image-thumb { height: var(--thumb-h, 220px); }
+      .image-thumb { width: var(--thumb-h, 220px); height: var(--thumb-h, 220px); }
       .image-size-slider { width: 60px; }
       .card { padding: 12px 14px; border-radius: 10px; }
       .card-title { font-size: 0.82rem; margin-bottom: 6px; }
