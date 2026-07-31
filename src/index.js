@@ -8985,11 +8985,29 @@ export default {
       enablePinInputs();
     };
     var tsDiv=document.getElementById('turnstileWidget');
-    if(tsDiv&&typeof turnstile!=='undefined'){
-      turnstile.render(tsDiv,{sitekey:'0x4AAAAAAECnjVwNlyMwf-l8',callback:'_turnstileCB',theme:'auto'});
-    }else if(tsDiv){
-      // Fallback: if Turnstile script fails to load, enable after timeout
-      setTimeout(function(){if(!_turnstileVerified)enablePinInputs();},3000);
+    function tryRenderTurnstile(){
+      if(typeof turnstile!=='undefined'){
+        turnstile.render(tsDiv,{sitekey:'0x4AAAAAAECnjVwNlyMwf-l8',callback:'_turnstileCB',theme:'auto'});
+      }
+    }
+    if(tsDiv){
+      tryRenderTurnstile();
+      // Retry: Turnstile script may not have loaded yet (async defer)
+      if(typeof turnstile==='undefined'){
+        var retryCount=0;
+        var retryTimer=setInterval(function(){
+          retryCount++;
+          if(typeof turnstile!=='undefined'){
+            clearInterval(retryTimer);
+            tryRenderTurnstile();
+          }else if(retryCount>=20){
+            clearInterval(retryTimer);
+            if(!_turnstileVerified)enablePinInputs();
+          }
+        },500);
+      }
+      // Ultimate fallback: 10 seconds max
+      setTimeout(function(){if(!_turnstileVerified)enablePinInputs();},10000);
     }
   }
 
