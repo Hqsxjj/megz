@@ -7682,6 +7682,7 @@ export default {
       return;
     }
     container.innerHTML=list.map((c,i)=>{
+      var fullIdx=all.indexOf(c);
       return '<div class="client-card-item">'+
         '<div class="client-card-top">'+
           '<div class="client-card-primary">'+
@@ -7705,9 +7706,9 @@ export default {
           '</div>'+
         '</div>'+
         '<div class="client-card-actions">'+
-          '<button class="edit-temp-btn temp-tbl-edit" data-idx="'+i+'" title="编辑"><svg width="15" height="15" viewBox="0 0 17 17" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path d="M11.5 3l2 2L6 13.5H3.5v-2.5L11.5 3z"/></svg></button>'+
-          '<button class="convert-temp-btn" data-idx="'+i+'" title="转为正式意向客户" style="font-size:1.1rem;padding:0;background:none;border:none;color:var(--accent-intent);cursor:pointer;margin-right:8px;font-weight:700;">→</button>'+
-          '<button class="del-temp-btn temp-tbl-del" data-idx="'+i+'" title="删除"><svg width="15" height="15" viewBox="0 0 17 17" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 4.5l8 8M12.5 4.5l-8 8"/></svg></button>'+
+          '<button class="edit-temp-btn temp-tbl-edit" data-idx="'+fullIdx+'" title="编辑"><svg width="15" height="15" viewBox="0 0 17 17" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path d="M11.5 3l2 2L6 13.5H3.5v-2.5L11.5 3z"/></svg></button>'+
+          '<button class="convert-temp-btn" data-idx="'+fullIdx+'" title="转为正式意向客户" style="font-size:1.1rem;padding:0;background:none;border:none;color:var(--accent-intent);cursor:pointer;margin-right:8px;font-weight:700;">→</button>'+
+          '<button class="del-temp-btn temp-tbl-del" data-idx="'+fullIdx+'" title="删除"><svg width="15" height="15" viewBox="0 0 17 17" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 4.5l8 8M12.5 4.5l-8 8"/></svg></button>'+
         '</div>'+
       '</div>';
     }).join('');
@@ -7717,6 +7718,8 @@ export default {
       b.onclick=async function(){
         const idx=parseInt(this.dataset.idx);
         const a=JSON.parse(localStorage.getItem(TEMP_CLIENTS_K)||'[]');
+        if(isNaN(idx)||idx<0||idx>=a.length) return;
+        if(!confirm('删除 '+a[idx].name+' ?')) return;
         a.splice(idx,1);
         localStorage.setItem(TEMP_CLIENTS_K,JSON.stringify(a));
         renderTempClientList();
