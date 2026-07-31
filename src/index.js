@@ -8974,7 +8974,7 @@ export default {
   function enablePinInputs(){
     var inp=document.getElementById('pinInput');
     var btn=document.getElementById('pinUnlockBtn');
-    if(inp){inp.disabled=false;inp.focus();}
+    if(inp){inp.disabled=false;inp.removeAttribute('readonly');setTimeout(function(){inp.focus();},50);}
     if(btn){btn.disabled=false;btn.textContent='解锁进入';}
   }
   if(_turnstileVerified){ enablePinInputs(); }
