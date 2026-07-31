@@ -7523,6 +7523,17 @@ export default {
       await syncOp('removeClientByMatch',{name:oldEntry.name,phone:oldEntry.phone,time:oldEntry.time||''});
     }
     await syncOp('addClient',{client:newClient});
+    // Collapse detail panel after adding
+    var dp = document.getElementById('detailPanel');
+    var dt = document.getElementById('detailToggleBtn');
+    if (dp && dp.style.display !== 'none') {
+      dp.style.display = 'none';
+      if (dt) {
+        var icon = dt.querySelector('.detail-toggle-icon');
+        if (icon) icon.classList.remove('open');
+        dt.innerHTML = '<span class="detail-toggle-icon">▶</span> 详细资料';
+      }
+    }
   }
 
   var _tempEditIdx=-1; // -1=新增模式, >=0=编辑索引
