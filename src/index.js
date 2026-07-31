@@ -3929,7 +3929,7 @@ export default {
       .temp-card-row { gap: 6px; font-size: 0.7rem; }
       .temp-card-name { font-size: 0.78rem; }
       /* Image card */
-      .image-thumb { width: 180px; height: 180px; }
+      .image-thumb { width: var(--thumb-h, 180px); height: var(--thumb-h, 180px); }
       .image-scroll { gap: 6px; }
     }
     @media (max-width: 760px) {
