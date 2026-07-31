@@ -3365,7 +3365,7 @@ export default {
   <link rel="manifest" href="/manifest.json">
   <link rel="icon" href="/icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="/icon.svg">
-  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?onload=_onTurnstileLoad&render=explicit" async defer></script>
   <link rel="icon" href="/icon.svg" type="image/svg+xml">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -8984,31 +8984,17 @@ export default {
       _turnstileVerified=true;
       enablePinInputs();
     };
-    var tsDiv=document.getElementById('turnstileWidget');
-    function tryRenderTurnstile(){
-      if(typeof turnstile!=='undefined'){
+    // Called by Turnstile script when loaded (via ?onload=_onTurnstileLoad)
+    window._onTurnstileLoad = function(){
+      var tsDiv=document.getElementById('turnstileWidget');
+      if(tsDiv && typeof turnstile!=='undefined'){
         turnstile.render(tsDiv,{sitekey:'0x4AAAAAAECnjVwNlyMwf-l8',callback:'_turnstileCB',theme:'auto'});
       }
-    }
-    if(tsDiv){
-      tryRenderTurnstile();
-      // Retry: Turnstile script may not have loaded yet (async defer)
-      if(typeof turnstile==='undefined'){
-        var retryCount=0;
-        var retryTimer=setInterval(function(){
-          retryCount++;
-          if(typeof turnstile!=='undefined'){
-            clearInterval(retryTimer);
-            tryRenderTurnstile();
-          }else if(retryCount>=20){
-            clearInterval(retryTimer);
-            if(!_turnstileVerified)enablePinInputs();
-          }
-        },500);
-      }
-      // Ultimate fallback: 10 seconds max
-      setTimeout(function(){if(!_turnstileVerified)enablePinInputs();},10000);
-    }
+    };
+    // Fallback: if Turnstile fails to load at all, enable after 8 seconds
+    setTimeout(function(){
+      if(!_turnstileVerified) enablePinInputs();
+    },8000);
   }
 
   const pi=document.getElementById('pinInput'),pib=document.getElementById('pinUnlockBtn'),pie=document.getElementById('pinError');
