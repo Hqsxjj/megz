@@ -3861,8 +3861,76 @@ export default {
       .right-area {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 16px;
+        gap: 14px;
       }
+      /* PC: compact all modules */
+      .container { padding: 2px 12px 6px; }
+      .two-columns { gap: 12px; }
+      .left-area { gap: 10px; flex: 0.85; }
+      .right-area { gap: 12px; }
+      .card { padding: 12px 16px; }
+      .card-title { font-size: 0.78rem; margin-bottom: 4px; }
+      h3 { font-size: 1.1rem; }
+      .header-bar { margin-bottom: 4px; gap: 4px; }
+      /* Counter cards */
+      .counter-row { gap: 10px; }
+      .counter-card { padding: 10px; }
+      .counter-value { font-size: 1.8rem; }
+      .counter-label { font-size: 0.7rem; }
+      .counter-stats { font-size: 0.62rem; gap: 8px; }
+      .counter-header .circle-btn { width: 26px; height: 26px; font-size: 1rem; border-radius: 4px; }
+      .counter-header .button-group { gap: 4px; }
+      .circle-btn { width: 34px; height: 34px; font-size: 1.2rem; border-radius: 7px; }
+      .reset-mini { font-size: 0.6rem; padding: 2px 6px; }
+      .stats-row { gap: 8px; }
+      .stat-block { padding: 4px 2px; gap: 1px; }
+      .stat-block .label { font-size: 0.6rem; }
+      .stat-block .number { font-size: 1rem; }
+      /* Form inputs */
+      .input-simple { padding: 6px 10px; font-size: 0.75rem; }
+      .form-line { gap: 6px; }
+      .register-block { gap: 8px; }
+      .btn-add { padding: 6px 14px; font-size: 0.78rem; }
+      /* Client cards */
+      .client-card-item { padding: 8px 12px; margin-bottom: 8px; }
+      .client-card-name { font-size: 0.82rem; }
+      .client-card-time { font-size: 0.62rem; }
+      .client-card-text { font-size: 0.68rem; }
+      .client-card-label { font-size: 0.6rem; }
+      /* Calendar */
+      .cal-day { min-height: 36px; padding: 3px 1px; }
+      .day-number { font-size: 0.65rem; }
+      .day-badge { font-size: 0.38rem; gap: 1px; }
+      .cal-grid { gap: 1px; }
+      /* Todo */
+      .todo-item-clean { padding: 4px 2px; font-size: 0.72rem; gap: 6px; }
+      .todo-tab-btn { padding: 2px 10px; font-size: 0.7rem; }
+      .todo-add-btn { padding: 4px 10px; font-size: 0.7rem; }
+      .todo-input { padding: 4px 8px; font-size: 0.72rem; }
+      /* Others */
+      .icon-simple { min-width: 28px; height: 28px; font-size: 0.65rem; padding: 0 8px; }
+      .date-chip { font-size: 0.7rem; padding: 3px 10px; }
+      .goal-chip { font-size: 0.7rem; padding: 3px 10px; }
+      .journal-card { padding: 10px 16px; gap: 8px; }
+      .journal-editor { padding: 12px 16px; gap: 8px; }
+      .journal-editor textarea { min-height: 80px; font-size: 0.85rem; padding: 8px; }
+      .journal-main { padding: 6px 20px 20px; gap: 14px; }
+      .sidebar { width: 150px; padding: 8px 6px; }
+      .sidebar-item { padding: 8px 12px; font-size: 0.82rem; }
+      .topbar { height: 38px; padding: 0 16px; gap: 12px; }
+      .topbar-search { max-width: 280px; padding: 6px 12px; font-size: 0.8rem; }
+      .topbar-btn { padding: 6px 14px; font-size: 0.8rem; }
+      /* Modal */
+      .modal-card { padding: 16px 22px; gap: 12px; }
+      .intent-table { font-size: 0.72rem; }
+      .intent-table th, .intent-table td { padding: 7px 10px; }
+      /* Temp card */
+      .temp-card { padding: 8px 10px; }
+      .temp-card-row { gap: 6px; font-size: 0.7rem; }
+      .temp-card-name { font-size: 0.78rem; }
+      /* Image card */
+      .image-thumb { height: 180px; }
+      .image-scroll { gap: 6px; }
     }
     @media (max-width: 760px) {
       .timer-container { display: none !important; }
