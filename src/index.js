@@ -4703,6 +4703,8 @@ export default {
     <input type="text" class="pin-input pin-mask" id="pinInput" placeholder="" maxlength="6" inputmode="numeric" autocomplete="off" spellcheck="false" data-lpignore="true" readonly onfocus="this.removeAttribute('readonly');" autofocus disabled>
     <button class="pin-btn" id="pinUnlockBtn" disabled>验证中...</button>
     <div class="pin-error" id="pinError"></div>
+    <input type="file" id="restoreFileInput" accept=".json" style="display:none;">
+    <button class="pin-btn" id="restoreBtn" style="display:none;background:rgba(74,108,247,0.15);color:#4a6cf7;border:1px solid rgba(74,108,247,0.3);margin-top:4px;">恢复数据</button>
   </div>
 </div>
 <div class="journal-shell" id="journalShell">
@@ -9066,6 +9068,45 @@ export default {
       if(cd2>0){startPinCooldown(cd2);}else{pie.innerText='PIN码错误';pi.value='';setTimeout(function(){pi.focus();},50);}
     }
   }
+  // Restore button logic
+  var rfb = document.getElementById('restoreBtn');
+  var rfi = document.getElementById('restoreFileInput');
+  pi.addEventListener('input', function(){
+    var v = pi.value.trim();
+    rfb.style.display = (v.length >= 9 && v.length <= 12) ? 'block' : 'none';
+  });
+  rfb.addEventListener('click', function(){
+    if(_destructActive) return;
+    rfi.click();
+  });
+  rfi.addEventListener('change', function(){
+    var file = rfi.files[0];
+    if(!file) return;
+    var reader = new FileReader();
+    reader.onload = function(ev){
+      try {
+        var data = JSON.parse(ev.target.result);
+        var pin = pi.value.trim();
+        if(pin.length < 9) { pie.innerText = '请先输入恢复密码'; return; }
+        rfb.disabled = true; rfb.textContent = '恢复中...';
+        fetch('/api/restore',{
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({pin:pin,data:data})
+        }).then(function(r){return r.json();})
+          .then(function(dr){
+            rfb.disabled = false; rfb.textContent = '恢复数据';
+            rfi.value = '';
+            pie.innerText = dr.success ? '已恢复 ' + dr.restored + ' 个键' : (dr.error || '失败');
+          })
+          .catch(function(){
+            rfb.disabled = false; rfb.textContent = '恢复数据';
+            pie.innerText = '网络错误';
+          });
+      }catch(ex){ pie.innerText = '文件格式错误'; rfi.value = ''; }
+    };
+    reader.readAsText(file);
+  });
   pib.addEventListener('click',au);pi.addEventListener('keypress',e=>{if(e.key==='Enter')au();});
   document.getElementById('hideBtn').addEventListener('click',()=>{clearInterval(pinLockoutTimer);pinLockoutTimer=null;pi.disabled=false;pib.disabled=false;pib.textContent='解锁进入';localStorage.removeItem(UNLOCK_TS_K);setLocked(true);pi.value='';pie.innerText='';});
   window.addEventListener('keydown',e=>{if(e.ctrlKey&&e.key==='z'){const a=document.activeElement;if(a&&(a.tagName==='INPUT'||a.tagName==='TEXTAREA'))return;e.preventDefault();if(document.body.classList.contains('page-hidden'))pie.innerText='请使用PIN解锁';else{localStorage.removeItem(UNLOCK_TS_K);setLocked(true);pi.value='';pie.innerText='';}}});
@@ -12061,6 +12102,43 @@ export default {
           email: emailResult,
           time: dateStr
         }), {
+          headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ error: e.message }), {
+          status: 500, headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+    }
+
+    // POST /api/restore — 恢复数据：验证爆破密码后写入所有KV键值
+    if (path === '/api/restore' && request.method === 'POST') {
+      try {
+        var body = await request.json();
+        var inputPin = (body.pin || '').trim();
+        var restoreData = body.data;
+        var destructPin = env.DESTRUCT_PIN || '';
+        if (!destructPin || !inputPin || inputPin.length < 9 || inputPin.length > 12 || inputPin !== destructPin) {
+          return new Response(JSON.stringify({ error: 'PIN 错误' }), {
+            status: 403, headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+        if (!restoreData || typeof restoreData !== 'object') {
+          return new Response(JSON.stringify({ error: '无效的备份数据' }), {
+            status: 400, headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+        var keys = Object.keys(restoreData);
+        var written = 0;
+        for (var rci = 0; rci < keys.length; rci += 128) {
+          var chunk = keys.slice(rci, rci + 128);
+          var writes = chunk.map(function(rk) {
+            return env.DATA_KV.put(rk, restoreData[rk]);
+          });
+          await Promise.all(writes);
+          written += chunk.length;
+        }
+        return new Response(JSON.stringify({ success: true, restored: written }), {
           headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
         });
       } catch (e) {
