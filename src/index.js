@@ -4380,8 +4380,11 @@ export default {
     .temp-full-table td.note-cell { white-space:normal; word-break:break-all; }
     .temp-full-table .col-act { width:76px; }
     .temp-full-table tbody tr:hover { background:var(--btn-bg); }
-    .temp-full-table .temp-tbl-del { background:none; border:none; color:#e74c3c; cursor:pointer; font-size:0.85rem; padding:0 4px; font-weight:700; }
-    .temp-full-table .temp-tbl-convert { background:none; border:none; color:var(--accent-intent); cursor:pointer; font-size:0.85rem; padding:0 4px; margin-right:4px; font-weight:700; }
+    .temp-tbl-del { background:none; border:none; color:#e74c3c; cursor:pointer; padding:0 4px; font-weight:700; }
+    .temp-tbl-edit { background:none; border:none; color:var(--text-soft); cursor:pointer; padding:0 4px; font-weight:700; }
+    .temp-tbl-convert { background:none; border:none; color:var(--accent-intent); cursor:pointer; font-size:0.85rem; padding:0 4px; margin-right:4px; font-weight:700; }
+    .temp-full-table .temp-tbl-del { font-size:0.85rem; }
+    .temp-full-table .temp-tbl-convert { font-size:0.85rem; }
     .temp-card-list { display:none; flex-direction:column; gap:8px; padding:8px; }
     .temp-card { background:var(--card-bg); border:1px solid var(--card-border); border-radius:8px; padding:10px 12px; }
     .temp-card-row { display:flex; align-items:center; gap:8px; font-size:0.72rem; margin-bottom:4px; }
@@ -7634,9 +7637,9 @@ export default {
           '</div>'+
         '</div>'+
         '<div class="client-card-actions">'+
-          '<button class="edit-temp-btn" data-idx="'+i+'" title="编辑" style="font-size:0.75rem;padding:2px 8px;background:none;border:1px solid var(--card-border);color:var(--text-soft);cursor:pointer;margin-right:4px;border-radius:3px;font-weight:600;">编</button>'+
+          '<button class="edit-temp-btn temp-tbl-edit" data-idx="'+i+'" title="编辑"><svg width="15" height="15" viewBox="0 0 17 17" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path d="M11.5 3l2 2L6 13.5H3.5v-2.5L11.5 3z"/></svg></button>'+
           '<button class="convert-temp-btn" data-idx="'+i+'" title="转为正式意向客户" style="font-size:1.1rem;padding:0;background:none;border:none;color:var(--accent-intent);cursor:pointer;margin-right:8px;font-weight:700;">→</button>'+
-          '<button class="del-icon del-temp-btn" data-idx="'+i+'" title="删除" style="vertical-align:middle;padding:0;width:20px;height:20px;line-height:20px;display:inline-block;">×</button>'+
+          '<button class="del-temp-btn temp-tbl-del" data-idx="'+i+'" title="删除"><svg width="15" height="15" viewBox="0 0 17 17" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 4.5l8 8M12.5 4.5l-8 8"/></svg></button>'+
         '</div>'+
       '</div>';
     }).join('');
