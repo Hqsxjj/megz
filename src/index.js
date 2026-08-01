@@ -2309,6 +2309,14 @@ export default {
       return fetch('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js');
     }
 
+    // 代理 Word 文档渲染库（docx-preview 依赖全局 JSZip，jszip 必须先加载）
+    if (path === '/jszip.min.js') {
+      return fetch('https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js');
+    }
+    if (path === '/docx-preview.min.js') {
+      return fetch('https://cdn.jsdelivr.net/npm/docx-preview@0.4.0/dist/docx-preview.min.js');
+    }
+
     if (path.startsWith('/tessdata/')) {
       const fileName = path.replace('/tessdata/', '');
       
@@ -3821,43 +3829,30 @@ export default {
     .todo-text { flex: 1; word-break: break-word; line-height: 1.4; }
     .todo-input-row { display: flex; gap: 8px; align-items: center; width: 100%; }
     .todo-del-btn { background: none; border: none; color: #c97a7a; cursor: pointer; font-size: 0.85rem; padding: 0 4px; }
-    /* ===== 图片展示模块 ===== */
-    .image-card { padding: 0 !important; overflow: hidden; position: relative; border-radius: var(--radius-ios) !important; }
-    .image-overlay { position: absolute; top: 0; left: 0; right: 0; z-index: 5; display: flex; align-items: center; justify-content: flex-start; padding: 8px 10px; pointer-events: none; opacity: 0; transition: opacity 0.25s; background: linear-gradient(to bottom, rgba(0,0,0,0.4) 0%, transparent 100%); }
-    .image-card:hover .image-overlay { opacity: 1; }
-    .image-overlay span { color: #fff; font-weight: 700; font-size: 0.85rem; text-shadow: 0 1px 3px rgba(0,0,0,0.5); }
-    .image-overlay button { pointer-events: auto; font-size: 0.75rem; font-weight: 700; color: #fff; cursor: pointer; padding: 4px 10px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.5); background: rgba(255,255,255,0.15); backdrop-filter: blur(4px); text-shadow: 0 1px 2px rgba(0,0,0,0.3); }
-    .image-overlay button:hover { background: rgba(255,255,255,0.3); }
-    .image-scroll { display: flex; gap: 4px; overflow-x: auto; padding: 0; scroll-behavior: smooth; -webkit-overflow-scrolling: touch; scrollbar-width: none; scroll-snap-type: x mandatory; }
-    .image-scroll::-webkit-scrollbar { display: none; }
-    .image-thumb-wrap { flex-shrink: 0; position: relative; scroll-snap-align: start; }
-    .image-thumb { height: var(--thumb-h, 300px); width: var(--thumb-h, 300px); border-radius: 6px; object-fit: contain; cursor: pointer; border: none; transition: transform 0.2s; display: block; background: #1a1a1a; }
-    .image-size-slider { -webkit-appearance: none; appearance: none; width: 80px; height: 4px; border-radius: 2px; background: rgba(255,255,255,0.35); outline: none; pointer-events: auto; cursor: pointer; margin: 0 4px; flex-shrink: 0; }
-    .image-size-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: #fff; cursor: pointer; border: none; box-shadow: 0 1px 4px rgba(0,0,0,0.3); }
-    .image-size-slider::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; background: #fff; cursor: pointer; border: none; box-shadow: 0 1px 4px rgba(0,0,0,0.3); }
-    .image-thumb:hover { transform: scale(1.005); }
-    .image-del-btn { position: absolute; top: 8px; right: 8px; width: 26px; height: 26px; border-radius: 50%; background: rgba(0,0,0,0.5); color: #fff; border: none; font-size: 0.8rem; cursor: pointer; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.2s; line-height: 1; z-index: 4; }
-    .image-thumb-wrap:hover .image-del-btn { opacity: 1; }
-    /* 空状态 — 居中 紧凑 */
-    .image-empty-state { display: none; flex-direction: column; align-items: center; justify-content: center; width: 100%; padding: 24px 20px; gap: 6px; }
-    .image-card:not(.has-images) .image-empty-state { display: flex; }
-    .image-card:not(.has-images) .image-scroll { overflow: hidden; }
-    .image-empty-icon { font-size: 2rem; color: var(--card-border); line-height: 1; }
-    .image-empty-label { font-size: 0.8rem; color: var(--text-light); font-weight: 600; }
-    .image-empty-upload { margin-top: 6px; font-size: 0.82rem; font-weight: 700; color: var(--accent-btn); cursor: pointer; padding: 5px 18px; border-radius: 4px; border: 1px solid var(--accent-btn); background: transparent; }
-    .image-empty-upload:hover { background: var(--btn-bg); }
-    .image-card.has-images .image-overlay { display: flex; }
-    .image-lightbox { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; height: 100dvh; background: rgba(0,0,0,0.92); z-index: 99999; justify-content: center; align-items: center; cursor: pointer; padding: 24px; box-sizing: border-box; }
-    .image-lightbox.open { display: flex; }
-    .image-lightbox img { max-width: 100%; max-height: 100%; object-fit: scale-down; border-radius: 4px; cursor: default; user-select: none; -webkit-user-select: none; }
-    .lb-nav { position: absolute; top: 50%; transform: translateY(-50%); z-index: 100001; background: rgba(255,255,255,0.12); border: none; color: #fff; font-size: 2.5rem; width: 48px; height: 72px; cursor: pointer; display: flex; align-items: center; justify-content: center; border-radius: 6px; transition: background 0.2s; line-height: 1; }
-    .lb-nav:hover { background: rgba(255,255,255,0.25); }
-    .lb-prev { left: 12px; }
-    .lb-next { right: 12px; }
-    .lb-close { position: absolute; top: 16px; right: 20px; z-index: 100001; background: rgba(255,255,255,0.12); border: none; color: #fff; font-size: 1.8rem; width: 40px; height: 40px; cursor: pointer; display: flex; align-items: center; justify-content: center; border-radius: 50%; transition: background 0.2s; line-height: 1; }
-    .lb-close:hover { background: rgba(255,255,255,0.25); }
-    .lb-counter { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); color: rgba(255,255,255,0.7); font-size: 0.85rem; z-index: 100001; font-weight: 600; }
-    @media (max-width: 760px) { .lb-nav { width: 36px; height: 56px; font-size: 2rem; } .lb-prev { left: 4px; } .lb-next { right: 4px; } .image-card { order: 999; } }
+    /* ===== Word 文档展示模块 ===== */
+    .doc-card { padding: 0 !important; overflow: hidden; border-radius: var(--radius-ios) !important; }
+    .doc-toolbar { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-bottom: 0.5px solid var(--separator); gap: 8px; }
+    .doc-upload-btn { min-height: 44px; padding: 0 16px; border-radius: 10px; background: var(--accent-btn); color: #fff; font-weight: 700; font-size: 0.82rem; border: none; cursor: pointer; }
+    .doc-upload-btn:disabled { opacity: 0.5; }
+    .doc-list { display: flex; gap: 8px; overflow-x: auto; padding: 10px 12px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+    .doc-list::-webkit-scrollbar { display: none; }
+    .doc-chip { flex-shrink: 0; display: inline-flex; align-items: center; gap: 4px; height: 40px; padding: 0 6px 0 14px; border-radius: 10px; border: 0.5px solid var(--card-border); background: var(--btn-bg); cursor: pointer; font-size: 0.8rem; font-weight: 600; color: var(--text-main); max-width: 220px; }
+    .doc-chip-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 150px; }
+    .doc-chip.selected { background: var(--accent-btn); color: #fff; border-color: transparent; }
+    .doc-chip-del { width: 32px; height: 32px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; border: none; background: transparent; color: inherit; font-size: 0.8rem; cursor: pointer; border-radius: 8px; opacity: 0.7; }
+    .doc-chip-del:active { opacity: 1; }
+    .doc-view { width: 100%; overflow-y: auto; max-height: 70vh; background: var(--btn-bg); }
+    .doc-empty-state { display: none; flex-direction: column; align-items: center; gap: 8px; padding: 28px 16px; }
+    .doc-card.empty .doc-empty-state { display: flex; }
+    .doc-card.empty .doc-view { display: none; }
+    .doc-empty-label { font-size: 0.8rem; color: var(--text-light); font-weight: 600; }
+    .doc-empty-upload { min-height: 44px; padding: 0 22px; border-radius: 10px; font-size: 0.82rem; font-weight: 700; color: var(--accent-btn); cursor: pointer; border: 1px solid var(--accent-btn); background: transparent; }
+    .doc-empty-upload:active { background: var(--btn-bg); }
+    /* 渲染覆盖（盖掉 docx-preview 默认灰底/内边距/重阴影） */
+    .doc-view .docx-wrapper { background: transparent !important; padding: 0 !important; }
+    .doc-view .docx-wrapper>section.docx { box-shadow: var(--shadow-card) !important; margin-bottom: 12px !important; }
+    .doc-rendering, .doc-error { padding: 24px 16px; text-align: center; font-size: 0.8rem; color: var(--text-light); }
+    @media (max-width: 760px) { .doc-card { order: 999; } }
     @media (min-width: 761px) {
       .right-area { order: 2; } .left-area { order: 1; }
       .card { padding: 14px 16px; }
@@ -3956,9 +3951,8 @@ export default {
       .temp-card { padding: 8px 10px; }
       .temp-card-row { gap: 6px; font-size: 0.7rem; }
       .temp-card-name { font-size: 0.78rem; }
-      /* Image card */
-      .image-thumb { width: var(--thumb-h, 180px); height: var(--thumb-h, 180px); }
-      .image-scroll { gap: 6px; }
+      .doc-chip { max-width: 180px; }
+      .doc-chip-name { max-width: 120px; }
     }
     @media (max-width: 760px) {
       .timer-container { display: none !important; }
@@ -3983,10 +3977,7 @@ export default {
       .learn-container { right: 8px; top: 60px; max-width: 52vw; max-height: 25vh; overflow-y: auto; }
       .script-module { padding: 8px 12px; font-size: 0.72rem; text-align: left; font-weight: 600; line-height: 1.6; }
       .learn-module { padding: 8px 12px; font-size: 0.7rem; }
-      
-      /* Mobile optimization additions */
-      .image-thumb { width: var(--thumb-h, 220px); height: var(--thumb-h, 220px); }
-      .image-size-slider { width: 60px; }
+
       .card { padding: 12px 14px; border-radius: 10px; }
       .card-title { font-size: 0.82rem; margin-bottom: 6px; }
       .counter-row { gap: 8px; }
@@ -4650,6 +4641,8 @@ export default {
     @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
   </style>
   <script src="/xlsx.full.min.js"></script>
+  <script src="/jszip.min.js" defer></script>
+  <script src="/docx-preview.min.js" defer></script>
 </head>
 <body class="page-hidden" style="visibility:hidden">
 <div class="pwa-install-banner" id="pwaInstallBanner">
@@ -4831,26 +4824,17 @@ export default {
                         <div class="client-scroll" id="clientList"></div>
           </div>
         </div>
-        <div class="card image-card">
-          <div class="image-overlay">
-            <div style="display:flex;align-items:center;gap:2px;pointer-events:auto;">
-              <input type="range" class="image-size-slider" id="imageSizeSlider" min="150" max="600" value="400" title="拖动调整图片大小">
-              <button id="imageUploadBtn">上传</button>
-            </div>
+        <div class="card doc-card empty">
+          <div class="doc-toolbar">
+            <span style="font-size:0.8rem;font-weight:700;color:var(--text-main);">Word 文档</span>
+            <button type="button" class="doc-upload-btn" id="docUploadBtn">上传 Word 文档</button>
           </div>
-          <div class="image-scroll" id="imageScroll">
-            <div class="image-empty-state">
-              <span class="image-empty-icon">—</span>
-              <span class="image-empty-label">暂无图片</span>
-              <button class="image-empty-upload" id="imageEmptyUploadBtn">点击上传</button>
+          <div class="doc-list" id="docList"></div>
+          <div class="doc-view" id="docView">
+            <div class="doc-empty-state">
+              <span class="doc-empty-label">暂无文档</span>
+              <button type="button" class="doc-empty-upload" id="docEmptyUploadBtn">上传 Word 文档</button>
             </div>
-          </div>
-          <div class="image-lightbox" id="imageLightbox">
-            <button class="lb-nav lb-prev" id="lbPrev" title="上一张">‹</button>
-            <img id="imageLightboxImg" src="" alt="">
-            <button class="lb-nav lb-next" id="lbNext" title="下一张">›</button>
-            <button class="lb-close" id="lbClose" title="关闭">✕</button>
-            <span class="lb-counter" id="lbCounter"></span>
           </div>
         </div>
         <div class="card">
@@ -6232,7 +6216,6 @@ export default {
       refreshAll();
       addSyncLog('✅ 拉取并合并云端最新数据完成');
     }
-    loadImages();
     _lastSyncTime=new Date();
     if(loadOpQueue().length===0)_syncStatus='synced';
     updateSyncIndicator();
@@ -7324,11 +7307,16 @@ export default {
     renderGoalChips();
   }
 
-  // ===== 图片展示模块 =====
-  function initImageModule(){
+  // ===== Word 文档展示模块 =====
+  var _docs=[], _curDocId='', _docInited=false;
+  var _docBufCache={}, _docDomCache={}, _docRenderSeq=0;
+
+  function initDocModule(){
+    if(_docInited) return;
+    _docInited=true;
     var btns=[
-      document.getElementById('imageUploadBtn'),
-      document.getElementById('imageEmptyUploadBtn')
+      document.getElementById('docUploadBtn'),
+      document.getElementById('docEmptyUploadBtn')
     ];
     for(var b=0;b<btns.length;b++){
       var btn=btns[b];
@@ -7336,112 +7324,139 @@ export default {
       btn.addEventListener('click',function(){
         var input=document.createElement('input');
         input.type='file';
-        input.accept='image/*';
-        input.multiple=true;
-        input.onchange=function(){ uploadImages(this.files); };
+        input.accept='.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+        input.onchange=function(){ uploadDocs(this.files); };
         input.click();
       });
     }
-    loadImages();
-    initImageSizeSlider();
-    initLightboxNav();
+    window.addEventListener('resize',function(){ if(_curDocId) fitDocWidth(); });
+    if(document.fonts&&document.fonts.ready) document.fonts.ready.then(function(){ fitDocWidth(); });
+    refreshDocList();
   }
 
-  var _lbEventsInited=false;
-  function initLightboxNav(){
-    if(_lbEventsInited) return;
-    _lbEventsInited=true;
-    var lb=document.getElementById('imageLightbox');
-    if(!lb) return;
-    // 点背景关闭
-    lb.addEventListener('click',function(e){
-      if(e.target===lb) closeLightbox();
-    });
-    // 关闭按钮
-    var closeBtn=document.getElementById('lbClose');
-    if(closeBtn) closeBtn.addEventListener('click',closeLightbox);
-    // 上/下一张按钮
-    var prevBtn=document.getElementById('lbPrev');
-    if(prevBtn) prevBtn.addEventListener('click',lbPrev);
-    var nextBtn=document.getElementById('lbNext');
-    if(nextBtn) nextBtn.addEventListener('click',lbNext);
-    // 键盘左右键
-    document.addEventListener('keydown',function(e){
-      if(!document.getElementById('imageLightbox').classList.contains('open')) return;
-      if(e.key==='ArrowLeft') lbPrev(e);
-      else if(e.key==='ArrowRight') lbNext(e);
-      else if(e.key==='Escape') closeLightbox();
-    });
-  }
-
-  function initImageSizeSlider(){
-    var slider=document.getElementById('imageSizeSlider');
-    var card=document.querySelector('.image-card');
-    if(!slider||!card) return;
-    var isMobile=window.innerWidth<761;
-    var defaultH=isMobile?220:400;
-    var saved=localStorage.getItem('thumb_size');
-    var val=saved?parseInt(saved):defaultH;
-    slider.value=val;
-    card.style.setProperty('--thumb-h',val+'px');
-    slider.addEventListener('input',function(){
-      card.style.setProperty('--thumb-h',this.value+'px');
-      localStorage.setItem('thumb_size',this.value);
-    });
-  }
-
-  async function loadImages(){
-    var container=document.getElementById('imageScroll');
-    if(!container) return;
-    var card=container.parentElement;
+  // 每 60 秒（refreshAll 末尾）调用；只拉 manifest，选中项未变不重渲染
+  async function refreshDocList(){
     try {
-      var resp=await fetch('/api/images');
-      var images=await resp.json();
-      if(!images || images.length===0) {
-        card.classList.remove('has-images');
-        return;
+      var resp=await fetch('/api/doc');
+      var docs=await resp.json();
+      _docs=Array.isArray(docs)?docs:[];
+      renderDocList();
+      if(_curDocId && _docs.some(function(d){return d.id===_curDocId;})) return;
+      if(_docs.length){
+        // 恢复上次查看的文档，否则选第一篇
+        var saved='';
+        try { saved=localStorage.getItem('doc_cur_id')||''; } catch(e){}
+        var savedDoc=null;
+        for(var i=0;i<_docs.length;i++){ if(_docs[i].id===saved){ savedDoc=_docs[i]; break; } }
+        selectDoc(savedDoc?savedDoc.id:_docs[0].id);
+      } else {
+        showDocEmpty();
       }
-      card.classList.add('has-images');
-      var html='';
-      for(var i=0;i<images.length;i++){
-        var img=images[i];
-        var src='/api/image/'+encodeURIComponent(img.id);
-        var safeName=(img.name||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-        html+='<div class="image-thumb-wrap"><img class="image-thumb" src="'+src+'" alt="'+safeName+'" loading="lazy" data-lb-idx="'+i+'"><button class="image-del-btn" data-img-id="'+img.id.replace(/'/g,"\\'")+'">X</button></div>';
-      }
-      container.innerHTML=html;
-      // Bind events (avoid inline onclick escaping issues)
-      container.querySelectorAll('.image-thumb').forEach(function(el,i){
-        el.onclick=function(){ event.stopPropagation(); openLightbox(i); };
-      });
-      container.querySelectorAll('.image-del-btn').forEach(function(el){
-        el.onclick=function(){ event.stopPropagation(); deleteImage(this.dataset.imgId); };
-      });
-    } catch(e) { console.error('加载图片失败:',e); }
+    } catch(e) { console.error('加载文档列表失败:',e); }
   }
 
-  function cropToSquare(dataUrl){
-    return new Promise(function(resolve,reject){
-      var img=new Image();
-      img.onload=function(){
-        var size=Math.min(img.width,img.height);
-        var sx=(img.width-size)/2, sy=(img.height-size)/2;
-        var canvas=document.createElement('canvas');
-        canvas.width=size; canvas.height=size;
-        var ctx=canvas.getContext('2d');
-        ctx.drawImage(img,sx,sy,size,size,0,0,size,size);
-        resolve(canvas.toDataURL('image/jpeg',0.92));
-      };
-      img.onerror=function(){ reject(new Error('图片加载失败')); };
-      img.src=dataUrl;
+  function renderDocList(){
+    var list=document.getElementById('docList');
+    var card=document.querySelector('.doc-card');
+    if(!list) return;
+    list.innerHTML='';
+    for(var i=0;i<_docs.length;i++){
+      var d=_docs[i];
+      var chip=document.createElement('div');
+      chip.className='doc-chip'+(d.id===_curDocId?' selected':'');
+      chip.dataset.docId=d.id;
+      var nameSpan=document.createElement('span');
+      nameSpan.className='doc-chip-name';
+      nameSpan.textContent=d.name||'文档';
+      var delBtn=document.createElement('button');
+      delBtn.type='button';
+      delBtn.className='doc-chip-del';
+      delBtn.textContent='✕';
+      delBtn.dataset.docId=d.id;
+      chip.appendChild(nameSpan);
+      chip.appendChild(delBtn);
+      chip.addEventListener('click',function(){ selectDoc(this.dataset.docId); });
+      delBtn.addEventListener('click',function(e){ e.stopPropagation(); deleteDoc(this.dataset.docId); });
+      list.appendChild(chip);
+    }
+    if(card) card.classList.toggle('empty',_docs.length===0);
+  }
+
+  function showDocEmpty(){
+    _curDocId='';
+    var card=document.querySelector('.doc-card');
+    if(card) card.classList.add('empty');
+    var view=document.getElementById('docView');
+    if(view){ view.innerHTML=''; view.style.height=''; }
+  }
+
+  function selectDoc(id){
+    _curDocId=id;
+    try { localStorage.setItem('doc_cur_id',id); } catch(e){}
+    renderDocList();
+    renderIntoView(id);
+  }
+
+  function renderIntoView(id){
+    var view=document.getElementById('docView');
+    if(!view) return;
+    var card=document.querySelector('.doc-card');
+    if(card) card.classList.remove('empty');
+    if(_docDomCache[id]){
+      view.innerHTML='';
+      view.appendChild(_docDomCache[id]);
+      fitDocWidth();
+      return;
+    }
+    if(typeof docx==='undefined'){
+      view.innerHTML='<div class="doc-error">渲染组件加载失败，请刷新页面</div>';
+      return;
+    }
+    var seq=++_docRenderSeq;
+    view.innerHTML='<div class="doc-rendering">正在渲染文档…</div>';
+    var needFetch=!_docBufCache[id];
+    Promise.resolve(needFetch?fetch('/api/doc/'+encodeURIComponent(id)).then(function(r){
+      if(!r.ok) throw new Error('加载失败('+r.status+')');
+      return r.arrayBuffer();
+    }):_docBufCache[id]).then(function(buf){
+      _docBufCache[id]=buf;
+      var box=document.createElement('div');
+      return docx.renderAsync(buf,box,null,{
+        className:'docx',inWrapper:true,breakPages:true,
+        ignoreWidth:false,ignoreHeight:false,ignoreFonts:false,
+        renderHeaders:true,renderFooters:true
+      }).then(function(){ return box; });
+    }).then(function(box){
+      if(seq!==_docRenderSeq) return;
+      _docDomCache[id]=box;
+      view.innerHTML='';
+      view.appendChild(box);
+      fitDocWidth();
+    }).catch(function(e){
+      if(seq!==_docRenderSeq) return;
+      view.innerHTML='<div class="doc-error">文档渲染失败</div>';
+      console.error('渲染文档失败:',e);
     });
   }
-  async function uploadImages(files){
+
+  function fitDocWidth(){
+    var view=document.getElementById('docView');
+    if(!view) return;
+    var wrap=view.querySelector('.docx-wrapper');
+    if(!wrap||!wrap.offsetWidth) return;
+    var scale=Math.min(1,view.clientWidth/wrap.offsetWidth);
+    wrap.style.transform='scale('+scale+')';
+    wrap.style.transformOrigin='top left';
+    view.style.height=(wrap.offsetHeight*scale)+'px';
+  }
+
+  async function uploadDocs(files){
     if(!files||files.length===0) return;
     for(var i=0;i<files.length;i++){
       var file=files[i];
-      if(!file.type.startsWith('image/')) continue;
-      if(file.size>5*1024*1024) { alert(file.name+' 超过 5MB 限制'); continue; }
+      var lower=file.name?file.name.toLowerCase():'';
+      if(!/\.docx$/.test(lower)){ alert(file.name+' 不是 .docx 文件，请选择 Word 文档'); continue; }
+      if(file.size>10*1024*1024){ alert(file.name+' 超过 10MB 限制'); continue; }
       try {
         var data=await new Promise(function(resolve,reject){
           var reader=new FileReader();
@@ -7449,68 +7464,36 @@ export default {
           reader.onerror=function(){ reject(reader.error||new Error('读取文件失败')); };
           reader.readAsDataURL(file);
         });
-        // Crop to square before uploading
-        var squareData=await cropToSquare(data);
-        var resp=await fetch('/api/images',{
+        var base64=String(data).replace(/^data:[^;]+;base64,/,'');
+        var resp=await fetch('/api/doc',{
           method:'POST',headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({name:file.name,type:'image/jpeg',data:squareData})
+          body:JSON.stringify({name:file.name,data:base64})
         });
         var result=await resp.json();
-        if(!result.ok) { alert('上传失败: '+(result.error||'未知错误')); }
-      } catch(e) { console.error('上传图片失败:',e); alert('上传失败: '+e.message); }
+        if(!result.ok){ alert('上传失败: '+(result.error||'未知错误')); continue; }
+        await refreshDocList();
+        selectDoc(result.id);
+      } catch(e) { console.error('上传文档失败:',e); alert('上传失败: '+e.message); }
     }
-    loadImages();
   }
 
-  async function deleteImage(id){
-    if(!confirm('确定删除这张图片吗？')) return;
+  async function deleteDoc(id){
+    var doc=null;
+    for(var i=0;i<_docs.length;i++){ if(_docs[i].id===id){ doc=_docs[i]; break; } }
+    var name=doc?doc.name:'该文档';
+    if(!confirm('确定删除「'+name+'」吗？')) return;
     try {
-      var resp=await fetch('/api/images',{
+      var resp=await fetch('/api/doc',{
         method:'DELETE',headers:{'Content-Type':'application/json'},
         body:JSON.stringify({id:id})
       });
       var result=await resp.json();
-      if(result.ok) loadImages();
-      else alert('删除失败: '+(result.error||'未知错误'));
-    } catch(e) { console.error('删除图片失败:',e); }
-  }
-
-  // 当前 lightbox 图片列表和索引
-  var _lbImages=[], _lbIdx=-1;
-
-  function openLightbox(idx){
-    // idx 是 image-thumb 元素在 .image-thumb 列表中的索引
-    var imgs=document.querySelectorAll('#imageScroll .image-thumb');
-    if(!imgs.length) return;
-    _lbImages=[]; _lbIdx=-1;
-    for(var i=0;i<imgs.length;i++){
-      _lbImages.push(imgs[i].src);
-    }
-    if(idx<0||idx>=_lbImages.length) idx=0;
-    _lbIdx=idx;
-    showLbImage();
-    var lb=document.getElementById('imageLightbox');
-    if(lb) lb.classList.add('open');
-  }
-
-  function showLbImage(){
-    var img=document.getElementById('imageLightboxImg');
-    var counter=document.getElementById('lbCounter');
-    var prev=document.getElementById('lbPrev');
-    var next=document.getElementById('lbNext');
-    if(img) img.src=_lbImages[_lbIdx];
-    if(counter) counter.textContent=(_lbIdx+1)+' / '+_lbImages.length;
-    if(prev) prev.style.visibility=_lbIdx<=0?'hidden':'visible';
-    if(next) next.style.visibility=_lbIdx>=_lbImages.length-1?'hidden':'visible';
-  }
-
-  function lbPrev(e){ e.stopPropagation(); if(_lbIdx>0){ _lbIdx--; showLbImage(); } }
-  function lbNext(e){ e.stopPropagation(); if(_lbIdx<_lbImages.length-1){ _lbIdx++; showLbImage(); } }
-
-  function closeLightbox(){
-    var lb=document.getElementById('imageLightbox');
-    if(lb) lb.classList.remove('open');
-    _lbImages=[]; _lbIdx=-1;
+      if(!result.ok){ alert('删除失败: '+(result.error||'未知错误')); return; }
+      delete _docBufCache[id];
+      delete _docDomCache[id];
+      if(_curDocId===id) _curDocId='';
+      await refreshDocList();
+    } catch(e) { console.error('删除文档失败:',e); }
   }
 
   function refreshAll(){
@@ -7533,7 +7516,7 @@ export default {
     document.getElementById('liveDate').innerHTML=(now.getMonth()+1)+'月'+now.getDate()+'日 '+wk[now.getDay()];
     renderCalendar(wm,im);renderClientList();renderTodos();renderTempClientList();
     renderGoalChips();
-    loadImages();
+    refreshDocList();
   }
 
   async function modCounter(key,delta,op){
@@ -8166,7 +8149,7 @@ export default {
     document.body.classList.remove('page-journal','page-auth','page-hidden');
     var app=document.querySelector('.app-shell');if(app)app.style.display='flex';
     var js=document.getElementById('journalShell');if(js)js.style.display='none';
-    initImageModule();
+    initDocModule();
     refreshAll();
   }
   function showJournalShell(){
@@ -10608,24 +10591,36 @@ export default {
 </body>
 </html>`;
 
-    // ========== 图片管理 API ==========
+    // ========== Word 文档管理 API ==========
 
-    // 获取图片清单
-    if (path === '/api/images' && request.method === 'GET') {
-      const manifest = await env.DATA_KV.get('images:manifest');
-      const images = manifest ? JSON.parse(manifest) : [];
-      return new Response(JSON.stringify(images), {
+    // 获取文档清单
+    if (path === '/api/doc' && request.method === 'GET') {
+      const manifest = await env.DATA_KV.get('docs:manifest');
+      let docs = [];
+      if (manifest) {
+        try { docs = JSON.parse(manifest); } catch(e) { docs = []; }
+      }
+      return new Response(JSON.stringify(docs), {
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
       });
     }
 
-    // 上传图片（base64 JSON body）
-    if (path === '/api/images' && request.method === 'POST') {
+    // 上传 Word 文档（base64 JSON body）
+    if (path === '/api/doc' && request.method === 'POST') {
       try {
+        // 请求体预检（base64 膨胀约 1.37 倍，防止超大请求超限）
+        const cl = Number(request.headers.get('content-length') || 0);
+        if (cl > 15 * 1024 * 1024) {
+          return new Response(JSON.stringify({ error: '文档大小超过 10MB 限制' }), {
+            status: 413, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
         const body = await request.json();
-        const { name, type, data } = body;
-        if (!data || !type) {
-          return new Response(JSON.stringify({ error: '缺少图片数据' }), {
+        // name 净化：去路径、去控制字符、限 60 字符
+        const name = String(body.name || '').split(/[\\/]/).pop().replace(/[\x00-\x1f]/g, '').substring(0, 60) || 'document.docx';
+        const data = body.data || '';
+        if (!data) {
+          return new Response(JSON.stringify({ error: '缺少文档数据' }), {
             status: 400, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
           });
         }
@@ -10643,28 +10638,37 @@ export default {
             binary[i] = raw.charCodeAt(i);
           }
         }
-        // 大小限制 5MB
-        if (binary.byteLength > 5 * 1024 * 1024) {
-          return new Response(JSON.stringify({ error: '图片大小超过 5MB 限制' }), {
+        // 大小限制 10MB
+        if (binary.byteLength > 10 * 1024 * 1024) {
+          return new Response(JSON.stringify({ error: '文档大小超过 10MB 限制' }), {
             status: 400, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
           });
         }
-        // 数量限制 50 张
-        let manifest = await env.DATA_KV.get('images:manifest');
-        let images = manifest ? JSON.parse(manifest) : [];
-        if (images.length >= 50) {
-          return new Response(JSON.stringify({ error: '图片数量已达上限（50张），请先删除旧图片' }), {
+        // 魔数校验：docx 本质是 zip 压缩包（PK 头）
+        if (binary.byteLength < 4 || binary[0] !== 0x50 || binary[1] !== 0x4b) {
+          return new Response(JSON.stringify({ error: '不是有效的 Word 文档（.docx）' }), {
+            status: 400, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+        // 数量限制 10 个
+        let manifest = await env.DATA_KV.get('docs:manifest');
+        let docs = [];
+        if (manifest) {
+          try { docs = JSON.parse(manifest); } catch(e) { docs = []; }
+        }
+        if (docs.length >= 10) {
+          return new Response(JSON.stringify({ error: '文档数量已达上限（10个），请先删除旧文档' }), {
             status: 400, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
           });
         }
         const id = Date.now() + '_' + Math.random().toString(36).slice(2, 8);
-        const entry = { id, name: name || 'image', type, size: binary.byteLength, ts: Date.now() };
-        images.push(entry);
+        const entry = { id, name, size: binary.byteLength, ts: Date.now() };
+        docs.push(entry);
         // 确保 ArrayBuffer 大小精确匹配（Buffer/Uint8Array 的 buffer 可能更大）
         const exactBuf = binary.buffer.slice(binary.byteOffset || 0, (binary.byteOffset || 0) + binary.byteLength);
         await Promise.all([
-          env.DATA_KV.put('img:' + id, exactBuf, { type: 'arrayBuffer' }),
-          env.DATA_KV.put('images:manifest', JSON.stringify(images))
+          env.DATA_KV.put('doc:' + id, exactBuf, { type: 'arrayBuffer' }),
+          env.DATA_KV.put('docs:manifest', JSON.stringify(docs))
         ]);
         return new Response(JSON.stringify({ ok: true, id, entry }), {
           headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
@@ -10676,28 +10680,20 @@ export default {
       }
     }
 
-    // 获取单张图片
-    if (path.startsWith('/api/image/') && request.method === 'GET') {
-      const id = path.slice('/api/image/'.length);
+    // 获取单个文档（二进制）
+    if (path.startsWith('/api/doc/') && request.method === 'GET') {
+      const id = path.slice('/api/doc/'.length);
       if (!id || id.includes('/')) {
         return new Response('Bad request', { status: 400 });
       }
       try {
-        const buf = await env.DATA_KV.get('img:' + id, { type: 'arrayBuffer' });
+        const buf = await env.DATA_KV.get('doc:' + id, { type: 'arrayBuffer' });
         if (!buf) {
           return new Response('Not found', { status: 404 });
         }
-        // 从 manifest 获取 type
-        let contentType = 'image/jpeg';
-        const manifest = await env.DATA_KV.get('images:manifest');
-        if (manifest) {
-          const images = JSON.parse(manifest);
-          const found = images.find(e => e.id === id);
-          if (found) contentType = found.type;
-        }
         return new Response(buf, {
           headers: {
-            'Content-Type': contentType,
+            'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
             'Cache-Control': 'public, max-age=86400',
             'Access-Control-Allow-Origin': '*'
           }
@@ -10707,8 +10703,8 @@ export default {
       }
     }
 
-    // 删除图片
-    if (path === '/api/images' && request.method === 'DELETE') {
+    // 删除文档
+    if (path === '/api/doc' && request.method === 'DELETE') {
       try {
         const body = await request.json();
         const { id } = body;
@@ -10717,12 +10713,15 @@ export default {
             status: 400, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
           });
         }
-        let manifest = await env.DATA_KV.get('images:manifest');
-        let images = manifest ? JSON.parse(manifest) : [];
-        images = images.filter(e => e.id !== id);
+        let manifest = await env.DATA_KV.get('docs:manifest');
+        let docs = [];
+        if (manifest) {
+          try { docs = JSON.parse(manifest); } catch(e) { docs = []; }
+        }
+        docs = docs.filter(e => e.id !== id);
         await Promise.all([
-          env.DATA_KV.delete('img:' + id),
-          env.DATA_KV.put('images:manifest', JSON.stringify(images))
+          env.DATA_KV.delete('doc:' + id),
+          env.DATA_KV.put('docs:manifest', JSON.stringify(docs))
         ]);
         return new Response(JSON.stringify({ ok: true }), {
           headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
