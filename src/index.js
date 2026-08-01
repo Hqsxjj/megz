@@ -3829,7 +3829,13 @@ export default {
     .paste-add-btn:disabled { opacity: 0.5; }
     .paste-list { display: flex; gap: 8px; overflow-x: auto; padding: 10px 12px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
     .paste-list::-webkit-scrollbar { display: none; }
-    .paste-view { width: 100%; overflow-y: auto; max-height: 70vh; background: var(--card-bg); padding: 14px 16px; box-sizing: border-box; }
+    .paste-view { width: 100%; overflow-y: auto; overflow-x: auto; max-height: 70vh; background: var(--card-bg); padding: 14px 16px; box-sizing: border-box; -webkit-overflow-scrolling: touch; }
+    /* 防粘贴内容撑破卡片：宽元素压缩、长文本断行、图片自适应 */
+    .paste-view * { max-width: 100%; box-sizing: border-box; }
+    .paste-view p, .paste-view div, .paste-view li, .paste-view h1, .paste-view h2, .paste-view h3, .paste-view h4, .paste-view span { overflow-wrap: break-word; word-break: break-word; }
+    .paste-view img { max-width: 100% !important; height: auto !important; }
+    .paste-view table { max-width: 100% !important; table-layout: fixed; }
+    .paste-view table td, .paste-view table th { word-break: break-all; }
     .paste-empty-state { display: none; flex-direction: column; align-items: center; gap: 8px; padding: 28px 16px; }
     .paste-card.empty .paste-empty-state { display: flex; }
     .paste-card.empty .paste-view { display: none; }
@@ -7352,7 +7358,21 @@ export default {
     if(modal) modal.classList.remove('active');
   }
 
-  // 清洗粘贴的富文本：去掉 script/事件属性/mso 噪音，保留字体、字号、字间距、行距、缩进等格式
+  // 字号归一化：pt/px 统一转 px 并按 0.82 等比缩小（保留标题与正文的层次）
+  function normalizeFontSizes(el){
+    var style=el.getAttribute('style')||'';
+    if(!style) return;
+    // 前导约束 (^|;)\s* 避免误匹配 mso-ansi-font-size 等 mso 属性
+    var newStyle=style.replace(/(^|;)\\s*font-size\\s*:\\s*([\\d.]+)(pt|px)/gi,function(m,pre,num,unit){
+      var px=unit==='pt'?parseFloat(num)*4/3:parseFloat(num);
+      if(!px||isNaN(px)||px<=0) return m;
+      px=Math.round(px*0.82*10)/10;
+      return pre+'font-size:'+px+'px';
+    });
+    if(newStyle!==style) el.setAttribute('style',newStyle);
+  }
+
+  // 清洗粘贴的富文本：去掉 script/事件属性/mso 噪音，保留字体、字间距、行距、缩进等格式
   function cleanPastedHtml(html){
     try {
       var doc=new DOMParser().parseFromString(String(html||''),'text/html');
@@ -7365,6 +7385,7 @@ export default {
           var n=attrs[i].name;
           if(/^on/i.test(n)||/^mso-/i.test(n)||/^xmlns/i.test(n)) el.removeAttribute(n);
         }
+        normalizeFontSizes(el);
       });
       return doc.body?doc.body.innerHTML:'';
     } catch(e){ return ''; }
