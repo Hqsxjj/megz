@@ -634,12 +634,12 @@ async function callAIChatWithTools(env, messages, temperature = 0.5, fromUser = 
                   monthW += d.wechatCount || 0;
                   monthI += d.intentCount || 0;
                   monthR += d.revisitCount || 0;
-                  monthT += (d.tempClients || []).length;
+                  monthT += (d.tempClients || []).filter(function(tc){ return !tc.date || tc.date === d.date; }).length;
                   if (d.date >= monStr && d.date <= todayStr) {
                     weekW += d.wechatCount || 0;
                     weekI += d.intentCount || 0;
                     weekR += d.revisitCount || 0;
-                    weekT += (d.tempClients || []).length;
+                    weekT += (d.tempClients || []).filter(function(tc){ return !tc.date || tc.date === d.date; }).length;
                   }
                 } catch(e) {}
               }
@@ -2554,7 +2554,9 @@ export default {
           clients: mergedClients,
           todayTodos: todayTodos || existing.todayTodos || [],
           tomorrowTodos: tomorrowTodos || existing.tomorrowTodos || [],
-          tempClients: tempClients || existing.tempClients || [],
+          tempClients: tempClients !== undefined
+            ? (tempClients || []).filter(tc => !tc.date || tc.date === date)
+            : (existing.tempClients || []),
           scripts: scripts || existing.scripts || [],
           learns: learns || existing.learns || [],
           todoLog: todoLog || existing.todoLog || [],
@@ -2677,9 +2679,19 @@ export default {
           data.tomorrowTodos = body.todos || [];
           break;
         case 'setTempClients':
-          data.tempClients = (body.tempClients || []).filter(function(tc){ return tc.date === date; });
-          // Also persist full list to a dedicated cross-date KV key
-          await env.DATA_KV.put('temp_clients:all', JSON.stringify(body.tempClients || []));
+          data.tempClients = (body.tempClients || []).filter(function(tc){ return !tc.date || tc.date === date; });
+          // Also persist full list to a dedicated cross-date KV key (去重后写入，防止历史重复数据累积)
+          {
+            const seenKeys = new Set();
+            const dedupedMaster = [];
+            for (const tc of (body.tempClients || [])) {
+              const k = (tc.name || '') + '|' + (tc.phone || '') + '|' + (tc.date || '') + '|' + (tc.time || '');
+              if (seenKeys.has(k)) continue;
+              seenKeys.add(k);
+              dedupedMaster.push(tc);
+            }
+            await env.DATA_KV.put('temp_clients:all', JSON.stringify(dedupedMaster));
+          }
           break;
         case 'pushTodoLog':
           if (body.todo) {
@@ -2929,8 +2941,18 @@ export default {
       if (masterRaw) {
         try {
           const all = JSON.parse(masterRaw);
-          all.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
-          return new Response(JSON.stringify(all), {
+          // 去重：与 fallback 路径一致，防止历史脏数据重复显示
+          const seen = new Set();
+          const deduped = [];
+          for (const c of all) {
+            const uniq = (c.name || '') + '|' + (c.phone || '') + '|' + (c.date || '') + '|' + (c.time || '');
+            if (!seen.has(uniq)) {
+              seen.add(uniq);
+              deduped.push(c);
+            }
+          }
+          deduped.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+          return new Response(JSON.stringify(deduped), {
             headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
           });
         } catch(e) {}
@@ -6179,7 +6201,16 @@ export default {
         var tempMergeMap=new Map();
         localTodayTemp.forEach(function(tc){tempMergeMap.set(tc.name+'|'+tc.phone+'|'+(tc.time||''),tc);});
         (data.tempClients||[]).forEach(function(tc){tempMergeMap.set(tc.name+'|'+tc.phone+'|'+(tc.time||''),tc);});
-        localStorage.setItem(TEMP_CLIENTS_K,JSON.stringify(nonTodayTemp.concat(Array.from(tempMergeMap.values()))));
+        var mergedTemp=nonTodayTemp.concat(Array.from(tempMergeMap.values()));
+        // 全量去重：修复历史脏数据在同步中的重复累积
+        var seenTemp=new Set();
+        mergedTemp=mergedTemp.filter(function(tc){
+          var k=(tc.name||'')+'|'+(tc.phone||'')+'|'+(tc.date||'')+'|'+(tc.time||'');
+          if(seenTemp.has(k)) return false;
+          seenTemp.add(k);
+          return true;
+        });
+        localStorage.setItem(TEMP_CLIENTS_K,JSON.stringify(mergedTemp));
       }
       // 话术/学习
       if(data.scripts!==undefined){saveScripts(data.scripts);renderLockScripts();}
@@ -6233,7 +6264,16 @@ export default {
       var localDayTemp=allTemp2.filter(function(tc){return tc.date===date;});
       localDayTemp.forEach(function(tc){dayTempMerge.set(tc.name+'|'+tc.phone+'|'+(tc.time||''),tc);});
       (data.tempClients||[]).forEach(function(tc){dayTempMerge.set(tc.name+'|'+tc.phone+'|'+(tc.time||''),tc);});
-      localStorage.setItem(TEMP_CLIENTS_K,JSON.stringify(nonDayTemp.concat(Array.from(dayTempMerge.values()))));
+      var mergedDayTemp=nonDayTemp.concat(Array.from(dayTempMerge.values()));
+      // 全量去重：修复历史脏数据在同步中的重复累积
+      var seenDayTemp=new Set();
+      mergedDayTemp=mergedDayTemp.filter(function(tc){
+        var k=(tc.name||'')+'|'+(tc.phone||'')+'|'+(tc.date||'')+'|'+(tc.time||'');
+        if(seenDayTemp.has(k)) return false;
+        seenDayTemp.add(k);
+        return true;
+      });
+      localStorage.setItem(TEMP_CLIENTS_K,JSON.stringify(mergedDayTemp));
     }
     if(data.scripts!==undefined)saveScripts(data.scripts);
     if(data.learns!==undefined)saveLearns(data.learns);
@@ -7816,6 +7856,16 @@ export default {
     }catch(e){}
     if(list.length===0){
       list=JSON.parse(localStorage.getItem(TEMP_CLIENTS_K)||'[]');
+    }
+    // 渲染前去重：防止历史脏数据重复显示
+    {
+      var seenFull=new Set();
+      list=list.filter(function(c){
+        var k=(c.name||'')+'|'+(c.phone||'')+'|'+(c.date||'')+'|'+(c.time||'');
+        if(seenFull.has(k)) return false;
+        seenFull.add(k);
+        return true;
+      });
     }
     var cardList=document.getElementById('tempFullCardList');
     var count=document.getElementById('tempFullCount');
