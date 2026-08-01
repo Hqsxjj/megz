@@ -3850,6 +3850,11 @@ export default {
     .paste-cancel-btn { min-height: 44px; padding: 0 20px; border-radius: 10px; background: var(--btn-bg); color: var(--text-soft); font-weight: 600; font-size: 0.82rem; border: 0.5px solid var(--card-border); cursor: pointer; }
     .paste-loading, .paste-error { padding: 24px 16px; text-align: center; font-size: 0.8rem; color: var(--text-light); }
     .paste-empty-hint { font-size: 0.7rem; color: var(--text-light); font-weight: 500; }
+    /* 卡片底部切换栏 */
+    .paste-nav { display: flex; align-items: center; justify-content: space-between; border-top: 0.5px solid var(--separator); padding: 8px 12px; }
+    .paste-nav-btn { min-height: 40px; padding: 0 14px; border-radius: 10px; border: 0.5px solid var(--card-border); background: var(--btn-bg); color: var(--text-main); font-size: 0.8rem; font-weight: 600; cursor: pointer; }
+    .paste-nav-btn:disabled { opacity: 0.35; }
+    .paste-nav-count { font-size: 0.78rem; color: var(--text-light); font-weight: 600; }
     /* 学习管理内的内容条目列表 */
     .paste-manage-item { display: flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 10px; border-radius: 10px; border: 0.5px solid var(--card-border); background: var(--btn-bg); cursor: pointer; font-size: 0.78rem; font-weight: 600; color: var(--text-main); }
     .paste-manage-item.selected { background: var(--accent-btn); color: #fff; border-color: transparent; }
@@ -4831,6 +4836,11 @@ export default {
               <span class="paste-empty-label">暂无内容</span>
               <span class="paste-empty-hint">添加内容：右上角菜单 → 学习管理</span>
             </div>
+          </div>
+          <div class="paste-nav" id="pasteNav" style="display:none;">
+            <button type="button" class="paste-nav-btn" id="pastePrevBtn">‹ 上一段</button>
+            <span class="paste-nav-count" id="pasteNavCount"></span>
+            <button type="button" class="paste-nav-btn" id="pasteNextBtn">下一段 ›</button>
           </div>
         </div>
         <div class="card">
@@ -7342,7 +7352,38 @@ export default {
     document.addEventListener('keydown',function(e){
       if(e.key==='Escape') closePasteEditor();
     });
+    var prevBtn=document.getElementById('pastePrevBtn');
+    if(prevBtn) prevBtn.addEventListener('click',function(){ navPaste(-1); });
+    var nextBtn=document.getElementById('pasteNextBtn');
+    if(nextBtn) nextBtn.addEventListener('click',function(){ navPaste(1); });
     refreshPasteList();
+  }
+
+  // 卡片底部切换栏：更新显示/隐藏、页码、按钮禁用态
+  function updatePasteNav(){
+    var nav=document.getElementById('pasteNav');
+    if(!nav) return;
+    if(_pastes.length<=1){ nav.style.display='none'; return; }
+    nav.style.display='flex';
+    var idx=-1;
+    for(var i=0;i<_pastes.length;i++){ if(_pastes[i].id===_curPasteId){ idx=i; break; } }
+    if(idx<0) idx=0;
+    var count=document.getElementById('pasteNavCount');
+    if(count) count.textContent=(idx+1)+' / '+_pastes.length;
+    var prevBtn=document.getElementById('pastePrevBtn');
+    var nextBtn=document.getElementById('pasteNextBtn');
+    if(prevBtn) prevBtn.disabled=idx<=0;
+    if(nextBtn) nextBtn.disabled=idx>=_pastes.length-1;
+  }
+
+  function navPaste(dir){
+    if(_pastes.length===0) return;
+    var idx=-1;
+    for(var i=0;i<_pastes.length;i++){ if(_pastes[i].id===_curPasteId){ idx=i; break; } }
+    if(idx<0) idx=0;
+    var ni=idx+dir;
+    if(ni<0||ni>=_pastes.length) return;
+    selectPaste(_pastes[ni].id);
   }
 
   function openPasteEditor(){
@@ -7458,6 +7499,7 @@ export default {
       delBtn.addEventListener('click',function(e){ e.stopPropagation(); deletePaste(this.dataset.pasteId); });
       list.appendChild(item);
     }
+    updatePasteNav();
   }
 
   function showPasteEmpty(){
@@ -7466,6 +7508,7 @@ export default {
     if(card) card.classList.add('empty');
     var view=document.getElementById('pasteView');
     if(view){ view.innerHTML=''; }
+    updatePasteNav();
   }
 
   function selectPaste(id){
