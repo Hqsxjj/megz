@@ -3389,6 +3389,11 @@ export default {
   <link rel="apple-touch-icon" href="/icon.svg">
   <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?onload=_onTurnstileLoad&render=explicit" async defer></script>
   <link rel="icon" href="/icon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/inter@5/400.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/inter@5/500.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/inter@5/600.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/inter@5/700.css">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     :root {
@@ -3462,7 +3467,7 @@ export default {
       --wallpaper-opacity: 0.35;
     }
     html { height: 100%; width: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: none; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
-    body { min-height: 100vh; width: 100%; background: var(--bg-app); font-family: "SF Pro Display", "SF Pro Text", -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", "Microsoft YaHei", sans-serif; font-weight: 400; letter-spacing: -0.01em; text-rendering: optimizeLegibility; transition: background 0.3s; position: relative; line-height: 1.45; }
+    body { min-height: 100vh; width: 100%; background: var(--bg-app); font-family: Inter, "SF Pro Display", "SF Pro Text", -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", "Microsoft YaHei", sans-serif; font-weight: 400; letter-spacing: -0.01em; text-rendering: optimizeLegibility; transition: background 0.3s; position: relative; line-height: 1.45; }
     .wallpaper-background { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; background-image: var(--wallpaper-url); background-size: cover; background-position: center; background-repeat: no-repeat; opacity: var(--wallpaper-opacity); transition: opacity 0.8s ease, background-image 0.8s ease; pointer-events: none; }
     body.dark-mode .wallpaper-background { opacity: 0.12; }
     .wallpaper-fallback { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; background: linear-gradient(135deg, #a8e6cf 0%, #dcedc1 100%); opacity: 0.15; pointer-events: none; }
@@ -4526,7 +4531,7 @@ export default {
       color: var(--accent-wechat);
     }
     /* ==================== Android 专属适配 ==================== */
-    body.android { font-family: Roboto, "Noto Sans CJK SC", "Noto Sans SC", sans-serif; }
+    body.android { font-family: Inter, Roboto, "Noto Sans CJK SC", "Noto Sans SC", sans-serif; }
     /* Android 使用 static vh 避免 toolbar 收展导致 dvh 布局抖动 */
     body.android .app-shell { height: 100vh; height: -webkit-fill-available; padding-top: 39px; }
     /* Android backdrop-filter 性能差，降低或关闭 */
