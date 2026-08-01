@@ -2309,13 +2309,6 @@ export default {
       return fetch('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js');
     }
 
-    // 代理 Word 文档渲染库（docx-preview 依赖全局 JSZip，jszip 必须先加载）
-    if (path === '/jszip.min.js') {
-      return fetch('https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js');
-    }
-    if (path === '/docx-preview.min.js') {
-      return fetch('https://cdn.jsdelivr.net/npm/docx-preview@0.4.0/dist/docx-preview.min.js');
-    }
 
     if (path.startsWith('/tessdata/')) {
       const fileName = path.replace('/tessdata/', '');
@@ -3829,30 +3822,35 @@ export default {
     .todo-text { flex: 1; word-break: break-word; line-height: 1.4; }
     .todo-input-row { display: flex; gap: 8px; align-items: center; width: 100%; }
     .todo-del-btn { background: none; border: none; color: #c97a7a; cursor: pointer; font-size: 0.85rem; padding: 0 4px; }
-    /* ===== Word 文档展示模块 ===== */
-    .doc-card { padding: 0 !important; overflow: hidden; border-radius: var(--radius-ios) !important; }
-    .doc-toolbar { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-bottom: 0.5px solid var(--separator); gap: 8px; }
-    .doc-upload-btn { min-height: 44px; padding: 0 16px; border-radius: 10px; background: var(--accent-btn); color: #fff; font-weight: 700; font-size: 0.82rem; border: none; cursor: pointer; }
-    .doc-upload-btn:disabled { opacity: 0.5; }
-    .doc-list { display: flex; gap: 8px; overflow-x: auto; padding: 10px 12px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
-    .doc-list::-webkit-scrollbar { display: none; }
-    .doc-chip { flex-shrink: 0; display: inline-flex; align-items: center; gap: 4px; height: 40px; padding: 0 6px 0 14px; border-radius: 10px; border: 0.5px solid var(--card-border); background: var(--btn-bg); cursor: pointer; font-size: 0.8rem; font-weight: 600; color: var(--text-main); max-width: 220px; }
-    .doc-chip-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 150px; }
-    .doc-chip.selected { background: var(--accent-btn); color: #fff; border-color: transparent; }
-    .doc-chip-del { width: 32px; height: 32px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; border: none; background: transparent; color: inherit; font-size: 0.8rem; cursor: pointer; border-radius: 8px; opacity: 0.7; }
-    .doc-chip-del:active { opacity: 1; }
-    .doc-view { width: 100%; overflow-y: auto; max-height: 70vh; background: var(--btn-bg); }
-    .doc-empty-state { display: none; flex-direction: column; align-items: center; gap: 8px; padding: 28px 16px; }
-    .doc-card.empty .doc-empty-state { display: flex; }
-    .doc-card.empty .doc-view { display: none; }
-    .doc-empty-label { font-size: 0.8rem; color: var(--text-light); font-weight: 600; }
-    .doc-empty-upload { min-height: 44px; padding: 0 22px; border-radius: 10px; font-size: 0.82rem; font-weight: 700; color: var(--accent-btn); cursor: pointer; border: 1px solid var(--accent-btn); background: transparent; }
-    .doc-empty-upload:active { background: var(--btn-bg); }
-    /* 渲染覆盖（盖掉 docx-preview 默认灰底/内边距/重阴影） */
-    .doc-view .docx-wrapper { background: transparent !important; padding: 0 !important; }
-    .doc-view .docx-wrapper>section.docx { box-shadow: var(--shadow-card) !important; margin-bottom: 12px !important; }
-    .doc-rendering, .doc-error { padding: 24px 16px; text-align: center; font-size: 0.8rem; color: var(--text-light); }
-    @media (max-width: 760px) { .doc-card { order: 999; } }
+    /* ===== 内容展示模块（复制粘贴保留格式） ===== */
+    .paste-card { padding: 0 !important; overflow: hidden; border-radius: var(--radius-ios) !important; }
+    .paste-toolbar { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-bottom: 0.5px solid var(--separator); gap: 8px; }
+    .paste-add-btn { min-height: 44px; padding: 0 16px; border-radius: 10px; background: var(--accent-btn); color: #fff; font-weight: 700; font-size: 0.82rem; border: none; cursor: pointer; }
+    .paste-add-btn:disabled { opacity: 0.5; }
+    .paste-list { display: flex; gap: 8px; overflow-x: auto; padding: 10px 12px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+    .paste-list::-webkit-scrollbar { display: none; }
+    .paste-chip { flex-shrink: 0; display: inline-flex; align-items: center; gap: 4px; height: 40px; padding: 0 6px 0 14px; border-radius: 10px; border: 0.5px solid var(--card-border); background: var(--btn-bg); cursor: pointer; font-size: 0.8rem; font-weight: 600; color: var(--text-main); max-width: 220px; }
+    .paste-chip-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 150px; }
+    .paste-chip.selected { background: var(--accent-btn); color: #fff; border-color: transparent; }
+    .paste-chip-del { width: 32px; height: 32px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; border: none; background: transparent; color: inherit; font-size: 0.8rem; cursor: pointer; border-radius: 8px; opacity: 0.7; }
+    .paste-chip-del:active { opacity: 1; }
+    .paste-view { width: 100%; overflow-y: auto; max-height: 70vh; background: var(--card-bg); padding: 14px 16px; box-sizing: border-box; }
+    .paste-empty-state { display: none; flex-direction: column; align-items: center; gap: 8px; padding: 28px 16px; }
+    .paste-card.empty .paste-empty-state { display: flex; }
+    .paste-card.empty .paste-view { display: none; }
+    .paste-empty-label { font-size: 0.8rem; color: var(--text-light); font-weight: 600; }
+    .paste-empty-add { min-height: 44px; padding: 0 22px; border-radius: 10px; font-size: 0.82rem; font-weight: 700; color: var(--accent-btn); cursor: pointer; border: 1px solid var(--accent-btn); background: transparent; }
+    .paste-empty-add:active { background: var(--btn-bg); }
+    /* 编辑器弹窗 */
+    .paste-editor { width: 100%; min-height: 200px; max-height: 45vh; overflow-y: auto; padding: 10px 12px; box-sizing: border-box; border: 0.5px solid var(--card-border); border-radius: 10px; background: var(--card-bg); color: var(--text-main); font-size: 0.85rem; line-height: 1.5; outline: none; -webkit-user-select: text; user-select: text; }
+    .paste-editor:empty:before { content: attr(data-placeholder); color: var(--text-light); pointer-events: none; }
+    .paste-title-row { display: flex; gap: 8px; align-items: center; }
+    .paste-title-row input { flex: 1; min-height: 44px; box-sizing: border-box; padding: 0 12px; font-size: 0.82rem; border: 0.5px solid var(--card-border); border-radius: 10px; background: var(--card-bg); color: var(--text-main); outline: none; }
+    .paste-btn-row { display: flex; gap: 8px; justify-content: flex-end; }
+    .paste-save-btn { min-height: 44px; padding: 0 20px; border-radius: 10px; background: var(--accent-btn); color: #fff; font-weight: 700; font-size: 0.82rem; border: none; cursor: pointer; }
+    .paste-cancel-btn { min-height: 44px; padding: 0 20px; border-radius: 10px; background: var(--btn-bg); color: var(--text-soft); font-weight: 600; font-size: 0.82rem; border: 0.5px solid var(--card-border); cursor: pointer; }
+    .paste-loading, .paste-error { padding: 24px 16px; text-align: center; font-size: 0.8rem; color: var(--text-light); }
+    @media (max-width: 760px) { .paste-card { order: 999; } }
     @media (min-width: 761px) {
       .right-area { order: 2; } .left-area { order: 1; }
       .card { padding: 14px 16px; }
@@ -3951,8 +3949,8 @@ export default {
       .temp-card { padding: 8px 10px; }
       .temp-card-row { gap: 6px; font-size: 0.7rem; }
       .temp-card-name { font-size: 0.78rem; }
-      .doc-chip { max-width: 180px; }
-      .doc-chip-name { max-width: 120px; }
+      .paste-chip { max-width: 180px; }
+      .paste-chip-name { max-width: 120px; }
     }
     @media (max-width: 760px) {
       .timer-container { display: none !important; }
@@ -4641,8 +4639,6 @@ export default {
     @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
   </style>
   <script src="/xlsx.full.min.js"></script>
-  <script src="/jszip.min.js" defer></script>
-  <script src="/docx-preview.min.js" defer></script>
 </head>
 <body class="page-hidden" style="visibility:hidden">
 <div class="pwa-install-banner" id="pwaInstallBanner">
@@ -4824,16 +4820,16 @@ export default {
                         <div class="client-scroll" id="clientList"></div>
           </div>
         </div>
-        <div class="card doc-card empty">
-          <div class="doc-toolbar">
-            <span style="font-size:0.8rem;font-weight:700;color:var(--text-main);">Word 文档</span>
-            <button type="button" class="doc-upload-btn" id="docUploadBtn">上传 Word 文档</button>
+        <div class="card paste-card empty">
+          <div class="paste-toolbar">
+            <span style="font-size:0.8rem;font-weight:700;color:var(--text-main);">内容展示</span>
+            <button type="button" class="paste-add-btn" id="pasteAddBtn">添加内容</button>
           </div>
-          <div class="doc-list" id="docList"></div>
-          <div class="doc-view" id="docView">
-            <div class="doc-empty-state">
-              <span class="doc-empty-label">暂无文档</span>
-              <button type="button" class="doc-empty-upload" id="docEmptyUploadBtn">上传 Word 文档</button>
+          <div class="paste-list" id="pasteList"></div>
+          <div class="paste-view" id="pasteView">
+            <div class="paste-empty-state">
+              <span class="paste-empty-label">暂无内容</span>
+              <button type="button" class="paste-empty-add" id="pasteEmptyAddBtn">添加内容</button>
             </div>
           </div>
         </div>
@@ -4874,6 +4870,17 @@ export default {
   </div>
 </div>
 <div id="globalTooltip" class="tooltip-simple"></div>
+<div id="pasteModal" class="modal-overlay">
+  <div class="modal-card" style="width:94%;max-width:560px;">
+    <div class="modal-header"><span>添加内容</span><button id="closePasteModalBtn" type="button">×</button></div>
+    <div class="paste-title-row"><input type="text" id="pasteTitleInput" placeholder="标题（选填）" maxlength="60"></div>
+    <div style="margin-top:8px;"><div class="paste-editor" id="pasteEditor" contenteditable="true" data-placeholder="从 Word / 微信 / 网页复制文字后，长按或 Ctrl+V 粘贴到这里（字体、字号、字间距、行距、缩进都会保留）"></div></div>
+    <div class="paste-btn-row" style="margin-top:10px;">
+      <button type="button" class="paste-cancel-btn" id="pasteCancelBtn">取消</button>
+      <button type="button" class="paste-save-btn" id="pasteSaveBtn">保存</button>
+    </div>
+  </div>
+</div>
 <div id="scriptModal" class="modal-overlay">
   <div class="modal-card script-input-modal">
     <div class="modal-header"><span>话术管理</span><button id="closeScriptModalBtn">×</button></div>
@@ -7307,193 +7314,199 @@ export default {
     renderGoalChips();
   }
 
-  // ===== Word 文档展示模块 =====
-  var _docs=[], _curDocId='', _docInited=false;
-  var _docBufCache={}, _docDomCache={}, _docRenderSeq=0;
+  // ===== 内容展示模块（复制粘贴保留格式） =====
+  var _pastes=[], _curPasteId='', _pasteInited=false;
+  var _pasteHtmlCache={};
 
-  function initDocModule(){
-    if(_docInited) return;
-    _docInited=true;
+  function initPasteModule(){
+    if(_pasteInited) return;
+    _pasteInited=true;
     var btns=[
-      document.getElementById('docUploadBtn'),
-      document.getElementById('docEmptyUploadBtn')
+      document.getElementById('pasteAddBtn'),
+      document.getElementById('pasteEmptyAddBtn')
     ];
     for(var b=0;b<btns.length;b++){
       var btn=btns[b];
       if(!btn) continue;
-      btn.addEventListener('click',function(){
-        var input=document.createElement('input');
-        input.type='file';
-        input.accept='.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-        input.onchange=function(){ uploadDocs(this.files); };
-        input.click();
-      });
+      btn.addEventListener('click',openPasteEditor);
     }
-    window.addEventListener('resize',function(){ if(_curDocId) fitDocWidth(); });
-    if(document.fonts&&document.fonts.ready) document.fonts.ready.then(function(){ fitDocWidth(); });
-    refreshDocList();
+    var closeBtn=document.getElementById('closePasteModalBtn');
+    if(closeBtn) closeBtn.addEventListener('click',closePasteEditor);
+    var cancelBtn=document.getElementById('pasteCancelBtn');
+    if(cancelBtn) cancelBtn.addEventListener('click',closePasteEditor);
+    var saveBtn=document.getElementById('pasteSaveBtn');
+    if(saveBtn) saveBtn.addEventListener('click',savePaste);
+    var modal=document.getElementById('pasteModal');
+    if(modal) modal.addEventListener('click',function(e){ if(e.target===modal) closePasteEditor(); });
+    document.addEventListener('keydown',function(e){
+      if(e.key==='Escape') closePasteEditor();
+    });
+    refreshPasteList();
   }
 
-  // 每 60 秒（refreshAll 末尾）调用；只拉 manifest，选中项未变不重渲染
-  async function refreshDocList(){
+  function openPasteEditor(){
+    var modal=document.getElementById('pasteModal');
+    var title=document.getElementById('pasteTitleInput');
+    var editor=document.getElementById('pasteEditor');
+    if(title) title.value='';
+    if(editor) editor.innerHTML='';
+    if(modal) modal.classList.add('active');
+    setTimeout(function(){ if(editor) editor.focus(); },50);
+  }
+
+  function closePasteEditor(){
+    var modal=document.getElementById('pasteModal');
+    if(modal) modal.classList.remove('active');
+  }
+
+  // 清洗粘贴的富文本：去掉 script/事件属性/mso 噪音，保留字体、字号、字间距、行距、缩进等格式
+  function cleanPastedHtml(html){
     try {
-      var resp=await fetch('/api/doc');
-      var docs=await resp.json();
-      _docs=Array.isArray(docs)?docs:[];
-      renderDocList();
-      if(_curDocId && _docs.some(function(d){return d.id===_curDocId;})) return;
-      if(_docs.length){
-        // 恢复上次查看的文档，否则选第一篇
-        var saved='';
-        try { saved=localStorage.getItem('doc_cur_id')||''; } catch(e){}
-        var savedDoc=null;
-        for(var i=0;i<_docs.length;i++){ if(_docs[i].id===saved){ savedDoc=_docs[i]; break; } }
-        selectDoc(savedDoc?savedDoc.id:_docs[0].id);
-      } else {
-        showDocEmpty();
-      }
-    } catch(e) { console.error('加载文档列表失败:',e); }
+      var doc=new DOMParser().parseFromString(String(html||''),'text/html');
+      ['script','style','iframe','object','embed','link','meta','base','form','input','button','textarea','select'].forEach(function(tag){
+        doc.querySelectorAll(tag).forEach(function(el){ el.remove(); });
+      });
+      doc.querySelectorAll('*').forEach(function(el){
+        var attrs=[].slice.call(el.attributes||[]);
+        for(var i=0;i<attrs.length;i++){
+          var n=attrs[i].name;
+          if(/^on/i.test(n)||/^mso-/i.test(n)||/^xmlns/i.test(n)) el.removeAttribute(n);
+        }
+      });
+      return doc.body?doc.body.innerHTML:'';
+    } catch(e){ return ''; }
   }
 
-  function renderDocList(){
-    var list=document.getElementById('docList');
-    var card=document.querySelector('.doc-card');
+  // 每 60 秒（refreshAll 末尾）调用；只拉清单，选中项未变不重渲染
+  async function refreshPasteList(){
+    try {
+      var resp=await fetch('/api/paste');
+      var pastes=await resp.json();
+      _pastes=Array.isArray(pastes)?pastes:[];
+      renderPasteList();
+      if(_curPasteId && _pastes.some(function(p){return p.id===_curPasteId;})) return;
+      if(_pastes.length){
+        // 恢复上次查看的内容，否则选第一篇
+        var saved='';
+        try { saved=localStorage.getItem('paste_cur_id')||''; } catch(e){}
+        var savedPaste=null;
+        for(var i=0;i<_pastes.length;i++){ if(_pastes[i].id===saved){ savedPaste=_pastes[i]; break; } }
+        selectPaste(savedPaste?savedPaste.id:_pastes[0].id);
+      } else {
+        showPasteEmpty();
+      }
+    } catch(e) { console.error('加载内容列表失败:',e); }
+  }
+
+  function renderPasteList(){
+    var list=document.getElementById('pasteList');
+    var card=document.querySelector('.paste-card');
     if(!list) return;
     list.innerHTML='';
-    for(var i=0;i<_docs.length;i++){
-      var d=_docs[i];
+    for(var i=0;i<_pastes.length;i++){
+      var p=_pastes[i];
       var chip=document.createElement('div');
-      chip.className='doc-chip'+(d.id===_curDocId?' selected':'');
-      chip.dataset.docId=d.id;
+      chip.className='paste-chip'+(p.id===_curPasteId?' selected':'');
+      chip.dataset.pasteId=p.id;
       var nameSpan=document.createElement('span');
-      nameSpan.className='doc-chip-name';
-      nameSpan.textContent=d.name||'文档';
+      nameSpan.className='paste-chip-name';
+      nameSpan.textContent=p.name||'内容 '+(i+1);
       var delBtn=document.createElement('button');
       delBtn.type='button';
-      delBtn.className='doc-chip-del';
+      delBtn.className='paste-chip-del';
       delBtn.textContent='✕';
-      delBtn.dataset.docId=d.id;
+      delBtn.dataset.pasteId=p.id;
       chip.appendChild(nameSpan);
       chip.appendChild(delBtn);
-      chip.addEventListener('click',function(){ selectDoc(this.dataset.docId); });
-      delBtn.addEventListener('click',function(e){ e.stopPropagation(); deleteDoc(this.dataset.docId); });
+      chip.addEventListener('click',function(){ selectPaste(this.dataset.pasteId); });
+      delBtn.addEventListener('click',function(e){ e.stopPropagation(); deletePaste(this.dataset.pasteId); });
       list.appendChild(chip);
     }
-    if(card) card.classList.toggle('empty',_docs.length===0);
+    if(card) card.classList.toggle('empty',_pastes.length===0);
   }
 
-  function showDocEmpty(){
-    _curDocId='';
-    var card=document.querySelector('.doc-card');
+  function showPasteEmpty(){
+    _curPasteId='';
+    var card=document.querySelector('.paste-card');
     if(card) card.classList.add('empty');
-    var view=document.getElementById('docView');
-    if(view){ view.innerHTML=''; view.style.height=''; }
+    var view=document.getElementById('pasteView');
+    if(view){ view.innerHTML=''; }
   }
 
-  function selectDoc(id){
-    _curDocId=id;
-    try { localStorage.setItem('doc_cur_id',id); } catch(e){}
-    renderDocList();
+  function selectPaste(id){
+    _curPasteId=id;
+    try { localStorage.setItem('paste_cur_id',id); } catch(e){}
+    renderPasteList();
     renderIntoView(id);
   }
 
   function renderIntoView(id){
-    var view=document.getElementById('docView');
+    var view=document.getElementById('pasteView');
     if(!view) return;
-    var card=document.querySelector('.doc-card');
+    var card=document.querySelector('.paste-card');
     if(card) card.classList.remove('empty');
-    if(_docDomCache[id]){
-      view.innerHTML='';
-      view.appendChild(_docDomCache[id]);
-      fitDocWidth();
+    if(_pasteHtmlCache[id]!==undefined){
+      view.innerHTML=_pasteHtmlCache[id];
       return;
     }
-    if(typeof docx==='undefined'){
-      view.innerHTML='<div class="doc-error">渲染组件加载失败，请刷新页面</div>';
-      return;
-    }
-    var seq=++_docRenderSeq;
-    view.innerHTML='<div class="doc-rendering">正在渲染文档…</div>';
-    var needFetch=!_docBufCache[id];
-    Promise.resolve(needFetch?fetch('/api/doc/'+encodeURIComponent(id)).then(function(r){
+    view.innerHTML='<div class="paste-loading">加载中…</div>';
+    fetch('/api/paste/'+encodeURIComponent(id)).then(function(r){
       if(!r.ok) throw new Error('加载失败('+r.status+')');
-      return r.arrayBuffer();
-    }):_docBufCache[id]).then(function(buf){
-      _docBufCache[id]=buf;
-      var box=document.createElement('div');
-      return docx.renderAsync(buf,box,null,{
-        className:'docx',inWrapper:true,breakPages:true,
-        ignoreWidth:false,ignoreHeight:false,ignoreFonts:false,
-        renderHeaders:true,renderFooters:true
-      }).then(function(){ return box; });
-    }).then(function(box){
-      if(seq!==_docRenderSeq) return;
-      _docDomCache[id]=box;
-      view.innerHTML='';
-      view.appendChild(box);
-      fitDocWidth();
+      return r.text();
+    }).then(function(html){
+      _pasteHtmlCache[id]=html;
+      if(_curPasteId!==id) return;
+      view.innerHTML=html||'';
     }).catch(function(e){
-      if(seq!==_docRenderSeq) return;
-      view.innerHTML='<div class="doc-error">文档渲染失败</div>';
-      console.error('渲染文档失败:',e);
+      if(_curPasteId!==id) return;
+      view.innerHTML='<div class="paste-error">内容加载失败</div>';
+      console.error('加载内容失败:',e);
     });
   }
 
-  function fitDocWidth(){
-    var view=document.getElementById('docView');
-    if(!view) return;
-    var wrap=view.querySelector('.docx-wrapper');
-    if(!wrap||!wrap.offsetWidth) return;
-    var scale=Math.min(1,view.clientWidth/wrap.offsetWidth);
-    wrap.style.transform='scale('+scale+')';
-    wrap.style.transformOrigin='top left';
-    view.style.height=(wrap.offsetHeight*scale)+'px';
-  }
-
-  async function uploadDocs(files){
-    if(!files||files.length===0) return;
-    for(var i=0;i<files.length;i++){
-      var file=files[i];
-      var lower=file.name?file.name.toLowerCase():'';
-      if(!/\.docx$/.test(lower)){ alert(file.name+' 不是 .docx 文件，请选择 Word 文档'); continue; }
-      if(file.size>10*1024*1024){ alert(file.name+' 超过 10MB 限制'); continue; }
-      try {
-        var data=await new Promise(function(resolve,reject){
-          var reader=new FileReader();
-          reader.onload=function(){ resolve(reader.result); };
-          reader.onerror=function(){ reject(reader.error||new Error('读取文件失败')); };
-          reader.readAsDataURL(file);
-        });
-        var base64=String(data).replace(/^data:[^;]+;base64,/,'');
-        var resp=await fetch('/api/doc',{
-          method:'POST',headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({name:file.name,data:base64})
-        });
-        var result=await resp.json();
-        if(!result.ok){ alert('上传失败: '+(result.error||'未知错误')); continue; }
-        await refreshDocList();
-        selectDoc(result.id);
-      } catch(e) { console.error('上传文档失败:',e); alert('上传失败: '+e.message); }
+  async function savePaste(){
+    var title=document.getElementById('pasteTitleInput');
+    var editor=document.getElementById('pasteEditor');
+    var saveBtn=document.getElementById('pasteSaveBtn');
+    if(!editor) return;
+    var text=(editor.innerText||'').trim();
+    if(!text){
+      alert('请先粘贴内容');
+      return;
     }
+    var html=cleanPastedHtml(editor.innerHTML);
+    var name=(title?title.value.trim():'')||text.substring(0,14);
+    if(saveBtn) saveBtn.disabled=true;
+    try {
+      var resp=await fetch('/api/paste',{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({name:name,html:html})
+      });
+      var result=await resp.json();
+      if(!result.ok){ alert('保存失败: '+(result.error||'未知错误')); return; }
+      closePasteEditor();
+      await refreshPasteList();
+      selectPaste(result.id);
+    } catch(e) { console.error('保存内容失败:',e); alert('保存失败: '+e.message); }
+    finally { if(saveBtn) saveBtn.disabled=false; }
   }
 
-  async function deleteDoc(id){
-    var doc=null;
-    for(var i=0;i<_docs.length;i++){ if(_docs[i].id===id){ doc=_docs[i]; break; } }
-    var name=doc?doc.name:'该文档';
+  async function deletePaste(id){
+    var p=null;
+    for(var i=0;i<_pastes.length;i++){ if(_pastes[i].id===id){ p=_pastes[i]; break; } }
+    var name=p?p.name:'该内容';
     if(!confirm('确定删除「'+name+'」吗？')) return;
     try {
-      var resp=await fetch('/api/doc',{
+      var resp=await fetch('/api/paste',{
         method:'DELETE',headers:{'Content-Type':'application/json'},
         body:JSON.stringify({id:id})
       });
       var result=await resp.json();
       if(!result.ok){ alert('删除失败: '+(result.error||'未知错误')); return; }
-      delete _docBufCache[id];
-      delete _docDomCache[id];
-      if(_curDocId===id) _curDocId='';
-      await refreshDocList();
-    } catch(e) { console.error('删除文档失败:',e); }
+      delete _pasteHtmlCache[id];
+      if(_curPasteId===id) _curPasteId='';
+      await refreshPasteList();
+    } catch(e) { console.error('删除内容失败:',e); }
   }
 
   function refreshAll(){
@@ -7516,7 +7529,7 @@ export default {
     document.getElementById('liveDate').innerHTML=(now.getMonth()+1)+'月'+now.getDate()+'日 '+wk[now.getDay()];
     renderCalendar(wm,im);renderClientList();renderTodos();renderTempClientList();
     renderGoalChips();
-    refreshDocList();
+    refreshPasteList();
   }
 
   async function modCounter(key,delta,op){
@@ -8149,7 +8162,7 @@ export default {
     document.body.classList.remove('page-journal','page-auth','page-hidden');
     var app=document.querySelector('.app-shell');if(app)app.style.display='flex';
     var js=document.getElementById('journalShell');if(js)js.style.display='none';
-    initDocModule();
+    initPasteModule();
     refreshAll();
   }
   function showJournalShell(){
@@ -10591,110 +10604,90 @@ export default {
 </body>
 </html>`;
 
-    // ========== Word 文档管理 API ==========
+    // ========== 内容管理 API（复制粘贴保留格式） ==========
 
-    // 获取文档清单
-    if (path === '/api/doc' && request.method === 'GET') {
-      const manifest = await env.DATA_KV.get('docs:manifest');
-      let docs = [];
+    // 获取内容清单
+    if (path === '/api/paste' && request.method === 'GET') {
+      const manifest = await env.DATA_KV.get('pastes:manifest');
+      let pastes = [];
       if (manifest) {
-        try { docs = JSON.parse(manifest); } catch(e) { docs = []; }
+        try { pastes = JSON.parse(manifest); } catch(e) { pastes = []; }
       }
-      return new Response(JSON.stringify(docs), {
+      return new Response(JSON.stringify(pastes), {
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
       });
     }
 
-    // 上传 Word 文档（base64 JSON body）
-    if (path === '/api/doc' && request.method === 'POST') {
+    // 保存内容（HTML body）
+    if (path === '/api/paste' && request.method === 'POST') {
       try {
-        // 请求体预检（base64 膨胀约 1.37 倍，防止超大请求超限）
+        // 请求体预检
         const cl = Number(request.headers.get('content-length') || 0);
-        if (cl > 15 * 1024 * 1024) {
-          return new Response(JSON.stringify({ error: '文档大小超过 10MB 限制' }), {
+        if (cl > 500 * 1024) {
+          return new Response(JSON.stringify({ error: '内容过大（超过 300KB）' }), {
             status: 413, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
           });
         }
         const body = await request.json();
-        // name 净化：去路径、去控制字符、限 60 字符
-        const name = String(body.name || '').split(/[\\/]/).pop().replace(/[\x00-\x1f]/g, '').substring(0, 60) || 'document.docx';
-        const data = body.data || '';
-        if (!data) {
-          return new Response(JSON.stringify({ error: '缺少文档数据' }), {
+        // name 净化：去控制字符、限 60 字符
+        const name = String(body.name || '').replace(/[\x00-\x1f]/g, '').substring(0, 60) || '内容';
+        let html = String(body.html || '');
+        if (!html.trim()) {
+          return new Response(JSON.stringify({ error: '内容为空' }), {
             status: 400, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
           });
         }
-        // 解码 base64（兼容 Workers 环境，优先用 node:buffer）
-        const base64 = data.replace(/^data:[^;]+;base64,/, '');
-        let binary;
-        try {
-          const { Buffer } = await import('node:buffer');
-          binary = Buffer.from(base64, 'base64');
-        } catch(e) {
-          // 回退：手动 atob 解码
-          const raw = atob(base64);
-          binary = new Uint8Array(raw.length);
-          for (let i = 0; i < raw.length; i++) {
-            binary[i] = raw.charCodeAt(i);
-          }
-        }
-        // 大小限制 10MB
-        if (binary.byteLength > 10 * 1024 * 1024) {
-          return new Response(JSON.stringify({ error: '文档大小超过 10MB 限制' }), {
+        // 大小限制 300KB（UTF-8 中文 3 字节/字，约 10 万字）
+        if (html.length > 300 * 1024) {
+          return new Response(JSON.stringify({ error: '内容超过 300KB 限制' }), {
             status: 400, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
           });
         }
-        // 魔数校验：docx 本质是 zip 压缩包（PK 头）
-        if (binary.byteLength < 4 || binary[0] !== 0x50 || binary[1] !== 0x4b) {
-          return new Response(JSON.stringify({ error: '不是有效的 Word 文档（.docx）' }), {
-            status: 400, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-          });
-        }
-        // 数量限制 10 个
-        let manifest = await env.DATA_KV.get('docs:manifest');
-        let docs = [];
+        // 服务端兜底清洗：去 script 标签与事件属性
+        html = html.replace(/<script[\s\S]*?<\/script>/gi, '').replace(/<script[\s\S]*/gi, '');
+        // 数量限制 20 个
+        let manifest = await env.DATA_KV.get('pastes:manifest');
+        let pastes = [];
         if (manifest) {
-          try { docs = JSON.parse(manifest); } catch(e) { docs = []; }
+          try { pastes = JSON.parse(manifest); } catch(e) { pastes = []; }
         }
-        if (docs.length >= 10) {
-          return new Response(JSON.stringify({ error: '文档数量已达上限（10个），请先删除旧文档' }), {
+        if (pastes.length >= 20) {
+          return new Response(JSON.stringify({ error: '内容数量已达上限（20个），请先删除旧内容' }), {
             status: 400, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
           });
         }
         const id = Date.now() + '_' + Math.random().toString(36).slice(2, 8);
-        const entry = { id, name, size: binary.byteLength, ts: Date.now() };
-        docs.push(entry);
-        // 确保 ArrayBuffer 大小精确匹配（Buffer/Uint8Array 的 buffer 可能更大）
-        const exactBuf = binary.buffer.slice(binary.byteOffset || 0, (binary.byteOffset || 0) + binary.byteLength);
+        const entry = { id, name, size: html.length, ts: Date.now() };
+        pastes.push(entry);
         await Promise.all([
-          env.DATA_KV.put('doc:' + id, exactBuf, { type: 'arrayBuffer' }),
-          env.DATA_KV.put('docs:manifest', JSON.stringify(docs))
+          env.DATA_KV.put('paste:' + id, html),
+          env.DATA_KV.put('pastes:manifest', JSON.stringify(pastes))
         ]);
         return new Response(JSON.stringify({ ok: true, id, entry }), {
           headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
         });
       } catch (e) {
-        return new Response(JSON.stringify({ error: '上传失败: ' + e.message }), {
+        return new Response(JSON.stringify({ error: '保存失败: ' + e.message }), {
           status: 500, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
         });
       }
     }
 
-    // 获取单个文档（二进制）
-    if (path.startsWith('/api/doc/') && request.method === 'GET') {
-      const id = path.slice('/api/doc/'.length);
+    // 获取单条内容（HTML 文本）
+    if (path.startsWith('/api/paste/') && request.method === 'GET') {
+      const id = path.slice('/api/paste/'.length);
       if (!id || id.includes('/')) {
         return new Response('Bad request', { status: 400 });
       }
       try {
-        const buf = await env.DATA_KV.get('doc:' + id, { type: 'arrayBuffer' });
-        if (!buf) {
+        const html = await env.DATA_KV.get('paste:' + id);
+        if (html === null) {
           return new Response('Not found', { status: 404 });
         }
-        return new Response(buf, {
+        return new Response(html, {
           headers: {
-            'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-            'Cache-Control': 'public, max-age=86400',
+            'Content-Type': 'text/html; charset=utf-8',
+            'Cache-Control': 'public, max-age=3600',
             'Access-Control-Allow-Origin': '*'
           }
         });
@@ -10703,8 +10696,8 @@ export default {
       }
     }
 
-    // 删除文档
-    if (path === '/api/doc' && request.method === 'DELETE') {
+    // 删除内容
+    if (path === '/api/paste' && request.method === 'DELETE') {
       try {
         const body = await request.json();
         const { id } = body;
@@ -10713,15 +10706,15 @@ export default {
             status: 400, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
           });
         }
-        let manifest = await env.DATA_KV.get('docs:manifest');
-        let docs = [];
+        let manifest = await env.DATA_KV.get('pastes:manifest');
+        let pastes = [];
         if (manifest) {
-          try { docs = JSON.parse(manifest); } catch(e) { docs = []; }
+          try { pastes = JSON.parse(manifest); } catch(e) { pastes = []; }
         }
-        docs = docs.filter(e => e.id !== id);
+        pastes = pastes.filter(e => e.id !== id);
         await Promise.all([
-          env.DATA_KV.delete('doc:' + id),
-          env.DATA_KV.put('docs:manifest', JSON.stringify(docs))
+          env.DATA_KV.delete('paste:' + id),
+          env.DATA_KV.put('pastes:manifest', JSON.stringify(pastes))
         ]);
         return new Response(JSON.stringify({ ok: true }), {
           headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
