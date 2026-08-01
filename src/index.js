@@ -3688,14 +3688,14 @@ export default {
     .cal-nav-btn { background: none; border: 1px solid var(--card-border); border-radius: var(--radius-xs); cursor: pointer; padding: 2px 8px; font-size: 0.7rem; color: var(--text-soft); transition: all 0.2s; }
     .cal-nav-btn:hover { background: var(--card-bg); color: var(--text-main); }
     .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; text-align: center; }
-    .cal-weekday { font-size: 0.65rem; font-weight: 700; color: var(--text-soft); padding: 4px 0; }
-    .cal-day { aspect-ratio: 1/1; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: var(--radius-xs); font-size: 0.7rem; font-weight: 700; color: var(--text-main); background: transparent; cursor: pointer; transition: 0.2s; position: relative; }
+    .cal-weekday { font-size: 0.72rem; font-weight: 700; color: var(--text-soft); padding: 4px 0; }
+    .cal-day { aspect-ratio: 1/1; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: var(--radius-xs); font-size: 0.76rem; font-weight: 700; color: var(--text-main); background: transparent; cursor: pointer; transition: 0.2s; position: relative; }
     .cal-day:hover { background: var(--cal-hover); transform: scale(0.98); }
     .cal-day.today { background: var(--today-gradient); color: white; box-shadow: 0 0 20px rgba(255,138,101,0.5); text-shadow: 0 1px 2px rgba(0,0,0,0.2); }
     .cal-day.past { background: rgba(128,138,150,0.08); color: var(--text-soft); }
     body.dark-mode .cal-day.past { background: rgba(255,255,255,0.03); }
-    .day-number { font-size: 0.78rem; font-weight: 700; }
-    .day-badge { display: flex; flex-wrap: wrap; justify-content: center; gap: 2px; font-size: 0.42rem; margin-top: 2px; color: var(--text-soft); font-weight: 700; line-height: 1.2; }
+    .day-number { font-size: 0.86rem; font-weight: 700; }
+    .day-badge { display: flex; flex-wrap: wrap; justify-content: center; gap: 2px; font-size: 0.48rem; margin-top: 2px; color: var(--text-soft); font-weight: 700; line-height: 1.2; }
     .cal-day.today .day-badge { color: rgba(255,255,255,0.9); }
     .day-badge span { background: rgba(100,110,130,0.15); padding: 0px 2px; border-radius: var(--radius-xs); }
     .cal-day.today .day-badge span { background: rgba(255,255,255,0.3); }
@@ -3874,11 +3874,11 @@ export default {
       .calendar-compact { flex: 1; display: flex; flex-direction: column; }
       .cal-head { font-size: 0.95rem; margin-bottom: 12px; }
       .cal-grid { flex: 1; align-content: space-around; }
-      .cal-weekday { font-size: 0.8rem; padding: 6px 0; }
-      .cal-day { font-size: 0.82rem; }
-      .day-number { font-size: 0.94rem; }
-      .day-badge { font-size: 0.6rem; margin-top: 4px; gap: 3px; }
-      .day-badge span { padding: 1px 3px; }
+      .cal-weekday { font-size: 0.86rem; padding: 6px 0; }
+      .cal-day { font-size: 0.88rem; }
+      .day-number { font-size: 1.02rem; }
+      .day-badge { font-size: 0.66rem; margin-top: 4px; gap: 3px; }
+      .day-badge span { padding: 1px 4px; }
     }
     @media (min-width: 1024px) {
       .right-area {
@@ -3922,8 +3922,8 @@ export default {
       .client-card-label { font-size: 0.6rem; }
       /* Calendar */
       .cal-day { min-height: 36px; padding: 3px 1px; }
-      .day-number { font-size: 0.65rem; }
-      .day-badge { font-size: 0.38rem; gap: 1px; }
+      .day-number { font-size: 0.72rem; }
+      .day-badge { font-size: 0.44rem; gap: 1px; }
       .cal-grid { gap: 1px; }
       /* Todo */
       .todo-item-clean { padding: 4px 2px; font-size: 0.72rem; gap: 6px; }
@@ -3999,8 +3999,8 @@ export default {
       .stat-block .number { font-size: 1rem; margin-left: 0; }
       .cal-day { aspect-ratio: auto; min-height: 38px; padding: 3px 1px; overflow: hidden; }
       .cal-grid { gap: 2px; }
-      .day-badge { font-size: 0.38rem; gap: 1px; }
-      .day-number { font-size: 0.68rem; }
+      .day-badge { font-size: 0.44rem; gap: 1px; }
+      .day-number { font-size: 0.75rem; }
       .todo-input-row { flex-wrap: wrap; gap: 8px; }
       .todo-input { flex: 1 1 100%; }
       .time-input-compact { flex: 1 !important; min-width: 0 !important; }
