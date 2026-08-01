@@ -3829,7 +3829,7 @@ export default {
     .paste-add-btn:disabled { opacity: 0.5; }
     .paste-list { display: flex; gap: 8px; overflow-x: auto; padding: 10px 12px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
     .paste-list::-webkit-scrollbar { display: none; }
-    .paste-view { width: 100%; overflow-y: auto; overflow-x: auto; max-height: 70vh; background: var(--card-bg); padding: 14px 16px; box-sizing: border-box; -webkit-overflow-scrolling: touch; }
+    .paste-view { width: 100%; overflow-y: auto; overflow-x: auto; max-height: 70vh; background: var(--card-bg); padding: 16px 18px; box-sizing: border-box; -webkit-overflow-scrolling: touch; }
     /* 防粘贴内容撑破卡片：宽元素压缩、长文本断行、图片自适应 */
     .paste-view * { max-width: 100%; box-sizing: border-box; }
     .paste-view p, .paste-view div, .paste-view li, .paste-view h1, .paste-view h2, .paste-view h3, .paste-view h4, .paste-view span { overflow-wrap: break-word; word-break: break-word; }
@@ -7358,6 +7358,16 @@ export default {
     if(modal) modal.classList.remove('active');
   }
 
+  // 负边距/负缩进会突破容器内边距贴到圆角边缘被裁切，钳制为 0
+  function clampNegativeLayout(el){
+    var style=el.getAttribute('style')||'';
+    if(!style) return;
+    var newStyle=style.replace(/(^|;)\\s*(margin-left|margin-right|text-indent)\\s*:\\s*(-[\\d.]+)(pt|px|em)/gi,function(m,pre,prop){
+      return pre+prop+':0';
+    });
+    if(newStyle!==style) el.setAttribute('style',newStyle);
+  }
+
   // 字号归一化：pt/px 统一转 px 并按 0.82 等比缩小（保留标题与正文的层次）
   function normalizeFontSizes(el){
     var style=el.getAttribute('style')||'';
@@ -7386,6 +7396,7 @@ export default {
           if(/^on/i.test(n)||/^mso-/i.test(n)||/^xmlns/i.test(n)) el.removeAttribute(n);
         }
         normalizeFontSizes(el);
+        clampNegativeLayout(el);
       });
       return doc.body?doc.body.innerHTML:'';
     } catch(e){ return ''; }
