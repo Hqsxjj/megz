@@ -3829,11 +3829,6 @@ export default {
     .paste-add-btn:disabled { opacity: 0.5; }
     .paste-list { display: flex; gap: 8px; overflow-x: auto; padding: 10px 12px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
     .paste-list::-webkit-scrollbar { display: none; }
-    .paste-chip { flex-shrink: 0; display: inline-flex; align-items: center; gap: 4px; height: 40px; padding: 0 6px 0 14px; border-radius: 10px; border: 0.5px solid var(--card-border); background: var(--btn-bg); cursor: pointer; font-size: 0.8rem; font-weight: 600; color: var(--text-main); max-width: 220px; }
-    .paste-chip-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 150px; }
-    .paste-chip.selected { background: var(--accent-btn); color: #fff; border-color: transparent; }
-    .paste-chip-del { width: 32px; height: 32px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; border: none; background: transparent; color: inherit; font-size: 0.8rem; cursor: pointer; border-radius: 8px; opacity: 0.7; }
-    .paste-chip-del:active { opacity: 1; }
     .paste-view { width: 100%; overflow-y: auto; max-height: 70vh; background: var(--card-bg); padding: 14px 16px; box-sizing: border-box; }
     .paste-empty-state { display: none; flex-direction: column; align-items: center; gap: 8px; padding: 28px 16px; }
     .paste-card.empty .paste-empty-state { display: flex; }
@@ -3844,12 +3839,18 @@ export default {
     /* 编辑器弹窗 */
     .paste-editor { width: 100%; min-height: 200px; max-height: 45vh; overflow-y: auto; padding: 10px 12px; box-sizing: border-box; border: 0.5px solid var(--card-border); border-radius: 10px; background: var(--card-bg); color: var(--text-main); font-size: 0.85rem; line-height: 1.5; outline: none; -webkit-user-select: text; user-select: text; }
     .paste-editor:empty:before { content: attr(data-placeholder); color: var(--text-light); pointer-events: none; }
-    .paste-title-row { display: flex; gap: 8px; align-items: center; }
-    .paste-title-row input { flex: 1; min-height: 44px; box-sizing: border-box; padding: 0 12px; font-size: 0.82rem; border: 0.5px solid var(--card-border); border-radius: 10px; background: var(--card-bg); color: var(--text-main); outline: none; }
     .paste-btn-row { display: flex; gap: 8px; justify-content: flex-end; }
     .paste-save-btn { min-height: 44px; padding: 0 20px; border-radius: 10px; background: var(--accent-btn); color: #fff; font-weight: 700; font-size: 0.82rem; border: none; cursor: pointer; }
     .paste-cancel-btn { min-height: 44px; padding: 0 20px; border-radius: 10px; background: var(--btn-bg); color: var(--text-soft); font-weight: 600; font-size: 0.82rem; border: 0.5px solid var(--card-border); cursor: pointer; }
     .paste-loading, .paste-error { padding: 24px 16px; text-align: center; font-size: 0.8rem; color: var(--text-light); }
+    .paste-empty-hint { font-size: 0.7rem; color: var(--text-light); font-weight: 500; }
+    /* 学习管理内的内容条目列表 */
+    .paste-manage-item { display: flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 10px; border-radius: 10px; border: 0.5px solid var(--card-border); background: var(--btn-bg); cursor: pointer; font-size: 0.78rem; font-weight: 600; color: var(--text-main); }
+    .paste-manage-item.selected { background: var(--accent-btn); color: #fff; border-color: transparent; }
+    .paste-manage-item .paste-manage-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .paste-manage-del { width: 32px; height: 32px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; border: none; background: transparent; color: inherit; font-size: 0.8rem; cursor: pointer; border-radius: 8px; opacity: 0.7; }
+    .paste-manage-del:active { opacity: 1; }
+    .paste-manage-empty { font-size: 0.72rem; color: var(--text-light); padding: 8px 4px; font-weight: 500; }
     @media (max-width: 760px) { .paste-card { order: 999; } }
     @media (min-width: 761px) {
       .right-area { order: 2; } .left-area { order: 1; }
@@ -3949,8 +3950,6 @@ export default {
       .temp-card { padding: 8px 10px; }
       .temp-card-row { gap: 6px; font-size: 0.7rem; }
       .temp-card-name { font-size: 0.78rem; }
-      .paste-chip { max-width: 180px; }
-      .paste-chip-name { max-width: 120px; }
     }
     @media (max-width: 760px) {
       .timer-container { display: none !important; }
@@ -4821,15 +4820,10 @@ export default {
           </div>
         </div>
         <div class="card paste-card empty">
-          <div class="paste-toolbar">
-            <span style="font-size:0.8rem;font-weight:700;color:var(--text-main);">内容展示</span>
-            <button type="button" class="paste-add-btn" id="pasteAddBtn">添加内容</button>
-          </div>
-          <div class="paste-list" id="pasteList"></div>
           <div class="paste-view" id="pasteView">
             <div class="paste-empty-state">
               <span class="paste-empty-label">暂无内容</span>
-              <button type="button" class="paste-empty-add" id="pasteEmptyAddBtn">添加内容</button>
+              <span class="paste-empty-hint">添加内容：右上角菜单 → 学习管理</span>
             </div>
           </div>
         </div>
@@ -4873,8 +4867,7 @@ export default {
 <div id="pasteModal" class="modal-overlay">
   <div class="modal-card" style="width:94%;max-width:560px;">
     <div class="modal-header"><span>添加内容</span><button id="closePasteModalBtn" type="button">×</button></div>
-    <div class="paste-title-row"><input type="text" id="pasteTitleInput" placeholder="标题（选填）" maxlength="60"></div>
-    <div style="margin-top:8px;"><div class="paste-editor" id="pasteEditor" contenteditable="true" data-placeholder="从 Word / 微信 / 网页复制文字后，长按或 Ctrl+V 粘贴到这里（字体、字号、字间距、行距、缩进都会保留）"></div></div>
+    <div class="paste-editor" id="pasteEditor" contenteditable="true" data-placeholder="从 Word / 微信 / 网页复制文字后，长按或 Ctrl+V 粘贴到这里（字体、字号、字间距、行距、缩进都会保留）"></div>
     <div class="paste-btn-row" style="margin-top:10px;">
       <button type="button" class="paste-cancel-btn" id="pasteCancelBtn">取消</button>
       <button type="button" class="paste-save-btn" id="pasteSaveBtn">保存</button>
@@ -4956,6 +4949,15 @@ export default {
     </details>
 
     <div class="script-list" id="learnList" style="max-height: 220px; overflow-y: auto;"></div>
+
+    <div style="border-top:0.5px solid var(--card-border); margin-top:12px; padding-top:10px;">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+        <span style="font-size:0.78rem; font-weight:700; color:var(--text-main);">内容展示</span>
+        <button type="button" id="pasteManageAddBtn" class="btn-add" style="font-size:0.7rem; padding:6px 14px; min-height:32px; background:var(--accent-btn); color:white; border:none; border-radius:var(--radius-xs); font-weight:700;">添加内容</button>
+      </div>
+      <div style="font-size:0.65rem; color:var(--text-light); line-height:1.4; margin-bottom:6px;">从 Word / 微信 / 网页复制文字粘贴保存，页面内容展示卡片会原样显示</div>
+      <div id="pasteManageList" style="max-height:200px; overflow-y:auto; display:flex; flex-direction:column; gap:6px;"></div>
+    </div>
   </div>
 </div>
 <div id="exportModal" class="modal-overlay">
@@ -7321,15 +7323,8 @@ export default {
   function initPasteModule(){
     if(_pasteInited) return;
     _pasteInited=true;
-    var btns=[
-      document.getElementById('pasteAddBtn'),
-      document.getElementById('pasteEmptyAddBtn')
-    ];
-    for(var b=0;b<btns.length;b++){
-      var btn=btns[b];
-      if(!btn) continue;
-      btn.addEventListener('click',openPasteEditor);
-    }
+    var addBtn=document.getElementById('pasteManageAddBtn');
+    if(addBtn) addBtn.addEventListener('click',openPasteEditor);
     var closeBtn=document.getElementById('closePasteModalBtn');
     if(closeBtn) closeBtn.addEventListener('click',closePasteEditor);
     var cancelBtn=document.getElementById('pasteCancelBtn');
@@ -7346,9 +7341,7 @@ export default {
 
   function openPasteEditor(){
     var modal=document.getElementById('pasteModal');
-    var title=document.getElementById('pasteTitleInput');
     var editor=document.getElementById('pasteEditor');
-    if(title) title.value='';
     if(editor) editor.innerHTML='';
     if(modal) modal.classList.add('active');
     setTimeout(function(){ if(editor) editor.focus(); },50);
@@ -7399,30 +7392,40 @@ export default {
   }
 
   function renderPasteList(){
-    var list=document.getElementById('pasteList');
+    // 管理列表在学习管理弹窗内（竖排条目），页面卡片只做展示
+    var list=document.getElementById('pasteManageList');
     var card=document.querySelector('.paste-card');
+    if(card) card.classList.toggle('empty',_pastes.length===0);
     if(!list) return;
     list.innerHTML='';
+    if(_pastes.length===0){
+      list.innerHTML='<div class="paste-manage-empty">暂无内容，点击上方"添加内容"粘贴保存</div>';
+      return;
+    }
     for(var i=0;i<_pastes.length;i++){
       var p=_pastes[i];
-      var chip=document.createElement('div');
-      chip.className='paste-chip'+(p.id===_curPasteId?' selected':'');
-      chip.dataset.pasteId=p.id;
+      var item=document.createElement('div');
+      item.className='paste-manage-item'+(p.id===_curPasteId?' selected':'');
+      item.dataset.pasteId=p.id;
       var nameSpan=document.createElement('span');
-      nameSpan.className='paste-chip-name';
+      nameSpan.className='paste-manage-name';
       nameSpan.textContent=p.name||'内容 '+(i+1);
       var delBtn=document.createElement('button');
       delBtn.type='button';
-      delBtn.className='paste-chip-del';
+      delBtn.className='paste-manage-del';
       delBtn.textContent='✕';
       delBtn.dataset.pasteId=p.id;
-      chip.appendChild(nameSpan);
-      chip.appendChild(delBtn);
-      chip.addEventListener('click',function(){ selectPaste(this.dataset.pasteId); });
+      item.appendChild(nameSpan);
+      item.appendChild(delBtn);
+      item.addEventListener('click',function(){
+        selectPaste(this.dataset.pasteId);
+        // 关闭学习管理，回到页面看展示效果
+        var lm=document.getElementById('learnModal');
+        if(lm) lm.classList.remove('active');
+      });
       delBtn.addEventListener('click',function(e){ e.stopPropagation(); deletePaste(this.dataset.pasteId); });
-      list.appendChild(chip);
+      list.appendChild(item);
     }
-    if(card) card.classList.toggle('empty',_pastes.length===0);
   }
 
   function showPasteEmpty(){
@@ -7465,7 +7468,6 @@ export default {
   }
 
   async function savePaste(){
-    var title=document.getElementById('pasteTitleInput');
     var editor=document.getElementById('pasteEditor');
     var saveBtn=document.getElementById('pasteSaveBtn');
     if(!editor) return;
@@ -7475,7 +7477,7 @@ export default {
       return;
     }
     var html=cleanPastedHtml(editor.innerHTML);
-    var name=(title?title.value.trim():'')||text.substring(0,14);
+    var name=text.substring(0,14);
     if(saveBtn) saveBtn.disabled=true;
     try {
       var resp=await fetch('/api/paste',{
@@ -8548,6 +8550,7 @@ export default {
 
     document.getElementById('learnBtn').addEventListener('click',()=>{
       renderLearnList();
+      refreshPasteList();
       document.getElementById('newLearnInput').value='';
       document.getElementById('learnShowCheck').checked=true;
       
