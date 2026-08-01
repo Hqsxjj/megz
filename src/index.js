@@ -3834,6 +3834,7 @@ export default {
     .paste-view * { max-width: 100%; box-sizing: border-box; }
     .paste-view p, .paste-view div, .paste-view li, .paste-view h1, .paste-view h2, .paste-view h3, .paste-view h4, .paste-view span { overflow-wrap: break-word; word-break: break-word; }
     .paste-view img { max-width: 100% !important; height: auto !important; }
+    .paste-view img[src^="file:"] { display: none !important; } /* 旧内容兜底：本地路径图片隐藏 */
     .paste-view table { max-width: 100% !important; table-layout: fixed; }
     .paste-view table td, .paste-view table th { word-break: break-all; }
     .paste-empty-state { display: none; flex-direction: column; align-items: center; gap: 8px; padding: 28px 16px; }
@@ -7435,6 +7436,12 @@ export default {
       doc.querySelectorAll('*').forEach(function(el){
         var tag=el.tagName.toLowerCase();
         if(tag.indexOf(':')!==-1||tag==='xml'){ el.remove(); }
+      });
+      // 移除加载不了的图片（Word 复制图片的 src 是本地 file:// 路径，
+      // 网页端无法加载会显示占位图/破图；data: 内联图片可保留）
+      doc.querySelectorAll('img').forEach(function(el){
+        var src=(el.getAttribute('src')||'').trim();
+        if(src.indexOf('data:')!==0) el.remove();
       });
       // 移除全部注释（含 Word 的条件注释 <!--[if gte mso 9]>...<![endif]-->）
       try {
