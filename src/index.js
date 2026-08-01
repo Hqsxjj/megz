@@ -3829,7 +3829,7 @@ export default {
     .paste-add-btn:disabled { opacity: 0.5; }
     .paste-list { display: flex; gap: 8px; overflow-x: auto; padding: 10px 12px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
     .paste-list::-webkit-scrollbar { display: none; }
-    .paste-view { width: 100%; overflow-y: auto; overflow-x: auto; max-height: 70vh; background: var(--card-bg); padding: 16px 18px; box-sizing: border-box; -webkit-overflow-scrolling: touch; }
+    .paste-view { width: 100%; overflow-y: auto; overflow-x: auto; max-height: 70vh; background: var(--card-bg); padding: 16px 18px; box-sizing: border-box; -webkit-overflow-scrolling: touch; font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', 'Segoe UI Symbol', 'Noto Sans Symbols 2', 'Apple Symbols', sans-serif; }
     /* 防粘贴内容撑破卡片：宽元素压缩、长文本断行、图片自适应 */
     .paste-view * { max-width: 100%; box-sizing: border-box; }
     .paste-view p, .paste-view div, .paste-view li, .paste-view h1, .paste-view h2, .paste-view h3, .paste-view h4, .paste-view span { overflow-wrap: break-word; word-break: break-word; }
@@ -7430,6 +7430,19 @@ export default {
       ['script','style','iframe','object','embed','link','meta','base','form','input','button','textarea','select'].forEach(function(tag){
         doc.querySelectorAll(tag).forEach(function(el){ el.remove(); });
       });
+      // 移除 VML 图形元素（v:shape/v:line/o:... 等 Word 形状/箭头/线条，
+      // 现代浏览器不渲染，残留会变成空白）与 xml 命名空间节点
+      doc.querySelectorAll('*').forEach(function(el){
+        var tag=el.tagName.toLowerCase();
+        if(tag.indexOf(':')!==-1||tag==='xml'){ el.remove(); }
+      });
+      // 移除全部注释（含 Word 的条件注释 <!--[if gte mso 9]>...<![endif]-->）
+      try {
+        var tw=doc.createTreeWalker(doc,NodeFilter.SHOW_COMMENT,{acceptNode:function(){return NodeFilter.FILTER_ACCEPT;}});
+        var comments=[];
+        while(tw.nextNode()) comments.push(tw.currentNode);
+        for(var ci=0;ci<comments.length;ci++){ if(comments[ci].parentNode) comments[ci].parentNode.removeChild(comments[ci]); }
+      } catch(e2) {}
       doc.querySelectorAll('*').forEach(function(el){
         var attrs=[].slice.call(el.attributes||[]);
         for(var i=0;i<attrs.length;i++){
