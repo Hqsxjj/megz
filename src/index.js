@@ -3823,7 +3823,7 @@ export default {
     .todo-input-row { display: flex; gap: 8px; align-items: center; width: 100%; }
     .todo-del-btn { background: none; border: none; color: #c97a7a; cursor: pointer; font-size: 0.85rem; padding: 0 4px; }
     /* ===== 内容展示模块（复制粘贴保留格式） ===== */
-    .paste-card { padding: 0 !important; overflow: hidden; border-radius: var(--radius-ios) !important; }
+    .paste-card { padding: 0 !important; overflow: hidden; border-radius: var(--radius-ios) !important; position: relative; }
     .paste-toolbar { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-bottom: 0.5px solid var(--separator); gap: 8px; }
     .paste-add-btn { min-height: 44px; padding: 0 16px; border-radius: 10px; background: var(--accent-btn); color: #fff; font-weight: 700; font-size: 0.82rem; border: none; cursor: pointer; }
     .paste-add-btn:disabled { opacity: 0.5; }
@@ -3852,10 +3852,23 @@ export default {
     .paste-loading, .paste-error { padding: 24px 16px; text-align: center; font-size: 0.8rem; color: var(--text-light); }
     .paste-empty-hint { font-size: 0.7rem; color: var(--text-light); font-weight: 500; }
     /* 卡片底部切换栏 */
-    .paste-nav { display: flex; align-items: center; justify-content: space-between; border-top: 0.5px solid var(--separator); padding: 8px 12px; }
-    .paste-nav-btn { min-height: 40px; padding: 0 14px; border-radius: 10px; border: 0.5px solid var(--card-border); background: var(--btn-bg); color: var(--text-main); font-size: 0.8rem; font-weight: 600; cursor: pointer; }
-    .paste-nav-btn:disabled { opacity: 0.35; }
-    .paste-nav-count { font-size: 0.78rem; color: var(--text-light); font-weight: 600; }
+    /* 沉浸式左右切换箭头：默认隐藏，点击内容/箭头时短暂显示，2.5秒后自动隐藏 */
+    .paste-arrow {
+      position: absolute; top: 50%; transform: translateY(-50%);
+      width: 40px; height: 40px; border-radius: 999px;
+      border: 0.5px solid var(--card-border);
+      background: var(--modal-bg);
+      backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+      color: var(--text-main);
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; z-index: 5; padding: 0;
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.25s ease;
+      -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+    }
+    .paste-arrow.show { opacity: 1; pointer-events: auto; }
+    .paste-arrow-left { left: 8px; }
+    .paste-arrow-right { right: 8px; }
     /* 学习管理内的内容条目列表 */
     .paste-manage-item { display: flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 10px; border-radius: 10px; border: 0.5px solid var(--card-border); background: var(--btn-bg); cursor: pointer; font-size: 0.78rem; font-weight: 600; color: var(--text-main); }
     .paste-manage-item.selected { background: var(--accent-btn); color: #fff; border-color: transparent; }
@@ -4838,11 +4851,8 @@ export default {
               <span class="paste-empty-hint">添加内容：右上角菜单 → 学习管理</span>
             </div>
           </div>
-          <div class="paste-nav" id="pasteNav" style="display:none;">
-            <button type="button" class="paste-nav-btn" id="pastePrevBtn">‹ 上一段</button>
-            <span class="paste-nav-count" id="pasteNavCount"></span>
-            <button type="button" class="paste-nav-btn" id="pasteNextBtn">下一段 ›</button>
-          </div>
+          <button type="button" class="paste-arrow paste-arrow-left" id="pasteArrowPrev" title="上一段" aria-label="上一段"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
+          <button type="button" class="paste-arrow paste-arrow-right" id="pasteArrowNext" title="下一段" aria-label="下一段"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>
         </div>
         <div class="card">
           <div class="card-title" style="display:flex;align-items:center;">临时登记 (待晚回访) <button class="btn-add" id="allTempTableBtn" style="font-size:0.65rem;padding:2px 8px;margin-left:auto;">临时表</button></div>
@@ -7353,28 +7363,36 @@ export default {
     document.addEventListener('keydown',function(e){
       if(e.key==='Escape') closePasteEditor();
     });
-    var prevBtn=document.getElementById('pastePrevBtn');
-    if(prevBtn) prevBtn.addEventListener('click',function(){ navPaste(-1); });
-    var nextBtn=document.getElementById('pasteNextBtn');
-    if(nextBtn) nextBtn.addEventListener('click',function(){ navPaste(1); });
+    var prevBtn=document.getElementById('pasteArrowPrev');
+    if(prevBtn) prevBtn.addEventListener('click',function(){ navPaste(-1); pokePasteArrows(); });
+    var nextBtn=document.getElementById('pasteArrowNext');
+    if(nextBtn) nextBtn.addEventListener('click',function(){ navPaste(1); pokePasteArrows(); });
+    var pv=document.getElementById('pasteView');
+    if(pv) pv.addEventListener('click',function(){ pokePasteArrows(); });
     refreshPasteList();
   }
 
-  // 卡片底部切换栏：更新显示/隐藏、页码、按钮禁用态
-  function updatePasteNav(){
-    var nav=document.getElementById('pasteNav');
-    if(!nav) return;
-    if(_pastes.length<=1){ nav.style.display='none'; return; }
-    nav.style.display='flex';
+  // 沉浸式左右箭头：显示可用方向的箭头，2.5秒后自动隐藏
+  var _pasteArrowTimer=null;
+  function pokePasteArrows(){
+    var prevBtn=document.getElementById('pasteArrowPrev');
+    var nextBtn=document.getElementById('pasteArrowNext');
+    if(!prevBtn||!nextBtn) return;
+    prevBtn.classList.remove('show');
+    nextBtn.classList.remove('show');
+    if(_pastes.length<=1) return;
     var idx=-1;
     for(var i=0;i<_pastes.length;i++){ if(_pastes[i].id===_curPasteId){ idx=i; break; } }
     if(idx<0) idx=0;
-    var count=document.getElementById('pasteNavCount');
-    if(count) count.textContent=(idx+1)+' / '+_pastes.length;
-    var prevBtn=document.getElementById('pastePrevBtn');
-    var nextBtn=document.getElementById('pasteNextBtn');
-    if(prevBtn) prevBtn.disabled=idx<=0;
-    if(nextBtn) nextBtn.disabled=idx>=_pastes.length-1;
+    if(idx>0) prevBtn.classList.add('show');
+    if(idx<_pastes.length-1) nextBtn.classList.add('show');
+    if(_pasteArrowTimer) clearTimeout(_pasteArrowTimer);
+    _pasteArrowTimer=setTimeout(function(){
+      var p=document.getElementById('pasteArrowPrev');
+      var n=document.getElementById('pasteArrowNext');
+      if(p)p.classList.remove('show');
+      if(n)n.classList.remove('show');
+    },2500);
   }
 
   function navPaste(dir){
@@ -7519,7 +7537,7 @@ export default {
       delBtn.addEventListener('click',function(e){ e.stopPropagation(); deletePaste(this.dataset.pasteId); });
       list.appendChild(item);
     }
-    updatePasteNav();
+    pokePasteArrows();
   }
 
   function showPasteEmpty(){
@@ -7528,7 +7546,7 @@ export default {
     if(card) card.classList.add('empty');
     var view=document.getElementById('pasteView');
     if(view){ view.innerHTML=''; }
-    updatePasteNav();
+    pokePasteArrows();
   }
 
   function selectPaste(id){
