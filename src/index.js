@@ -3869,6 +3869,11 @@ export default {
     .paste-arrow.show { opacity: 1; pointer-events: auto; }
     .paste-arrow-left { left: 8px; }
     .paste-arrow-right { right: 8px; }
+    /* 贷款计算器 */
+    .loan-result { display: flex; flex-direction: column; gap: 6px; margin-top: 2px; }
+    .loan-result-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .loan-result-row span { font-size: 0.78rem; color: var(--text-light); font-weight: 500; }
+    .loan-result-row b { font-size: 0.95rem; color: var(--text-main); font-weight: 700; font-variant-numeric: tabular-nums; }
     /* 学习管理内的内容条目列表 */
     .paste-manage-item { display: flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 10px; border-radius: 10px; border: 0.5px solid var(--card-border); background: var(--btn-bg); cursor: pointer; font-size: 0.78rem; font-weight: 600; color: var(--text-main); }
     .paste-manage-item.selected { background: var(--accent-btn); color: #fff; border-color: transparent; }
@@ -4842,6 +4847,18 @@ export default {
             </div>
             <button type="button" class="btn-add" id="addClientBtn">+ 添加</button>
                         <div class="client-scroll" id="clientList"></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">贷款计算器</div>
+          <div class="register-block">
+            <div class="form-line"><input type="text" class="input-simple" id="loanAmount" placeholder="贷款金额(元)" inputmode="decimal" autocomplete="off"><input type="text" class="input-simple" id="loanRate" placeholder="年化利率(%)" inputmode="decimal" autocomplete="off"></div>
+            <div class="form-line"><input type="text" class="input-simple" id="loanMonths" placeholder="期限(月)" inputmode="numeric" autocomplete="off"></div>
+            <div class="loan-result">
+              <div class="loan-result-row"><span>月息</span><b id="loanMonthlyRate">—</b></div>
+              <div class="loan-result-row"><span>月还款（等额本息）</span><b id="loanMonthlyPay">—</b></div>
+              <div class="loan-result-row"><span>总利息</span><b id="loanTotalInterest">—</b></div>
+            </div>
           </div>
         </div>
         <div class="card paste-card empty">
@@ -7343,6 +7360,39 @@ export default {
     renderGoalChips();
   }
 
+  // ===== 贷款计算器：输入年化自动得月息与月还款（等额本息） =====
+  function calcLoan(){
+    var amt=parseFloat(document.getElementById('loanAmount').value);
+    var rate=parseFloat(document.getElementById('loanRate').value);
+    var n=parseInt(document.getElementById('loanMonths').value,10);
+    var mrEl=document.getElementById('loanMonthlyRate');
+    var payEl=document.getElementById('loanMonthlyPay');
+    var intEl=document.getElementById('loanTotalInterest');
+    if(!mrEl||!payEl||!intEl) return;
+    if(isNaN(amt)||amt<=0||isNaN(rate)||rate<=0||isNaN(n)||n<=0){
+      mrEl.textContent='—'; payEl.textContent='—'; intEl.textContent='—';
+      return;
+    }
+    var r=rate/100/12;            // 月利率
+    var pay, totalInt;
+    if(r===0){ pay=amt/n; }       // 0利率：本金均摊
+    else{
+      var pow=Math.pow(1+r,n);    // 等额本息
+      pay=amt*r*pow/(pow-1);
+    }
+    totalInt=pay*n-amt;
+    mrEl.textContent=r*100>=1 ? (r*100).toFixed(2)+'% ('+((r*1000).toFixed(1))+'厘)' : ((r*1000).toFixed(1))+'厘 ('+(r*100).toFixed(3)+'%)';
+    payEl.textContent=pay.toFixed(2)+' 元';
+    intEl.textContent=totalInt.toFixed(2)+' 元';
+  }
+  function initLoanCalc(){
+    var ids=['loanAmount','loanRate','loanMonths'];
+    for(var i=0;i<ids.length;i++){
+      var el=document.getElementById(ids[i]);
+      if(el) el.addEventListener('input',calcLoan);
+    }
+  }
+
   // ===== 内容展示模块（复制粘贴保留格式） =====
   var _pastes=[], _curPasteId='', _pasteInited=false;
   var _pasteHtmlCache={};
@@ -8278,6 +8328,7 @@ export default {
     var app=document.querySelector('.app-shell');if(app)app.style.display='flex';
     var js=document.getElementById('journalShell');if(js)js.style.display='none';
     initPasteModule();
+    initLoanCalc();
     refreshAll();
   }
   function showJournalShell(){
