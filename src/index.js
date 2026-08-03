@@ -4612,6 +4612,8 @@ export default {
     .loan-input-row .input-simple:focus { border-color: #0d9488; box-shadow: 0 0 0 3px rgba(13,148,136,0.15); outline: none; }
     .loan-unit { font-size: 0.85rem; color: #555; font-weight: 600; white-space: nowrap; }
     body.dark-mode .loan-unit { color: #aaa; }
+    .loan-copy-btn { min-height: 32px; padding: 0 12px; border-radius: 10px; border: 0.5px solid var(--card-border); background: var(--btn-bg); color: var(--text-main); font-size: 0.78rem; font-weight: 600; cursor: pointer; white-space: nowrap; }
+    body.dark-mode .loan-copy-btn { color: #eee; }
     .loan-input-desc { font-size: 0.72rem; color: #777; margin-left: 4px; }
     body.dark-mode .loan-input-desc { color: #999; }
     /* 计息天数 */
@@ -5140,6 +5142,7 @@ export default {
   <div class="modal-card" id="loanModalCard">
     <div class="modal-header">
       <span>贷款利息计算器</span>
+      <button type="button" class="loan-copy-btn" id="copyLoanResultBtn">复制结果</button>
       <button id="closeLoanModalBtn">×</button>
     </div>
 
@@ -10565,6 +10568,71 @@ export default {
         el.addEventListener('change', renderLoanCalc); // 贷款期限下拉框走 change 事件
       }
     });
+
+    // 复制结果：以"类目：数字"文本形式导出（不含还款计划明细）
+    function buildLoanResultText() {
+      var inp = getInputs();
+      if (inp.principal <= 0 || inp.rate <= 0) return '';
+      var lines = [];
+      lines.push('贷款金额：￥' + fmt(inp.principal));
+      lines.push('月息：' + inp.rate + '%（' + (inp.rate * 10).toFixed(1) + '厘）');
+      var aEl = document.getElementById('loanAnnualRate');
+      if (aEl && aEl.value) lines.push('年化利率：' + aEl.value.trim() + '%');
+      var tEl = document.getElementById('loanTerm');
+      if (tEl && tEl.value) lines.push('贷款期限：' + tEl.value + '个月');
+      var mEl = document.querySelector('.loan-tab.active');
+      if (mEl) lines.push('还款方式：' + mEl.textContent);
+      var labelEl = document.getElementById('loanMonthlyLabel');
+      var payEl = document.getElementById('loanMonthlyPayment');
+      if (payEl && payEl.textContent !== '--') lines.push((labelEl ? labelEl.textContent : '月供') + '：' + payEl.textContent);
+      var ti = document.getElementById('loanTotalInterest');
+      if (ti && ti.textContent !== '--') lines.push('总利息：' + ti.textContent);
+      var tr = document.getElementById('loanTotalRepayment');
+      if (tr && tr.textContent !== '--') lines.push('总还款：' + tr.textContent);
+      var ir = document.getElementById('loanInterestRatio');
+      if (ir && ir.textContent !== '--') lines.push('利息占比：' + ir.textContent);
+      var sEl = document.getElementById('loanSpreadResults');
+      if (sEl && sEl.style.display !== 'none') {
+        var sm = document.getElementById('loanSpreadMonthly');
+        var sp = document.getElementById('loanSpreadPct');
+        if (sm && sm.textContent !== '--') lines.push('成本前置：' + sm.textContent);
+        if (sp && sp.textContent !== '--') lines.push('多还占比：' + sp.textContent);
+      }
+      var fEl = document.getElementById('loanFinanceResults');
+      if (fEl && fEl.style.display !== 'none') {
+        var f1 = document.getElementById('loanFinanceAmount');
+        var f2 = document.getElementById('loanSpreadExtraAmount');
+        var f3 = document.getElementById('loanTotalCost');
+        var f4 = document.getElementById('loanCostPct');
+        var f5 = document.getElementById('loanNetReceived');
+        if (f1) lines.push('融资成本金额：' + f1.textContent);
+        if (f2) lines.push('前置总金额：' + f2.textContent);
+        if (f3) lines.push('全部成本：' + f3.textContent);
+        if (f4) lines.push('全部成本占比：' + f4.textContent);
+        if (f5) lines.push('实际到账：' + f5.textContent);
+      }
+      return lines.join('\\n');
+    }
+    function copyLoanTextFallback(text) {
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand('copy'); } catch (e) {}
+      document.body.removeChild(ta);
+    }
+    var copyBtn = document.getElementById('copyLoanResultBtn');
+    if (copyBtn) {
+      copyBtn.addEventListener('click', function() {
+        var text = buildLoanResultText();
+        if (!text) return;
+        var done = function() { copyBtn.textContent = '已复制'; setTimeout(function() { copyBtn.textContent = '复制结果'; }, 1500); };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(done).catch(function() { copyLoanTextFallback(text); done(); });
+        } else { copyLoanTextFallback(text); done(); }
+      });
+    }
 
   }
 
