@@ -5172,7 +5172,13 @@ export default {
 
       <div class="loan-input-row">
         <label>贷款期限</label>
-        <input type="number" class="input-simple" id="loanTerm" placeholder="12" min="1" max="480" step="1" autocomplete="off">
+        <select class="input-simple input-select" id="loanTerm" style="cursor:pointer;">
+          <option value="12">12</option>
+          <option value="24">24</option>
+          <option value="36">36</option>
+          <option value="60">60</option>
+          <option value="84">84</option>
+        </select>
         <span class="loan-unit">个月</span>
       </div>
 
@@ -10485,7 +10491,11 @@ export default {
       var aRateEl = document.getElementById('loanAnnualRate');
       if (aRateEl && state.rate) aRateEl.value = (state.rate * 12).toFixed(4);
       var termEl = document.getElementById('loanTerm');
-      if (termEl && state.term) termEl.value = state.term;
+      if (termEl && state.term) {
+        // 下拉框只含 12/24/36/60/84：保存的旧值不在列表时回退到第一项
+        var termOpt = termEl.querySelector('option[value="' + state.term + '"]');
+        termEl.value = termOpt ? state.term : (termEl.options[0] ? termEl.options[0].value : '12');
+      }
       var daysEl = document.getElementById('loanDays');
       if (daysEl && state.days) daysEl.value = state.days;
       var spreadEl = document.getElementById('loanRateSpread');
@@ -10550,7 +10560,10 @@ export default {
     // Auto-recalc on input change
     ['loanPrincipal', 'loanMonthlyRate', 'loanAnnualRate', 'loanTerm', 'loanDays', 'loanRateSpread', 'loanFinanceCost'].forEach(function(id) {
       var el = document.getElementById(id);
-      if (el) el.addEventListener('input', renderLoanCalc);
+      if (el) {
+        el.addEventListener('input', renderLoanCalc);
+        el.addEventListener('change', renderLoanCalc); // 贷款期限下拉框走 change 事件
+      }
     });
 
   }
