@@ -5233,11 +5233,23 @@ export default {
       </div>
     </div>
 
-    <!-- Financing Cost Result Cards (hidden when 0) -->
+    <!-- Financing Cost Result Cards (全部成本 = 融资成本 + 总多还金额) -->
     <div class="loan-results" id="loanFinanceResults" style="display:none;">
       <div class="loan-result-card">
         <div class="label">融资成本金额</div>
         <div class="value" id="loanFinanceAmount" style="color:#e74c3c;">--</div>
+      </div>
+      <div class="loan-result-card">
+        <div class="label">总多还金额</div>
+        <div class="value" id="loanSpreadExtraAmount" style="color:#e74c3c;">--</div>
+      </div>
+      <div class="loan-result-card">
+        <div class="label">全部成本</div>
+        <div class="value" id="loanTotalCost" style="color:#e74c3c;">--</div>
+      </div>
+      <div class="loan-result-card">
+        <div class="label">全部成本占比</div>
+        <div class="value" id="loanCostPct" style="color:#d97706;">--</div>
       </div>
       <div class="loan-result-card">
         <div class="label">实际到账</div>
@@ -10427,20 +10439,27 @@ export default {
         document.getElementById('loanScheduleContainer').innerHTML = buildScheduleTable(result.schedule);
 
         // 月息差计算
+        var spreadExtra = 0; // 总多还金额（实际月息更高时多还的总额）
         if (inp.rateSpread > 0) {
           var higherRate = inp.rate + inp.rateSpread;
           var spreadResult = activeFn(inp.principal, higherRate, inp.term, inp.rateMode, inp.days);
+          spreadExtra = Math.max(0, spreadResult.totalRepayment - result.totalRepayment);
           updateSpreadCards(result, spreadResult, activeMethod, inp.principal);
         } else {
           document.getElementById('loanSpreadResults').style.display = 'none';
         }
 
-        // 融资成本计算
-        if (inp.financeCost > 0) {
+        // 融资成本：全部成本 = 融资成本金额 + 总多还金额；实际到账 = 本金 − 全部成本
+        if (inp.financeCost > 0 || spreadExtra > 0) {
           var costAmount = inp.principal * inp.financeCost / 100;
-          var netReceived = inp.principal - costAmount;
+          var totalCost = costAmount + spreadExtra;
+          var costPct = inp.principal > 0 ? (totalCost / inp.principal * 100) : 0;
+          var netReceived = inp.principal - totalCost;
           document.getElementById('loanFinanceResults').style.display = '';
           document.getElementById('loanFinanceAmount').textContent = '￥' + fmt(costAmount);
+          document.getElementById('loanSpreadExtraAmount').textContent = '￥' + fmt(spreadExtra);
+          document.getElementById('loanTotalCost').textContent = '￥' + fmt(totalCost);
+          document.getElementById('loanCostPct').textContent = pct(costPct);
           document.getElementById('loanNetReceived').textContent = '￥' + fmt(Math.max(0, netReceived));
         } else {
           document.getElementById('loanFinanceResults').style.display = 'none';
