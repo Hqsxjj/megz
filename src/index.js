@@ -5192,7 +5192,7 @@ export default {
       </div>
 
       <div class="loan-input-row">
-        <label>融资成本</label>
+        <label>服务点数</label>
         <input type="number" class="input-simple" id="loanFinanceCost" placeholder="0.00" min="0" step="0.01" autocomplete="off">
         <span class="loan-unit">%</span>
       </div>
@@ -5229,27 +5229,27 @@ export default {
     <!-- Spread Result Cards (hidden until rateSpread > 0) -->
     <div class="loan-results" id="loanSpreadResults" style="display:none;">
       <div class="loan-result-card">
-        <div class="label">成本前置</div>
+        <div class="label">分摊成本</div>
         <div class="value" id="loanSpreadMonthly" style="color:#e74c3c;">--</div>
       </div>
       <div class="loan-result-card">
-        <div class="label">前置总金额</div>
+        <div class="label">成本总金额</div>
         <div class="value" id="loanSpreadTotal" style="color:#e74c3c;">--</div>
       </div>
       <div class="loan-result-card">
-        <div class="label">多还占比</div>
+        <div class="label">成本占比</div>
         <div class="value" id="loanSpreadPct" style="color:#e74c3c;">--</div>
       </div>
     </div>
 
-    <!-- Financing Cost Result Cards (全部成本 = 融资成本 + 总多还金额) -->
+    <!-- Financing Cost Result Cards (全部成本 = 服务费金额 + 成本总金额) -->
     <div class="loan-results" id="loanFinanceResults" style="display:none;">
       <div class="loan-result-card">
-        <div class="label">融资成本金额</div>
+        <div class="label">服务费金额</div>
         <div class="value" id="loanFinanceAmount" style="color:#e74c3c;">--</div>
       </div>
       <div class="loan-result-card">
-        <div class="label">前置总金额</div>
+        <div class="label">成本总金额</div>
         <div class="value" id="loanSpreadExtraAmount" style="color:#e74c3c;">--</div>
       </div>
       <div class="loan-result-card">
@@ -10461,7 +10461,7 @@ export default {
           document.getElementById('loanSpreadResults').style.display = 'none';
         }
 
-        // 融资成本：全部成本 = 融资成本金额 + 总多还金额；实际到账 = 本金 − 全部成本
+        // 融资成本：全部成本 = 服务费金额 + 成本总金额；实际到账 = 本金 − 全部成本
         if (inp.financeCost > 0 || spreadExtra > 0) {
           var costAmount = inp.principal * inp.financeCost / 100;
           var totalCost = costAmount + spreadExtra;
@@ -10595,8 +10595,8 @@ export default {
       if (sEl && sEl.style.display !== 'none') {
         var sm = document.getElementById('loanSpreadMonthly');
         var sp = document.getElementById('loanSpreadPct');
-        if (sm && sm.textContent !== '--') lines.push('成本前置：' + sm.textContent);
-        if (sp && sp.textContent !== '--') lines.push('多还占比：' + sp.textContent);
+        if (sm && sm.textContent !== '--') lines.push('分摊成本：' + sm.textContent);
+        if (sp && sp.textContent !== '--') lines.push('成本占比：' + sp.textContent);
       }
       var fEl = document.getElementById('loanFinanceResults');
       if (fEl && fEl.style.display !== 'none') {
@@ -10605,8 +10605,8 @@ export default {
         var f3 = document.getElementById('loanTotalCost');
         var f4 = document.getElementById('loanCostPct');
         var f5 = document.getElementById('loanNetReceived');
-        if (f1) lines.push('融资成本金额：' + f1.textContent);
-        if (f2) lines.push('前置总金额：' + f2.textContent);
+        if (f1) lines.push('服务费金额：' + f1.textContent);
+        if (f2) lines.push('成本总金额：' + f2.textContent);
         if (f3) lines.push('全部成本：' + f3.textContent);
         if (f4) lines.push('全部成本占比：' + f4.textContent);
         if (f5) lines.push('实际到账：' + f5.textContent);
