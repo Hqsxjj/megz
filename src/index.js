@@ -10582,6 +10582,7 @@ export default {
       if (tEl && tEl.value) lines.push('贷款期限：' + tEl.value + '个月');
       var mEl = document.querySelector('.loan-tab.active');
       if (mEl) lines.push('还款方式：' + mEl.textContent);
+      lines.push('');
       var labelEl = document.getElementById('loanMonthlyLabel');
       var payEl = document.getElementById('loanMonthlyPayment');
       if (payEl && payEl.textContent !== '--') lines.push((labelEl ? labelEl.textContent : '月供') + '：' + payEl.textContent);
@@ -10593,6 +10594,7 @@ export default {
       if (ir && ir.textContent !== '--') lines.push('利息占比：' + ir.textContent);
       var sEl = document.getElementById('loanSpreadResults');
       if (sEl && sEl.style.display !== 'none') {
+        lines.push('');
         var sm = document.getElementById('loanSpreadMonthly');
         var sp = document.getElementById('loanSpreadPct');
         if (sm && sm.textContent !== '--') lines.push('分摊成本：' + sm.textContent);
@@ -10600,6 +10602,7 @@ export default {
       }
       var fEl = document.getElementById('loanFinanceResults');
       if (fEl && fEl.style.display !== 'none') {
+        lines.push('');
         var f1 = document.getElementById('loanFinanceAmount');
         var f2 = document.getElementById('loanSpreadExtraAmount');
         var f3 = document.getElementById('loanTotalCost');
