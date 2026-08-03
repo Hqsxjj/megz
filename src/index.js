@@ -5179,7 +5179,7 @@ export default {
       <div class="loan-input-row">
         <label>月息差</label>
         <input type="number" class="input-simple" id="loanRateSpread" placeholder="0.00" min="0" step="0.01" autocomplete="off">
-        <span class="loan-unit">% / 月</span>
+        <span class="loan-unit" id="loanRateSpreadUnit">% / 月</span>
       </div>
 
       <div class="loan-input-row">
@@ -5220,11 +5220,11 @@ export default {
     <!-- Spread Result Cards (hidden until rateSpread > 0) -->
     <div class="loan-results" id="loanSpreadResults" style="display:none;">
       <div class="loan-result-card">
-        <div class="label">月供多付</div>
+        <div class="label">成本前置</div>
         <div class="value" id="loanSpreadMonthly" style="color:#e74c3c;">--</div>
       </div>
       <div class="loan-result-card">
-        <div class="label">多还总额</div>
+        <div class="label">前置总金额</div>
         <div class="value" id="loanSpreadTotal" style="color:#e74c3c;">--</div>
       </div>
       <div class="loan-result-card">
@@ -5240,7 +5240,7 @@ export default {
         <div class="value" id="loanFinanceAmount" style="color:#e74c3c;">--</div>
       </div>
       <div class="loan-result-card">
-        <div class="label">总多还金额</div>
+        <div class="label">前置总金额</div>
         <div class="value" id="loanSpreadExtraAmount" style="color:#e74c3c;">--</div>
       </div>
       <div class="loan-result-card">
@@ -10419,6 +10419,9 @@ export default {
       // 月息单位提示：输入年化自动同步月息时，直接显示厘（月息% × 10 = 厘）
       var liEl = document.getElementById('loanMonthlyUnit');
       if (liEl) liEl.textContent = inp.rate > 0 ? '≈' + (inp.rate * 10).toFixed(1) + '厘' : '% / 月';
+      // 月息差单位提示：同样显示厘
+      var lsEl = document.getElementById('loanRateSpreadUnit');
+      if (lsEl) lsEl.textContent = inp.rateSpread > 0 ? '≈' + (inp.rateSpread * 10).toFixed(1) + '厘' : '% / 月';
       if (inp.principal <= 0 || inp.rate <= 0) {
         document.getElementById('loanTotalInterest').textContent = '--';
         document.getElementById('loanTotalRepayment').textContent = '--';
