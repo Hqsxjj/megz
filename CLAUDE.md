@@ -44,8 +44,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `\n` → 真正的换行符 → JS 字符串中出现未转义换行 → **`Uncaught SyntaxError: Invalid or unexpected token`**
 - `\\n` → 模板处理后变成 `\n` → JS 解析器看到的是合法的换行转义 ✓
 - `\t` → 真正的 tab 符（同理，需要用 `\\t`）
+- **正则字面量同理**：`\d` `\s` `\[` `\]` `\(` 等单反斜杠会被模板吃掉 → 正则源码损坏 → **`Uncaught SyntaxError: Invalid regular expression: ...: Range out of order in character class`**（2026-08-04 实测踩坑）。正则里的每个反斜杠都要双写：`/^\\[\\s*(\\d{4}...$/`
 
-**规则：在模板字符串内编写客户端 JS 时，所有字符串字面量中的 `\n`、`\t` 等都要双写反斜杠：`'\\n'`、`'\\t'`。**
+**规则：在模板字符串内编写客户端 JS 时，所有字符串字面量中的 `\n`、`\t` 等都要双写反斜杠：`'\\n'`、`'\\t'`；正则里的 `\d` `\s` `\[` `\]` 等同样双写。**
 
 `node --check` 无法发现此问题，因为模板字符串在运行时才求值。
 
