@@ -6358,7 +6358,7 @@ export default {
     raw=(raw||'').trim();
     if(!raw)return {followUps:[],followUp:''};
     var lines=raw.split('\\n');
-    var re=/^\[\s*(\d{4}-\d{2}-\d{2})\s+(\d{1,2}:\d{2}(?::\d{2})?)\s*\]\s*(.*)$/;
+    var re=/^\\[\\s*(\\d{4}-\\d{2}-\\d{2})\\s+(\\d{1,2}:\\d{2}(?::\\d{2})?)\\s*\\]\\s*(.*)$/;
     var followUps=[];
     var pending=null;
     for(var i=0;i<lines.length;i++){
