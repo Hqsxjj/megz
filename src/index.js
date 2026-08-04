@@ -2425,7 +2425,7 @@ export default {
         start_url: '/',
         display: 'standalone',
         background_color: '#ededed',
-        theme_color: '#4a6cf7',
+        theme_color: '#34D399',
         orientation: 'portrait',
         icons: [
           { src: '/icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any maskable' }
@@ -3409,7 +3409,7 @@ export default {
       --accent-intent: #FB8C00;
       --accent-wechat-bg: #ECFDF5;
       --accent-intent-bg: #FFF8F0;
-      --accent-btn: rgba(91,184,240,0.52);
+      --accent-btn: rgba(52,211,153,0.75);
       --btn-bg: rgba(255,255,255,0.92);
       --btn-hover: #e5e5e5;
       --shadow-card: 0 2px 12px rgba(0,0,0,0.06);
@@ -3447,7 +3447,7 @@ export default {
       --accent-intent: #FBA95C;
       --accent-wechat-bg: #064E3B;
       --accent-intent-bg: #3D2A18;
-      --accent-btn: rgba(125,200,245,0.35);
+      --accent-btn: rgba(52,211,153,0.40);
       --btn-bg: rgba(255,255,255,0.12);
       --btn-hover: #2c2c2c;
       --cal-hover: #2c2c2e;
@@ -3509,7 +3509,7 @@ export default {
     .auth-form { display: flex; flex-direction: column; gap: 14px; width: 100%; align-items: center; }
     .auth-input { width: 100%; padding: 12px 16px; border-radius: 8px; border: 1.5px solid rgba(0,0,0,0.08); background: rgba(255,255,255,0.65); font-size: 1rem; color: var(--text-main); outline: none; transition: all 0.3s; box-sizing: border-box; }
     body.dark-mode .auth-input { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.1); }
-    .auth-input:focus { background: rgba(255,255,255,0.60); border-color: var(--accent-main); box-shadow: 0 0 0 3px rgba(91,184,240,0.15); }
+    .auth-input:focus { background: rgba(255,255,255,0.60); border-color: var(--accent-main); box-shadow: 0 0 0 3px rgba(52,211,153,0.15); }
     .auth-btn { width: 100%; background: var(--accent-btn); border: none; color: white; padding: 12px 20px; border-radius: var(--radius-sm); font-weight: 600; cursor: pointer; font-size: 1.05rem; letter-spacing: -0.01em; transition: all 0.2s; }
     .auth-btn:hover { opacity: 0.9; transform: translateY(-2px); box-shadow: 0 6px 20px rgba(255,255,255,0.6); }
     .auth-btn:active { transform: translateY(0); }
@@ -3526,7 +3526,7 @@ export default {
     .topbar-logo { font-size: 1.1rem; font-weight: 700; color: var(--text-main); letter-spacing: 0.5px; white-space: nowrap; }
     .topbar-search { flex: 1; max-width: 360px; padding: 8px 14px; border-radius: 20px; border: 1px solid rgba(0,0,0,0.08); background: rgba(255,255,255,0.75); font-size: 0.9rem; color: var(--text-main); outline: none; transition: all 0.2s; }
     body.dark-mode .topbar-search { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.1); }
-    .topbar-search:focus { border-color: var(--accent-main); box-shadow: 0 0 0 3px rgba(91,184,240,0.12); }
+    .topbar-search:focus { border-color: var(--accent-main); box-shadow: 0 0 0 3px rgba(52,211,153,0.12); }
     .topbar-btn { padding: 8px 18px; border-radius: var(--radius-capsule); border: none; background: var(--accent-btn); color: white; font-weight: 600; font-size: 0.9rem; cursor: pointer; transition: all 0.2s; white-space: nowrap; letter-spacing: -0.01em; }
     .topbar-btn:hover { opacity: 0.9; transform: translateY(-1px); }
     .topbar-user { font-size: 0.85rem; color: var(--text-soft); white-space: nowrap; cursor: pointer; }
@@ -4746,7 +4746,7 @@ export default {
     <button class="pin-btn" id="pinUnlockBtn" disabled>验证中...</button>
     <div class="pin-error" id="pinError"></div>
     <input type="file" id="restoreFileInput" accept=".json" style="display:none;">
-    <button class="pin-btn" id="restoreBtn" style="display:none;background:rgba(74,108,247,0.15);color:#4a6cf7;border:1px solid rgba(74,108,247,0.3);margin-top:4px;">恢复数据</button>
+    <button class="pin-btn" id="restoreBtn" style="display:none;background:rgba(52,211,153,0.15);color:#059669;border:1px solid rgba(52,211,153,0.3);margin-top:4px;">恢复数据</button>
   </div>
 </div>
 <div class="journal-shell" id="journalShell">
@@ -4936,7 +4936,7 @@ export default {
         <input type="checkbox" id="learnShowCheck" checked style="margin-right:4px;">锁屏显示
       </label>
       <div style="display:flex; gap:8px; flex:1; justify-content:flex-end;">
-        <button class="btn-add" id="aiLearnBtn" style="background: linear-gradient(135deg, #4a6cf7 0%, #5a6a7e 100%); color:white; border:none; padding:8px 16px; font-size:0.75rem; border-radius:var(--radius-xs); cursor:pointer; font-weight:800; display:flex; align-items:center; gap:4px; box-shadow: 0 2px 6px rgba(74,108,247,0.25);">
+        <button class="btn-add" id="aiLearnBtn" style="background: linear-gradient(135deg, #34D399 0%, #12A874 100%); color:white; border:none; padding:8px 16px; font-size:0.75rem; border-radius:var(--radius-xs); cursor:pointer; font-weight:800; display:flex; align-items:center; gap:4px; box-shadow: 0 2px 6px rgba(52,211,153,0.35);">
           AI 智能总结
         </button>
         <button class="btn-add" id="addLearnBtn" style="background: var(--btn-bg); color:var(--text-main); border:1px solid var(--card-border); padding:8px 16px; font-size:0.75rem; border-radius:var(--radius-xs); cursor:pointer; font-weight:800;">
