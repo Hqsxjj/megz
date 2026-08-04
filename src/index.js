@@ -4811,7 +4811,7 @@ export default {
       </div>
       <div class="right-area">
         <div class="card">
-          <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;">意向登记 <button id="allClientsBtn" title="意向客户全量表" style="font-size:0.65rem;padding:3px 10px;border-radius:var(--radius-xs);border:none;background:rgba(255,255,255,0.55);color:var(--text-main);font-weight:700;cursor:pointer;backdrop-filter:blur(6px);">全量</button></div>
+          <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;">意向登记 <button id="allClientsBtn" title="意向客户全量表" style="font-size:0.65rem;padding:3px 10px;border-radius:var(--radius-xs);border:none;background:var(--accent-btn);color:#fff;font-weight:700;cursor:pointer;">全量</button></div>
           <div class="register-block">
             <div class="form-line"><input type="text" class="input-simple" id="custName" placeholder="姓名" autocomplete="off"><input type="text" class="input-simple" id="custPhone" placeholder="电话" autocomplete="off"></div>
             <div class="form-line"><input type="text" class="input-simple" id="custCompany" placeholder="单位" autocomplete="off"><input type="text" class="input-simple" id="custFund" placeholder="公积金基数" autocomplete="off"></div>
