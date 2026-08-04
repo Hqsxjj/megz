@@ -6352,7 +6352,48 @@ export default {
   }
 
   // ==================== 渲染 ====================
+  // 解析「[日期 时间] 内容」多行跟进记录文本：含时间戳行时还原为多条记录（保留原日期时间），
+  // 无时间戳的纯文本保持旧 followUp 字段格式（避免把历史多条记录折叠成一条、日期时间全丢）
+  function splitFollowUpsText(raw) {
+    raw=(raw||'').trim();
+    if(!raw)return {followUps:[],followUp:''};
+    var lines=raw.split('\\n');
+    var re=/^\[\s*(\d{4}-\d{2}-\d{2})\s+(\d{1,2}:\d{2}(?::\d{2})?)\s*\]\s*(.*)$/;
+    var followUps=[];
+    var pending=null;
+    for(var i=0;i<lines.length;i++){
+      var m=lines[i].match(re);
+      if(m){
+        if(pending)followUps.push(pending);
+        pending={date:m[1],time:m[2],content:m[3]};
+      }else if(pending){
+        pending.content+=(pending.content?'\\n':'')+lines[i];
+      }else if(lines[i].trim()){
+        followUps.push({date:'',time:'',content:lines[i]});
+      }
+    }
+    if(pending)followUps.push(pending);
+    var hasTimestamp=followUps.some(function(f){return !!(f.date&&f.time);});
+    if(hasTimestamp)return {followUps:followUps,followUp:''};
+    return {followUps:[],followUp:raw};
+  }
+
   function renderClientList(){
+    // 保护编辑中的跟进记录：重绘前保存已展开的内联表单（内容/焦点），重绘后按客户身份恢复。
+    // 否则 60 秒定时刷新/15 秒云同步/切回标签触发的重绘会清空正在输入的记录
+    const _c0=document.getElementById('clientList');
+    const _openForms=[];
+    if(_c0){
+      _c0.querySelectorAll('.client-card-item').forEach(function(_card){
+        const _form=_card.querySelector('.cl-followup-inline-form');
+        if(!_form||_form.style.display!=='block')return;
+        const _ne=_card.querySelector('.client-card-name');
+        const _pe=_card.querySelector('.client-phone');
+        const _te=_card.querySelector('.client-card-time');
+        const _ta=_card.querySelector('.cl-followup-inline-input');
+        _openForms.push({key:(_ne?_ne.textContent:'')+'|'+( _pe?_pe.dataset.full:'')+'|'+( _te?_te.textContent:''),value:_ta?_ta.value:'',focus:!!(_ta&&document.activeElement===_ta)});
+      });
+    }
     const today=getTodayStr();
     const clients=JSON.parse(localStorage.getItem(CLIENTS_K)||'[]').filter(c=>c.date===today);
     const container = document.getElementById('clientList');
@@ -6393,7 +6434,7 @@ export default {
             '</div>'+
             (c.followUps && c.followUps.length > 0 ?
               '<div class="follow-up-list">'+
-                c.followUps.map(function(fu){ return '<div class="follow-up-record"><div class="follow-up-record-header">'+esc(fu.date||'')+' '+esc(fu.time||'')+'</div><div class="follow-up-record-text">'+esc(fu.content||'')+'</div></div>'; }).join('')+
+                c.followUps.map(function(fu){ return '<div class="follow-up-record">'+(fu.date||fu.time?'<div class="follow-up-record-header">'+esc(fu.date||'')+' '+esc(fu.time||'')+'</div>':'')+'<div class="follow-up-record-text">'+esc(fu.content||'')+'</div></div>'; }).join('')+
               '</div>' : (c.followUp ?
               '<span class="client-card-text">'+esc(c.followUp)+'</span>' : ''))+
             '<div class="cl-followup-inline-form" style="display:none;margin-top:6px;">'+
@@ -6423,6 +6464,24 @@ export default {
         '</div>'+
       '</div>';
     }).join('');
+
+    // 恢复重绘前展开的跟进记录输入框（内容/展开状态/焦点），使自动刷新不打断编辑
+    _openForms.forEach(function(_f){
+      const _cards=container.querySelectorAll('.client-card-item');
+      for(let _i=0;_i<_cards.length;_i++){
+        const _card=_cards[_i];
+        const _ne=_card.querySelector('.client-card-name');
+        const _pe=_card.querySelector('.client-phone');
+        const _te=_card.querySelector('.client-card-time');
+        const _key=(_ne?_ne.textContent:'')+'|'+( _pe?_pe.dataset.full:'')+'|'+( _te?_te.textContent:'');
+        if(_key!==_f.key)continue;
+        const _form=_card.querySelector('.cl-followup-inline-form');
+        const _ta=_card.querySelector('.cl-followup-inline-input');
+        if(_form)_form.style.display='block';
+        if(_ta){_ta.value=_f.value;if(_f.focus){_ta.focus();try{_ta.setSelectionRange(_ta.value.length,_ta.value.length);}catch(_e2){}}}
+        break;
+      }
+    });
 
     // Status toggle buttons
     container.querySelectorAll('.status-toggle-btn').forEach(b=>b.addEventListener('click',async e=>{
@@ -7107,8 +7166,9 @@ export default {
             const label = (card.querySelector('.edit-label-input')||{}).value||'';
             const nt = card.querySelector('.edit-note-input').value.trim();
             var fuRaw = card.querySelector('.edit-follow-input').value.trim();
-            var newFollowUpsTl = [];
-            if (fuRaw) { newFollowUpsTl.push({ date: ds, time: getCurrentTime(), content: fuRaw }); }
+            // 跟进记录：多行「[日期 时间] 内容」还原为多条记录（保留原日期时间），纯文本走旧 followUp 字段
+            var fuSplitTl = splitFollowUpsText(fuRaw);
+            var newFollowUpsTl = fuSplitTl.followUps;
             // Read new detail fields
             const age = (card.querySelector('.edit-age-input')||{}).value||''; const ageV = age.trim();
             const ms = (card.querySelector('.edit-marital-input')||{}).value||'';
@@ -7150,7 +7210,7 @@ export default {
             const updatedClient = {
               date: ds, time: fullClient.time || ti.time || getCurrentTime(),
               name: n, phone: p, company: comp, fund: fund, label: label, note: nt,
-              followUps: newFollowUpsTl,
+              followUps: newFollowUpsTl, followUp: fuSplitTl.followUp,
               age: ageV, maritalStatus: ms, isShenzhenHukou: sh, socialSecurity: ssV,
               avgSalary: asV, tax2yr: txV, salaryBank: sbV, education: ed, property: pr,
               propertyType: pt, propertyAddress: paV, propertyArea: pArV, propertyMortgageBank: pmbV, propertyMortgageAmount: pmaV, propertyOther: poV,
@@ -7744,7 +7804,9 @@ export default {
       if (addBtn) { addBtn.textContent = '+ 添加'; addBtn.style.background = 'var(--accent-btn)'; }
     }
 
-    var newClient={name:n,phone:p,company:c,fund:f,label:label,note:nt,followUps:fu?[{date:today,time:time,content:fu}]:[],date:today,time:time,
+    // 跟进记录：多行「[日期 时间] 内容」还原为多条记录（保留原日期时间），纯文本走旧 followUp 字段
+    var fuSplit=splitFollowUpsText(fu);
+    var newClient={name:n,phone:p,company:c,fund:f,label:label,note:nt,followUps:fuSplit.followUps,followUp:fuSplit.followUp,date:today,time:time,
       age,maritalStatus,isShenzhenHukou,socialSecurity,avgSalary,tax2yr,salaryBank,
       education,property:propertyVal,propertyType,propertyAddress,propertyArea,propertyMortgageBank,propertyMortgageAmount,propertyOther,
       bankDebt,creditCardDebt,query3m,onlineLoanCount,demand,fundUsage,
@@ -9594,7 +9656,7 @@ export default {
         c.followUps.forEach(function(fu) {
           parts.push(
             '<div class="follow-up-record">' +
-              '<div class="follow-up-record-header">' + esc(fu.date || '') + ' ' + esc(fu.time || '') + '</div>' +
+              (fu.date || fu.time ? '<div class="follow-up-record-header">' + esc(fu.date || '') + ' ' + esc(fu.time || '') + '</div>' : '') +
               '<div class="follow-up-record-text">' + esc(fu.content || '') + '</div>' +
             '</div>'
           );
