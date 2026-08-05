@@ -4426,6 +4426,57 @@ export default {
     .all-clients-stats .stats-failed strong{color:#e67e22}
     body.dark-mode .all-clients-stats .stats-success strong{color:#2ecc71}
     body.dark-mode .all-clients-stats .stats-failed strong{color:#f0a04b}
+    /* ===== 意向客户全量表 + 临时登记表：强制浅色模式（即使全局深色，方便阅读与编辑） ===== */
+    body.dark-mode #allClientsModal,
+    body.dark-mode #tempFullModal {
+      color-scheme: light;
+      --card-bg: rgba(255,255,255,0.80);
+      --card-border: rgba(0,0,0,0.04);
+      --separator: rgba(0,0,0,0.08);
+      --text-main: #1c1c1e;
+      --text-soft: #3a3a3c;
+      --text-light: #5c5c60;
+      --accent-intent: #FB8C00;
+      --accent-wechat-bg: #ECFDF5;
+      --accent-intent-bg: #FFF8F0;
+      --accent-btn: rgba(52,211,153,0.75);
+      --btn-bg: rgba(255,255,255,0.92);
+      --btn-hover: #e5e5e5;
+      --border-light: #eaeaeb;
+      --modal-card: rgba(255,255,255,0.55);
+      --shadow-card: 0 2px 12px rgba(0,0,0,0.06);
+      --cal-hover: #f2f2f7;
+      --wechat-gradient: linear-gradient(135deg, #C8F5D8 0%, #7EE8A0 50%, #34D399 100%);
+      --intent-gradient: linear-gradient(135deg, #FFE8C0 0%, #FFC870 50%, #FF9500 100%);
+      --today-gradient: linear-gradient(135deg, #ffe0cc 0%, #ffab7a 50%, #ff7744 100%);
+    }
+    body.dark-mode #allClientsModal .modal-card,
+    body.dark-mode #tempFullModal .modal-card { background: rgba(255,255,255,0.96); }
+    body.dark-mode #allClientsModal .modal-card .input-simple,
+    body.dark-mode #tempFullModal .modal-card .input-simple { background: #fff; border: 1.5px solid #d0d0d0; color: #111; }
+    body.dark-mode #allClientsModal .modal-card textarea.input-simple,
+    body.dark-mode #tempFullModal .modal-card textarea.input-simple { background: #fff; border: 1.5px solid #d0d0d0; color: #111; }
+    body.dark-mode #allClientsModal .client-card-item:hover { border-color: rgba(7,193,96,0.4); box-shadow: 0 6px 16px rgba(0,0,0,0.06); }
+    body.dark-mode #allClientsModal .client-card-tag-fund,
+    body.dark-mode #tempFullModal .client-card-tag-fund { background: rgba(255,183,77,0.1); color: #e67e22; }
+    body.dark-mode #allClientsModal .client-card-tag-detail { background: rgba(52,152,219,0.08); color: #2980b9; }
+    body.dark-mode #allClientsModal .client-card-tag-grade-a { background: rgba(39,174,96,0.12); color: #1e8449; }
+    body.dark-mode #allClientsModal .client-card-tag-grade-b { background: rgba(52,152,219,0.12); color: #2471a3; }
+    body.dark-mode #allClientsModal .client-card-tag-grade-c { background: rgba(149,165,166,0.12); color: #7f8c8d; }
+    body.dark-mode #allClientsModal .client-card-tag-no-revisit-5 { background: rgba(230,126,34,0.1); color: #d35400; }
+    body.dark-mode #allClientsModal .client-card-tag-no-revisit-10 { background: rgba(231,76,60,0.1); color: #c0392b; }
+    body.dark-mode #allClientsModal .detail-panel { background: rgba(0,0,0,0.012); }
+    body.dark-mode #allClientsModal .client-card-body { background: rgba(0,0,0,0.015); }
+    body.dark-mode #allClientsModal .client-card-item.status-success { border: 1px solid rgba(39,174,96,0.35); border-left: 5px solid #27ae60; border-top: 3px solid #27ae60; background: linear-gradient(135deg, rgba(39,174,96,0.14) 0%, rgba(39,174,96,0.05) 50%, var(--card-bg) 100%); box-shadow: 0 2px 10px rgba(39,174,96,0.18); }
+    body.dark-mode #allClientsModal .client-card-item.status-failed { border: 1px solid rgba(230,126,34,0.35); border-left: 5px solid #e67e22; border-top: 3px solid #e67e22; background: linear-gradient(135deg, rgba(230,126,34,0.14) 0%, rgba(230,126,34,0.05) 50%, var(--card-bg) 100%); box-shadow: 0 2px 10px rgba(230,126,34,0.18); }
+    body.dark-mode #allClientsModal .client-card-status-badge.status-badge-success { background: linear-gradient(135deg, #27ae60, #2ecc71); box-shadow: 0 2px 6px rgba(39,174,96,0.35); }
+    body.dark-mode #allClientsModal .client-card-status-badge.status-badge-failed { background: linear-gradient(135deg, #e67e22, #f39c12); box-shadow: 0 2px 6px rgba(230,126,34,0.35); }
+    body.dark-mode #allClientsModal .status-toggle-btn.status-success { background: rgba(39,174,96,0.12); color: #27ae60; }
+    body.dark-mode #allClientsModal .status-toggle-btn.status-failed { background: rgba(230,126,34,0.12); color: #e67e22; }
+    body.dark-mode #allClientsModal .flag-dot-active { box-shadow: 0 0 3px rgba(231,76,60,0.5); }
+    body.dark-mode #allClientsModal .all-clients-stats .stats-success strong { color: #27ae60; }
+    body.dark-mode #allClientsModal .all-clients-stats .stats-failed strong { color: #e67e22; }
+    body.dark-mode #tempFullModal .kq-tag { background: rgba(90,106,126,0.08); }
     .follow-up-list{display:flex;flex-direction:column;gap:6px}
     .follow-up-record{background:var(--btn-bg);border-radius:8px;padding:8px 10px;border-left:3px solid var(--accent-wechat)}
     .follow-up-record-header{font-size:0.68rem;font-weight:800;color:var(--accent-wechat);margin-bottom:3px}
