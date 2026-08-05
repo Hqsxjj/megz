@@ -4300,11 +4300,7 @@ export default {
       flex-direction: column;
       gap: 3px;
       font-size: 0.78rem;
-      border-left: 2px solid var(--border-light);
       padding-left: 8px;
-    }
-    .client-card-content-block.follow-up {
-      border-left-color: var(--accent-wechat);
     }
     .client-card-label {
       font-size: 0.65rem;
@@ -6929,12 +6925,12 @@ export default {
                   '<span class="client-card-text">'+esc(e.fundUsage)+'</span>'+
                 '</div>' : '')+
               (e.status==='success' ?
-                '<div class="client-card-content-block" style="border-left-color:#27ae60;">'+
+                '<div class="client-card-content-block">'+
                   '<span class="client-card-label">办理成功</span>'+
                   '<span class="client-card-text">批款银行: '+esc(e.approvedBank||'')+' | 金额: '+esc(e.approvedAmount||'')+' | 利率年限: '+esc(e.rateTerm||'')+'</span>'+
                 '</div>' : '')+
               (e.status==='failed' ?
-                '<div class="client-card-content-block" style="border-left-color:#e67e22;">'+
+                '<div class="client-card-content-block">'+
                   '<span class="client-card-label">办理未成功</span>'+
                   '<span class="client-card-text">拒绝银行: '+esc(e.rejectedBank||'')+' | 原因: '+esc(e.rejectReason||'')+'</span>'+
                 '</div>' : '')+
@@ -9770,12 +9766,12 @@ export default {
             '</div>' : '') +
           formatKqDisplay(c.keyQuestions) +
           (c.status === 'success' ?
-            '<div class="client-card-content-block" style="border-left-color:#27ae60;">' +
+            '<div class="client-card-content-block">' +
               '<span class="client-card-label">办理成功</span>' +
               '<span class="client-card-text">' + esc(c.approvedBank||'') + ' | ' + esc(c.approvedAmount||'') + ' | ' + esc(c.rateTerm||'') + '</span>' +
             '</div>' : '') +
           (c.status === 'failed' ?
-            '<div class="client-card-content-block" style="border-left-color:#e67e22;">' +
+            '<div class="client-card-content-block">' +
               '<span class="client-card-label">办理未成功</span>' +
               '<span class="client-card-text">' + esc(c.rejectedBank||'') + ' | ' + esc(c.rejectReason||'') + '</span>' +
             '</div>' : '') +
