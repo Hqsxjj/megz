@@ -3630,9 +3630,9 @@ export default {
     .header-bar { display: flex; justify-content: space-between; align-items: center; gap: 6px; flex-shrink: 0; flex-wrap: wrap; margin-bottom: 8px; position: relative; }
     h3 { font-size: 1.25rem; font-weight: 600; letter-spacing: -0.02em; color: var(--text-main); white-space: nowrap; }
 
-    .date-chip { background: var(--card-bg); padding: 4px 12px; border-radius: var(--radius-capsule); font-size: 0.75rem; font-weight: 600; color: var(--text-soft); border: 0.5px solid var(--card-border); }
+    .date-chip { background: var(--card-bg); padding: 4px 12px; border-radius: var(--radius-capsule); font-size: 0.75rem; font-weight: 600; color: var(--text-soft); box-shadow: var(--shadow-card); }
     .goal-chips { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-    .goal-chip { background: var(--card-bg); padding: 4px 12px; border-radius: var(--radius-capsule); font-size: 0.75rem; font-weight: 600; border: 0.5px solid var(--card-border); color: var(--text-soft); white-space: nowrap; cursor: default; }
+    .goal-chip { background: var(--card-bg); padding: 4px 12px; border-radius: var(--radius-capsule); font-size: 0.75rem; font-weight: 600; box-shadow: var(--shadow-card); color: var(--text-soft); white-space: nowrap; cursor: default; }
     .goal-actual { cursor: pointer; border-bottom: 1.5px dashed var(--text-light); }
     .goal-actual:hover { color: var(--accent-wechat); border-bottom-color: var(--accent-wechat); }
     .goal-target { cursor: pointer; font-style: italic; font-weight: 600; border-bottom: 1px dotted var(--text-light); }
@@ -4149,23 +4149,21 @@ export default {
       font-weight: 600;
       padding: 3px 8px;
       border-radius: var(--radius-xs);
+      box-shadow: var(--shadow-card);
     }
     .client-card-tag-company {
       background: var(--accent-intent-bg);
       color: var(--accent-intent);
-      border: 0.5px solid rgba(7, 193, 96, 0.2);
     }
     .client-card-tag-bank {
       font-size: 0.7rem;
       font-weight: 600;
       padding: 3px 8px;
       border-radius: var(--radius-xs);
-      border: 0.5px solid rgba(90,106,126,0.3);
     }
     .client-card-tag-fund {
       background: rgba(255, 183, 77, 0.1);
       color: #e67e22;
-      border: 0.5px solid rgba(255, 183, 77, 0.2);
     }
     body.dark-mode .client-card-tag-fund {
       background: rgba(230, 126, 34, 0.15);
@@ -4175,7 +4173,6 @@ export default {
     .client-card-tag-detail {
       background: rgba(52, 152, 219, 0.08);
       color: #2980b9;
-      border: 0.5px solid rgba(52, 152, 219, 0.15);
       font-size: 0.68rem;
     }
     body.dark-mode .client-card-tag-detail {
@@ -4186,7 +4183,6 @@ export default {
     .client-card-tag-grade-a {
       background: rgba(39, 174, 96, 0.12);
       color: #1e8449;
-      border: 0.5px solid rgba(39, 174, 96, 0.3);
       font-size: 0.75rem;
     }
     body.dark-mode .client-card-tag-grade-a {
@@ -4196,7 +4192,6 @@ export default {
     .client-card-tag-grade-b {
       background: rgba(52, 152, 219, 0.12);
       color: #2471a3;
-      border: 0.5px solid rgba(52, 152, 219, 0.3);
       font-size: 0.75rem;
     }
     body.dark-mode .client-card-tag-grade-b {
@@ -4206,7 +4201,6 @@ export default {
     .client-card-tag-grade-c {
       background: rgba(149, 165, 166, 0.12);
       color: #7f8c8d;
-      border: 0.5px solid rgba(149, 165, 166, 0.3);
       font-size: 0.75rem;
     }
     body.dark-mode .client-card-tag-grade-c {
@@ -4217,7 +4211,6 @@ export default {
     .client-card-tag-no-revisit-5 {
       background: rgba(230, 126, 34, 0.1);
       color: #d35400;
-      border: 0.5px solid rgba(230, 126, 34, 0.2);
     }
     body.dark-mode .client-card-tag-no-revisit-5 {
       background: rgba(230, 126, 34, 0.15);
@@ -4226,7 +4219,6 @@ export default {
     .client-card-tag-no-revisit-10 {
       background: rgba(231, 76, 60, 0.1);
       color: #c0392b;
-      border: 0.5px solid rgba(231, 76, 60, 0.2);
     }
     body.dark-mode .client-card-tag-no-revisit-10 {
       background: rgba(231, 76, 60, 0.15);
