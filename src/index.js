@@ -4478,7 +4478,7 @@ export default {
     body.dark-mode #allClientsModal .all-clients-stats .stats-failed strong { color: #e67e22; }
     body.dark-mode #tempFullModal .kq-tag { background: rgba(90,106,126,0.08); }
     .follow-up-list{display:flex;flex-direction:column;gap:6px}
-    .follow-up-record{background:var(--btn-bg);border-radius:8px;padding:8px 10px;border-left:3px solid var(--accent-wechat)}
+    .follow-up-record{background:var(--btn-bg);border-radius:8px;padding:8px 10px}
     .follow-up-record-header{font-size:0.68rem;font-weight:800;color:var(--accent-wechat);margin-bottom:3px}
     .follow-up-record-text{font-size:0.78rem;font-weight:600;color:var(--text-main);line-height:1.4;word-break:break-all}
     .follow-up-add-btn{font-size:0.7rem;font-weight:700;padding:5px 12px;border:1px dashed var(--accent-wechat);color:var(--accent-wechat);background:transparent;border-radius:6px;cursor:pointer;transition:all .15s;margin-top:4px}
