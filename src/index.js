@@ -6542,7 +6542,7 @@ export default {
           (c.label ? '<span class="client-card-tag client-card-tag-grade-' + esc(c.label).toLowerCase() + '">' + esc(c.label) + '类客户</span>' : '')+
           (c.company ? getWhitelistTagHtml(c.company, false) : '')+
           (c.fund ? '<span class="client-card-tag client-card-tag-fund">公积金: '+esc(c.fund)+'</span>' : '')+
-          (c.wechatAdded === 'yes' ? '<span class="client-card-tag client-card-tag-wechat">已加微信</span>' : '')+
+          (c.wechatAdded === 'yes' ? '<span class="client-card-tag client-card-tag-wechat">微</span>' : '')+
           getClientDetailTags(c) +
         '</div>'+
         '<div class="client-card-body">'+
@@ -9808,7 +9808,7 @@ export default {
           (c.label ? '<span class="client-card-tag client-card-tag-grade-' + esc(c.label).toLowerCase() + '">' + esc(c.label) + '类客户</span>' : '') +
           (c.company ? getWhitelistTagHtml(c.company, false) : '') +
           (c.fund ? '<span class="client-card-tag client-card-tag-fund">' + esc(c.fund) + '</span>' : '') +
-          (c.wechatAdded === 'yes' ? '<span class="client-card-tag client-card-tag-wechat">已加微信</span>' : '') +
+          (c.wechatAdded === 'yes' ? '<span class="client-card-tag client-card-tag-wechat">微</span>' : '') +
           getClientDetailTags(c) +
           (c.visitTime ? '<span class="client-card-tag client-card-tag-detail">' + esc(c.visitTime) + '</span>' : '') +
         '</div>' +
