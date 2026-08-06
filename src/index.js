@@ -4133,12 +4133,10 @@ export default {
       position: relative;
     }
     .client-card-item:hover {
-      border-color: rgba(7, 193, 96, 0.4);
       box-shadow: 0 6px 16px rgba(0,0,0,0.06);
       transform: translateY(-1px);
     }
     body.dark-mode .client-card-item:hover {
-      border-color: rgba(7, 193, 96, 0.5);
       box-shadow: 0 6px 16px rgba(0,0,0,0.25);
     }
     .client-card-top {
@@ -4505,7 +4503,7 @@ export default {
     body.dark-mode #tempFullModal .modal-card .input-simple { background: #fff; border: 1.5px solid #d0d0d0; color: #111; }
     body.dark-mode #allClientsModal .modal-card textarea.input-simple,
     body.dark-mode #tempFullModal .modal-card textarea.input-simple { background: #fff; border: 1.5px solid #d0d0d0; color: #111; }
-    body.dark-mode #allClientsModal .client-card-item:hover { border-color: rgba(7,193,96,0.4); box-shadow: 0 6px 16px rgba(0,0,0,0.06); }
+    body.dark-mode #allClientsModal .client-card-item:hover { box-shadow: 0 6px 16px rgba(0,0,0,0.06); }
     body.dark-mode #allClientsModal .client-card-tag-fund,
     body.dark-mode #tempFullModal .client-card-tag-fund { background: rgba(255,183,77,0.1); color: #e67e22; }
     body.dark-mode #allClientsModal .client-card-tag-detail { background: rgba(52,152,219,0.08); color: #2980b9; }
