@@ -3388,7 +3388,6 @@ export default {
   <link rel="manifest" href="/manifest.json">
   <link rel="icon" href="/icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="/icon.svg">
-  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?onload=_onTurnstileLoad&render=explicit" async defer></script>
   <link rel="icon" href="/icon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/inter@5/400.css">
@@ -4784,9 +4783,8 @@ export default {
   <div class="script-container" id="scriptContainer"></div>
   <div class="learn-container" id="learnContainer"></div>
   <div class="pin-box">
-    <div id="turnstileWidget" style="min-height:65px;display:flex;align-items:center;justify-content:center;"></div>
-    <input type="text" class="pin-input pin-mask" id="pinInput" placeholder="" maxlength="6" inputmode="numeric" autocomplete="off" spellcheck="false" data-lpignore="true" readonly onfocus="this.removeAttribute('readonly');" autofocus disabled>
-    <button class="pin-btn" id="pinUnlockBtn" disabled>验证中...</button>
+    <input type="text" class="pin-input pin-mask" id="pinInput" placeholder="" maxlength="6" inputmode="numeric" autocomplete="off" spellcheck="false" data-lpignore="true" readonly onfocus="this.removeAttribute('readonly');" autofocus>
+    <button class="pin-btn" id="pinUnlockBtn">解锁进入</button>
     <div class="pin-error" id="pinError"></div>
     <input type="file" id="restoreFileInput" accept=".json" style="display:none;">
     <button class="pin-btn" id="restoreBtn" style="display:none;background:rgba(52,211,153,0.15);color:#059669;border:none;box-shadow:var(--shadow-card);margin-top:4px;">恢复数据</button>
@@ -9262,34 +9260,6 @@ export default {
     }
     return (hash >>> 0).toString(16);
   }
-  // Turnstile verification
-  var _turnstileVerified = sessionStorage.getItem('ts_verified') === '1';
-  function enablePinInputs(){
-    var inp=document.getElementById('pinInput');
-    var btn=document.getElementById('pinUnlockBtn');
-    if(inp){inp.disabled=false;inp.removeAttribute('readonly');setTimeout(function(){inp.focus();},50);}
-    if(btn){btn.disabled=false;btn.textContent='解锁进入';}
-  }
-  if(_turnstileVerified){ enablePinInputs(); }
-  else {
-    window._turnstileCB = function(token){
-      sessionStorage.setItem('ts_verified','1');
-      _turnstileVerified=true;
-      enablePinInputs();
-    };
-    // Called by Turnstile script when loaded (via ?onload=_onTurnstileLoad)
-    window._onTurnstileLoad = function(){
-      var tsDiv=document.getElementById('turnstileWidget');
-      if(tsDiv && typeof turnstile!=='undefined'){
-        turnstile.render(tsDiv,{sitekey:'0x4AAAAAAECnjVwNlyMwf-l8',callback:'_turnstileCB',theme:'auto'});
-      }
-    };
-    // Fallback: if Turnstile fails to load at all, enable after 8 seconds
-    setTimeout(function(){
-      if(!_turnstileVerified) enablePinInputs();
-    },8000);
-  }
-
   const pi=document.getElementById('pinInput'),pib=document.getElementById('pinUnlockBtn'),pie=document.getElementById('pinError');
   const PIN_FAIL_K='pin_fail_v1';
   var pinLockoutTimer=null;
