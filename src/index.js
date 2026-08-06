@@ -835,13 +835,17 @@ async function dialerValidateSession(env, token) {
 }
 
 // Turnstile 人机验证 — 调用 Cloudflare siteverify 校验 token
-// 需要 env.TURNSTILE_SECRET（Turnstile 控制台的 Secret Key）；未配置时返回 true（放行，向后兼容）
+// 需要 env.TURNSTILE_SECRET 或 env.TURNSTILE_SECRET_KEY（Turnstile 控制台的 Secret Key）；未配置时返回 true（放行，向后兼容）
+function getTurnstileSecret(env) {
+  return env.TURNSTILE_SECRET || env.TURNSTILE_SECRET_KEY || '';
+}
 async function verifyTurnstile(env, token, remoteIp) {
-  if (!env.TURNSTILE_SECRET) return true;
+  var tsSecret = getTurnstileSecret(env);
+  if (!tsSecret) return true;
   if (!token || typeof token !== 'string') return false;
   try {
     var form = new FormData();
-    form.append('secret', env.TURNSTILE_SECRET);
+    form.append('secret', tsSecret);
     form.append('response', token);
     if (remoteIp) form.append('remoteip', remoteIp);
     var resp = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
@@ -12411,8 +12415,8 @@ export default {
     if (path === '/api/destruct' && request.method === 'POST') {
       try {
         var body = await request.json();
-        // Turnstile 人机验证 — 配置了 TURNSTILE_SECRET 时强制校验，未配置则放行
-        if (env.TURNSTILE_SECRET) {
+        // Turnstile 人机验证 — 配置了 TURNSTILE_SECRET(_KEY) 时强制校验，未配置则放行
+        if (getTurnstileSecret(env)) {
           var tsOk = await verifyTurnstile(env, body.turnstileToken, clientIP);
           if (!tsOk) {
             return new Response(JSON.stringify({ error: '人机验证失败，请刷新页面后重试' }), {
@@ -12511,8 +12515,8 @@ export default {
     if (path === '/api/restore' && request.method === 'POST') {
       try {
         var body = await request.json();
-        // Turnstile 人机验证 — 配置了 TURNSTILE_SECRET 时强制校验，未配置则放行
-        if (env.TURNSTILE_SECRET) {
+        // Turnstile 人机验证 — 配置了 TURNSTILE_SECRET(_KEY) 时强制校验，未配置则放行
+        if (getTurnstileSecret(env)) {
           var tsOkRestore = await verifyTurnstile(env, body.turnstileToken, clientIP);
           if (!tsOkRestore) {
             return new Response(JSON.stringify({ error: '人机验证失败，请刷新页面后重试' }), {
