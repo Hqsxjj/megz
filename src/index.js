@@ -3482,7 +3482,7 @@ export default {
     .pin-box { display: flex; flex-direction: column; align-items: center; gap: 18px; background: rgba(255,255,255,0.55); backdrop-filter: blur(50px) saturate(180%); -webkit-backdrop-filter: blur(50px) saturate(180%); padding: 36px 44px; border-radius: 24px; box-shadow: 0 8px 32px rgba(0,0,0,0.12), inset 0 0.5px 0 rgba(255,255,255,0.5); border: 1px solid rgba(255,255,255,0.3); min-width: 360px; max-width: 480px; z-index: 45; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); }
     body.dark-mode .pin-box { background: rgba(20,20,20,0.4); backdrop-filter: blur(50px) saturate(180%); -webkit-backdrop-filter: blur(50px) saturate(180%); border: 1px solid rgba(255,255,255,0.12); box-shadow: 0 8px 32px rgba(0,0,0,0.35), inset 0 0.5px 0 rgba(255,255,255,0.1); }
     .pin-stats { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; }
-    .pin-stat-item { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px 16px; background: rgba(255,255,255,0.12); border-radius: var(--radius-sm); border: 1px solid rgba(255,255,255,0.15); min-width: 110px; flex: 1; }
+    .pin-stat-item { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px 16px; background: rgba(255,255,255,0.12); border-radius: var(--radius-sm); border: none; min-width: 110px; flex: 1; box-shadow: var(--shadow-card); }
     body.dark-mode .pin-stat-item { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.06); }
     .pin-stat-label { font-size: 0.82rem; font-weight: 500; color: var(--text-soft); letter-spacing: -0.01em; white-space: nowrap; }
     .pin-stat-value { font-size: 2.2rem; font-weight: 700; line-height: 1; }
@@ -3495,7 +3495,7 @@ export default {
     body.dark-mode .pin-input { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.1); }
     .pin-input:focus { background: rgba(255,255,255,0.60); }
     .pin-mask { -webkit-text-security: disc; }
-    .pin-btn { background: var(--accent-btn); border: none; color: white; padding: 8px 22px; border-radius: var(--radius-sm); font-weight: 600; cursor: pointer; font-size: 0.92rem; letter-spacing: -0.01em; transition: all 0.2s; }
+    .pin-btn { background: var(--accent-btn); border: none; color: white; padding: 8px 22px; border-radius: var(--radius-sm); font-weight: 600; cursor: pointer; font-size: 0.92rem; letter-spacing: -0.01em; transition: all 0.2s; box-shadow: var(--shadow-card); }
     .pin-btn:hover { opacity: 0.9; transform: translateY(-2px); box-shadow: 0 6px 20px rgba(255,255,255,0.6); }
     .pin-btn:active { transform: translateY(0); }
     .pin-error { color: #e74c3c; font-size: 1.26rem; min-height: 24px; font-weight: 700; letter-spacing: 0.5px; }
@@ -3510,7 +3510,7 @@ export default {
     .auth-input { width: 100%; padding: 12px 16px; border-radius: 8px; border: 1.5px solid rgba(0,0,0,0.08); background: rgba(255,255,255,0.65); font-size: 1rem; color: var(--text-main); outline: none; transition: all 0.3s; box-sizing: border-box; }
     body.dark-mode .auth-input { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.1); }
     .auth-input:focus { background: rgba(255,255,255,0.60); border-color: var(--accent-main); box-shadow: 0 0 0 3px rgba(52,211,153,0.15); }
-    .auth-btn { width: 100%; background: var(--accent-btn); border: none; color: white; padding: 12px 20px; border-radius: var(--radius-sm); font-weight: 600; cursor: pointer; font-size: 1.05rem; letter-spacing: -0.01em; transition: all 0.2s; }
+    .auth-btn { width: 100%; background: var(--accent-btn); border: none; color: white; padding: 12px 20px; border-radius: var(--radius-sm); font-weight: 600; cursor: pointer; font-size: 1.05rem; letter-spacing: -0.01em; transition: all 0.2s; box-shadow: var(--shadow-card); }
     .auth-btn:hover { opacity: 0.9; transform: translateY(-2px); box-shadow: 0 6px 20px rgba(255,255,255,0.6); }
     .auth-btn:active { transform: translateY(0); }
     .auth-switch { font-size: 0.88rem; color: var(--text-soft); }
@@ -3527,7 +3527,7 @@ export default {
     .topbar-search { flex: 1; max-width: 360px; padding: 8px 14px; border-radius: 20px; border: 1px solid rgba(0,0,0,0.08); background: rgba(255,255,255,0.75); font-size: 0.9rem; color: var(--text-main); outline: none; transition: all 0.2s; }
     body.dark-mode .topbar-search { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.1); }
     .topbar-search:focus { border-color: var(--accent-main); box-shadow: 0 0 0 3px rgba(52,211,153,0.12); }
-    .topbar-btn { padding: 8px 18px; border-radius: var(--radius-capsule); border: none; background: var(--accent-btn); color: white; font-weight: 600; font-size: 0.9rem; cursor: pointer; transition: all 0.2s; white-space: nowrap; letter-spacing: -0.01em; }
+    .topbar-btn { padding: 8px 18px; border-radius: var(--radius-capsule); border: none; background: var(--accent-btn); color: white; font-weight: 600; font-size: 0.9rem; cursor: pointer; transition: all 0.2s; white-space: nowrap; letter-spacing: -0.01em; box-shadow: var(--shadow-card); }
     .topbar-btn:hover { opacity: 0.9; transform: translateY(-1px); }
     .topbar-user { font-size: 0.85rem; color: var(--text-soft); white-space: nowrap; cursor: pointer; }
     .journal-body { display: flex; flex: 1; min-height: 0; }
@@ -3543,15 +3543,15 @@ export default {
     .journal-card { background: rgba(255,255,255,0.80); backdrop-filter: blur(20px) saturate(160%); -webkit-backdrop-filter: blur(20px) saturate(160%); border-radius: var(--radius-md); border: 0.5px solid var(--card-border); padding: 14px 20px; display: flex; flex-direction: column; gap: 10px; box-shadow: var(--shadow-card); }
     body.dark-mode .journal-card { background: rgba(30,30,30,0.5); border: 0.5px solid var(--card-border); }
     .journal-meta { display: flex; gap: 16px; flex-wrap: wrap; align-items: center; }
-    .journal-meta-tag { padding: 6px 12px; border-radius: var(--radius-capsule); background: rgba(0,0,0,0.04); font-size: 0.85rem; color: var(--text-main); font-weight: 500; }
+    .journal-meta-tag { padding: 6px 12px; border-radius: var(--radius-capsule); background: rgba(0,0,0,0.04); font-size: 0.85rem; color: var(--text-main); font-weight: 500; box-shadow: var(--shadow-card); }
     body.dark-mode .journal-meta-tag { background: rgba(255,255,255,0.08); }
     .journal-meta-tag select { border: none; background: transparent; font: inherit; color: inherit; outline: none; cursor: pointer; }
     .journal-content { font-size: 1rem; font-weight: 400; color: var(--text-main); line-height: 1.6; white-space: pre-wrap; word-break: break-word; letter-spacing: -0.01em; }
     .journal-media-row { display: flex; gap: 10px; flex-wrap: wrap; }
     .journal-media-thumb { width: 80px; height: 80px; border-radius: 8px; object-fit: cover; cursor: pointer; border: 1px solid rgba(0,0,0,0.06); }
     .journal-actions { display: flex; gap: 10px; }
-    .journal-act-btn { padding: 6px 14px; border-radius: 14px; border: 1px solid rgba(0,0,0,0.1); background: rgba(255,255,255,0.72); font-size: 0.82rem; color: var(--text-soft); cursor: pointer; transition: all 0.15s; }
-    body.dark-mode .journal-act-btn { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.1); }
+    .journal-act-btn { padding: 6px 14px; border-radius: 14px; border: none; background: rgba(255,255,255,0.72); font-size: 0.82rem; color: var(--text-soft); cursor: pointer; transition: all 0.15s; box-shadow: var(--shadow-card); }
+    body.dark-mode .journal-act-btn { background: rgba(255,255,255,0.06); }
     .journal-act-btn:hover { background: rgba(0,0,0,0.06); color: var(--text-main); }
     .journal-editor { background: rgba(255,255,255,0.80); backdrop-filter: blur(20px) saturate(160%); -webkit-backdrop-filter: blur(20px) saturate(160%); border-radius: var(--radius-md); border: 0.5px solid var(--card-border); padding: 16px 20px; display: flex; flex-direction: column; gap: 12px; box-shadow: var(--shadow-card); }
     body.dark-mode .journal-editor { background: rgba(30,30,30,0.5); border: 0.5px solid var(--card-border); }
@@ -3563,8 +3563,8 @@ export default {
     .journal-empty { text-align: center; padding: 60px 20px; color: var(--text-soft); font-size: 1rem; }
     .cal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
     .cal-title { font-size: 1.1rem; font-weight: 700; color: var(--text-main); }
-    .cal-nav { width: 36px; height: 36px; border: 1px solid rgba(0,0,0,0.1); border-radius: 50%; background: rgba(255,255,255,0.65); cursor: pointer; font-size: 1rem; color: var(--text-main); display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
-    body.dark-mode .cal-nav { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.1); }
+    .cal-nav { width: 36px; height: 36px; border: none; border-radius: 50%; background: rgba(255,255,255,0.65); cursor: pointer; font-size: 1rem; color: var(--text-main); display: flex; align-items: center; justify-content: center; transition: all 0.15s; box-shadow: var(--shadow-card); }
+    body.dark-mode .cal-nav { background: rgba(255,255,255,0.08); }
     .cal-nav:hover { background: rgba(0,0,0,0.08); }
     .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
     .cal-wd { text-align: center; font-size: 0.78rem; font-weight: 700; color: var(--text-soft); padding: 6px 0; }
@@ -3598,9 +3598,9 @@ export default {
     .timer-btn-start { background: var(--accent-btn); color: white; box-shadow: 0 4px 12px rgba(255,255,255,0.7); }
     .timer-btn-start:hover { opacity: 0.9; transform: translateY(-2px); }
     .timer-btn-start:active { transform: translateY(0); }
-    .timer-btn-reset { background: rgba(0,0,0,0.04); color: var(--text-main); }
+    .timer-btn-reset { background: rgba(0,0,0,0.04); color: var(--text-main); box-shadow: var(--shadow-card); }
     body.dark-mode .timer-btn-reset { background: rgba(255,255,255,0.06); }
-    body.dark-mode .icon-simple { background: rgba(38,38,38,0.85); border-color: rgba(255,255,255,0.12); color: #e5e5e5; }
+    body.dark-mode .icon-simple { background: rgba(38,38,38,0.85); color: #e5e5e5; }
     body.dark-mode .icon-simple:hover { background: rgba(255,255,255,0.2); box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
     body.dark-mode .goal-chip.goal-met { background: rgba(255,255,255,0.3); color: #2ecc71; }
     body.dark-mode .goal-chip.goal-half { background: rgba(245,124,0,0.12); color: #f0a04b; }
@@ -3643,7 +3643,7 @@ export default {
     .goal-eye { background: none; border: none; cursor: pointer; font-size: 0.85rem; padding: 2px 4px; opacity: 0.5; transition: opacity 0.2s; line-height: 1; }
     .goal-eye:hover { opacity: 1; }
     .goal-eye.eye-off { opacity: 0.25; }
-    .icon-simple { background: rgba(255,255,255,0.92); border: 0.5px solid var(--card-border); color: #191919; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); min-width: 36px; height: 32px; padding: 0 10px; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 0.72rem; font-weight: 600; transition: all 0.2s; user-select: none; position: relative; white-space: nowrap; }
+    .icon-simple { background: rgba(255,255,255,0.92); border: none; color: #191919; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); min-width: 36px; height: 32px; padding: 0 10px; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 0.72rem; font-weight: 600; transition: all 0.2s; user-select: none; position: relative; white-space: nowrap; box-shadow: var(--shadow-card); }
     .icon-simple:hover { background: rgba(255,255,255,0.65); transform: translateY(-1px); box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
     .icon-simple:active { transform: translateY(0px) scale(0.98); }
 	    .log-list { max-height: 50vh; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; font-size: 0.8rem; font-weight: 600; color: var(--text-main); margin-top: 10px; }
@@ -3679,11 +3679,11 @@ export default {
     .counter-stats { display: flex; gap: 12px; margin-top: 6px; position: relative; z-index: 1; font-size: 0.7rem; color: rgba(255,255,255,0.8); font-weight: 600; }
     .counter-stats b { font-weight: 700; }
     .button-group { display: flex; gap: 12px; margin-top: 12px; position: relative; z-index: 1; }
-    .circle-btn { width: 40px; height: 40px; border-radius: var(--radius-xs); background: rgba(255,255,255,0.62); border: 1px solid rgba(255,255,255,0.5); font-size: 1.5rem; display: flex; align-items: center; justify-content: center; cursor: pointer; color: white; font-weight: 700; backdrop-filter: blur(4px); transition: 0.2s; }
+    .circle-btn { width: 40px; height: 40px; border-radius: var(--radius-xs); background: rgba(255,255,255,0.62); border: none; font-size: 1.5rem; display: flex; align-items: center; justify-content: center; cursor: pointer; color: white; font-weight: 700; backdrop-filter: blur(4px); transition: 0.2s; box-shadow: var(--shadow-card); }
     .circle-btn:hover { background: rgba(255,255,255,0.65); }
     .btn-special { background: rgba(255,255,255,0.82); }
     .stats-row { display: flex; gap: 10px; }
-    .stat-block { flex: 1; text-align: center; border-radius: var(--radius-sm); padding: 10px 4px; border: 1px solid var(--card-border); color: white; text-shadow: 0 1px 2px rgba(0,0,0,0.1); box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+    .stat-block { flex: 1; text-align: center; border-radius: var(--radius-sm); padding: 10px 4px; border: none; color: white; text-shadow: 0 1px 2px rgba(0,0,0,0.1); box-shadow: var(--shadow-card); }
     .stat-wechat { background: rgba(52,211,153,0.4); }
     .stat-intent { background: rgba(255,149,0,0.4); }
     .stat-revisit { background: rgba(74,108,247,0.35); }
@@ -3691,7 +3691,7 @@ export default {
     .stat-block .number { font-size: 1.35rem; font-weight: 700; margin-left: 4px; }
     .calendar-compact { padding: 10px 12px; }
     .cal-head { display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 0.8rem; font-weight: 700; color: var(--text-soft); margin-bottom: 8px; }
-    .cal-nav-btn { background: none; border: 1px solid var(--card-border); border-radius: var(--radius-xs); cursor: pointer; padding: 2px 8px; font-size: 0.7rem; color: var(--text-soft); transition: all 0.2s; }
+    .cal-nav-btn { background: none; border: none; border-radius: var(--radius-xs); cursor: pointer; padding: 2px 8px; font-size: 0.7rem; color: var(--text-soft); transition: all 0.2s; }
     .cal-nav-btn:hover { background: var(--card-bg); color: var(--text-main); }
     .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; text-align: center; }
     .cal-weekday { font-size: 0.72rem; font-weight: 700; color: var(--text-soft); padding: 4px 0; }
@@ -3738,7 +3738,7 @@ export default {
     .tbl-seq { font-size: 0.68rem; font-weight: 700; color: var(--text-light); text-align: center; white-space: nowrap; }
     .tbl-name { font-weight: 700; font-size: 0.88rem; white-space: nowrap; }
     .tbl-phone-wrap { display: inline-flex; align-items: center; gap: 5px; font-family: monospace; font-size: 0.8rem; color: var(--text-soft); white-space: nowrap; }
-    .tbl-tag { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 0.68rem; font-weight: 600; white-space: nowrap; }
+    .tbl-tag { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 0.68rem; font-weight: 600; white-space: nowrap; box-shadow: var(--shadow-card); }
     .tbl-tag-company { background: rgba(255,255,255,0.55); color: var(--accent-wechat); }
     .tbl-tag-fund { background: rgba(255,154,60,0.15); color: #c97a00; }
     body.dark-mode .tbl-tag-fund { color: #d4933a; }
@@ -3748,14 +3748,14 @@ export default {
     .tbl-note-empty { color: var(--text-light); font-size: 0.75rem; font-style: italic; }
     .tbl-time { font-size: 0.7rem; color: var(--text-light); white-space: nowrap; }
     .tbl-action { text-align: center; white-space: nowrap; }
-    .edit-note-btn { font-size: 0; background: transparent; border: 1px solid var(--accent-wechat); color: var(--accent-wechat); border-radius: 50%; cursor: pointer; width: 26px; height: 26px; padding: 0; display: inline-flex; justify-content: center; align-items: center; transition: all 0.2s; }
+    .edit-note-btn { font-size: 0; background: var(--accent-wechat-bg); border: none; color: var(--accent-wechat); border-radius: 50%; cursor: pointer; width: 26px; height: 26px; padding: 0; display: inline-flex; justify-content: center; align-items: center; transition: all 0.2s; box-shadow: var(--shadow-card); }
     .edit-note-btn:hover { background: var(--accent-btn); color: #fff; transform: scale(1.1); }
     .tbl-note-edit-wrap { display: flex; flex-direction: column; gap: 6px; }
     .tbl-note-edit-wrap textarea { width: 100%; min-height: 90px; background: var(--btn-bg); border: 1.5px solid var(--accent-wechat); border-radius: 6px; padding: 8px 10px; font-size: 0.86rem; color: var(--text-main); outline: none; font-weight: 600; resize: vertical; line-height: 1.7; }
     .tbl-note-edit-wrap textarea:focus { box-shadow: 0 0 0 3px rgba(255,255,255,0.7); }
     .tbl-note-edit-btns { display: flex; gap: 5px; }
-    .tbl-save-btn { font-size: 0.65rem; background: var(--accent-btn); color: #fff; border: none; border-radius: 6px; cursor: pointer; padding: 4px 12px; font-weight: 700; }
-    .tbl-cancel-btn { font-size: 0.65rem; background: var(--btn-bg); border: 1px solid var(--card-border); color: var(--text-soft); border-radius: 6px; cursor: pointer; padding: 4px 12px; font-weight: 700; }
+    .tbl-save-btn { font-size: 0.65rem; background: var(--accent-btn); color: #fff; border: none; border-radius: 6px; cursor: pointer; padding: 4px 12px; font-weight: 700; box-shadow: var(--shadow-card); }
+    .tbl-cancel-btn { font-size: 0.65rem; background: var(--btn-bg); border: none; color: var(--text-soft); border-radius: 6px; cursor: pointer; padding: 4px 12px; font-weight: 700; box-shadow: var(--shadow-card); }
     /* ===== 待办卡片（保留原样式） ===== */
     .todo-card-item { display: flex; align-items: flex-start; gap: 10px; padding: 10px 14px; background: var(--btn-bg); border-radius: var(--radius-xs); border: 1px solid var(--card-border); font-size: 0.82rem; font-weight: 600; color: var(--text-main); }
     .todo-card-icon { font-size: 1rem; flex-shrink: 0; margin-top: 1px; }
@@ -3783,7 +3783,7 @@ export default {
     .kq-check input { margin-top: 2px; flex-shrink: 0; accent-color: var(--accent-wechat); }
     body.dark-mode .kq-check { color: #bbb; }
     .kq-tags { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 4px; }
-    .kq-tag { display: inline-block; font-size: 0.62rem; background: rgba(90,106,126,0.08); color: var(--text-soft); padding: 1px 6px; border-radius: 999px; white-space: nowrap; max-width: 180px; overflow: hidden; text-overflow: ellipsis; line-height: 1.5; }
+    .kq-tag { display: inline-block; font-size: 0.62rem; background: rgba(90,106,126,0.08); color: var(--text-soft); padding: 1px 6px; border-radius: 999px; white-space: nowrap; max-width: 180px; overflow: hidden; text-overflow: ellipsis; line-height: 1.5; box-shadow: var(--shadow-card); }
     body.dark-mode .kq-tag { background: rgba(255,255,255,0.06); }
     .input-simple, .todo-input { flex: 1; width: 100%; height: 38px; padding: 0 12px; font-size: 0.85rem; background: var(--btn-bg); border: 0.5px solid var(--card-border); border-radius: var(--radius-sm); color: var(--text-main); outline: none; min-width: 0; font-weight: 400; box-sizing: border-box; transition: all 0.2s; }
     .input-simple:focus, .todo-input:focus { border-color: var(--accent-wechat); box-shadow: 0 0 0 3px rgba(52,211,153,0.15); }
@@ -3795,8 +3795,8 @@ export default {
     textarea.input-simple, .note-textarea { height: auto; min-height: 68px; padding: 10px 12px; resize: vertical; line-height: 1.6; }
     .note-textarea { font-family: inherit; }
     .btn-add, .todo-add-btn { height: 38px; padding: 0 18px; font-size: 0.85rem; font-weight: 600; letter-spacing: -0.01em; border: none; border-radius: var(--radius-xs); color: white; cursor: pointer; white-space: nowrap; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; transition: all 0.2s; }
-    .btn-add { background: var(--accent-btn); }
-    .todo-add-btn { background: var(--accent-btn); }
+    .btn-add { background: var(--accent-btn); box-shadow: var(--shadow-card); }
+    .todo-add-btn { background: var(--accent-btn); box-shadow: var(--shadow-card); }
     .btn-add:hover, .todo-add-btn:hover { opacity: 0.92; transform: translateY(-1px); }
     .btn-add:active, .todo-add-btn:active { transform: translateY(0); }
     .btn-add:disabled, .todo-add-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
@@ -3813,7 +3813,7 @@ export default {
     .del-icon { background: none; border: none; font-size: 0.9rem; color: #c97a7a; cursor: pointer; width: 28px; height: 28px; border-radius: var(--radius-xs); font-weight: 700; }
     .edit-icon { background: none; border: none; font-size: 0; color: var(--accent-wechat); cursor: pointer; width: 28px; height: 28px; border-radius: var(--radius-xs); display: inline-flex; align-items: center; justify-content: center; margin-right: 4px; }
     .export-single-btn { background: none; border: none; font-size: 0; color: var(--accent-intent); cursor: pointer; width: 28px; height: 28px; border-radius: var(--radius-xs); display: inline-flex; align-items: center; justify-content: center; margin-right: 4px; }
-    .export-timeline-single-btn { font-size: 0; background: transparent; border: 1px solid var(--accent-intent); color: var(--accent-intent); border-radius: 50%; cursor: pointer; width: 26px; height: 26px; padding: 0; display: inline-flex; justify-content: center; align-items: center; transition: all 0.2s; margin-right: 4px; }
+    .export-timeline-single-btn { font-size: 0; background: var(--accent-intent-bg); border: none; color: var(--accent-intent); border-radius: 50%; cursor: pointer; width: 26px; height: 26px; padding: 0; display: inline-flex; justify-content: center; align-items: center; transition: all 0.2s; margin-right: 4px; box-shadow: var(--shadow-card); }
     .export-timeline-single-btn:hover { background: var(--accent-btn); color: #fff; transform: scale(1.1); }
     .client-actions { display: flex; align-items: center; gap: 4px; }
     .todo-list { display: flex; flex-direction: column; gap: 8px; max-height: 200px; overflow-y: auto; }
@@ -3825,7 +3825,7 @@ export default {
     /* ===== 内容展示模块（复制粘贴保留格式） ===== */
     .paste-card { padding: 0 !important; overflow: hidden; border-radius: var(--radius-ios) !important; position: relative; }
     .paste-toolbar { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-bottom: 0.5px solid var(--separator); gap: 8px; }
-    .paste-add-btn { min-height: 44px; padding: 0 16px; border-radius: 10px; background: var(--accent-btn); color: #fff; font-weight: 700; font-size: 0.82rem; border: none; cursor: pointer; }
+    .paste-add-btn { min-height: 44px; padding: 0 16px; border-radius: 10px; background: var(--accent-btn); color: #fff; font-weight: 700; font-size: 0.82rem; border: none; cursor: pointer; box-shadow: var(--shadow-card); }
     .paste-add-btn:disabled { opacity: 0.5; }
     .paste-list { display: flex; gap: 8px; overflow-x: auto; padding: 10px 12px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
     .paste-list::-webkit-scrollbar { display: none; }
@@ -3841,14 +3841,14 @@ export default {
     .paste-card.empty .paste-empty-state { display: flex; }
     .paste-card.empty .paste-view { display: none; }
     .paste-empty-label { font-size: 0.8rem; color: var(--text-light); font-weight: 600; }
-    .paste-empty-add { min-height: 44px; padding: 0 22px; border-radius: 10px; font-size: 0.82rem; font-weight: 700; color: var(--accent-btn); cursor: pointer; border: 1px solid var(--accent-btn); background: transparent; }
+    .paste-empty-add { min-height: 44px; padding: 0 22px; border-radius: 10px; font-size: 0.82rem; font-weight: 700; color: var(--accent-btn); cursor: pointer; border: none; background: var(--accent-wechat-bg); box-shadow: var(--shadow-card); }
     .paste-empty-add:active { background: var(--btn-bg); }
     /* 编辑器弹窗 */
     .paste-editor { width: 100%; min-height: 200px; max-height: 45vh; overflow-y: auto; padding: 10px 12px; box-sizing: border-box; border: 0.5px solid var(--card-border); border-radius: 10px; background: var(--card-bg); color: var(--text-main); font-size: 0.85rem; line-height: 1.5; outline: none; -webkit-user-select: text; user-select: text; }
     .paste-editor:empty:before { content: attr(data-placeholder); color: var(--text-light); pointer-events: none; }
     .paste-btn-row { display: flex; gap: 8px; justify-content: flex-end; }
-    .paste-save-btn { min-height: 44px; padding: 0 20px; border-radius: 10px; background: var(--accent-btn); color: #fff; font-weight: 700; font-size: 0.82rem; border: none; cursor: pointer; }
-    .paste-cancel-btn { min-height: 44px; padding: 0 20px; border-radius: 10px; background: var(--btn-bg); color: var(--text-soft); font-weight: 600; font-size: 0.82rem; border: 0.5px solid var(--card-border); cursor: pointer; }
+    .paste-save-btn { min-height: 44px; padding: 0 20px; border-radius: 10px; background: var(--accent-btn); color: #fff; font-weight: 700; font-size: 0.82rem; border: none; cursor: pointer; box-shadow: var(--shadow-card); }
+    .paste-cancel-btn { min-height: 44px; padding: 0 20px; border-radius: 10px; background: var(--btn-bg); color: var(--text-soft); font-weight: 600; font-size: 0.82rem; border: none; cursor: pointer; box-shadow: var(--shadow-card); }
     .paste-loading, .paste-error { padding: 24px 16px; text-align: center; font-size: 0.8rem; color: var(--text-light); }
     .paste-empty-hint { font-size: 0.7rem; color: var(--text-light); font-weight: 500; }
     /* 卡片底部切换栏 */
@@ -3856,7 +3856,7 @@ export default {
     .paste-arrow {
       position: absolute; top: 50%; transform: translateY(-50%);
       width: 40px; height: 40px; border-radius: 999px;
-      border: 0.5px solid var(--card-border);
+      border: none;
       background: var(--modal-bg);
       backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
       color: var(--text-main);
@@ -3864,13 +3864,14 @@ export default {
       cursor: pointer; z-index: 5; padding: 0;
       opacity: 0; pointer-events: none;
       transition: opacity 0.25s ease;
+      box-shadow: var(--shadow-card);
       -webkit-tap-highlight-color: transparent; touch-action: manipulation;
     }
     .paste-arrow.show { opacity: 1; pointer-events: auto; }
     .paste-arrow-left { left: 8px; }
     .paste-arrow-right { right: 8px; }
     /* 学习管理内的内容条目列表 */
-    .paste-manage-item { display: flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 10px; border-radius: 10px; border: 0.5px solid var(--card-border); background: var(--btn-bg); cursor: pointer; font-size: 0.78rem; font-weight: 600; color: var(--text-main); }
+    .paste-manage-item { display: flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 10px; border-radius: 10px; border: none; background: var(--btn-bg); cursor: pointer; font-size: 0.78rem; font-weight: 600; color: var(--text-main); box-shadow: var(--shadow-card); }
     .paste-manage-item.selected { background: var(--accent-btn); color: #fff; border-color: transparent; }
     .paste-manage-item .paste-manage-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .paste-manage-del { width: 32px; height: 32px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; border: none; background: transparent; color: inherit; font-size: 0.8rem; cursor: pointer; border-radius: 8px; opacity: 0.7; }
@@ -4060,7 +4061,7 @@ export default {
     .todo-text-clean { flex: 1; word-break: break-word; line-height: 1.4; }
     .todo-del-btn-clean { background: none; border: none; color: #c97a7a; cursor: pointer; font-size: 0.8rem; padding: 0 4px; opacity: 0.5; transition: opacity 0.2s; }
     .todo-del-btn-clean:hover { opacity: 1; }
-    .todo-time-tag { background: var(--card-border); color: var(--text-soft); padding: 1px 4px; border-radius: 4px; font-size: 0.65rem; margin-left: 6px; font-weight: 700; }
+    .todo-time-tag { background: var(--card-border); color: var(--text-soft); padding: 1px 4px; border-radius: 4px; font-size: 0.65rem; margin-left: 6px; font-weight: 700; box-shadow: var(--shadow-card); }
     .todo-tab-switch { display: inline-flex; background: var(--btn-bg); border-radius: var(--radius-xs); padding: 2px; gap: 2px; }
     .todo-tab-btn { padding: 3px 14px; font-size: 0.75rem; font-weight: 700; border: none; border-radius: 4px; cursor: pointer; background: transparent; color: var(--text-soft); transition: all 0.2s; }
     .todo-tab-btn.active { background: var(--accent-btn); color: white; }
@@ -4112,6 +4113,7 @@ export default {
       background: var(--btn-bg);
       padding: 2px 8px;
       border-radius: 12px;
+      box-shadow: var(--shadow-card);
     }
     .client-card-phone {
       font-size: 0.78rem;
@@ -4138,6 +4140,7 @@ export default {
       padding: 2px 8px;
       border-radius: 10px;
       white-space: nowrap;
+      box-shadow: var(--shadow-card);
     }
     .client-card-tags {
       display: flex;
@@ -4406,7 +4409,7 @@ export default {
     .flag-dot-active{background:#e74c3c;box-shadow:0 0 3px rgba(231,76,60,0.5)}
     body.dark-mode .flag-dot-active{box-shadow:0 0 4px rgba(231,76,60,0.7)}
     .all-clients-stats{display:flex;gap:8px;padding:10px 16px;margin:0 -4px;background:var(--card-bg);border-bottom:1px solid var(--border-light);flex-wrap:wrap;position:sticky;top:0;z-index:5}
-    .all-clients-stats .stats-item{font-size:0.72rem;font-weight:600;color:var(--text-soft);padding:4px 12px;border-radius:12px;background:var(--btn-bg);white-space:nowrap}
+    .all-clients-stats .stats-item{font-size:0.72rem;font-weight:600;color:var(--text-soft);padding:4px 12px;border-radius:12px;background:var(--btn-bg);white-space:nowrap;box-shadow:var(--shadow-card)}
     .all-clients-stats .stats-item strong{font-weight:900;font-size:0.85rem;margin-left:2px}
     .all-clients-stats .stats-total strong{color:var(--accent-wechat)}
     .all-clients-stats .stats-unmarked strong{color:var(--text-soft)}
@@ -4469,7 +4472,7 @@ export default {
     .follow-up-record{background:var(--btn-bg);border-radius:8px;padding:8px 10px}
     .follow-up-record-header{font-size:0.68rem;font-weight:800;color:var(--accent-wechat);margin-bottom:3px}
     .follow-up-record-text{font-size:0.78rem;font-weight:600;color:var(--text-main);line-height:1.4;word-break:break-all}
-    .follow-up-add-btn{font-size:0.7rem;font-weight:700;padding:5px 12px;border:1px dashed var(--accent-wechat);color:var(--accent-wechat);background:transparent;border-radius:6px;cursor:pointer;transition:all .15s;margin-top:4px}
+    .follow-up-add-btn{font-size:0.7rem;font-weight:700;padding:5px 12px;border:none;color:var(--accent-wechat);background:var(--accent-wechat-bg);border-radius:6px;cursor:pointer;transition:all .15s;margin-top:4px;box-shadow:var(--shadow-card)}
     .follow-up-add-btn:hover{background:rgba(255,255,255,0.3)}
     .follow-up-edit-row{display:flex;gap:8px;align-items:flex-start}
     .follow-up-remove-btn{font-size:0.8rem;background:none;border:none;color:#e74c3c;cursor:pointer;font-weight:700;padding:4px 6px}
@@ -4544,7 +4547,7 @@ export default {
     .temp-card-info { color:var(--text-soft); font-size:0.7rem; display:flex; flex-wrap:wrap; gap:4px 12px; }
     .temp-card-note { color:var(--text-main); font-size:0.72rem; line-height:1.4; }
     .temp-card-actions { display:flex; gap:6px; margin-left:auto; flex-shrink:0; align-items:center; }
-    .temp-card-actions button { width:32px; height:32px; background:none; border:0.5px solid var(--card-border); cursor:pointer; font-size:0; padding:0; border-radius:var(--radius-sm); display:inline-flex; align-items:center; justify-content:center; color:var(--text-soft); transition:all 0.15s; }
+    .temp-card-actions button { width:32px; height:32px; background:var(--btn-bg); border:none; cursor:pointer; font-size:0; padding:0; border-radius:var(--radius-sm); display:inline-flex; align-items:center; justify-content:center; color:var(--text-soft); transition:all 0.15s; box-shadow:var(--shadow-card); }
     .temp-card-actions button:hover { background:var(--btn-hover); transform:translateY(-1px); }
     .temp-card-actions button:active { transform:translateY(0); }
     .temp-card-actions .temp-tbl-export { color:var(--accent-wechat); }
@@ -4567,8 +4570,8 @@ export default {
       box-shadow: 0 0 0 1px rgba(90,106,126,0.2) !important;
     }
     .card-action-btn {
-      background: none;
-      border: 0.5px solid var(--card-border);
+      background: var(--btn-bg);
+      border: none;
       color: var(--text-soft);
       cursor: pointer;
       font-size: 0.72rem;
@@ -4576,10 +4579,10 @@ export default {
       padding: 5px 12px;
       border-radius: var(--radius-sm);
       transition: all 0.15s;
+      box-shadow: var(--shadow-card);
     }
     .card-action-btn:hover {
       background: var(--btn-hover);
-      border-color: var(--accent-wechat);
       color: var(--accent-wechat);
     }
     /* ==================== Android 专属适配 ==================== */
@@ -4651,7 +4654,7 @@ export default {
     .loan-input-row .input-simple:focus { border-color: #0d9488; box-shadow: 0 0 0 3px rgba(13,148,136,0.15); outline: none; }
     .loan-unit { font-size: 0.85rem; color: #555; font-weight: 600; white-space: nowrap; }
     body.dark-mode .loan-unit { color: #aaa; }
-    .loan-copy-btn { min-height: 32px; padding: 0 12px; border-radius: 10px; border: 0.5px solid var(--card-border); background: var(--btn-bg); color: var(--text-main); font-size: 0.78rem; font-weight: 600; cursor: pointer; white-space: nowrap; }
+    .loan-copy-btn { min-height: 32px; padding: 0 12px; border-radius: 10px; border: none; background: var(--btn-bg); color: var(--text-main); font-size: 0.78rem; font-weight: 600; cursor: pointer; white-space: nowrap; box-shadow: var(--shadow-card); }
     body.dark-mode .loan-copy-btn { color: #eee; }
     .loan-input-desc { font-size: 0.72rem; color: #777; margin-left: 4px; }
     body.dark-mode .loan-input-desc { color: #999; }
@@ -4785,7 +4788,7 @@ export default {
     <button class="pin-btn" id="pinUnlockBtn" disabled>验证中...</button>
     <div class="pin-error" id="pinError"></div>
     <input type="file" id="restoreFileInput" accept=".json" style="display:none;">
-    <button class="pin-btn" id="restoreBtn" style="display:none;background:rgba(52,211,153,0.15);color:#059669;border:1px solid rgba(52,211,153,0.3);margin-top:4px;">恢复数据</button>
+    <button class="pin-btn" id="restoreBtn" style="display:none;background:rgba(52,211,153,0.15);color:#059669;border:none;box-shadow:var(--shadow-card);margin-top:4px;">恢复数据</button>
   </div>
 </div>
 <div class="journal-shell" id="journalShell">
@@ -4902,8 +4905,8 @@ export default {
             <div class="form-line"><input type="text" class="input-simple" id="tempCustCompany" placeholder="单位" autocomplete="off" readonly onfocus="this.removeAttribute('readonly');"><input type="text" class="input-simple" id="tempCustFund" placeholder="公积金基数" autocomplete="off" readonly onfocus="this.removeAttribute('readonly');"></div>
             <div style="display:flex;gap:4px;align-items:center;">
               <textarea class="input-simple note-textarea" id="tempCustNote" placeholder="回访备注/待聊内容" rows="2" style="flex:1;"></textarea>
-              <button type="button" id="boldBtn" title="加粗 (Alt+B)" style="height:28px;width:28px;font-weight:900;font-size:0.7rem;border:1px solid var(--card-border);background:var(--btn-bg);color:var(--text-main);cursor:pointer;border-radius:3px;padding:0;line-height:1;">B</button>
-              <button type="button" id="delBtn" title="删除线 (Alt+D)" style="height:28px;width:28px;font-weight:700;font-size:0.6rem;border:1px solid var(--card-border);background:var(--btn-bg);color:var(--text-main);cursor:pointer;border-radius:3px;padding:0;line-height:1;text-decoration:line-through;">D</button>
+              <button type="button" id="boldBtn" title="加粗 (Alt+B)" style="height:28px;width:28px;font-weight:900;font-size:0.7rem;border:none;background:var(--btn-bg);color:var(--text-main);cursor:pointer;border-radius:3px;padding:0;line-height:1;box-shadow:var(--shadow-card);">B</button>
+              <button type="button" id="delBtn" title="删除线 (Alt+D)" style="height:28px;width:28px;font-weight:700;font-size:0.6rem;border:none;background:var(--btn-bg);color:var(--text-main);cursor:pointer;border-radius:3px;padding:0;line-height:1;text-decoration:line-through;box-shadow:var(--shadow-card);">D</button>
             </div>
             <div class="detail-toggle-wrap"><button type="button" class="detail-toggle-btn" id="tkqToggleBtn"><span class="detail-toggle-icon">▶</span> 关键问题勾选</button></div>
             <div class="detail-panel" id="tkqPanel" style="display:none;"><div id="keyQuestionsTemp"></div></div>
@@ -4978,7 +4981,7 @@ export default {
         <button class="btn-add" id="aiLearnBtn" style="background: linear-gradient(135deg, #34D399 0%, #12A874 100%); color:white; border:none; padding:8px 16px; font-size:0.75rem; border-radius:var(--radius-xs); cursor:pointer; font-weight:800; display:flex; align-items:center; gap:4px; box-shadow: 0 2px 6px rgba(52,211,153,0.35);">
           AI 智能总结
         </button>
-        <button class="btn-add" id="addLearnBtn" style="background: var(--btn-bg); color:var(--text-main); border:1px solid var(--card-border); padding:8px 16px; font-size:0.75rem; border-radius:var(--radius-xs); cursor:pointer; font-weight:800;">
+        <button class="btn-add" id="addLearnBtn" style="background: var(--btn-bg); color:var(--text-main); border:none; padding:8px 16px; font-size:0.75rem; border-radius:var(--radius-xs); cursor:pointer; font-weight:800; box-shadow:var(--shadow-card);">
           手动保存
         </button>
       </div>
@@ -5088,8 +5091,8 @@ export default {
     <div style="display:flex; flex-direction:column; gap:6px;">
       <div style="display:flex; gap:8px; align-items:center;">
         <label style="font-size:0.65rem; color:var(--text-light); font-weight:800; flex:1;">粘贴公司名称 (每行一家企业)</label>
-        <label for="whitelistFileInput" class="btn-secondary" style="padding:4px 8px; font-size:0.65rem; cursor:pointer; display:inline-block; border-radius:var(--radius-xs); border:1px solid var(--card-border); background:var(--btn-bg); font-weight:700; margin-bottom:2px;">导入表格 (Excel/CSV)</label>
-        <a id="whitelistTemplateBtn" class="btn-secondary" style="padding:4px 8px; font-size:0.65rem; cursor:pointer; display:inline-block; border-radius:var(--radius-xs); border:1px solid var(--card-border); background:var(--btn-bg); font-weight:700; margin-bottom:2px; text-decoration:none; color:var(--text-main);">下载模板</a>
+        <label for="whitelistFileInput" class="btn-secondary" style="padding:4px 8px; font-size:0.65rem; cursor:pointer; display:inline-block; border-radius:var(--radius-xs); border:none; background:var(--btn-bg); font-weight:700; margin-bottom:2px; box-shadow:var(--shadow-card);">导入表格 (Excel/CSV)</label>
+        <a id="whitelistTemplateBtn" class="btn-secondary" style="padding:4px 8px; font-size:0.65rem; cursor:pointer; display:inline-block; border-radius:var(--radius-xs); border:none; background:var(--btn-bg); font-weight:700; margin-bottom:2px; text-decoration:none; color:var(--text-main); box-shadow:var(--shadow-card);">下载模板</a>
         <input type="file" id="whitelistFileInput" accept=".xlsx,.xls,.csv" style="display:none;">
       </div>
       <textarea id="whitelistTextarea" class="whitelist-textarea" placeholder="例：&#10;中国石油化工集团公司&#10;国家电网有限公司&#10;中国工商银行股份有限公司"></textarea>
@@ -5106,7 +5109,7 @@ export default {
         <a href="#" id="whitelistFailedClearBtn" style="color:#e74c3c; text-decoration:underline; font-size:0.65rem;">清除</a>
       </div>
       <div id="whitelistFailedList" style="max-height:80px; overflow-y:auto; font-size:0.68rem; color:var(--text-soft); border:1px solid rgba(231,76,60,0.2); border-radius:4px; padding:4px; background:#fff; margin-bottom:8px; text-align:left; white-space:pre-wrap;"></div>
-      <button id="whitelistFailedRetryBtn" class="btn-primary" style="background:#e74c3c; border-color:#e74c3c; color:#fff; width:100%; padding:6px; font-size:0.75rem;">尝试重新上传</button>
+      <button id="whitelistFailedRetryBtn" class="btn-primary" style="background:#e74c3c; border:none; color:#fff; width:100%; padding:6px; font-size:0.75rem; box-shadow:var(--shadow-card);">尝试重新上传</button>
     </div>
 
     <!-- Search in Whitelist -->
@@ -5128,7 +5131,7 @@ export default {
 </div>
 <div id="allClientsModal" class="modal-overlay">
   <div class="modal-card" style="width:100vw;height:100vh;max-width:100vw;max-height:100vh;margin:0;border-radius:0;border:none;box-sizing:border-box;">
-    <div class="modal-header"><div style="display:flex;align-items:center;gap:12px;"><span>意向客户全量登记表</span><button id="allClientsAddBtn" class="btn-add" style="font-size:0.75rem;padding:4px 12px;height:28px;">+ 新增意向</button><input type="text" id="allClientsSearchInput" class="search-input" placeholder="模糊搜索姓名/电话/单位..." autocomplete="off" style="height:28px;font-size:0.72rem;border-radius:var(--radius-xs);padding:0 8px;border:1px solid var(--card-border);background:var(--btn-bg);color:var(--text-main);font-weight:400;width:180px;"><select id="allClientsSortSelect" style="height:28px;font-size:0.72rem;border-radius:var(--radius-xs);padding:0 4px;border:1px solid var(--card-border);background:var(--btn-bg);color:var(--text-main);font-weight:400;cursor:pointer;"><option value="date">登记日期</option><option value="followup">最近回访</option><option value="norevisit">未回访天数</option><option value="label">客户标签</option><option value="name">姓名</option></select><button id="allClientsSortOrderBtn" title="切换排序方向" style="height:28px;width:28px;font-size:0.85rem;font-weight:700;border-radius:var(--radius-xs);border:1px solid var(--card-border);background:var(--btn-bg);color:var(--text-main);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;">↓</button></div><button id="closeAllClientsModalBtn">✕</button></div>
+    <div class="modal-header"><div style="display:flex;align-items:center;gap:12px;"><span>意向客户全量登记表</span><button id="allClientsAddBtn" class="btn-add" style="font-size:0.75rem;padding:4px 12px;height:28px;">+ 新增意向</button><input type="text" id="allClientsSearchInput" class="search-input" placeholder="模糊搜索姓名/电话/单位..." autocomplete="off" style="height:28px;font-size:0.72rem;border-radius:var(--radius-xs);padding:0 8px;border:1px solid var(--card-border);background:var(--btn-bg);color:var(--text-main);font-weight:400;width:180px;"><select id="allClientsSortSelect" style="height:28px;font-size:0.72rem;border-radius:var(--radius-xs);padding:0 4px;border:1px solid var(--card-border);background:var(--btn-bg);color:var(--text-main);font-weight:400;cursor:pointer;"><option value="date">登记日期</option><option value="followup">最近回访</option><option value="norevisit">未回访天数</option><option value="label">客户标签</option><option value="name">姓名</option></select><button id="allClientsSortOrderBtn" title="切换排序方向" style="height:28px;width:28px;font-size:0.85rem;font-weight:700;border-radius:var(--radius-xs);border:none;background:var(--btn-bg);color:var(--text-main);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;box-shadow:var(--shadow-card);">↓</button></div><button id="closeAllClientsModalBtn">✕</button></div>
     <div class="all-clients-stats" id="allClientsStatsBar">
       <span class="stats-item stats-total">总计 <strong id="statsTotal">0</strong></span>
       <span class="stats-item stats-unmarked">未标记 <strong id="statsUnmarked">0</strong></span>
@@ -6479,8 +6482,8 @@ export default {
             '<div class="cl-followup-inline-form" style="display:none;margin-top:6px;">'+
               '<textarea class="cl-followup-inline-input" placeholder="新增跟进记录..." style="width:100%;min-height:44px;padding:6px 8px;font-size:0.78rem;resize:vertical;border:1px solid var(--card-border);border-radius:6px;background:var(--input-bg);color:var(--text-main);font-family:inherit;box-sizing:border-box;"></textarea>'+
               '<div style="display:flex;justify-content:flex-end;gap:6px;margin-top:4px;">'+
-                '<button class="cl-followup-save-btn" data-idx="'+i+'" style="font-size:0.7rem;padding:3px 10px;background:var(--accent-btn);color:#fff;border:none;border-radius:4px;font-weight:700;cursor:pointer;">保存</button>'+
-                '<button class="cl-followup-cancel-btn" style="font-size:0.7rem;padding:3px 10px;background:var(--btn-bg);color:var(--text-soft);border:1px solid var(--card-border);border-radius:4px;font-weight:700;cursor:pointer;">取消</button>'+
+                '<button class="cl-followup-save-btn" data-idx="'+i+'" style="font-size:0.7rem;padding:3px 10px;background:var(--accent-btn);color:#fff;border:none;border-radius:4px;font-weight:700;cursor:pointer;box-shadow:var(--shadow-card);">保存</button>'+
+                '<button class="cl-followup-cancel-btn" style="font-size:0.7rem;padding:3px 10px;background:var(--btn-bg);color:var(--text-soft);border:none;border-radius:4px;font-weight:700;cursor:pointer;box-shadow:var(--shadow-card);">取消</button>'+
               '</div>'+
             '</div>'+
           '</div>'+
@@ -6901,8 +6904,8 @@ export default {
                 '<div class="tl-followup-inline-form" style="display:none;margin-top:6px;">'+
                   '<textarea class="tl-followup-inline-input" placeholder="新增跟进记录..." style="width:100%;min-height:44px;padding:6px 8px;font-size:0.78rem;resize:vertical;border:1px solid var(--card-border);border-radius:6px;background:var(--input-bg);color:var(--text-main);font-family:inherit;box-sizing:border-box;"></textarea>'+
                   '<div style="display:flex;justify-content:flex-end;gap:6px;margin-top:4px;">'+
-                    '<button class="tl-followup-save-btn" data-idx="'+e.idx+'" style="font-size:0.7rem;padding:3px 10px;background:var(--accent-btn);color:#fff;border:none;border-radius:4px;font-weight:700;cursor:pointer;">保存</button>'+
-                    '<button class="tl-followup-cancel-btn" style="font-size:0.7rem;padding:3px 10px;background:var(--btn-bg);color:var(--text-soft);border:1px solid var(--card-border);border-radius:4px;font-weight:700;cursor:pointer;">取消</button>'+
+                    '<button class="tl-followup-save-btn" data-idx="'+e.idx+'" style="font-size:0.7rem;padding:3px 10px;background:var(--accent-btn);color:#fff;border:none;border-radius:4px;font-weight:700;cursor:pointer;box-shadow:var(--shadow-card);">保存</button>'+
+                    '<button class="tl-followup-cancel-btn" style="font-size:0.7rem;padding:3px 10px;background:var(--btn-bg);color:var(--text-soft);border:none;border-radius:4px;font-weight:700;cursor:pointer;box-shadow:var(--shadow-card);">取消</button>'+
                   '</div>'+
                 '</div>'+
               '</div>'+
@@ -7184,8 +7187,8 @@ export default {
             '<textarea class="input-simple edit-note-input" placeholder="沟通记录（必填）" style="width:100%;min-height:70px;padding:8px;font-size:0.78rem;resize:vertical;box-sizing:border-box;">' + esc(fullClient.note||ti.note||'') + '</textarea>' +
             '<textarea class="input-simple edit-follow-input" placeholder="跟进情况" style="width:100%;min-height:60px;padding:8px;font-size:0.78rem;resize:vertical;box-sizing:border-box;">' + (fullClient.followUps && fullClient.followUps.length > 0 ? fullClient.followUps.map(function(f){ return '[' + (f.date||'') + ' ' + (f.time||'') + '] ' + (f.content||''); }).join('\\n') : esc(fullClient.followUp||'')) + '</textarea>' +
             '<div style="display:flex;justify-content:flex-end;gap:8px;border-top:1px dashed var(--card-border);padding-top:8px;">' +
-              '<button class="save-timeline-client-btn btn-add" style="font-size:0.75rem;padding:6px 16px;background:var(--accent-btn);color:white;border:none;border-radius:6px;font-weight:700;">保存</button>' +
-              '<button class="cancel-timeline-client-btn btn-add" style="font-size:0.75rem;padding:6px 16px;background:var(--btn-bg);color:var(--text-soft);border:1px solid var(--card-border);border-radius:6px;font-weight:700;">取消</button>' +
+              '<button class="save-timeline-client-btn btn-add" style="font-size:0.75rem;padding:6px 16px;background:var(--accent-btn);color:white;border:none;border-radius:6px;font-weight:700;box-shadow:var(--shadow-card);">保存</button>' +
+              '<button class="cancel-timeline-client-btn btn-add" style="font-size:0.75rem;padding:6px 16px;background:var(--btn-bg);color:var(--text-soft);border:none;border-radius:6px;font-weight:700;box-shadow:var(--shadow-card);">取消</button>' +
             '</div>';
 
           // Bind status change for conditional fields
@@ -8140,8 +8143,8 @@ export default {
           '<div class="temp-followup-inline-form" data-idx="'+i+'" style="display:none;margin-top:4px;">'+
             '<textarea class="temp-followup-input" placeholder="新增跟进记录..." style="width:100%;min-height:36px;padding:4px 6px;font-size:0.7rem;resize:vertical;border:1px solid var(--card-border);border-radius:4px;background:var(--input-bg);color:var(--text-main);font-family:inherit;box-sizing:border-box;"></textarea>'+
             '<div style="display:flex;justify-content:flex-end;gap:4px;margin-top:3px;">'+
-              '<button class="temp-followup-save" data-idx="'+i+'" style="font-size:0.62rem;padding:2px 8px;background:var(--accent-btn);color:#fff;border:none;border-radius:3px;font-weight:600;cursor:pointer;">保存</button>'+
-              '<button class="temp-followup-cancel" style="font-size:0.62rem;padding:2px 8px;background:var(--btn-bg);color:var(--text-soft);border:1px solid var(--card-border);border-radius:3px;font-weight:600;cursor:pointer;">取消</button>'+
+              '<button class="temp-followup-save" data-idx="'+i+'" style="font-size:0.62rem;padding:2px 8px;background:var(--accent-btn);color:#fff;border:none;border-radius:3px;font-weight:600;cursor:pointer;box-shadow:var(--shadow-card);">保存</button>'+
+              '<button class="temp-followup-cancel" style="font-size:0.62rem;padding:2px 8px;background:var(--btn-bg);color:var(--text-soft);border:none;border-radius:3px;font-weight:600;cursor:pointer;box-shadow:var(--shadow-card);">取消</button>'+
             '</div>'+
           '</div>'+
         '</div>'+
@@ -8588,7 +8591,7 @@ export default {
     h+='<div class="section-title">设置</div>';
     h+='<div style="display:flex;flex-direction:column;gap:12px;margin-top:8px">';
     h+='<div style="padding:10px 0;color:var(--text-soft)">账号：'+ (localStorage.getItem(AUTH_USER_K)||'') + '</div>';
-    h+='<button class="journal-act-btn" style="color:#e74c3c;border-color:#e74c3c;width:fit-content" id="journalSettingsLogout">退出登录</button>';
+    h+='<button class="journal-act-btn" style="color:#e74c3c;border:none;width:fit-content" id="journalSettingsLogout">退出登录</button>';
     h+='</div></div>';
     main.innerHTML=h;
     var btn=document.getElementById('journalSettingsLogout');
@@ -9711,8 +9714,8 @@ export default {
         '<div class="allcard-followup-inline-form" style="display:none;margin-top:6px;">' +
           '<textarea class="allcard-followup-inline-input" placeholder="新增跟进记录..." style="width:100%;min-height:44px;padding:6px 8px;font-size:0.78rem;resize:vertical;border:1px solid var(--card-border);border-radius:6px;background:var(--input-bg);color:var(--text-main);font-family:inherit;box-sizing:border-box;"></textarea>' +
           '<div style="display:flex;justify-content:flex-end;gap:6px;margin-top:4px;">' +
-            '<button class="allcard-followup-save-btn"' + idxAttr + ' style="font-size:0.7rem;padding:3px 10px;background:var(--accent-btn);color:#fff;border:none;border-radius:4px;font-weight:500;cursor:pointer;">保存</button>' +
-            '<button class="allcard-followup-cancel-btn" style="font-size:0.7rem;padding:3px 10px;background:var(--btn-bg);color:var(--text-soft);border:1px solid var(--card-border);border-radius:4px;font-weight:500;cursor:pointer;">取消</button>' +
+            '<button class="allcard-followup-save-btn"' + idxAttr + ' style="font-size:0.7rem;padding:3px 10px;background:var(--accent-btn);color:#fff;border:none;border-radius:4px;font-weight:500;cursor:pointer;box-shadow:var(--shadow-card);">保存</button>' +
+            '<button class="allcard-followup-cancel-btn" style="font-size:0.7rem;padding:3px 10px;background:var(--btn-bg);color:var(--text-soft);border:none;border-radius:4px;font-weight:500;cursor:pointer;box-shadow:var(--shadow-card);">取消</button>' +
           '</div>' +
         '</div>' +
       '</div>';
@@ -9995,8 +9998,8 @@ export default {
           '<button type="button" class="follow-up-add-btn edit-add-followup-btn" style="margin-top:4px;">+ 新增跟进记录</button>' +
         '</div>' +
         '<div style="display:flex;justify-content:flex-end;gap:8px;border-top:1px dashed var(--card-border);padding-top:8px;">' +
-          '<button type="button" class="save-all-client-btn btn-add" style="font-size:0.75rem;padding:6px 16px;background:var(--accent-btn);color:white;border:none;border-radius:6px;font-weight:700;">保存</button>' +
-          '<button type="button" class="cancel-all-client-btn btn-add" style="font-size:0.75rem;padding:6px 16px;background:var(--btn-bg);color:var(--text-soft);border:1px solid var(--card-border);border-radius:6px;font-weight:700;">取消</button>' +
+          '<button type="button" class="save-all-client-btn btn-add" style="font-size:0.75rem;padding:6px 16px;background:var(--accent-btn);color:white;border:none;border-radius:6px;font-weight:700;box-shadow:var(--shadow-card);">保存</button>' +
+          '<button type="button" class="cancel-all-client-btn btn-add" style="font-size:0.75rem;padding:6px 16px;background:var(--btn-bg);color:var(--text-soft);border:none;border-radius:6px;font-weight:700;box-shadow:var(--shadow-card);">取消</button>' +
         '</div>';
 
       card.querySelector('.edit-status-input').addEventListener('change', function() {
@@ -10242,8 +10245,8 @@ export default {
           '<textarea class="input-simple new-note-input" placeholder="沟通记录（必填）" style="width:100%;min-height:70px;padding:8px;font-size:0.78rem;resize:vertical;box-sizing:border-box;"></textarea>' +
           '<textarea class="input-simple new-follow-input" placeholder="跟进情况" style="width:100%;min-height:60px;padding:8px;font-size:0.78rem;resize:vertical;box-sizing:border-box;"></textarea>' +
           '<div style="display:flex;justify-content:flex-end;gap:8px;border-top:1px dashed var(--card-border);padding-top:8px;">' +
-            '<button class="save-new-client-btn btn-add" style="font-size:0.75rem;padding:6px 16px;background:var(--accent-btn);color:white;border:none;border-radius:6px;font-weight:700;">保存</button>' +
-            '<button class="cancel-new-client-btn btn-add" style="font-size:0.75rem;padding:6px 16px;background:var(--btn-bg);color:var(--text-soft);border:1px solid var(--card-border);border-radius:6px;font-weight:700;">取消</button>' +
+            '<button class="save-new-client-btn btn-add" style="font-size:0.75rem;padding:6px 16px;background:var(--accent-btn);color:white;border:none;border-radius:6px;font-weight:700;box-shadow:var(--shadow-card);">保存</button>' +
+            '<button class="cancel-new-client-btn btn-add" style="font-size:0.75rem;padding:6px 16px;background:var(--btn-bg);color:var(--text-soft);border:none;border-radius:6px;font-weight:700;box-shadow:var(--shadow-card);">取消</button>' +
           '</div>';
 
         container.insertBefore(card, container.firstChild);
