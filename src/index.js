@@ -967,6 +967,31 @@ export default {
     // 定期清理速率限制过期条目
     maybeCleanup();
 
+    // ==================== 数据接口鉴权门 ====================
+    // 配置了账号（config:account_name）后，数据接口要求有效 Bearer token；
+    // 未配置账号时放行（向后兼容）。auth/wallpaper/destruct/restore 走各自已有校验，不在此列。
+    {
+      const protectedPrefixes = ['/api/data', '/api/calendar', '/api/stats', '/api/all-clients', '/api/all-temp-clients', '/api/export', '/api/sync', '/api/whitelist', '/api/learning', '/api/paste', '/api/ocr'];
+      const isProtected = protectedPrefixes.some(function(p){ return path.startsWith(p); });
+      if (isProtected) {
+        var acctName = await getKVCached(env, 'config:account_name');
+        if (acctName) {
+          var bearer = (request.headers.get('Authorization') || '').replace('Bearer ', '').trim();
+          if (!bearer) {
+            return new Response(JSON.stringify({ error: '未登录，请先登录' }), {
+              status: 401, headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
+            });
+          }
+          var acctSession = await env.DATA_KV.get('auth:session:' + bearer);
+          if (!acctSession) {
+            return new Response(JSON.stringify({ error: '登录已过期，请重新登录' }), {
+              status: 401, headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
+            });
+          }
+        }
+      }
+    }
+
     // Supabase client (no-op if SUPABASE_URL/KEY not set)
     const supabase = createSupabaseClient(env);
 
@@ -4747,6 +4772,28 @@ export default {
   if(isIOS&&!isStandalone&&!dismissed){
     document.getElementById('pwaInstallBanner').classList.add('show');
   }
+})();
+</script>
+<script>
+// 全局 fetch 包装：自动附加 Bearer token（登录后所有 /api/ 请求带鉴权）
+(function(){
+  var _origFetch = window.fetch;
+  window.fetch = function(input, init){
+    init = init || {};
+    if(!init.headers) init.headers = {};
+    if(typeof init.headers.set === 'function'){ // Headers 实例
+      if(!init.headers.has('Authorization')){
+        var tk = localStorage.getItem('auth_token');
+        if(tk) init.headers.set('Authorization', 'Bearer ' + tk);
+      }
+    } else {
+      if(!init.headers['Authorization']){
+        var tk2 = localStorage.getItem('auth_token');
+        if(tk2) init.headers['Authorization'] = 'Bearer ' + tk2;
+      }
+    }
+    return _origFetch(input, init);
+  };
 })();
 </script>
 <script>
