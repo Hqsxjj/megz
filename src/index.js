@@ -6539,7 +6539,7 @@ export default {
         '</div>'+
         getStatusBadgeHtml(c) +
         '<div class="client-card-tags">'+
-          (c.label ? '<span class="client-card-tag client-card-tag-grade-' + esc(c.label).toLowerCase() + '">' + esc(c.label) + '类客户</span>' : '')+
+          (c.label ? '<span class="client-card-tag client-card-tag-grade-' + esc(c.label).toLowerCase() + '">' + esc(c.label) + '类</span>' : '')+
           (c.company ? getWhitelistTagHtml(c.company, false) : '')+
           (c.fund ? '<span class="client-card-tag client-card-tag-fund">公积金: '+esc(c.fund)+'</span>' : '')+
           (c.wechatAdded === 'yes' ? '<span class="client-card-tag client-card-tag-wechat">微</span>' : '')+
@@ -6960,7 +6960,7 @@ export default {
             '</div>'+
             getStatusBadgeHtml(e) +
             '<div class="client-card-tags">'+
-              (e.label ? '<span class="client-card-tag client-card-tag-grade-' + esc(e.label).toLowerCase() + '">' + esc(e.label) + '类客户</span>' : '')+
+              (e.label ? '<span class="client-card-tag client-card-tag-grade-' + esc(e.label).toLowerCase() + '">' + esc(e.label) + '类</span>' : '')+
               (e.company ? getWhitelistTagHtml(e.company, false) : '')+
               (e.fund ? '<span class="client-card-tag client-card-tag-fund">公积金: '+esc(e.fund)+'</span>' : '')+
               getClientDetailTags(e) +
@@ -9805,7 +9805,7 @@ export default {
         '</div>' +
         getStatusBadgeHtml(c) +
         '<div class="client-card-tags">' +
-          (c.label ? '<span class="client-card-tag client-card-tag-grade-' + esc(c.label).toLowerCase() + '">' + esc(c.label) + '类客户</span>' : '') +
+          (c.label ? '<span class="client-card-tag client-card-tag-grade-' + esc(c.label).toLowerCase() + '">' + esc(c.label) + '类</span>' : '') +
           (c.company ? getWhitelistTagHtml(c.company, false) : '') +
           (c.fund ? '<span class="client-card-tag client-card-tag-fund">' + esc(c.fund) + '</span>' : '') +
           (c.wechatAdded === 'yes' ? '<span class="client-card-tag client-card-tag-wechat">微</span>' : '') +
