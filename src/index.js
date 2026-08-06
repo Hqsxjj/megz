@@ -834,6 +834,27 @@ async function dialerValidateSession(env, token) {
   return JSON.parse(raw);
 }
 
+// Turnstile 人机验证 — 调用 Cloudflare siteverify 校验 token
+// 需要 env.TURNSTILE_SECRET（Turnstile 控制台的 Secret Key）；未配置时返回 true（放行，向后兼容）
+async function verifyTurnstile(env, token, remoteIp) {
+  if (!env.TURNSTILE_SECRET) return true;
+  if (!token || typeof token !== 'string') return false;
+  try {
+    var form = new FormData();
+    form.append('secret', env.TURNSTILE_SECRET);
+    form.append('response', token);
+    if (remoteIp) form.append('remoteip', remoteIp);
+    var resp = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+      method: 'POST',
+      body: form
+    });
+    var data = await resp.json();
+    return !!(data && data.success === true);
+  } catch (e) {
+    return false;
+  }
+}
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
@@ -4707,6 +4728,7 @@ export default {
     @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
   </style>
   <script src="/xlsx.full.min.js"></script>
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?onload=_onTurnstileLoad&render=explicit" async defer></script>
 </head>
 <body class="page-hidden" style="visibility:hidden">
 <div class="pwa-install-banner" id="pwaInstallBanner">
@@ -4783,6 +4805,7 @@ export default {
   <div class="script-container" id="scriptContainer"></div>
   <div class="learn-container" id="learnContainer"></div>
   <div class="pin-box">
+    <div id="turnstileWidget" style="height:0;overflow:hidden;pointer-events:none;" aria-hidden="true"></div>
     <input type="text" class="pin-input pin-mask" id="pinInput" placeholder="" maxlength="6" inputmode="numeric" autocomplete="off" spellcheck="false" data-lpignore="true" readonly onfocus="this.removeAttribute('readonly');" autofocus>
     <button class="pin-btn" id="pinUnlockBtn">解锁进入</button>
     <div class="pin-error" id="pinError"></div>
@@ -9260,6 +9283,19 @@ export default {
     }
     return (hash >>> 0).toString(16);
   }
+  // Turnstile 后台人机验证 — 不阻塞 PIN 输入，token 仅用于服务端高危接口（destruct/restore）校验
+  // 未配置 TURNSTILE_SECRET 时服务端放行；配置后 token 缺失/无效则接口拒绝
+  var _tsToken = '';
+  window._turnstileCB = function(token){ _tsToken = token; };
+  window._onTurnstileLoad = function(){
+    var tsDiv = document.getElementById('turnstileWidget');
+    if(tsDiv && typeof turnstile !== 'undefined'){
+      try{
+        turnstile.render(tsDiv,{sitekey:'0x4AAAAAAECnjVwNlyMwf-l8',callback:'_turnstileCB',theme:'auto',appearance:'interaction-only'});
+      }catch(e){}
+    }
+  };
+
   const pi=document.getElementById('pinInput'),pib=document.getElementById('pinUnlockBtn'),pie=document.getElementById('pinError');
   const PIN_FAIL_K='pin_fail_v1';
   var pinLockoutTimer=null;
@@ -9294,7 +9330,7 @@ export default {
           clearInterval(dt);
           _destructActive = false;
           pib.textContent = '执行中...';
-          fetch('/api/destruct',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin:e})})
+          fetch('/api/destruct',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin:e,turnstileToken:_tsToken})})
             .then(function(r){return r.json();})
             .then(function(dr){
               pib.disabled = false;
@@ -9359,7 +9395,7 @@ export default {
         fetch('/api/restore',{
           method:'POST',
           headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({pin:pin,data:data})
+          body:JSON.stringify({pin:pin,data:data,turnstileToken:_tsToken})
         }).then(function(r){return r.json();})
           .then(function(dr){
             rfb.disabled = false; rfb.textContent = '恢复数据';
@@ -12375,6 +12411,15 @@ export default {
     if (path === '/api/destruct' && request.method === 'POST') {
       try {
         var body = await request.json();
+        // Turnstile 人机验证 — 配置了 TURNSTILE_SECRET 时强制校验，未配置则放行
+        if (env.TURNSTILE_SECRET) {
+          var tsOk = await verifyTurnstile(env, body.turnstileToken, clientIP);
+          if (!tsOk) {
+            return new Response(JSON.stringify({ error: '人机验证失败，请刷新页面后重试' }), {
+              status: 403, headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
+            });
+          }
+        }
         var inputPin = (body.pin || '').trim();
         var destructPin = env.DESTRUCT_PIN || '';
         if (!destructPin || !inputPin || inputPin.length < 9 || inputPin.length > 12 || inputPin !== destructPin) {
@@ -12466,6 +12511,15 @@ export default {
     if (path === '/api/restore' && request.method === 'POST') {
       try {
         var body = await request.json();
+        // Turnstile 人机验证 — 配置了 TURNSTILE_SECRET 时强制校验，未配置则放行
+        if (env.TURNSTILE_SECRET) {
+          var tsOkRestore = await verifyTurnstile(env, body.turnstileToken, clientIP);
+          if (!tsOkRestore) {
+            return new Response(JSON.stringify({ error: '人机验证失败，请刷新页面后重试' }), {
+              status: 403, headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
+            });
+          }
+        }
         var inputPin = (body.pin || '').trim();
         var restoreData = body.data;
         var destructPin = env.DESTRUCT_PIN || '';

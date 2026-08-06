@@ -7,6 +7,10 @@ compatibility_flags = [ "nodejs_compat" ]
 binding = "DATA_KV"
 id = "ff69992ea0034094913d4a6fa1e78075"
 
+# Turnstile 人机验证（可选）：在 Cloudflare Dashboard 添加 encrypted variable：
+#   wrangler secret put TURNSTILE_SECRET
+# 值取 Turnstile 控制台对应 sitekey 的 Secret Key。不配置则 /api/destruct 与 /api/restore 跳过人机校验（向后兼容）。
+
 [ai]
 binding = "AI"
 
