@@ -4207,6 +4207,12 @@ export default {
       background: var(--accent-intent-bg);
       color: var(--accent-intent);
     }
+    .client-card-tag-wechat {
+      background: var(--accent-wechat-bg);
+      color: #059669;
+      font-weight: 700;
+    }
+    body.dark-mode .client-card-tag-wechat { color: var(--accent-wechat); }
     .client-card-tag-bank {
       font-size: 0.7rem;
       font-weight: 600;
@@ -4949,6 +4955,7 @@ export default {
               <div class="form-line"><input type="text" class="input-simple" id="custQuery3m" placeholder="近3个月查询次数" autocomplete="off" inputmode="numeric"><input type="text" class="input-simple" id="custOnlineLoanCount" placeholder="小额网贷笔数" autocomplete="off" inputmode="numeric"></div>
               <div class="form-line"><textarea class="input-simple note-textarea" id="custPropertyOther" placeholder="房产其他情况" rows="2" style="width:100%;"></textarea></div>
               <div class="form-line"><input type="text" class="input-simple" id="custVisitTime" placeholder="上门办理时间" autocomplete="off"><select class="input-simple input-select" id="custStatus"><option value="">状态（未标记）</option><option value="success">已办理成功</option><option value="failed">未办理成功</option></select></div>
+              <div class="form-line"><select class="input-simple input-select" id="custWechat"><option value="">微信（未加）</option><option value="yes">已加微信</option></select><span style="flex:1;"></span></div>
               <div class="status-conditional-area" id="successStatusFields"><div class="status-field-separator">办理成功信息</div><div class="form-line"><input type="text" class="input-simple" id="custApprovedBank" placeholder="批款银行" autocomplete="off"><input type="text" class="input-simple" id="custApprovedAmount" placeholder="批款金额" autocomplete="off"></div><div class="form-line"><input type="text" class="input-simple" id="custRateTerm" placeholder="利率年限" autocomplete="off"><span style="flex:1;"></span></div></div>
               <div class="status-conditional-area" id="failedStatusFields"><div class="status-field-separator">办理未成功信息</div><div class="form-line"><input type="text" class="input-simple" id="custRejectedBank" placeholder="拒绝银行" autocomplete="off"><input type="text" class="input-simple" id="custRejectReason" placeholder="拒绝原因" autocomplete="off"></div></div>
               <textarea class="input-simple note-textarea" id="custDemand" placeholder="客户大致需求" rows="2"></textarea>
@@ -6535,6 +6542,7 @@ export default {
           (c.label ? '<span class="client-card-tag client-card-tag-grade-' + esc(c.label).toLowerCase() + '">' + esc(c.label) + '类客户</span>' : '')+
           (c.company ? getWhitelistTagHtml(c.company, false) : '')+
           (c.fund ? '<span class="client-card-tag client-card-tag-fund">公积金: '+esc(c.fund)+'</span>' : '')+
+          (c.wechatAdded === 'yes' ? '<span class="client-card-tag client-card-tag-wechat">已加微信</span>' : '')+
           getClientDetailTags(c) +
         '</div>'+
         '<div class="client-card-body">'+
@@ -6741,6 +6749,7 @@ export default {
       var dFu=document.getElementById('custFundUsage'); if(dFu)dFu.value=c.fundUsage||'';
       var dVt=document.getElementById('custVisitTime'); if(dVt)dVt.value=c.visitTime||'';
       var dSt=document.getElementById('custStatus'); if(dSt)dSt.value=c.status||'';
+      var dWx=document.getElementById('custWechat'); if(dWx)dWx.value=c.wechatAdded||'';
       var dLb=document.getElementById('custLabel'); if(dLb)dLb.value=c.label||'';
       var dAb=document.getElementById('custApprovedBank'); if(dAb)dAb.value=c.approvedBank||'';
       var dAa=document.getElementById('custApprovedAmount'); if(dAa)dAa.value=c.approvedAmount||'';
@@ -7888,6 +7897,7 @@ export default {
     const fundUsage = getElVal('custFundUsage');
     const visitTime = getElVal('custVisitTime');
     const status = getElVal('custStatus');
+    const wechatAdded = getElVal('custWechat');
     const approvedBank = getElVal('custApprovedBank');
     const approvedAmount = getElVal('custApprovedAmount');
     const rateTerm = getElVal('custRateTerm');
@@ -7925,7 +7935,7 @@ export default {
       age,maritalStatus,isShenzhenHukou,socialSecurity,avgSalary,tax2yr,salaryBank,
       education,property:propertyVal,propertyType,propertyAddress,propertyArea,propertyMortgageBank,propertyMortgageAmount,propertyOther,
       bankDebt,creditCardDebt,query3m,onlineLoanCount,demand,fundUsage,
-      visitTime,status,approvedBank,approvedAmount,rateTerm,rejectedBank,rejectReason,
+      visitTime,status,wechatAdded,approvedBank,approvedAmount,rateTerm,rejectedBank,rejectReason,
       keyQuestions:getKeyQuestionsFromForm('kq_')};
     // Preserve original date+time when editing (keep the record on its original day)
     if (oldEntry && oldEntry.date) { newClient.date = oldEntry.date; newClient.time = oldEntry.time || time; }
@@ -7941,7 +7951,7 @@ export default {
     clearEl('custPropertyMortgageBank'); clearEl('custPropertyMortgageAmount'); clearEl('custPropertyOther');
     clearEl('custBankDebt'); clearEl('custCreditCardDebt'); clearEl('custQuery3m');
     clearEl('custOnlineLoanCount'); clearEl('custDemand'); clearEl('custFundUsage');
-    clearEl('custVisitTime'); clearEl('custApprovedBank'); clearEl('custApprovedAmount');
+    clearEl('custVisitTime'); clearEl('custWechat'); clearEl('custApprovedBank'); clearEl('custApprovedAmount');
     clearEl('custRateTerm'); clearEl('custRejectedBank'); clearEl('custRejectReason');
     var stEl = document.getElementById('custStatus'); if (stEl) stEl.value = '';
     showStatusConditionalFields('');
@@ -9798,6 +9808,7 @@ export default {
           (c.label ? '<span class="client-card-tag client-card-tag-grade-' + esc(c.label).toLowerCase() + '">' + esc(c.label) + '类客户</span>' : '') +
           (c.company ? getWhitelistTagHtml(c.company, false) : '') +
           (c.fund ? '<span class="client-card-tag client-card-tag-fund">' + esc(c.fund) + '</span>' : '') +
+          (c.wechatAdded === 'yes' ? '<span class="client-card-tag client-card-tag-wechat">已加微信</span>' : '') +
           getClientDetailTags(c) +
           (c.visitTime ? '<span class="client-card-tag client-card-tag-detail">' + esc(c.visitTime) + '</span>' : '') +
         '</div>' +
@@ -10031,6 +10042,10 @@ export default {
           '<input type="text" class="input-simple edit-visittime-input" placeholder="上门办理时间" autocomplete="off" style="flex:1;min-width:120px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.visitTime||'') + '">' +
           '<select class="input-simple input-select edit-status-input" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;height:auto;"><option value="">状态</option><option value="success"' + (c.status==='success'?' selected':'') + '>已办理成功</option><option value="failed"' + (c.status==='failed'?' selected':'') + '>未办理成功</option></select>' +
         '</div>' +
+        '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+          '<select class="input-simple input-select edit-wechat-input" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;height:auto;"><option value="">微信（未加）</option><option value="yes"' + (c.wechatAdded==='yes'?' selected':'') + '>已加微信</option></select>' +
+          '<span style="flex:1;"></span>' +
+        '</div>' +
         '<div class="edit-success-fields" style="display:' + (c.status==='success'?'flex':'none') + ';flex-direction:column;gap:8px;">' +
           '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
             '<input type="text" class="input-simple edit-approvedbank-input" placeholder="批款银行" autocomplete="off" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;" value="' + esc(c.approvedBank||'') + '">' +
@@ -10144,6 +10159,7 @@ export default {
         const fg = (card.querySelector('.edit-fusage-input')||{}).value||''; const fgV = fg.trim();
         const vt = (card.querySelector('.edit-visittime-input')||{}).value||''; const vtV = vt.trim();
         const stV = (card.querySelector('.edit-status-input')||{}).value||'';
+        const wxV = (card.querySelector('.edit-wechat-input')||{}).value||'';
         const ab = (card.querySelector('.edit-approvedbank-input')||{}).value||''; const abV = ab.trim();
         const aa = (card.querySelector('.edit-approvedamount-input')||{}).value||''; const aaV = aa.trim();
         const rt = (card.querySelector('.edit-rateterm-input')||{}).value||''; const rtV = rt.trim();
@@ -10167,7 +10183,7 @@ export default {
           propertyType: pt, propertyAddress: paV, propertyArea: pArV, propertyMortgageBank: pmbV, propertyMortgageAmount: pmaV, propertyOther: poV,
           bankDebt: bdV, creditCardDebt: cdV, query3m: q3V, onlineLoanCount: olV,
           demand: dmV, fundUsage: fgV,
-          visitTime: vtV, status: stV, approvedBank: abV, approvedAmount: aaV,
+          visitTime: vtV, status: stV, wechatAdded: wxV, approvedBank: abV, approvedAmount: aaV,
           rateTerm: rtV, rejectedBank: rbV, rejectReason: rrV
         };
         if (idx !== -1) { allList[idx] = updatedClient; }
@@ -10282,6 +10298,11 @@ export default {
             '<input type="text" class="input-simple new-visittime-input" placeholder="上门办理时间" autocomplete="off" style="flex:1;min-width:120px;padding:6px 8px;font-size:0.78rem;">' +
             '<select class="input-simple input-select new-status-input" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;height:auto;"><option value="">状态</option><option value="success">已办理成功</option><option value="failed">未办理成功</option></select>' +
           '</div>' +
+          '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+            '<select class="input-simple input-select new-wechat-input" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;height:auto;"><option value="">微信（未加）</option><option value="yes">已加微信</option></select>' +
+            '<span style="flex:1;"></span>' +
+          '</div>' +
+          '</div>' +
           '<div class="new-success-fields" style="display:none;flex-direction:column;gap:8px;">' +
             '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
               '<input type="text" class="input-simple new-approvedbank-input" placeholder="批款银行" autocomplete="off" style="flex:1;min-width:100px;padding:6px 8px;font-size:0.78rem;">' +
@@ -10350,6 +10371,7 @@ export default {
           const fg = (card.querySelector('.new-fusage-input')||{}).value||''; const fgV = fg.trim();
           const vt = (card.querySelector('.new-visittime-input')||{}).value||''; const vtV = vt.trim();
           const stV = (card.querySelector('.new-status-input')||{}).value||'';
+          const wxV = (card.querySelector('.new-wechat-input')||{}).value||'';
           const ab = (card.querySelector('.new-approvedbank-input')||{}).value||''; const abV = ab.trim();
           const aa = (card.querySelector('.new-approvedamount-input')||{}).value||''; const aaV = aa.trim();
           const rt = (card.querySelector('.new-rateterm-input')||{}).value||''; const rtV = rt.trim();
@@ -10368,7 +10390,7 @@ export default {
             propertyType: pt, propertyAddress: paV, propertyArea: pArV, propertyMortgageBank: pmbV, propertyMortgageAmount: pmaV, propertyOther: poV,
             bankDebt: bdV, creditCardDebt: cdV, query3m: q3V, onlineLoanCount: olV,
             demand: dmV, fundUsage: fgV,
-            visitTime: vtV, status: stV, approvedBank: abV, approvedAmount: aaV,
+            visitTime: vtV, status: stV, wechatAdded: wxV, approvedBank: abV, approvedAmount: aaV,
             rateTerm: rtV, rejectedBank: rbV, rejectReason: rrV };
 
           const allList = JSON.parse(localStorage.getItem(CLIENTS_K) || '[]');
