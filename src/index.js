@@ -4764,6 +4764,27 @@ export default {
     .pwa-install-banner.show { display: block; animation: slideUp 0.3s ease; }
     .pwa-install-banner .pwa-close { position: absolute; top: 6px; right: 12px; font-size: 1.1rem; cursor: pointer; opacity: 0.5; padding: 4px; }
     @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+    /* ===== 标签/胶囊/按钮文字垂直居中修正 =====
+       继承 body 的 line-height:1.45 时，中文字形在行内框内视觉偏上；
+       统一 inline-flex 居中 + line-height:1，使文字在 padding 内绝对居中 */
+    .client-card-tag, .date-chip, .goal-chip, .tbl-tag, .todo-time-tag,
+    .journal-meta-tag, .client-card-date-badge, .all-clients-stats .stats-item,
+    .client-card-status-badge, .btn-add, .todo-add-btn, .tbl-save-btn, .tbl-cancel-btn,
+    .paste-add-btn, .paste-save-btn, .paste-cancel-btn, .paste-empty-add,
+    .loan-copy-btn, .card-action-btn, .timer-btn-reset,
+    .cal-nav-btn, .drawer-step-btn, .drawer-close-btn, .status-toggle-btn,
+    .journal-act-btn, .topbar-btn, .pin-btn, .auth-btn, .edit-note-btn,
+    .export-timeline-single-btn, .goal-eye, .phone-toggle, .temp-tbl-del,
+    .temp-tbl-edit, .temp-tbl-convert {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      line-height: 1;
+    }
+    /* paste-manage-item 是块级 flex 条目，保持 display:flex，仅压缩行高让文字居中 */
+    .paste-manage-item { line-height: 1; }
+    /* kq-tag 有 text-overflow:ellipsis，保持 inline-block 才能生效，仅压缩行高 */
+    .kq-tag { line-height: 1; }
   </style>
   <script src="/xlsx.full.min.js"></script>
   <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?onload=_onTurnstileLoad&render=explicit" async defer></script>
@@ -4935,7 +4956,7 @@ export default {
       </div>
       <div class="right-area">
         <div class="card">
-          <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;">意向登记 <button id="allClientsBtn" title="意向客户全量表" style="font-size:0.65rem;padding:3px 10px;border-radius:var(--radius-xs);border:none;background:var(--accent-btn);color:#fff;font-weight:700;cursor:pointer;">全量</button></div>
+          <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;">意向登记 <button class="btn-add" id="allClientsBtn" title="意向客户全量表" style="font-size:0.65rem;padding:2px 8px;">全量表</button></div>
           <div class="register-block">
             <div class="form-line"><input type="text" class="input-simple" id="custName" placeholder="姓名" autocomplete="off"><input type="text" class="input-simple" id="custPhone" placeholder="电话" autocomplete="off"></div>
             <div class="form-line"><input type="text" class="input-simple" id="custCompany" placeholder="单位" autocomplete="off"><input type="text" class="input-simple" id="custFund" placeholder="公积金基数" autocomplete="off"></div>
