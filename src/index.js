@@ -4531,9 +4531,10 @@ export default {
     .temp-full-table td.note-cell { white-space:normal; word-break:break-all; }
     .temp-full-table .col-act { width:76px; }
     .temp-full-table tbody tr:hover { background:var(--btn-bg); }
-    .temp-tbl-del { background:none; border:none; color:#e74c3c; cursor:pointer; padding:0 4px; font-weight:700; }
-    .temp-tbl-edit { background:none; border:none; color:var(--text-soft); cursor:pointer; padding:0 4px; font-weight:700; }
-    .temp-tbl-convert { background:none; border:none; color:var(--accent-intent); cursor:pointer; font-size:0.85rem; padding:0 4px; margin-right:4px; font-weight:700; }
+    .temp-tbl-del { background:transparent; border:none; box-shadow:var(--shadow-card); color:#e74c3c; cursor:pointer; padding:0; font-weight:700; width:32px; height:32px; border-radius:var(--radius-xs); display:inline-flex; align-items:center; justify-content:center; transition:all 0.15s; }
+    .temp-tbl-edit { background:transparent; border:none; box-shadow:var(--shadow-card); color:var(--text-soft); cursor:pointer; padding:0; font-weight:700; width:32px; height:32px; border-radius:var(--radius-xs); display:inline-flex; align-items:center; justify-content:center; transition:all 0.15s; }
+    .temp-tbl-convert { background:transparent; border:none; box-shadow:var(--shadow-card); color:var(--accent-intent); cursor:pointer; font-size:0.85rem; padding:0; margin-right:4px; font-weight:700; width:32px; height:32px; border-radius:var(--radius-xs); display:inline-flex; align-items:center; justify-content:center; transition:all 0.15s; }
+    .temp-tbl-del:hover, .temp-tbl-edit:hover, .temp-tbl-convert:hover { transform:translateY(-1px); opacity:0.85; }
     .temp-full-table .temp-tbl-del { font-size:0.85rem; }
     .temp-full-table .temp-tbl-convert { font-size:0.85rem; }
     .temp-card-list { display:none; flex-direction:column; gap:8px; padding:8px; }
@@ -4547,8 +4548,8 @@ export default {
     .temp-card-info { color:var(--text-soft); font-size:0.7rem; display:flex; flex-wrap:wrap; gap:4px 12px; }
     .temp-card-note { color:var(--text-main); font-size:0.72rem; line-height:1.4; }
     .temp-card-actions { display:flex; gap:6px; margin-left:auto; flex-shrink:0; align-items:center; }
-    .temp-card-actions button { width:32px; height:32px; background:var(--btn-bg); border:none; cursor:pointer; font-size:0; padding:0; border-radius:var(--radius-sm); display:inline-flex; align-items:center; justify-content:center; color:var(--text-soft); transition:all 0.15s; box-shadow:var(--shadow-card); }
-    .temp-card-actions button:hover { background:var(--btn-hover); transform:translateY(-1px); }
+    .temp-card-actions button { width:32px; height:32px; background:transparent; border:none; cursor:pointer; font-size:0; padding:0; border-radius:var(--radius-xs); display:inline-flex; align-items:center; justify-content:center; color:var(--text-soft); transition:all 0.15s; box-shadow:var(--shadow-card); }
+    .temp-card-actions button:hover { transform:translateY(-1px); opacity:0.85; }
     .temp-card-actions button:active { transform:translateY(0); }
     .temp-card-actions .temp-tbl-export { color:var(--accent-wechat); }
     .temp-card-actions .temp-tbl-edit { color:var(--text-soft); }
@@ -7992,7 +7993,7 @@ export default {
         '</div>'+
         '<div class="client-card-actions">'+
           '<button class="edit-temp-btn temp-tbl-edit" data-idx="'+fullIdx+'" title="编辑"><svg width="15" height="15" viewBox="0 0 17 17" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path d="M11.5 3l2 2L6 13.5H3.5v-2.5L11.5 3z"/></svg></button>'+
-          '<button class="convert-temp-btn" data-idx="'+fullIdx+'" title="转为正式意向客户" style="font-size:1.1rem;padding:0;background:none;border:none;color:var(--accent-intent);cursor:pointer;margin-right:8px;font-weight:700;">→</button>'+
+          '<button class="convert-temp-btn temp-tbl-convert" data-idx="'+fullIdx+'" title="转为正式意向客户" style="font-size:1.1rem;margin-right:8px;">→</button>'+
           '<button class="del-temp-btn temp-tbl-del" data-idx="'+fullIdx+'" title="删除"><svg width="15" height="15" viewBox="0 0 17 17" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 4.5l8 8M12.5 4.5l-8 8"/></svg></button>'+
         '</div>'+
       '</div>';
