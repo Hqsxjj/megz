@@ -3679,6 +3679,9 @@ export default {
     .app-shell { min-height: 100vh; width: 100%; display: flex; flex-direction: column; position: relative; z-index: 1; }
     .container { flex: 1; display: flex; flex-direction: column; padding: 2px 14px 8px; padding-bottom: calc(8px + env(safe-area-inset-bottom)); }
     .header-bar { display: flex; justify-content: space-between; align-items: center; gap: 6px; flex-shrink: 0; flex-wrap: wrap; margin-bottom: 8px; position: relative; }
+    /* 桌面端：分组行以 display:contents 平铺，保持原单行布局；手机端两行布局见 @media max-width:760px */
+    .header-row-top, .header-row-info { display: contents; }
+    .header-actions { display: flex; align-items: center; gap: 6px; margin-left: auto; position: relative; }
     h3 { font-size: 1.25rem; font-weight: 600; letter-spacing: -0.02em; color: var(--text-main); white-space: nowrap; }
 
     .date-chip { background: var(--card-bg); padding: 4px 12px; border-radius: var(--radius-capsule); font-size: 0.75rem; font-weight: 600; color: var(--text-soft); box-shadow: var(--shadow-float); }
@@ -4036,7 +4039,10 @@ export default {
       .left-area, .right-area { flex: none; width: 100%; }
       .right-area { order: 1; } .left-area { order: 2; }
       .container { padding: 6px 10px 6px; }
-      .header-bar { margin-bottom: 6px; gap: 5px; }
+      .header-bar { margin-bottom: 6px; gap: 5px; flex-direction: column; align-items: stretch; }
+      .header-row-top, .header-row-info { display: flex; align-items: center; gap: 6px; }
+      .header-row-top { justify-content: space-between; }
+      .header-row-info { flex-wrap: wrap; }
       h3 { font-size: 1.15rem; }
       .modal-card { padding: 16px 14px; gap: 12px; }
       .client-modal-list { overflow-x: auto; -webkit-overflow-scrolling: touch; }
@@ -4896,7 +4902,7 @@ export default {
 <div class="app-shell">
   <div class="container">
     <div class="header-bar">
-      <h3>生活记事录</h3><div class="date-chip" id="liveDate"></div><button class="goal-eye eye-off" id="goalEyeBtn" title="显示目标数字">👁</button><div class="goal-chips" id="goalChips"></div><button class="icon-simple" id="loanCalcBtn" title="贷款利息计算器" style="margin-left:auto">计算器</button><button class="icon-simple" id="hideBtn" title="一键隐藏 (Ctrl+Z)">锁屏</button><button class="icon-simple" id="menuToggleBtn" title="菜单">≡</button><div class="menu-dropdown" id="menuDropdown"><button class="menu-item" id="logBtn">同步日志</button><button class="menu-item" id="scriptBtn">话术管理</button><button class="menu-item" id="learnBtn">学习管理</button><button class="menu-item" id="exportBtn">导出数据</button><button class="menu-item" id="goalBtn">目标设定</button><button class="menu-item" id="whitelistMenuBtn">白名单管理</button><button class="menu-item" id="darkToggleBtn">深色模式</button><button class="menu-item" id="logoutMenuBtn" style="color:#e74c3c">退出登录</button></div>
+      <div class="header-row header-row-top"><h3>生活记事录</h3><div class="header-actions"><button class="icon-simple" id="loanCalcBtn" title="贷款利息计算器">计算器</button><button class="icon-simple" id="hideBtn" title="一键隐藏 (Ctrl+Z)">锁屏</button><button class="icon-simple" id="menuToggleBtn" title="菜单">≡</button><div class="menu-dropdown" id="menuDropdown"><button class="menu-item" id="logBtn">同步日志</button><button class="menu-item" id="scriptBtn">话术管理</button><button class="menu-item" id="learnBtn">学习管理</button><button class="menu-item" id="exportBtn">导出数据</button><button class="menu-item" id="goalBtn">目标设定</button><button class="menu-item" id="whitelistMenuBtn">白名单管理</button><button class="menu-item" id="darkToggleBtn">深色模式</button><button class="menu-item" id="logoutMenuBtn" style="color:#e74c3c">退出登录</button></div></div></div><div class="header-row header-row-info"><div class="date-chip" id="liveDate"></div><button class="goal-eye eye-off" id="goalEyeBtn" title="显示目标数字">👁</button><div class="goal-chips" id="goalChips"></div></div>
     </div>
     <div class="two-columns">
       <div class="left-area">
