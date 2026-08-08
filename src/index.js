@@ -4099,11 +4099,11 @@ export default {
       /* 全量表页首紧凑：标题+新增一行，搜索+排序一行，关闭按钮右上角浮起 */
       #allClientsModal .modal-card { padding: 4px 6px 2px; gap: 4px; }
       #allClientsModal .modal-header { flex-wrap: wrap; gap: 4px; padding-bottom: 4px; font-size: 0.8rem; position: relative; }
-      #allClientsModal .alc-head-title { display: flex; align-items: center; gap: 6px; margin-right: 0; }
+      #allClientsModal .alc-head-title { display: flex; align-items: center; gap: 6px; margin-right: 0; flex: 1 1 100%; }
       #allClientsModal .alc-head-title > span { font-size: 0.8rem; }
-      #allClientsModal .alc-head-tools { display: flex; align-items: center; gap: 4px; }
+      #allClientsModal .alc-head-tools { display: flex; align-items: center; gap: 4px; flex: 1; }
       #allClientsModal .modal-header .btn-add { font-size: 0.62rem !important; padding: 0 8px !important; height: 24px !important; }
-      #allClientsModal .modal-header .search-input { width: 96px !important; height: 24px !important; font-size: 0.62rem !important; }
+      #allClientsModal .modal-header .search-input { flex: 1 1 auto; min-width: 0; width: 96px !important; height: 24px !important; font-size: 0.62rem !important; }
       #allClientsModal .modal-header select { height: 24px !important; font-size: 0.6rem !important; padding: 0 2px !important; }
       #allClientsModal .modal-header #allClientsSortOrderBtn { height: 24px !important; width: 24px !important; font-size: 0.7rem !important; }
       #allClientsModal .alc-head-title > #closeAllClientsModalBtn { margin-left: auto; font-size: 1rem; }
