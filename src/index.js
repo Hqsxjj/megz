@@ -3775,6 +3775,7 @@ export default {
     .modal-header { display: flex; justify-content: space-between; align-items: center; gap: 12px; font-weight: 700; font-size: 1.1rem; border-bottom: 0.5px solid var(--separator); padding-bottom: 10px; }
     /* 全量表页首分组：桌面端标题组靠左、工具组靠右一行排列；手机端两行紧凑布局（见 @media max-width:760px） */
     .alc-head-title { display: flex; align-items: center; gap: 12px; margin-right: auto; }
+    .alc-head-title > #closeAllClientsModalBtn { margin-left: auto; }
     .alc-head-tools { display: flex; align-items: center; gap: 12px; }
     .modal-header button { background: none; border: none; font-size: 1.2rem; cursor: pointer; color: var(--text-soft); font-weight: 700; }
     .modal-header-meta { display: flex; align-items: center; gap: 14px; }
@@ -4105,7 +4106,7 @@ export default {
       #allClientsModal .modal-header .search-input { width: 96px !important; height: 24px !important; font-size: 0.62rem !important; }
       #allClientsModal .modal-header select { height: 24px !important; font-size: 0.6rem !important; padding: 0 2px !important; }
       #allClientsModal .modal-header #allClientsSortOrderBtn { height: 24px !important; width: 24px !important; font-size: 0.7rem !important; }
-      #allClientsModal .modal-header > #closeAllClientsModalBtn { position: absolute; top: 2px; right: 2px; font-size: 1rem; }
+      #allClientsModal .alc-head-title > #closeAllClientsModalBtn { margin-left: auto; font-size: 1rem; }
       /* 全量表统计条紧凑 */
       #allClientsModal .all-clients-stats { padding: 4px 4px; gap: 5px; }
       #allClientsModal .all-clients-stats .stats-item { font-size: 0.6rem; padding: 2px 8px; }
@@ -5236,7 +5237,7 @@ export default {
 </div>
 <div id="allClientsModal" class="modal-overlay">
   <div class="modal-card" style="width:100vw;height:100vh;max-width:100vw;max-height:100vh;margin:0;border-radius:0;border:none;box-sizing:border-box;">
-    <div class="modal-header"><div class="alc-head-title"><span>意向客户全量登记表</span><button id="allClientsAddBtn" class="btn-add" style="font-size:0.75rem;padding:4px 12px;height:28px;">+ 新增意向</button></div><div class="alc-head-tools"><input type="text" id="allClientsSearchInput" class="search-input" placeholder="模糊搜索姓名/电话/单位..." autocomplete="off" style="height:28px;font-size:0.72rem;border-radius:var(--radius-xs);padding:0 8px;border:1px solid var(--card-border);background:var(--btn-bg);color:var(--text-main);font-weight:400;width:180px;"><select id="allClientsSortSelect" style="height:28px;font-size:0.72rem;border-radius:var(--radius-xs);padding:0 4px;border:1px solid var(--card-border);background:var(--btn-bg);color:var(--text-main);font-weight:400;cursor:pointer;"><option value="date">登记日期</option><option value="followup">最近回访</option><option value="norevisit">未回访天数</option><option value="label">客户标签</option><option value="name">姓名</option></select><button id="allClientsSortOrderBtn" title="切换排序方向" style="height:28px;width:28px;font-size:0.85rem;font-weight:700;border-radius:var(--radius-xs);border:none;background:var(--btn-bg);color:var(--text-main);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;box-shadow:var(--shadow-card);">↓</button></div><button id="closeAllClientsModalBtn">✕</button></div>
+    <div class="modal-header"><div class="alc-head-title"><span>意向客户全量登记表</span><button id="allClientsAddBtn" class="btn-add" style="font-size:0.75rem;padding:4px 12px;height:28px;">+ 新增意向</button><button id="closeAllClientsModalBtn" title="关闭">✕</button></div><div class="alc-head-tools"><input type="text" id="allClientsSearchInput" class="search-input" placeholder="模糊搜索姓名/电话/单位..." autocomplete="off" style="height:28px;font-size:0.72rem;border-radius:var(--radius-xs);padding:0 8px;border:1px solid var(--card-border);background:var(--btn-bg);color:var(--text-main);font-weight:400;width:180px;"><select id="allClientsSortSelect" style="height:28px;font-size:0.72rem;border-radius:var(--radius-xs);padding:0 4px;border:1px solid var(--card-border);background:var(--btn-bg);color:var(--text-main);font-weight:400;cursor:pointer;"><option value="date">登记日期</option><option value="followup">最近回访</option><option value="norevisit">未回访天数</option><option value="label">客户标签</option><option value="name">姓名</option></select><button id="allClientsSortOrderBtn" title="切换排序方向" style="height:28px;width:28px;font-size:0.85rem;font-weight:700;border-radius:var(--radius-xs);border:none;background:var(--btn-bg);color:var(--text-main);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;box-shadow:var(--shadow-card);">↓</button></div></div>
     <div class="all-clients-stats" id="allClientsStatsBar">
       <span class="stats-item stats-total">总计 <strong id="statsTotal">0</strong></span>
       <span class="stats-item stats-unmarked">未标记 <strong id="statsUnmarked">0</strong></span>
