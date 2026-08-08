@@ -3772,7 +3772,10 @@ export default {
     .modal-card textarea.input-simple, .modal-card .note-textarea { background: #fff; border: 1.5px solid #d0d0d0; color: #111; }
     body.dark-mode .modal-card textarea.input-simple, body.dark-mode .modal-card .note-textarea { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.2); color: #ddd; }
     .modal-card .btn-add, .modal-card .todo-add-btn { font-weight: 700; }
-    .modal-header { display: flex; justify-content: space-between; align-items: center; font-weight: 700; font-size: 1.1rem; border-bottom: 0.5px solid var(--separator); padding-bottom: 10px; }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; gap: 12px; font-weight: 700; font-size: 1.1rem; border-bottom: 0.5px solid var(--separator); padding-bottom: 10px; }
+    /* 全量表页首分组：桌面端标题组靠左、工具组靠右一行排列；手机端两行紧凑布局（见 @media max-width:760px） */
+    .alc-head-title { display: flex; align-items: center; gap: 12px; margin-right: auto; }
+    .alc-head-tools { display: flex; align-items: center; gap: 12px; }
     .modal-header button { background: none; border: none; font-size: 1.2rem; cursor: pointer; color: var(--text-soft); font-weight: 700; }
     .modal-header-meta { display: flex; align-items: center; gap: 14px; }
     .modal-section-title { font-size: 0.78rem; font-weight: 700; color: var(--text-soft); letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
@@ -4092,13 +4095,26 @@ export default {
       #allClientsModal .modal-card { max-height: 93vh !important; max-width: 100vw !important; margin-top: 7vh !important; border-radius: 16px 16px 0 0 !important; }
       /* Mobile: 临时表底部抽屉 */
       #tempFullModal .modal-card { max-height: 93vh !important; max-width: 100vw !important; margin-top: 7vh !important; border-radius: 16px 16px 0 0 !important; width: 100vw !important; }
-      #allClientsModal .modal-header { flex-wrap: wrap; gap: 6px; padding-bottom: 6px; font-size: 0.85rem; }
-      #allClientsModal .modal-header > div { flex-wrap: wrap; gap: 4px; }
-      #allClientsModal .modal-header > div > span { font-size: 0.85rem; }
-      #allClientsModal .modal-header .btn-add { font-size: 0.68rem !important; padding: 2px 8px !important; height: 26px !important; }
-      #allClientsModal .modal-header .search-input { width: 110px !important; height: 26px !important; font-size: 0.68rem !important; }
-      #allClientsModal .modal-header select { height: 26px !important; font-size: 0.65rem !important; padding: 0 2px !important; }
-      #allClientsModal #allClientsSortOrderBtn { height: 26px !important; width: 26px !important; font-size: 0.75rem !important; }
+      /* 全量表页首紧凑：标题+新增一行，搜索+排序一行，关闭按钮右上角浮起 */
+      #allClientsModal .modal-card { padding: 4px 6px 2px; gap: 4px; }
+      #allClientsModal .modal-header { flex-wrap: wrap; gap: 4px; padding-bottom: 4px; font-size: 0.8rem; position: relative; }
+      #allClientsModal .alc-head-title { display: flex; align-items: center; gap: 6px; margin-right: 0; }
+      #allClientsModal .alc-head-title > span { font-size: 0.8rem; }
+      #allClientsModal .alc-head-tools { display: flex; align-items: center; gap: 4px; }
+      #allClientsModal .modal-header .btn-add { font-size: 0.62rem !important; padding: 0 8px !important; height: 24px !important; }
+      #allClientsModal .modal-header .search-input { width: 96px !important; height: 24px !important; font-size: 0.62rem !important; }
+      #allClientsModal .modal-header select { height: 24px !important; font-size: 0.6rem !important; padding: 0 2px !important; }
+      #allClientsModal .modal-header #allClientsSortOrderBtn { height: 24px !important; width: 24px !important; font-size: 0.7rem !important; }
+      #allClientsModal .modal-header > #closeAllClientsModalBtn { position: absolute; top: 2px; right: 2px; font-size: 1rem; }
+      /* 全量表统计条紧凑 */
+      #allClientsModal .all-clients-stats { padding: 4px 4px; gap: 5px; }
+      #allClientsModal .all-clients-stats .stats-item { font-size: 0.6rem; padding: 2px 8px; }
+      #allClientsModal .all-clients-stats .stats-item strong { font-size: 0.72rem; }
+      #allClientsModal #allClientsCardList { margin-top: 4px !important; }
+      /* 临时表页首紧凑 */
+      #tempFullModal .modal-card { padding: 4px 6px 2px; gap: 4px; }
+      #tempFullModal .modal-header { font-size: 0.85rem; padding-bottom: 4px; }
+      #tempFullModal .modal-header button { font-size: 1rem; }
       .all-client-card .card-action-btn { font-size: 0.7rem !important; padding: 4px 10px !important; }
     }
     /* ===== 紧凑表格与待办行样式 ===== */
@@ -5220,7 +5236,7 @@ export default {
 </div>
 <div id="allClientsModal" class="modal-overlay">
   <div class="modal-card" style="width:100vw;height:100vh;max-width:100vw;max-height:100vh;margin:0;border-radius:0;border:none;box-sizing:border-box;">
-    <div class="modal-header"><div style="display:flex;align-items:center;gap:12px;"><span>意向客户全量登记表</span><button id="allClientsAddBtn" class="btn-add" style="font-size:0.75rem;padding:4px 12px;height:28px;">+ 新增意向</button><input type="text" id="allClientsSearchInput" class="search-input" placeholder="模糊搜索姓名/电话/单位..." autocomplete="off" style="height:28px;font-size:0.72rem;border-radius:var(--radius-xs);padding:0 8px;border:1px solid var(--card-border);background:var(--btn-bg);color:var(--text-main);font-weight:400;width:180px;"><select id="allClientsSortSelect" style="height:28px;font-size:0.72rem;border-radius:var(--radius-xs);padding:0 4px;border:1px solid var(--card-border);background:var(--btn-bg);color:var(--text-main);font-weight:400;cursor:pointer;"><option value="date">登记日期</option><option value="followup">最近回访</option><option value="norevisit">未回访天数</option><option value="label">客户标签</option><option value="name">姓名</option></select><button id="allClientsSortOrderBtn" title="切换排序方向" style="height:28px;width:28px;font-size:0.85rem;font-weight:700;border-radius:var(--radius-xs);border:none;background:var(--btn-bg);color:var(--text-main);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;box-shadow:var(--shadow-card);">↓</button></div><button id="closeAllClientsModalBtn">✕</button></div>
+    <div class="modal-header"><div class="alc-head-title"><span>意向客户全量登记表</span><button id="allClientsAddBtn" class="btn-add" style="font-size:0.75rem;padding:4px 12px;height:28px;">+ 新增意向</button></div><div class="alc-head-tools"><input type="text" id="allClientsSearchInput" class="search-input" placeholder="模糊搜索姓名/电话/单位..." autocomplete="off" style="height:28px;font-size:0.72rem;border-radius:var(--radius-xs);padding:0 8px;border:1px solid var(--card-border);background:var(--btn-bg);color:var(--text-main);font-weight:400;width:180px;"><select id="allClientsSortSelect" style="height:28px;font-size:0.72rem;border-radius:var(--radius-xs);padding:0 4px;border:1px solid var(--card-border);background:var(--btn-bg);color:var(--text-main);font-weight:400;cursor:pointer;"><option value="date">登记日期</option><option value="followup">最近回访</option><option value="norevisit">未回访天数</option><option value="label">客户标签</option><option value="name">姓名</option></select><button id="allClientsSortOrderBtn" title="切换排序方向" style="height:28px;width:28px;font-size:0.85rem;font-weight:700;border-radius:var(--radius-xs);border:none;background:var(--btn-bg);color:var(--text-main);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;box-shadow:var(--shadow-card);">↓</button></div><button id="closeAllClientsModalBtn">✕</button></div>
     <div class="all-clients-stats" id="allClientsStatsBar">
       <span class="stats-item stats-total">总计 <strong id="statsTotal">0</strong></span>
       <span class="stats-item stats-unmarked">未标记 <strong id="statsUnmarked">0</strong></span>
