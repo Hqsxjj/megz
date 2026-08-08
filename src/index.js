@@ -4092,9 +4092,9 @@ export default {
       .tbl-note-cell { min-width: 200px; }
 
       /* Mobile: 全量客户弹窗卡片适配 */
-      #allClientsModal .modal-card { max-height: 93vh !important; max-width: 100vw !important; margin-top: 7vh !important; border-radius: 16px 16px 0 0 !important; }
+      #allClientsModal .modal-card { max-height: 97vh !important; max-width: 100vw !important; margin-top: 3vh !important; border-radius: 16px 16px 0 0 !important; }
       /* Mobile: 临时表底部抽屉 */
-      #tempFullModal .modal-card { max-height: 93vh !important; max-width: 100vw !important; margin-top: 7vh !important; border-radius: 16px 16px 0 0 !important; width: 100vw !important; }
+      #tempFullModal .modal-card { max-height: 97vh !important; max-width: 100vw !important; margin-top: 3vh !important; border-radius: 16px 16px 0 0 !important; width: 100vw !important; }
       /* 全量表页首紧凑：标题+新增一行，搜索+排序一行，关闭按钮右上角浮起 */
       #allClientsModal .modal-card { padding: 4px 6px 2px; gap: 4px; }
       #allClientsModal .modal-header { flex-wrap: wrap; gap: 4px; padding-bottom: 4px; font-size: 0.8rem; position: relative; }
