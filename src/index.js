@@ -1,4 +1,4 @@
-﻿// 生活记事录 - Cloudflare Worker 版本
+// 生活记事录 - Cloudflare Worker 版本
 // 部署后绑定 DATA_KV 即可使用
 
 import { createSupabaseClient } from './supabase.js';
@@ -5671,11 +5671,6 @@ export default {
         }
       }
     }
-    if (val && (val.status === '已失效' || val.status === '已删除')) {
-      matchedName = null;
-      val = null;
-    }
-
     if (!matchedName || !val) {
       return isTbl ? esc(company) : '<span class="client-card-tag client-card-tag-company" style="cursor:pointer" title="点击复制单位名称" onclick="event.stopPropagation();copyTextToClipboard(this)">' + esc(company) + '</span>';
     }
@@ -5815,8 +5810,25 @@ export default {
 
     let html = '';
     filtered.forEach(c => {
+      const status = c.status || '正常';
+      const bank = c.bank_name || '建行建易贷';
+      let badgeStyle, label;
+      if (status === '已失效') {
+        badgeStyle = 'background:rgba(120,120,120,0.12); color:#95a5a6;';
+        label = '已失效';
+      } else if (status === '已删除') {
+        badgeStyle = 'background:rgba(231,76,60,0.1); color:#e74c3c;';
+        label = '已删除';
+      } else {
+        badgeStyle = 'background:rgba(52,211,153,0.12); color:#10b981;';
+        label = '正常';
+      }
       html += '<div class="whitelist-company-item">' +
         '<span style="font-size:0.72rem; font-weight:700; color:var(--text-main);">' + esc(c.company_name) + '</span>' +
+        '<span style="display:flex; gap:6px; align-items:center; flex-shrink:0;">' +
+          '<span style="font-size:0.6rem; color:var(--text-light); font-weight:700;">' + esc(bank) + '</span>' +
+          '<span style="font-size:0.6rem; font-weight:800; padding:2px 8px; border-radius:999px; ' + badgeStyle + ';">' + esc(label) + '</span>' +
+        '</span>' +
         '</div>';
     });
     container.innerHTML = html;

@@ -76,18 +76,44 @@ export function createSupabaseClient(env) {
   async function upsertCompanies(companies) {
     if (!kv || !Array.isArray(companies) || companies.length === 0) return { count: 0 };
     const existing = await readJSON('config:whitelist_companies');
-    const names = new Set(existing.map(c => c.company_name));
-    let added = 0;
+    const byName = new Map(existing.map(c => [c.company_name, c]));
+    let added = 0, updated = 0;
+
+    // 归一化上传条目（同批次内同名后者覆盖前者）
+    const incoming = new Map();
     companies.forEach(c => {
-      const name = (typeof c === 'string' ? c : c.company_name || '').trim();
-      if (name && !names.has(name)) {
-        existing.push(typeof c === 'string' ? { company_name: name, bank_name: '建行建易贷', status: '正常' } : c);
-        names.add(name);
-        added++;
+      if (typeof c === 'string') {
+        const name = c.trim();
+        if (name) incoming.set(name, { company_name: name, status: '正常' });
+      } else if (c && typeof c === 'object') {
+        const name = (c.company_name || '').trim();
+        if (!name) return;
+        const entry = { company_name: name, status: (c.status || '').trim() || '正常' };
+        if ((c.bank_name || '').trim()) entry.bank_name = (c.bank_name || '').trim();
+        if (c.alias !== undefined && String(c.alias).trim()) entry.alias = String(c.alias).trim();
+        incoming.set(name, entry);
       }
     });
-    await writeJSON('config:whitelist_companies', existing);
-    return { count: added };
+
+    for (const [name, entry] of incoming) {
+      if (byName.has(name)) {
+        // 已存在 → 真正的 upsert：更新状态/银行/别名，其余字段保留
+        const old = byName.get(name);
+        byName.set(name, {
+          ...old,
+          status: entry.status,
+          ...(entry.bank_name ? { bank_name: entry.bank_name } : {}),
+          ...(entry.alias ? { alias: entry.alias } : {})
+        });
+        updated++;
+      } else {
+        byName.set(name, { ...entry, bank_name: entry.bank_name || '建行建易贷' });
+        added++;
+      }
+    }
+
+    await writeJSON('config:whitelist_companies', [...byName.values()]);
+    return { count: added + updated, added, updated };
   }
 
   async function getAllCompanies() {
