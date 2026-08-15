@@ -45,6 +45,56 @@ async function getKVValuesConcurrently(env, keys) {
   return results;
 }
 
+// ===== 意向客户永久编号（一经分配，永不改变、永不复用）=====
+function formatClientNo(n) {
+  return String(n).padStart(4, '0');
+}
+async function getNextClientNo(env) {
+  const raw = await env.DATA_KV.get('meta:client_seq');
+  const next = parseInt(raw || '0', 10) + 1;
+  await env.DATA_KV.put('meta:client_seq', String(next));
+  return formatClientNo(next);
+}
+async function ensureClientsHaveNo(env, clients) {
+  const list = clients || [];
+  for (const c of list) {
+    if (c && !c.no) c.no = await getNextClientNo(env);
+  }
+}
+async function ensureClientNoBackfill(env) {
+  // 一次性为存量客户补编编号（按登记日期+时间升序），完成后不再重复执行
+  if (await env.DATA_KV.get('meta:client_seq_backfilled')) return;
+  const keys = await getAllKVKeys(env, 'work:');
+  const keyValues = await getKVValuesConcurrently(env, keys);
+  const missing = [];
+  const days = [];
+  for (const kv of keyValues) {
+    if (!kv.val) continue;
+    try {
+      const d = JSON.parse(kv.val);
+      if (!d || !d.clients || d.clients.length === 0) continue;
+      days.push({ key: kv.name, day: d });
+      for (const c of d.clients) {
+        if (c && !c.no) missing.push(c);
+      }
+    } catch (e) {}
+  }
+  if (missing.length > 0) {
+    missing.sort((a, b) => {
+      const da = a.date || '', db = b.date || '';
+      if (da !== db) return da < db ? -1 : 1;
+      const ta = a.time || '', tb = b.time || '';
+      if (ta !== tb) return ta < tb ? -1 : 1;
+      return (a.name || '').localeCompare(b.name || '');
+    });
+    for (const c of missing) c.no = await getNextClientNo(env);
+    for (const item of days) {
+      await env.DATA_KV.put(item.key, JSON.stringify(item.day));
+    }
+  }
+  await env.DATA_KV.put('meta:client_seq_backfilled', '1');
+}
+
 async function sendMarkdownMessage(env, target, content) {
   if (typeof target === 'string' && target.startsWith('https://')) {
     const whResp = await fetch(target, {
@@ -383,6 +433,7 @@ async function callAIChatWithTools(env, messages, temperature = 0.5, fromUser = 
           resultData = { knowledges, speechs, cases };
         } else if (functionName === 'export_data') {
           const webhookUrl = await env.DATA_KV.get('config:webhook_url');
+          await ensureClientNoBackfill(env);
           let target;
           if (!webhookUrl || webhookUrl.trim() === '') {
             resultData = { error: '请先在网页端配置企业微信群 Webhook URL' };
@@ -421,6 +472,7 @@ async function callAIChatWithTools(env, messages, temperature = 0.5, fromUser = 
                   const wk = client.date ? ' 周' + weekNames[new Date(client.date + 'T00:00:00').getDay()] : '';
                   
                   let text = '> 姓名：' + client.name + '\n';
+                  text += '> 编号: ' + (client.no || '—') + '\n';
                   text += '> 日期: ' + datePart + wk + ' | 时间: ' + (client.time || '—') + '\n';
                   text += '> 电话: ' + (client.phone || '—') + '\n';
                   text += '> 单位: ' + (client.company || '—') + ' | 公积金: ' + (client.fund || '—') + '\n';
@@ -486,6 +538,7 @@ async function callAIChatWithTools(env, messages, temperature = 0.5, fromUser = 
                   const datePart = (c.date || '').slice(5);
                   const wk = c.date ? ' 周' + weekNames[new Date(c.date + 'T00:00:00').getDay()] : '';
                   let itemText = '> 姓名：' + c.name + '\n';
+                  itemText += '> 编号: ' + (c.no || '—') + '\n';
                   itemText += '> 日期: ' + datePart + wk + ' | 时间: ' + (c.time || '—') + '\n';
                   itemText += '> 电话: ' + (c.phone || '—') + '\n';
                   itemText += '> 单位: ' + (c.company || '—') + ' | 公积金: ' + (c.fund || '—') + '\n';
@@ -532,6 +585,7 @@ async function callAIChatWithTools(env, messages, temperature = 0.5, fromUser = 
                   const datePart = (c.date || '').slice(5);
                   const wk = c.date ? ' 周' + weekNames[new Date(c.date + 'T00:00:00').getDay()] : '';
                   let text = '> 姓名：' + c.name + '\n';
+                  text += '> 编号: ' + (c.no || '—') + '\n';
                   text += '> 日期: ' + datePart + wk + ' | 时间: ' + (c.time || '—') + '\n';
                   text += '> 电话: ' + (c.phone || '—') + '\n';
                   text += '> 单位: ' + (c.company || '—') + ' | 公积金: ' + (c.fund || '—') + '\n';
@@ -2591,10 +2645,17 @@ export default {
         const mergeClients = (base, incoming) => {
           const map = new Map();
           (base || []).forEach(c => map.set(c.phone, c));
-          (incoming || []).forEach(c => map.set(c.phone, c));
+          (incoming || []).forEach(c => {
+            const old = map.get(c.phone);
+            if (old && old.no && !c.no) c = { ...c, no: old.no };
+            map.set(c.phone, c);
+          });
           return [...map.values()];
         };
         const mergedClients = mergeClients(existing.clients, clients);
+        // 新出现的客户自动分配永久编号；已有编号保持不变
+        await ensureClientNoBackfill(env);
+        await ensureClientsHaveNo(env, mergedClients);
         const merged = {
           date,
           wechatCount: Math.max(existing.wechatCount || 0, wechatCount || 0),
@@ -2674,6 +2735,8 @@ export default {
         }
         case 'addClient': {
           if (body.client) {
+            await ensureClientNoBackfill(env);
+            if (!body.client.no) body.client.no = await getNextClientNo(env);
             data.clients = [...(data.clients || []), body.client];
             data.intentCount = data.clients.length;
           }
@@ -2707,8 +2770,11 @@ export default {
               (body.matchTime ? c.time === body.matchTime : true)
             );
             if (idx >= 0) {
+              // 编辑客户时保留原编号，防止本地旧数据把编号覆盖掉
+              if (!body.client.no && data.clients[idx].no) body.client.no = data.clients[idx].no;
               data.clients[idx] = body.client;
             } else {
+              if (!body.client.no) body.client.no = await getNextClientNo(env);
               data.clients.push(body.client);
             }
             data.intentCount = data.clients.length;
@@ -2756,8 +2822,21 @@ export default {
           data.learns = body.learns || [];
           break;
         case 'setAllClients':
-          data.clients = body.clients || [];
-          data.intentCount = (body.clients || []).length;
+          {
+            const incoming = body.clients || [];
+            const oldByKey = new Map();
+            (data.clients || []).forEach(c => oldByKey.set((c.name || '') + '|' + (c.phone || ''), c));
+            for (const c of incoming) {
+              if (!c.no) {
+                const old = oldByKey.get((c.name || '') + '|' + (c.phone || ''));
+                if (old && old.no) c.no = old.no;
+              }
+            }
+            await ensureClientNoBackfill(env);
+            await ensureClientsHaveNo(env, incoming);
+            data.clients = incoming;
+            data.intentCount = incoming.length;
+          }
           break;
         case 'setWebhookUrl':
           data.webhookUrl = body.webhookUrl || '';
@@ -2963,6 +3042,7 @@ export default {
 
     // 获取全量意向客户
     if (path === '/api/all-clients' && request.method === 'GET') {
+      await ensureClientNoBackfill(env);
       const keys = await getAllKVKeys(env, 'work:');
       const keyValues = await getKVValuesConcurrently(env, keys);
       const allClients = [];
@@ -3047,6 +3127,8 @@ export default {
         });
       }
 
+      await ensureClientNoBackfill(env);
+
       let target;
       if (webhookUrl && webhookUrl.trim() !== '') {
         // SSRF Defence: Only allow official Weixin Work domain prefixes
@@ -3073,11 +3155,29 @@ export default {
             headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
           });
         }
+        // 确保客户编号存在（优先取云端已分配的编号，避免本地旧数据丢失编号）
+        if (!client.no) {
+          if (client.date) {
+            const rawDate = await env.DATA_KV.get(`work:${client.date}`);
+            if (rawDate) {
+              try {
+                const d = JSON.parse(rawDate);
+                const found = (d.clients || []).find(c =>
+                  c.name === client.name && c.phone === client.phone &&
+                  (client.time ? c.time === client.time : true)
+                );
+                if (found && found.no) client.no = found.no;
+              } catch (e) {}
+            }
+          }
+          if (!client.no) client.no = await getNextClientNo(env);
+        }
         const weekNames = ['日', '一', '二', '三', '四', '五', '六'];
         const datePart = (client.date || '').slice(5);
         const wk = client.date ? ' 周' + weekNames[new Date(client.date + 'T00:00:00').getDay()] : '';
         
         let text = '> 客户姓名：' + client.name + '\n';
+        text += '> 编号：' + (client.no || '—') + '\n';
         text += '> 日期：' + datePart + wk + ' | 时间：' + (client.time || '') + '\n';
         text += '> 电话：' + (client.phone || '') + '\n';
         text += '> 单位名称：' + (client.company || '') + '\n';
@@ -3197,6 +3297,7 @@ export default {
           const datePart = (c.date || '').slice(5);
           const wk = c.date ? ' 周' + weekNames[new Date(c.date + 'T00:00:00').getDay()] : '';
           let itemText = '> 客户姓名：' + c.name + '\n';
+          itemText += '> 编号：' + (c.no || '—') + '\n';
           itemText += '> 日期：' + datePart + wk + ' | 时间：' + (c.time || '') + '\n';
           itemText += '> 电话：' + (c.phone || '') + '\n';
           itemText += '> 单位名称：' + (c.company || '') + '\n';
@@ -3275,6 +3376,7 @@ export default {
           const datePart = (c.date || '').slice(5);
           const wk = c.date ? ' 周' + weekNames[new Date(c.date + 'T00:00:00').getDay()] : '';
           let text = '> 客户姓名：' + c.name + '\n';
+          text += '> 编号：' + (c.no || '—') + '\n';
           text += '> 日期：' + datePart + wk + ' | 时间：' + (c.time || '') + '\n';
           text += '> 电话：' + (c.phone || '') + '\n';
           text += '> 单位名称：' + (c.company || '') + '\n';
@@ -9744,15 +9846,15 @@ export default {
       const r = await fetch('/api/all-clients');
       if (r.ok) {
         const data = await r.json();
-        // Assign fixed seq based on API order (date desc)
-        data.forEach(function(c, i){ c._seq = i + 1; });
+        // 优先使用云端永久编号；云端无编号时（如本地离线模式）才用临时序号兜底
+        data.forEach(function(c, i){ if (!c.no) c._seq = i + 1; });
         _allClientsCache = data;
         renderAllClientsCards(data);
       }
     } catch(e) {
       const local = JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
       local.sort((a,b) => (b.date||'').localeCompare(a.date||''));
-      local.forEach(function(c, i){ c._seq = i + 1; });
+      local.forEach(function(c, i){ if (!c.no) c._seq = i + 1; });
       _allClientsCache = local;
       renderAllClientsCards(local);
     }
@@ -9830,9 +9932,9 @@ export default {
     var html = '';
     clients.forEach(function(c, idx) {
       html += '<div class="client-card-item all-client-card' + (c.status ? ' ' + STATUS_CLASSES[c.status] : '') + '" data-date="' + esc(c.date) + '" data-name="' + esc(c.name) + '" data-phone="' + esc(c.phone) + '" data-time="' + esc(c.time || '') + '">' +
-        '<div class="client-card-top">' +
+          '<div class="client-card-top">' +
           '<div class="client-card-primary">' +
-            (c._seq ? '<span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:var(--accent-wechat);color:#fff;font-size:0.6rem;font-weight:800;flex-shrink:0;">' + c._seq + '</span>' : '') +
+            (c.no ? '<span title="客户编号（永久不变）" style="display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 5px;border-radius:999px;background:var(--accent-wechat);color:#fff;font-size:0.6rem;font-weight:800;flex-shrink:0;">#' + esc(c.no) + '</span>' : (c._seq ? '<span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:var(--accent-wechat);color:#fff;font-size:0.6rem;font-weight:800;flex-shrink:0;">' + c._seq + '</span>' : '')) +
             '<span class="client-card-name">' + esc(c.name) + '</span>' +
             '<span class="client-card-phone-wrap">' +
               '<a class="client-card-phone all-phone-link" href="tel:' + esc(c.phone) + '" data-full="' + esc(c.phone) + '">' + esc(maskPhone(c.phone)) + '</a>' +

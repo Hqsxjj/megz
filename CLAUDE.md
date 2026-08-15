@@ -79,3 +79,12 @@ The `bridge/` directory contains a local Node.js service that connects Claude AI
 The bridge must run locally (persistent long-poll, file I/O). It cannot run on Cloudflare Workers.
 
 **Setup**: `cd bridge && npm install` first. Copy `bridge/.env.example` to `bridge/.env` and configure API keys.
+
+## 意向客户永久编号规则（重要，勿破坏）
+
+每个意向客户在登记时由服务端分配一个永久编号（字段名 `no`，如 `0001`），规则如下：
+- 编号从 `0001` 开始，按登记先后依次递增，格式为 4 位数字（超过 9999 后自然增长为 5 位）。
+- 编号一经分配**永远不变**：编辑客户资料时保留原编号；删除客户后编号作废，**永不复用**。
+- 计数器存于 KV key `meta:client_seq`；存量客户的一次性补编由 `meta:client_seq_backfilled` 标志控制（按登记日期+时间升序补编）。
+- 所有新增路径（`/api/sync` addClient / updateClient / setAllClients、`/api/data` POST）都必须先调用 `ensureClientNoBackfill(env)`，再为无 `no` 的客户分配编号，防止新客户抢占存量客户的编号。
+- 全量表接口 `/api/all-clients` 与所有导出（`/api/export`、AI `export_data`）都会输出客户编号。
