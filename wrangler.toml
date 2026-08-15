@@ -3,6 +3,10 @@ main = "src/index.js"
 compatibility_date = "2025-01-01"
 compatibility_flags = [ "nodejs_compat" ]
 
+# 全量客户表/编号补编/备份导出需要较多 KV 子请求，调大上限（付费计划生效）
+[limits]
+subrequest = 1000
+
 [[kv_namespaces]]
 binding = "DATA_KV"
 id = "ff69992ea0034094913d4a6fa1e78075"

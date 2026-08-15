@@ -55,44 +55,69 @@ async function getNextClientNo(env) {
   await env.DATA_KV.put('meta:client_seq', String(next));
   return formatClientNo(next);
 }
+// 批量分配：计数器只读一次、写一次，避免每个客户 2 次 KV 操作
 async function ensureClientsHaveNo(env, clients) {
   const list = clients || [];
-  for (const c of list) {
-    if (c && !c.no) c.no = await getNextClientNo(env);
-  }
+  const missing = list.filter(c => c && !c.no);
+  if (missing.length === 0) return;
+  const raw = await env.DATA_KV.get('meta:client_seq');
+  let next = parseInt(raw || '0', 10);
+  for (const c of missing) { next++; c.no = formatClientNo(next); }
+  await env.DATA_KV.put('meta:client_seq', String(next));
 }
+// 存量客户补编：分批处理（每批最多 20 天），用游标续跑，避免单次调用超过 KV 子请求上限（默认 50）；
+// 全程 try/catch 容错——补编失败绝不影响主流程（如 /api/all-clients、导出等）
 async function ensureClientNoBackfill(env) {
-  // 一次性为存量客户补编编号（按登记日期+时间升序），完成后不再重复执行
-  if (await env.DATA_KV.get('meta:client_seq_backfilled')) return;
-  const keys = await getAllKVKeys(env, 'work:');
-  const keyValues = await getKVValuesConcurrently(env, keys);
-  const missing = [];
-  const days = [];
-  for (const kv of keyValues) {
-    if (!kv.val) continue;
-    try {
-      const d = JSON.parse(kv.val);
-      if (!d || !d.clients || d.clients.length === 0) continue;
-      days.push({ key: kv.name, day: d });
-      for (const c of d.clients) {
-        if (c && !c.no) missing.push(c);
-      }
-    } catch (e) {}
-  }
-  if (missing.length > 0) {
-    missing.sort((a, b) => {
-      const da = a.date || '', db = b.date || '';
-      if (da !== db) return da < db ? -1 : 1;
-      const ta = a.time || '', tb = b.time || '';
-      if (ta !== tb) return ta < tb ? -1 : 1;
-      return (a.name || '').localeCompare(b.name || '');
-    });
-    for (const c of missing) c.no = await getNextClientNo(env);
-    for (const item of days) {
-      await env.DATA_KV.put(item.key, JSON.stringify(item.day));
+  const BATCH = 20;
+  try {
+    if (await env.DATA_KV.get('meta:client_seq_backfilled')) return;
+    const keys = await getAllKVKeys(env, 'work:');
+    keys.sort((a, b) => a.name.localeCompare(b.name)); // work:YYYY-MM-DD 字典序即时间序
+    const cursorRaw = await env.DATA_KV.get('meta:client_seq_backfill_cursor');
+    const cursorIdx = parseInt(cursorRaw || '0', 10) || 0;
+    const batchKeys = keys.slice(cursorIdx, cursorIdx + BATCH);
+    if (batchKeys.length === 0) {
+      // 全部处理完：置完成标志并清理游标
+      await env.DATA_KV.put('meta:client_seq_backfilled', '1');
+      await env.DATA_KV.delete('meta:client_seq_backfill_cursor');
+      return;
     }
+    const keyValues = await getKVValuesConcurrently(env, batchKeys);
+    const missing = [];
+    const toWrite = [];
+    for (const kv of keyValues) {
+      if (!kv.val) continue;
+      try {
+        const d = JSON.parse(kv.val);
+        if (!d || !d.clients || d.clients.length === 0) continue;
+        let hasMissing = false;
+        for (const c of d.clients) {
+          if (c && !c.no) { missing.push(c); hasMissing = true; }
+        }
+        if (hasMissing) toWrite.push({ key: kv.name, day: d });
+      } catch (e) {}
+    }
+    if (missing.length > 0) {
+      missing.sort((a, b) => {
+        const da = a.date || '', db = b.date || '';
+        if (da !== db) return da < db ? -1 : 1;
+        const ta = a.time || '', tb = b.time || '';
+        if (ta !== tb) return ta < tb ? -1 : 1;
+        return (a.name || '').localeCompare(b.name || '');
+      });
+      const raw = await env.DATA_KV.get('meta:client_seq');
+      let next = parseInt(raw || '0', 10);
+      for (const c of missing) { next++; c.no = formatClientNo(next); }
+      await env.DATA_KV.put('meta:client_seq', String(next));
+      // 只写回含缺失编号的日期
+      for (const item of toWrite) {
+        await env.DATA_KV.put(item.key, JSON.stringify(item.day));
+      }
+    }
+    await env.DATA_KV.put('meta:client_seq_backfill_cursor', String(cursorIdx + batchKeys.length));
+  } catch (e) {
+    console.error('[client-no] backfill error:', e.message); // 补编失败不影响主流程
   }
-  await env.DATA_KV.put('meta:client_seq_backfilled', '1');
 }
 
 async function sendMarkdownMessage(env, target, content) {
@@ -9850,6 +9875,15 @@ export default {
         data.forEach(function(c, i){ if (!c.no) c._seq = i + 1; });
         _allClientsCache = data;
         renderAllClientsCards(data);
+      } else {
+        // 接口异常（如 500）：用缓存兜底，避免全量表白屏误以为数据丢失
+        if (_allClientsCache && _allClientsCache.length > 0) {
+          renderAllClientsCards(_allClientsCache);
+        } else {
+          var container = document.getElementById('allClientsCardList');
+          if (container) container.innerHTML = '<div style="text-align:center;color:#e74c3c;padding:40px;font-size:0.9rem;">加载失败（' + r.status + '），请稍后刷新重试</div>';
+          updateAllClientsStats([]);
+        }
       }
     } catch(e) {
       const local = JSON.parse(localStorage.getItem(CLIENTS_K)||'[]');
