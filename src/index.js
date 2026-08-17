@@ -9418,17 +9418,22 @@ export default {
     const EXPORT_PREF_K='export_pref_v1';
     function getExportPref(){ return localStorage.getItem(EXPORT_PREF_K)==='privacy' ? 'privacy' : 'full'; }
     var _pendingExportType=null;
-    function askExportPref(type){
+    var _pendingExportPayload=null; // 附加参数（如单客户导出的 client 对象）
+    function askExportPref(type, payload){
       _pendingExportType=type;
-      document.getElementById('exportPrefModal').classList.add('active');
+      _pendingExportPayload=payload||null;
+      const modal=document.getElementById('exportPrefModal');
+      if(modal)modal.classList.add('active');
     }
     function runPendingExport(privacy){
       const t=_pendingExportType;
+      const payload=_pendingExportPayload;
       _pendingExportType=null;
+      _pendingExportPayload=null;
       const modal=document.getElementById('exportPrefModal');
       if(modal)modal.classList.remove('active');
       localStorage.setItem(EXPORT_PREF_K, privacy);
-      doExport(t, privacy==='privacy');
+      doExport(t, privacy==='privacy', payload);
     }
     function initExportPrefModal(){
       const modal=document.getElementById('exportPrefModal');
@@ -9440,9 +9445,10 @@ export default {
     }
     initExportPrefModal();
 
-    async function doExport(type, privacy){
-      const webhookUrl=document.getElementById('webhookUrlInput').value.trim();
+    async function doExport(type, privacy, extra){
+      const webhookUrl=(document.getElementById('webhookUrlInput').value||'').trim() || (localStorage.getItem('webhook_url')||'').trim();
       if(!webhookUrl){
+        alert('请填写企业微信群 Webhook URL');
         document.getElementById('exportStatus').innerText='请填写 Webhook URL';
         return;
       }
@@ -9454,10 +9460,14 @@ export default {
       
       document.getElementById('exportStatus').innerText='发送中...';
       try{
-        const r=await fetch('/api/export',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type,webhookUrl,privacy:!!privacy})});
+        const bodyObj={type,webhookUrl,privacy:!!privacy};
+        if(extra)bodyObj.client=extra;
+        const r=await fetch('/api/export',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(bodyObj)});
         if(r.ok){
           const data = await r.json();
-          if (data.sent !== undefined) {
+          if (type==='single_client') {
+            alert('客户已成功导出到企业微信！');
+          } else if (data.sent !== undefined) {
             document.getElementById('exportStatus').innerText = '已发送 ' + data.sent + '/' + data.total + (data.failed > 0 ? '（' + data.failed + ' 条失败）' : '');
           } else {
             document.getElementById('exportStatus').innerText = '已发送到企业微信';
@@ -9465,9 +9475,13 @@ export default {
         }
         else{
           const err=await r.json();
-          document.getElementById('exportStatus').innerText='发送失败: '+(err.error||r.statusText);
+          const msg='发送失败: '+(err.error||r.statusText);
+          if(type==='single_client')alert(msg); else document.getElementById('exportStatus').innerText=msg;
         }
-      }catch(e){document.getElementById('exportStatus').innerText='网络错误: '+e.message;}
+      }catch(e){
+        const msg='网络错误: '+e.message;
+        if(type==='single_client')alert(msg); else document.getElementById('exportStatus').innerText=msg;
+      }
     }
     document.getElementById('exportWeekBtn').addEventListener('click',()=>askExportPref('week'));
     document.getElementById('exportMonthBtn').addEventListener('click',()=>askExportPref('month'));
@@ -10216,16 +10230,8 @@ export default {
         alert('请先在主菜单 → 导出数据 中配置企业微信 Webhook URL');
         return;
       }
-      b.textContent = '发送中...'; b.disabled = true;
-      try {
-        const r = await fetch('/api/export', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ type: 'single_client', webhookUrl: savedUrl, client: c, privacy: localStorage.getItem('export_pref_v1') === 'privacy' })
-        });
-        if (r.ok) { alert('客户已成功导出到企业微信！'); }
-        else { const err = await r.json(); alert('导出失败: ' + (err.error || r.statusText)); }
-      } catch (errVal) { alert('网络错误: ' + errVal.message); }
-      b.textContent = '导出'; b.disabled = false;
+      // 弹出导出偏好选择（完整/隐私），选择后再导出
+      askExportPref('single_client', c);
     }));
 
     // --- Edit client (inline card edit) ---
