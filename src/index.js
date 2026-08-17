@@ -5313,15 +5313,6 @@ export default {
     <div style="display:flex;flex-direction:column;gap:10px;">
       <div style="display:flex;gap:8px;"><button class="btn-add" id="exportWeekBtn" style="flex:1;">导出本周</button><button class="btn-add" id="exportMonthBtn" style="flex:1;">导出本月</button><button class="btn-add" id="exportAllClientsBtn" style="flex:1;background:var(--intent-gradient);">导出全量</button></div>
       <div style="display:flex;gap:8px;"><button class="btn-add" id="exportSoloBtn" style="flex:1;background:var(--revisit-gradient);">逐条导出全量</button></div>
-
-      <div style="border-top:1px solid var(--card-border);padding-top:8px;margin-top:4px;">
-        <div style="font-size:0.7rem;font-weight:700;color:var(--text-main);margin-bottom:6px;">导出偏好（意向客户）</div>
-        <div style="display:flex;gap:8px;">
-          <button id="exportPrefFullBtn" class="btn-add" style="flex:1;font-size:0.7rem;height:28px;margin:0;">完整导出</button>
-          <button id="exportPrefPrivacyBtn" class="btn-add" style="flex:1;font-size:0.7rem;height:28px;margin:0;">隐私导出（去电话/日期）</button>
-        </div>
-        <div id="exportPrefHint" style="font-size:0.6rem;color:var(--text-light);margin-top:4px;"></div>
-      </div>
       
       <div style="border-top: 1px solid var(--card-border); padding-top: 10px; margin-top: 5px;">
         <input type="text" class="input-simple" id="webhookUrlInput" placeholder="企业微信群 Webhook URL" style="margin-bottom: 4px;" autocomplete="off">
@@ -5362,6 +5353,18 @@ export default {
 
       <div id="exportStatus" style="font-size:0.75rem;text-align:center;min-height:20px;"></div>
     </div>
+  </div>
+</div>
+<!-- 导出偏好弹窗：点击导出按钮后弹出，选择 完整导出 / 隐私导出 后再执行 -->
+<div id="exportPrefModal" class="modal-overlay" style="z-index:2100;">
+  <div class="modal-card" style="max-width:340px;width:90%;gap:14px;">
+    <div class="modal-header"><span>导出偏好</span><button id="closeExportPrefBtn">×</button></div>
+    <div style="font-size:0.72rem;color:var(--text-soft);line-height:1.5;">选择本次导出的内容范围：</div>
+    <div style="display:flex;flex-direction:column;gap:8px;">
+      <button id="exportPrefFullGo" class="btn-add" style="padding:10px;font-size:0.8rem;">完整导出<span style="display:block;font-size:0.62rem;font-weight:600;opacity:0.75;margin-top:2px;">导出现有所有内容（含电话、日期）</span></button>
+      <button id="exportPrefPrivacyGo" class="btn-add" style="padding:10px;font-size:0.8rem;background:var(--revisit-gradient);">隐私导出<span style="display:block;font-size:0.62rem;font-weight:600;opacity:0.75;margin-top:2px;">去掉电话和日期，导出其他内容</span></button>
+    </div>
+    <div id="exportPrefModalStatus" style="font-size:0.65rem;color:var(--text-light);text-align:center;min-height:16px;"></div>
   </div>
 </div>
 <!-- Whitelist Management Modal -->
@@ -9411,25 +9414,33 @@ export default {
       setTimeout(updateCooldown, 1000);
     });
 
-    // 导出偏好：full（完整导出） / privacy（隐私导出，去掉电话与日期）
+    // 导出偏好弹窗：点击导出按钮后先选择 完整导出/隐私导出，再执行导出
     const EXPORT_PREF_K='export_pref_v1';
     function getExportPref(){ return localStorage.getItem(EXPORT_PREF_K)==='privacy' ? 'privacy' : 'full'; }
-    function renderExportPref(){
-      const fullBtn=document.getElementById('exportPrefFullBtn');
-      const privBtn=document.getElementById('exportPrefPrivacyBtn');
-      const hint=document.getElementById('exportPrefHint');
-      const isPriv=getExportPref()==='privacy';
-      if(fullBtn){fullBtn.style.background=isPriv?'var(--btn-bg)':'var(--accent-btn)';fullBtn.style.color=isPriv?'var(--text-soft)':'#fff';}
-      if(privBtn){privBtn.style.background=isPriv?'var(--accent-btn)':'var(--btn-bg)';privBtn.style.color=isPriv?'#fff':'var(--text-soft)';}
-      if(hint)hint.textContent=isPriv?'隐私导出：去掉客户电话与日期，其余内容完整导出':'完整导出：导出现有所有内容（含电话、日期）';
+    var _pendingExportType=null;
+    function askExportPref(type){
+      _pendingExportType=type;
+      document.getElementById('exportPrefModal').classList.add('active');
     }
-    const exportPrefFullBtn=document.getElementById('exportPrefFullBtn');
-    const exportPrefPrivacyBtn=document.getElementById('exportPrefPrivacyBtn');
-    if(exportPrefFullBtn)exportPrefFullBtn.addEventListener('click',()=>{localStorage.setItem(EXPORT_PREF_K,'full');renderExportPref();});
-    if(exportPrefPrivacyBtn)exportPrefPrivacyBtn.addEventListener('click',()=>{localStorage.setItem(EXPORT_PREF_K,'privacy');renderExportPref();});
-    renderExportPref();
+    function runPendingExport(privacy){
+      const t=_pendingExportType;
+      _pendingExportType=null;
+      const modal=document.getElementById('exportPrefModal');
+      if(modal)modal.classList.remove('active');
+      localStorage.setItem(EXPORT_PREF_K, privacy);
+      doExport(t, privacy==='privacy');
+    }
+    function initExportPrefModal(){
+      const modal=document.getElementById('exportPrefModal');
+      if(!modal)return;
+      document.getElementById('exportPrefFullGo').addEventListener('click',()=>runPendingExport('full'));
+      document.getElementById('exportPrefPrivacyGo').addEventListener('click',()=>runPendingExport('privacy'));
+      document.getElementById('closeExportPrefBtn').addEventListener('click',()=>{_pendingExportType=null;modal.classList.remove('active');});
+      modal.addEventListener('click',e=>{if(e.target===modal){_pendingExportType=null;modal.classList.remove('active');}});
+    }
+    initExportPrefModal();
 
-    async function doExport(type){
+    async function doExport(type, privacy){
       const webhookUrl=document.getElementById('webhookUrlInput').value.trim();
       if(!webhookUrl){
         document.getElementById('exportStatus').innerText='请填写 Webhook URL';
@@ -9441,10 +9452,9 @@ export default {
         syncOp('setWebhookUrl',{webhookUrl:webhookUrl});
       }
       
-      const privacy = getExportPref()==='privacy';
       document.getElementById('exportStatus').innerText='发送中...';
       try{
-        const r=await fetch('/api/export',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type,webhookUrl,privacy})});
+        const r=await fetch('/api/export',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type,webhookUrl,privacy:!!privacy})});
         if(r.ok){
           const data = await r.json();
           if (data.sent !== undefined) {
@@ -9459,10 +9469,10 @@ export default {
         }
       }catch(e){document.getElementById('exportStatus').innerText='网络错误: '+e.message;}
     }
-    document.getElementById('exportWeekBtn').addEventListener('click',()=>doExport('week'));
-    document.getElementById('exportMonthBtn').addEventListener('click',()=>doExport('month'));
-    document.getElementById('exportAllClientsBtn').addEventListener('click',()=>doExport('all_clients'));
-    document.getElementById('exportSoloBtn').addEventListener('click',()=>doExport('all_clients_solo'));
+    document.getElementById('exportWeekBtn').addEventListener('click',()=>askExportPref('week'));
+    document.getElementById('exportMonthBtn').addEventListener('click',()=>askExportPref('month'));
+    document.getElementById('exportAllClientsBtn').addEventListener('click',()=>askExportPref('all_clients'));
+    document.getElementById('exportSoloBtn').addEventListener('click',()=>askExportPref('all_clients_solo'));
   }
   // ==================== Android 设备检测 ====================
   function initAndroid(){
