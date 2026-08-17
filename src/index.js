@@ -5355,16 +5355,11 @@ export default {
     </div>
   </div>
 </div>
-<!-- 导出偏好弹窗：点击导出按钮后弹出，选择 完整导出 / 隐私导出 后再执行 -->
+<!-- 导出偏好弹窗：点击导出按钮后弹出，仅两个按钮，选择后执行 -->
 <div id="exportPrefModal" class="modal-overlay" style="z-index:2100;">
-  <div class="modal-card" style="max-width:340px;width:90%;gap:14px;">
-    <div class="modal-header"><span>导出偏好</span><button id="closeExportPrefBtn">×</button></div>
-    <div style="font-size:0.72rem;color:var(--text-soft);line-height:1.5;">选择本次导出的内容范围：</div>
-    <div style="display:flex;flex-direction:column;gap:8px;">
-      <button id="exportPrefFullGo" class="btn-add" style="padding:10px;font-size:0.8rem;">完整导出<span style="display:block;font-size:0.62rem;font-weight:600;opacity:0.75;margin-top:2px;">导出现有所有内容（含电话、日期）</span></button>
-      <button id="exportPrefPrivacyGo" class="btn-add" style="padding:10px;font-size:0.8rem;background:var(--revisit-gradient);">隐私导出<span style="display:block;font-size:0.62rem;font-weight:600;opacity:0.75;margin-top:2px;">去掉电话和日期，导出其他内容</span></button>
-    </div>
-    <div id="exportPrefModalStatus" style="font-size:0.65rem;color:var(--text-light);text-align:center;min-height:16px;"></div>
+  <div class="modal-card" style="max-width:300px;width:80%;gap:10px;padding:22px 20px;border-radius:18px;">
+    <button id="exportPrefFullGo" class="btn-add" style="padding:15px;font-size:0.95rem;">完整导出</button>
+    <button id="exportPrefPrivacyGo" class="btn-add" style="padding:15px;font-size:0.95rem;background:var(--revisit-gradient);">隐私导出</button>
   </div>
 </div>
 <!-- Whitelist Management Modal -->
@@ -9442,7 +9437,6 @@ export default {
       if(!modal)return;
       document.getElementById('exportPrefFullGo').addEventListener('click',()=>runPendingExport('full'));
       document.getElementById('exportPrefPrivacyGo').addEventListener('click',()=>runPendingExport('privacy'));
-      document.getElementById('closeExportPrefBtn').addEventListener('click',()=>{_pendingExportType=null;modal.classList.remove('active');});
       modal.addEventListener('click',e=>{if(e.target===modal){_pendingExportType=null;modal.classList.remove('active');}});
     }
     initExportPrefModal();
