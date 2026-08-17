@@ -9425,6 +9425,8 @@ export default {
       const modal=document.getElementById('exportPrefModal');
       if(modal)modal.classList.add('active');
     }
+    // 暴露到全局：全量表单卡片「导出」按钮在另一个函数作用域，必须能解析到 askExportPref
+    window.askExportPref = askExportPref;
     function runPendingExport(privacy){
       const t=_pendingExportType;
       const payload=_pendingExportPayload;
