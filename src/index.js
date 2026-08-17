@@ -3187,7 +3187,7 @@ export default {
     // 导出数据并发送企业微信 webhook
     if (path === '/api/export' && request.method === 'POST') {
       const body = await request.json();
-      const { type, webhookUrl } = body;
+      const { type, webhookUrl, privacy } = body;
       if (!type) {
         return new Response(JSON.stringify({ error: '缺少 type 参数' }), {
           status: 400,
@@ -3246,8 +3246,8 @@ export default {
         
         let text = '> 客户姓名：' + client.name + '\n';
         text += '> 编号：' + (client.no || '—') + '\n';
-        text += '> 日期：' + datePart + wk + ' | 时间：' + (client.time || '') + '\n';
-        text += '> 电话：' + (client.phone || '') + '\n';
+        if (!privacy) text += '> 日期：' + datePart + wk + ' | 时间：' + (client.time || '') + '\n';
+        if (!privacy) text += '> 电话：' + (client.phone || '') + '\n';
         text += '> 单位名称：' + (client.company || '') + '\n';
         text += '> 公积金基数：' + (client.fund || '') + '\n';
         text += '> 社保养老基数：' + (client.socialSecurity || '') + '\n';
@@ -3360,14 +3360,14 @@ export default {
         const weekNames = ['日', '一', '二', '三', '四', '五', '六'];
         const total = allClients.length;
 
-        const baseHeader = '### 意向客户全量表\n> 共计 **' + total + '** 位意向客户\n\n---\n\n';
+        const baseHeader = '### 意向客户全量表' + (privacy ? '（隐私导出）' : '') + '\n> 共计 **' + total + '** 位意向客户\n\n---\n\n';
         const itemFormatter = (c) => {
           const datePart = (c.date || '').slice(5);
           const wk = c.date ? ' 周' + weekNames[new Date(c.date + 'T00:00:00').getDay()] : '';
           let itemText = '> 客户姓名：' + c.name + '\n';
           itemText += '> 编号：' + (c.no || '—') + '\n';
-          itemText += '> 日期：' + datePart + wk + ' | 时间：' + (c.time || '') + '\n';
-          itemText += '> 电话：' + (c.phone || '') + '\n';
+          if (!privacy) itemText += '> 日期：' + datePart + wk + ' | 时间：' + (c.time || '') + '\n';
+          if (!privacy) itemText += '> 电话：' + (c.phone || '') + '\n';
           itemText += '> 单位名称：' + (c.company || '') + '\n';
           itemText += '> 公积金基数：' + (c.fund || '') + '\n';
           itemText += '> 社保养老基数：' + (c.socialSecurity || '') + '\n';
@@ -3445,8 +3445,8 @@ export default {
           const wk = c.date ? ' 周' + weekNames[new Date(c.date + 'T00:00:00').getDay()] : '';
           let text = '> 客户姓名：' + c.name + '\n';
           text += '> 编号：' + (c.no || '—') + '\n';
-          text += '> 日期：' + datePart + wk + ' | 时间：' + (c.time || '') + '\n';
-          text += '> 电话：' + (c.phone || '') + '\n';
+          if (!privacy) text += '> 日期：' + datePart + wk + ' | 时间：' + (c.time || '') + '\n';
+          if (!privacy) text += '> 电话：' + (c.phone || '') + '\n';
           text += '> 单位名称：' + (c.company || '') + '\n';
           text += '> 公积金基数：' + (c.fund || '') + '\n';
           text += '> 社保养老基数：' + (c.socialSecurity || '') + '\n';
@@ -5313,6 +5313,15 @@ export default {
     <div style="display:flex;flex-direction:column;gap:10px;">
       <div style="display:flex;gap:8px;"><button class="btn-add" id="exportWeekBtn" style="flex:1;">导出本周</button><button class="btn-add" id="exportMonthBtn" style="flex:1;">导出本月</button><button class="btn-add" id="exportAllClientsBtn" style="flex:1;background:var(--intent-gradient);">导出全量</button></div>
       <div style="display:flex;gap:8px;"><button class="btn-add" id="exportSoloBtn" style="flex:1;background:var(--revisit-gradient);">逐条导出全量</button></div>
+
+      <div style="border-top:1px solid var(--card-border);padding-top:8px;margin-top:4px;">
+        <div style="font-size:0.7rem;font-weight:700;color:var(--text-main);margin-bottom:6px;">导出偏好（意向客户）</div>
+        <div style="display:flex;gap:8px;">
+          <button id="exportPrefFullBtn" class="btn-add" style="flex:1;font-size:0.7rem;height:28px;margin:0;">完整导出</button>
+          <button id="exportPrefPrivacyBtn" class="btn-add" style="flex:1;font-size:0.7rem;height:28px;margin:0;">隐私导出（去电话/日期）</button>
+        </div>
+        <div id="exportPrefHint" style="font-size:0.6rem;color:var(--text-light);margin-top:4px;"></div>
+      </div>
       
       <div style="border-top: 1px solid var(--card-border); padding-top: 10px; margin-top: 5px;">
         <input type="text" class="input-simple" id="webhookUrlInput" placeholder="企业微信群 Webhook URL" style="margin-bottom: 4px;" autocomplete="off">
@@ -9402,6 +9411,24 @@ export default {
       setTimeout(updateCooldown, 1000);
     });
 
+    // 导出偏好：full（完整导出） / privacy（隐私导出，去掉电话与日期）
+    const EXPORT_PREF_K='export_pref_v1';
+    function getExportPref(){ return localStorage.getItem(EXPORT_PREF_K)==='privacy' ? 'privacy' : 'full'; }
+    function renderExportPref(){
+      const fullBtn=document.getElementById('exportPrefFullBtn');
+      const privBtn=document.getElementById('exportPrefPrivacyBtn');
+      const hint=document.getElementById('exportPrefHint');
+      const isPriv=getExportPref()==='privacy';
+      if(fullBtn){fullBtn.style.background=isPriv?'var(--btn-bg)':'var(--accent-btn)';fullBtn.style.color=isPriv?'var(--text-soft)':'#fff';}
+      if(privBtn){privBtn.style.background=isPriv?'var(--accent-btn)':'var(--btn-bg)';privBtn.style.color=isPriv?'#fff':'var(--text-soft)';}
+      if(hint)hint.textContent=isPriv?'隐私导出：去掉客户电话与日期，其余内容完整导出':'完整导出：导出现有所有内容（含电话、日期）';
+    }
+    const exportPrefFullBtn=document.getElementById('exportPrefFullBtn');
+    const exportPrefPrivacyBtn=document.getElementById('exportPrefPrivacyBtn');
+    if(exportPrefFullBtn)exportPrefFullBtn.addEventListener('click',()=>{localStorage.setItem(EXPORT_PREF_K,'full');renderExportPref();});
+    if(exportPrefPrivacyBtn)exportPrefPrivacyBtn.addEventListener('click',()=>{localStorage.setItem(EXPORT_PREF_K,'privacy');renderExportPref();});
+    renderExportPref();
+
     async function doExport(type){
       const webhookUrl=document.getElementById('webhookUrlInput').value.trim();
       if(!webhookUrl){
@@ -9414,9 +9441,10 @@ export default {
         syncOp('setWebhookUrl',{webhookUrl:webhookUrl});
       }
       
+      const privacy = getExportPref()==='privacy';
       document.getElementById('exportStatus').innerText='发送中...';
       try{
-        const r=await fetch('/api/export',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type,webhookUrl})});
+        const r=await fetch('/api/export',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type,webhookUrl,privacy})});
         if(r.ok){
           const data = await r.json();
           if (data.sent !== undefined) {
@@ -10182,7 +10210,7 @@ export default {
       try {
         const r = await fetch('/api/export', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ type: 'single_client', webhookUrl: savedUrl, client: c })
+          body: JSON.stringify({ type: 'single_client', webhookUrl: savedUrl, client: c, privacy: localStorage.getItem('export_pref_v1') === 'privacy' })
         });
         if (r.ok) { alert('客户已成功导出到企业微信！'); }
         else { const err = await r.json(); alert('导出失败: ' + (err.error || r.statusText)); }
