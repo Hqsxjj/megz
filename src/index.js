@@ -10011,7 +10011,7 @@ export default {
       html += '<div class="client-card-item all-client-card' + (c.status ? ' ' + STATUS_CLASSES[c.status] : '') + '" data-date="' + esc(c.date) + '" data-name="' + esc(c.name) + '" data-phone="' + esc(c.phone) + '" data-time="' + esc(c.time || '') + '">' +
           '<div class="client-card-top">' +
           '<div class="client-card-primary">' +
-            (c.no ? '<span title="客户编号（永久不变）" style="display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 5px;border-radius:999px;background:var(--accent-wechat);color:#fff;font-size:0.6rem;font-weight:800;flex-shrink:0;">#' + esc(c.no) + '</span>' : (c._seq ? '<span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:var(--accent-wechat);color:#fff;font-size:0.6rem;font-weight:800;flex-shrink:0;">' + c._seq + '</span>' : '')) +
+            (c.no ? '<span title="客户编号（永久不变）" style="display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 5px;border-radius:999px;background:var(--accent-wechat);color:#fff;font-size:0.6rem;font-weight:800;flex-shrink:0;">' + esc(c.no) + '</span>' : (c._seq ? '<span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:var(--accent-wechat);color:#fff;font-size:0.6rem;font-weight:800;flex-shrink:0;">' + c._seq + '</span>' : '')) +
             '<span class="client-card-name">' + esc(c.name) + '</span>' +
             '<span class="client-card-phone-wrap">' +
               '<a class="client-card-phone all-phone-link" href="tel:' + esc(c.phone) + '" data-full="' + esc(c.phone) + '">' + esc(maskPhone(c.phone)) + '</a>' +
