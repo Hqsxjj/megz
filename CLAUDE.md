@@ -82,9 +82,10 @@ The bridge must run locally (persistent long-poll, file I/O). It cannot run on C
 
 ## 意向客户永久编号规则（重要，勿破坏）
 
-每个意向客户在登记时由服务端分配一个永久编号（字段名 `no`，如 `0001`），规则如下：
-- 编号从 `0001` 开始，按登记先后依次递增，格式为 4 位数字（超过 9999 后自然增长为 5 位）。
+每个意向客户在登记时由服务端分配一个永久编号（字段名 `no`，如 `1`、`2`），规则如下：
+- 编号为**自然数**，从 `1` 开始，按登记先后依次递增（**不补零**）。
 - 编号一经分配**永远不变**：编辑客户资料时保留原编号；删除客户后编号作废，**永不复用**。
-- 计数器存于 KV key `meta:client_seq`；存量客户的一次性补编由 `meta:client_seq_backfilled` 标志控制（按登记日期+时间升序补编）。
+- 计数器存于 KV key `meta:client_seq`；存量客户的一次性补编由 `meta:client_seq_backfilled` 标志控制（按登记日期+时间升序补编，分批 20 天/次 + `meta:client_seq_backfill_cursor` 游标续跑，避免超子请求上限）。
+- 一次性编号重构由 `meta:client_no_renumber` 标志控制（旧 4 位补零编号 → 自然数）：重构期间（标志未置位）不分配新编号，分批清除所有客户 `no` 后重置计数器为 0 并置位标志，随后补编按日期顺序重新编号。
 - 所有新增路径（`/api/sync` addClient / updateClient / setAllClients、`/api/data` POST）都必须先调用 `ensureClientNoBackfill(env)`，再为无 `no` 的客户分配编号，防止新客户抢占存量客户的编号。
 - 全量表接口 `/api/all-clients` 与所有导出（`/api/export`、AI `export_data`）都会输出客户编号。

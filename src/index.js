@@ -46,10 +46,13 @@ async function getKVValuesConcurrently(env, keys) {
 }
 
 // ===== 意向客户永久编号（一经分配，永不改变、永不复用）=====
+// 编号为自然数：1, 2, 3 ...（不补零）
 function formatClientNo(n) {
-  return String(n).padStart(4, '0');
+  return String(n);
 }
 async function getNextClientNo(env) {
+  // 编号重构期间（meta:client_no_renumber 未置位）暂不发号，等重构完成后由补编统一按日期顺序编号
+  if (!(await env.DATA_KV.get('meta:client_no_renumber'))) return '';
   const raw = await env.DATA_KV.get('meta:client_seq');
   const next = parseInt(raw || '0', 10) + 1;
   await env.DATA_KV.put('meta:client_seq', String(next));
@@ -57,6 +60,7 @@ async function getNextClientNo(env) {
 }
 // 批量分配：计数器只读一次、写一次，避免每个客户 2 次 KV 操作
 async function ensureClientsHaveNo(env, clients) {
+  if (!(await env.DATA_KV.get('meta:client_no_renumber'))) return; // 重构期间不分配
   const list = clients || [];
   const missing = list.filter(c => c && !c.no);
   if (missing.length === 0) return;
@@ -70,6 +74,45 @@ async function ensureClientsHaveNo(env, clients) {
 async function ensureClientNoBackfill(env) {
   const BATCH = 20;
   try {
+    // ===== 一次性编号重构（老版 4 位补零且起点错乱 → 自然数从 1 开始）=====
+    // meta:client_no_renumber 未置位时：分批清除所有客户已分配的 no（每批 20 天），
+    // 完成后重置计数器并清掉补编标志；之后正常补编会按登记时间顺序从 1 重新编号
+    if (!(await env.DATA_KV.get('meta:client_no_renumber'))) {
+      const renKeys = await getAllKVKeys(env, 'work:');
+      renKeys.sort((a, b) => a.name.localeCompare(b.name));
+      const renCursor = parseInt(await env.DATA_KV.get('meta:client_no_renumber_cursor') || '0', 10) || 0;
+      const renBatch = renKeys.slice(renCursor, renCursor + BATCH);
+      if (renBatch.length === 0) {
+        // 全部处理完：重置计数器、清掉补编标志与游标，开启下一阶段
+        await env.DATA_KV.put('meta:client_seq', '0');
+        await env.DATA_KV.delete('meta:client_seq_backfilled');
+        await env.DATA_KV.delete('meta:client_seq_backfill_cursor');
+        await env.DATA_KV.delete('meta:client_no_renumber_cursor');
+        await env.DATA_KV.put('meta:client_no_renumber', '1');
+        return; // 本次调用到此为止，下一次调用开始正常补编
+      }
+      const renVals = await getKVValuesConcurrently(env, renBatch);
+      const changed = [];
+      for (const kv of renVals) {
+        if (!kv.val) continue;
+        try {
+          const d = JSON.parse(kv.val);
+          let dirty = false;
+          if (d && d.clients && d.clients.length > 0) {
+            for (const c of d.clients) {
+              if (c && c.no !== undefined) { delete c.no; dirty = true; }
+            }
+          }
+          if (dirty) changed.push({ key: kv.name, day: d });
+        } catch (e) {}
+      }
+      for (const item of changed) {
+        await env.DATA_KV.put(item.key, JSON.stringify(item.day));
+      }
+      await env.DATA_KV.put('meta:client_no_renumber_cursor', String(renCursor + renBatch.length));
+      return; // 重构未完成，本次不再执行补编
+    }
+
     if (await env.DATA_KV.get('meta:client_seq_backfilled')) return;
     const keys = await getAllKVKeys(env, 'work:');
     keys.sort((a, b) => a.name.localeCompare(b.name)); // work:YYYY-MM-DD 字典序即时间序
